@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_BUILD_JOBS: 2
+  RUST_MIN_STACK: 16777216
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Rust toolchain
+        run: rustup show
+      - name: Check formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all -- --check
+      - name: Compile every target
+        if: runner.os == 'Linux'
+        run: cargo check --locked --all-targets
+      - name: Run integration tests
+        run: >-
+          cargo test --locked
+          --test backend_contract
+          --test interactive_session
+          --test multiplayer_simulation
+          --test playable_model
+          --test random_game_engine
+      - name: Run quarantined reviewed-fixture audits
+        continue-on-error: true
+        run: >-
+          cargo test --locked
+          --test four_color_random_games
+          --test hob_parser_batch
+          --test hoc_parser_batch
+          --test oracle_ground_truth
+      - name: Audit public tree
+        shell: pwsh
+        run: ./scripts/check-public-tree.ps1

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "torpor-orb",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Torpor Orb",
+    "setCode": "nph",
+    "collectorNumber": "162",
+    "typeLine": "Artifact",
+    "manaCost": "{2}",
+    "oracleText": "Creatures entering don't cause abilities to trigger."
+  },
+  "abilities": [{
+    "id": "torpor-orb:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Creatures entering don't cause abilities to trigger.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "suppressTriggerCreation",
+        "causedBy": {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "eventObject",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      }]
+    }
+  }],
+  "reviewNotes": [
+    "The rule suppresses every trigger caused by a creature entering, not only abilities printed on that creature.",
+    "Replacement effects and non-triggered static abilities are unaffected."
+  ]
+}

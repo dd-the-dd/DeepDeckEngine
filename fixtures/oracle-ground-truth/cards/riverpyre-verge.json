@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "riverpyre-verge",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Riverpyre Verge",
+    "setCode": "dft",
+    "collectorNumber": "260",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "{T}: Add {R}.\n{T}: Add {U}. Activate only if you control an Island or a Mountain."
+  },
+  "abilities": [
+    {
+      "id": "riverpyre-verge:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {R}.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{R}"
+        }]
+      }
+    },
+    {
+      "id": "riverpyre-verge:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {U}. Activate only if you control an Island or a Mountain.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "activationCondition": {
+          "kind": "controlsPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "subtypeContains", "value": "Island" },
+              { "kind": "subtypeContains", "value": "Mountain" }
+            ]
+          }
+        },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{U}"
+        }]
+      }
+    }
+  ]
+}

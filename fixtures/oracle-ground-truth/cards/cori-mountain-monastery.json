@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "cori-mountain-monastery",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Cori Mountain Monastery",
+    "setCode": "tdm",
+    "collectorNumber": "252",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {R}.\n{3}{R}, {T}: Exile the top card of your library. Until the end of your next turn, you may play that card."
+  },
+  "abilities": [
+    {
+      "id": "cori-mountain-monastery:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "This land enters tapped unless you control a Plains or an Island.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "controlsPermanent",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "subtypeContains", "value": "Plains" },
+                { "kind": "subtypeContains", "value": "Island" }
+              ]
+            }
+          }
+        },
+        "replacement": [
+          {
+            "kind": "setEnteringState",
+            "object": { "kind": "self" },
+            "tapped": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "cori-mountain-monastery:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {R}.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [
+          { "kind": "tap", "object": { "kind": "self" } }
+        ],
+        "effects": [
+          {
+            "kind": "addMana",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "mana": "{R}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cori-mountain-monastery:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{3}{R}, {T}: Exile the top card of your library. Until the end of your next turn, you may play that card.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "costs": [
+          {
+            "kind": "payMana",
+            "manaCost": "{3}{R}"
+          },
+          { "kind": "tap", "object": { "kind": "self" } }
+        ],
+        "effects": [
+          {
+            "kind": "exileTopCards",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "count": { "kind": "integer", "value": 1 },
+            "faceDown": false,
+            "bind": "exiledTopCards"
+          },
+          {
+            "kind": "grantPermission",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "action": {
+              "kind": "play",
+              "card": { "kind": "boundObject", "binding": "exiledTopCards" },
+              "normalTimingApplies": true,
+              "normalCostsApply": true
+            },
+            "duration": {
+              "kind": "untilEndOfNextTurn",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "This land is normalized to self; the source type remains in card context rather than the reference identity.",
+    "The enter-tapped ability is a replacement effect, not a triggered ability.",
+    "The generalized top-card exile primitive binds its one-card result before the later permission references it."
+  ]
+}

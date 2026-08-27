@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "improvisation-capstone",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Improvisation Capstone",
+    "setCode": "sos",
+    "collectorNumber": "120",
+    "typeLine": "Sorcery \u2014 Lesson",
+    "manaCost": "{5}{R}{R}",
+    "oracleText": "Exile cards from the top of your library until you exile cards with total mana value 4 or greater. You may cast any number of spells from among them without paying their mana costs.\nParadigm (Then exile this spell. After you first resolve a spell with this name, you may cast a copy of it from exile without paying its mana cost at the beginning of each of your first main phases.)"
+  },
+  "abilities": [
+    {
+      "id": "improvisation-capstone:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Exile cards from the top of your library until you exile cards with total mana value 4 or greater. You may cast any number of spells from among them without paying their mana costs.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [
+          {
+            "kind": "exileFromTopUntil",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "bind": "exiledCards",
+            "faceDown": false,
+            "stopWhen": {
+              "kind": "compare",
+              "operator": ">=",
+              "left": {
+                "kind": "sumManaValues",
+                "objects": { "kind": "boundObjects", "binding": "exiledCards" },
+                "variableManaSymbolsEqual": 0
+              },
+              "right": { "kind": "integer", "value": 4 }
+            },
+            "alsoStopsWhen": { "kind": "sourceZoneEmpty" }
+          },
+          {
+            "kind": "castAnyNumber",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "cards": { "kind": "boundObjects", "binding": "exiledCards" },
+            "where": { "kind": "canBeCastAsSpell" },
+            "timing": { "kind": "duringResolution" },
+            "withoutPayingManaCost": true,
+            "alternativeCostsAllowed": false,
+            "additionalCostsApply": true,
+            "variableManaValue": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "improvisation-capstone:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Paradigm (Then exile this spell. After you first resolve a spell with this name, you may cast a copy of it from exile without paying its mana cost at the beginning of each of your first main phases.)",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": {
+          "kind": "paradigm",
+          "spellName": "Improvisation Capstone"
+        }
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The top-card loop stops when the accumulated mana value reaches four or the library is empty.",
+    "Eligible spells are cast during this resolution; type-based timing restrictions are ignored, but mandatory additional costs remain payable.",
+    "Paradigm is a named engine composition that exiles the resolving spell and creates its persistent first-main-phase delayed trigger."
+  ]
+}

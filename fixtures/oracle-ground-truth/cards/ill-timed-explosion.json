@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "ill-timed-explosion",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Ill-Timed Explosion",
+    "setCode": "mkm",
+    "collectorNumber": "207",
+    "typeLine": "Sorcery",
+    "manaCost": "{2}{U}{R}",
+    "oracleText": "Draw two cards. Then you may discard two cards. When you do, Ill-Timed Explosion deals X damage to each creature, where X is the greatest mana value among cards discarded this way."
+  },
+  "abilities": [{
+    "id": "ill-timed-explosion:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Draw two cards. Then you may discard two cards. When you do, Ill-Timed Explosion deals X damage to each creature, where X is the greatest mana value among cards discarded this way.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": 2
+        },
+        {
+          "kind": "optionalAction",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "action": {
+            "kind": "discardCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": 2,
+            "bind": "discardedCards"
+          },
+          "onPerformed": [{
+            "kind": "createReflexiveTrigger",
+            "source": { "kind": "self" },
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": {
+                "kind": "maximumManaValue",
+                "collection": { "kind": "boundObjects", "binding": "discardedCards" },
+                "variableManaSymbolsEqual": 0
+              },
+              "recipient": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          }]
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "The discard is an optional all-or-nothing action for exactly two cards.",
+    "When the discard is performed, it creates a reflexive triggered ability that resolves separately after Ill-Timed Explosion finishes.",
+    "Variable mana symbols count as zero when the reflexive trigger computes the greatest mana value."
+  ]
+}

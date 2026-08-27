@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "sanar-unfinished-genius",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Sanar, Unfinished Genius // Wild Idea",
+    "setCode": "sos",
+    "collectorNumber": "223",
+    "layout": "prepare",
+    "typeLine": "Legendary Creature \u2014 Goblin Sorcerer // Sorcery",
+    "manaCost": "{U}{R} // {3}{U}{R}",
+    "oracleText": null,
+    "prepare": {
+      "permanentFaceId": "sanar-unfinished-genius",
+      "spellFaceId": "wild-idea"
+    },
+    "faces": [
+      {
+        "id": "sanar-unfinished-genius",
+        "name": "Sanar, Unfinished Genius",
+        "typeLine": "Legendary Creature \u2014 Goblin Sorcerer",
+        "manaCost": "{U}{R}",
+        "power": "0",
+        "toughness": "4",
+        "oracleText": "Sanar enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)\n{T}: Create a Treasure token. Activate only if you've cast an instant or sorcery spell this turn."
+      },
+      {
+        "id": "wild-idea",
+        "name": "Wild Idea",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{R}",
+        "oracleText": "Search your library for an instant or sorcery card, reveal it, put it into your hand, then shuffle."
+      }
+    ]
+  },
+  "abilities": [
+    {
+      "id": "sanar-unfinished-genius:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "sanar-unfinished-genius",
+        "text": "Sanar enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "replacement": [
+          {
+            "kind": "setPrepared",
+            "object": { "kind": "self" },
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanar-unfinished-genius:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "sanar-unfinished-genius",
+        "text": "{T}: Create a Treasure token. Activate only if you've cast an instant or sorcery spell this turn.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "activationCondition": {
+          "kind": "hasCastSpellThisTurn",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Instant" },
+              { "kind": "cardTypeContains", "value": "Sorcery" }
+            ]
+          }
+        },
+        "costs": [
+          { "kind": "tap", "object": { "kind": "self" } }
+        ],
+        "effects": [
+          {
+            "kind": "createTokens",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "quantity": 1,
+            "token": {
+              "kind": "namedToken",
+              "name": "Treasure"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanar-unfinished-genius:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "wild-idea",
+        "text": "Search your library for an instant or sorcery card, reveal it, put it into your hand, then shuffle.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [
+          {
+            "kind": "chooseCards",
+            "id": "foundCard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "minimum": 0,
+            "maximum": 1,
+            "search": true,
+            "candidates": {
+              "kind": "cards",
+              "zone": {
+                "kind": "library",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Instant" },
+                  { "kind": "cardTypeContains", "value": "Sorcery" }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "revealCards",
+            "cards": { "kind": "decisionResult", "decisionId": "foundCard" }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "foundCard" },
+            "to": {
+              "kind": "hand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          },
+          {
+            "kind": "shuffleZone",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The prepare linkage names the permanent face and its castable spell face; the shared prepare vocabulary creates and tracks the exiled copy and unprepares Sanar when that copy is cast.",
+    "The activation condition checks the current turn's cast-event history before the tap cost can be paid.",
+    "The library search may legally find no card because it searches a hidden zone with a quality restriction."
+  ]
+}

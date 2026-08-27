@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "great-hall-of-the-biblioplex",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Great Hall of the Biblioplex",
+    "setCode": "sos",
+    "collectorNumber": "257",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "{T}: Add {C}.\n{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast an instant or sorcery spell.\n{5}: If this land isn't a creature, it becomes a 2/4 Wizard creature with \"Whenever you cast an instant or sorcery spell, this creature gets +1/+0 until end of turn.\" It's still a land."
+  },
+  "abilities": [
+    {
+      "id": "great-hall-of-the-biblioplex:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {C}.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{C}"
+        }]
+      }
+    },
+    {
+      "id": "great-hall-of-the-biblioplex:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}, Pay 1 life: Add one mana of any color. Spend this mana only to cast an instant or sorcery spell.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [
+          { "kind": "tap", "object": { "kind": "self" } },
+          {
+            "kind": "payLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 1 }
+          }
+        ],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": {
+            "kind": "chooseColor",
+            "amount": 1,
+            "spendRestriction": {
+              "kind": "castSpell",
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Instant" },
+                  { "kind": "cardTypeContains", "value": "Sorcery" }
+                ]
+              }
+            }
+          }
+        }]
+      }
+    },
+    {
+      "id": "great-hall-of-the-biblioplex:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{5}: If this land isn't a creature, it becomes a 2/4 Wizard creature with \"Whenever you cast an instant or sorcery spell, this creature gets +1/+0 until end of turn.\" It's still a land.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "payMana", "manaCost": "{5}" }],
+        "effects": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "not",
+            "operand": {
+              "kind": "hasCardType",
+              "object": { "kind": "self" },
+              "value": "Creature"
+            }
+          },
+          "then": [
+            {
+              "kind": "becomeCreature",
+              "object": { "kind": "self" },
+              "addTypes": ["Creature"],
+              "addSubtypes": ["Wizard"],
+              "basePower": 2,
+              "baseToughness": 4,
+              "retainExistingTypes": true,
+              "duration": { "kind": "permanent" }
+            },
+            {
+              "kind": "grantAbility",
+              "object": { "kind": "self" },
+              "duration": { "kind": "permanent" },
+              "ability": {
+                "kind": "triggeredAbility",
+                "event": {
+                  "kind": "spellCast",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "abilitySource" }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      { "kind": "cardTypeContains", "value": "Instant" },
+                      { "kind": "cardTypeContains", "value": "Sorcery" }
+                    ]
+                  }
+                },
+                "effects": [{
+                  "kind": "modifyPowerToughness",
+                  "object": { "kind": "abilitySource" },
+                  "power": 1,
+                  "toughness": 0,
+                  "duration": { "kind": "untilEndOfCurrentTurn" }
+                }]
+              }
+            }
+          ]
+        }]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The creature check is evaluated when the activated ability resolves; it is not an activation restriction.",
+    "The animation keeps the land type and grants the quoted triggered ability for the lifetime of that object."
+  ]
+}

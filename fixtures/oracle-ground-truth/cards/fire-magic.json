@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "fire-magic",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Fire Magic",
+    "setCode": "fin",
+    "collectorNumber": "136",
+    "typeLine": "Instant",
+    "manaCost": "{R}",
+    "oracleText": "Tiered (Choose one additional cost.)\n\u2022 Fire \u2014 {0} \u2014 Fire Magic deals 1 damage to each creature.\n\u2022 Fira \u2014 {2} \u2014 Fire Magic deals 2 damage to each creature.\n\u2022 Firaga \u2014 {5} \u2014 Fire Magic deals 3 damage to each creature."
+  },
+  "abilities": [
+    {
+      "id": "fire-magic:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Tiered (Choose one additional cost.)\n\u2022 Fire \u2014 {0} \u2014 Fire Magic deals 1 damage to each creature.\n\u2022 Fira \u2014 {2} \u2014 Fire Magic deals 2 damage to each creature.\n\u2022 Firaga \u2014 {5} \u2014 Fire Magic deals 3 damage to each creature.",
+        "lineStart": 0,
+        "lineEnd": 3
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [{
+            "id": "chosenModes",
+            "kind": "chooseModes",
+            "minimum": 1,
+            "maximum": 1,
+            "options": ["fire", "fira", "firaga"]
+          }],
+          "additionalCosts": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "fire"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{0}" }]
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "fira"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{2}" }]
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "firaga"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{5}" }]
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "fire"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 1 },
+              "recipient": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "fira"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 2 },
+              "recipient": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "firaga"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 3 },
+              "recipient": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "Tiered mode costs are additional to Fire Magic's printed mana cost.",
+    "Each mode affects the same untargeted set of creatures, so no target declaration is created."
+  ]
+}

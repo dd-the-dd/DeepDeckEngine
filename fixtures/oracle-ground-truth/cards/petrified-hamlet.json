@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "petrified-hamlet",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Petrified Hamlet",
+    "setCode": "sos",
+    "collectorNumber": "259",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "When this land enters, choose a land card name.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.\nLands with the chosen name have \"{T}: Add {C}.\"\n{T}: Add {C}."
+  },
+  "abilities": [
+    {
+      "id": "petrified-hamlet:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "When this land enters, choose a land card name.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "enterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "effects": [{
+          "kind": "chooseCardName",
+          "id": "chosenLandName",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "cardTypeContains", "value": "Land" },
+          "persistOn": { "kind": "self" }
+        }]
+      }
+    },
+    {
+      "id": "petrified-hamlet:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Activated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "battlefield" }
+        },
+        "modifiers": [{
+          "kind": "prohibitActivation",
+          "abilities": {
+            "kind": "activatedAbilities",
+            "sourceWhere": {
+              "kind": "nameEquals",
+              "value": {
+                "kind": "storedDecision",
+                "object": { "kind": "self" },
+                "decisionId": "chosenLandName"
+              }
+            },
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "isManaAbility" }
+            }
+          }
+        }]
+      }
+    },
+    {
+      "id": "petrified-hamlet:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Lands with the chosen name have \"{T}: Add {C}.\"",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "battlefield" }
+        },
+        "modifiers": [{
+          "kind": "grantAbility",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Land" },
+                {
+                  "kind": "nameEquals",
+                  "value": {
+                    "kind": "storedDecision",
+                    "object": { "kind": "self" },
+                    "decisionId": "chosenLandName"
+                  }
+                }
+              ]
+            }
+          },
+          "ability": {
+            "kind": "manaAbility",
+            "costs": [{ "kind": "tap", "object": { "kind": "abilitySource" } }],
+            "effects": [{
+              "kind": "addMana",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "abilitySource" }
+              },
+              "mana": "{C}"
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "petrified-hamlet:ability:4",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {C}.",
+        "lineStart": 3,
+        "lineEnd": 3
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{C}"
+        }]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The chosen land card name is stored on this permanent when its enter trigger resolves.",
+    "The activation prohibition applies to matching sources in any zone and exempts mana abilities.",
+    "The granted colorless mana ability applies only to matching land permanents."
+  ]
+}

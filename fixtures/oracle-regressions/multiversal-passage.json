@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "multiversal-passage",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Multiversal Passage",
+    "setCode": "spm",
+    "collectorNumber": "180",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "As this land enters, choose a basic land type. Then you may pay 2 life. If you don't, it enters tapped.\nThis land is the chosen type."
+  },
+  "abilities": [
+    {
+      "id": "multiversal-passage:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "As this land enters, choose a basic land type. Then you may pay 2 life. If you don't, it enters tapped.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "decisions": [
+          {
+            "id": "basicLandType",
+            "kind": "chooseBasicLandType",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+          },
+          {
+            "id": "payTwoLife",
+            "kind": "chooseWhetherToPay",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "cost": {
+              "kind": "payLife",
+              "amount": { "kind": "integer", "value": 2 }
+            }
+          }
+        ],
+        "replacement": [
+          {
+            "kind": "setBasicLandType",
+            "object": { "kind": "self" },
+            "decisionId": "basicLandType"
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "not",
+              "operand": {
+                "kind": "costWasPaid",
+                "decisionId": "payTwoLife"
+              }
+            },
+            "then": [
+              {
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

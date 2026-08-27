@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "outrageous-robbery",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Outrageous Robbery",
+    "setCode": "mkm",
+    "collectorNumber": "97",
+    "typeLine": "Instant",
+    "manaCost": "{X}{B}{B}",
+    "oracleText": "Target opponent exiles the top X cards of their library face down. You may look at and play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any type to cast it."
+  },
+  "abilities": [{
+    "id": "outrageous-robbery:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Target opponent exiles the top X cards of their library face down. You may look at and play those cards for as long as they remain exiled. If you cast a spell this way, you may spend mana as though it were mana of any type to cast it.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "xValue",
+            "kind": "chooseNumber",
+            "minimum": 0
+          },
+          {
+            "id": "targetOpponent",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "players",
+              "where": {
+                "kind": "isOpponentOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "exileTopCards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "chosenTarget", "id": "targetOpponent" }
+          },
+          "count": { "kind": "decisionResult", "decisionId": "xValue" },
+          "faceDown": true,
+          "bind": "exiledCards"
+        },
+        {
+          "kind": "grantCardPermission",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "cards": { "kind": "boundObjects", "binding": "exiledCards" },
+          "permissions": ["lookAt", "play"],
+          "play": {
+            "normalTimingApplies": true,
+            "normalCostsApply": true,
+            "castingModifier": { "kind": "spendManaAsAnyType" }
+          },
+          "duration": {
+            "kind": "whileObjectsRemainInZone",
+            "zone": { "kind": "exile" }
+          }
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "X and the opponent are casting declarations; the top cards are determined only as the spell resolves.",
+    "The look, play, and mana-flexibility permissions track only the exact objects exiled by this resolution.",
+    "Playing a land and casting a spell still obey normal timing, land-play limits, and non-mana costs."
+  ]
+}

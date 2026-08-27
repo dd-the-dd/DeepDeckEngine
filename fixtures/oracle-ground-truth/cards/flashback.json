@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "flashback",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Flashback",
+    "setCode": "sos",
+    "collectorNumber": "115",
+    "typeLine": "Instant",
+    "manaCost": "{R}",
+    "oracleText": "Target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)"
+  },
+  "abilities": [
+    {
+      "id": "flashback:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. (You may cast that card from your graveyard for its flashback cost. Then exile it.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "targetCard",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "cards",
+                "zone": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "self" }
+                  }
+                },
+                "where": {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "cardTypeContains", "value": "Instant" },
+                    { "kind": "cardTypeContains", "value": "Sorcery" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "grantAbility",
+            "object": { "kind": "chosenTarget", "id": "targetCard" },
+            "ability": {
+              "kind": "flashback",
+              "cost": {
+                "kind": "manaCostOf",
+                "card": { "kind": "abilitySource" }
+              }
+            },
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The target decision is restricted to instant or sorcery cards in the spell controller's graveyard.",
+    "Flashback remains a named engine-vocabulary composition rather than repeating its cast permission, alternative cost, and leave-stack replacement in this card rule.",
+    "The granted flashback cost reads the granted ability's source mana cost, including any variable symbols handled while that card is cast.",
+    "The granted ability expires at the end of the current turn and stops applying if the affected card becomes a new object."
+  ]
+}

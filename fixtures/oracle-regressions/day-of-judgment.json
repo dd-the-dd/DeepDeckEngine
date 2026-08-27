@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "day-of-judgment",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Day of Judgment",
+    "setCode": "fdn",
+    "collectorNumber": "140",
+    "typeLine": "Sorcery",
+    "manaCost": "{2}{W}{W}",
+    "oracleText": "Destroy all creatures."
+  },
+  "abilities": [
+    {
+      "id": "day-of-judgment:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Destroy all creatures.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [
+          {
+            "kind": "destroyPermanent",
+            "permanent": {
+              "kind": "eachPermanent",
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

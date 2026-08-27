@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "disdainful-stroke",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Disdainful Stroke",
+    "setCode": "ktk",
+    "collectorNumber": "37",
+    "typeLine": "Instant",
+    "manaCost": "{1}{U}",
+    "oracleText": "Counter target spell with mana value 4 or greater."
+  },
+  "abilities": [{
+    "id": "disdainful-stroke:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Counter target spell with mana value 4 or greater.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "compare",
+              "operator": ">=",
+              "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+              "right": { "kind": "integer", "value": 4 }
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      }]
+    }
+  }]
+}

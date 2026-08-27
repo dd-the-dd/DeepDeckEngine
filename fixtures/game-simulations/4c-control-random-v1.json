@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "mtg-random-simulation-report/v1",
+  "deck": "4c control mirror",
+  "seed": 20260724,
+  "requestedGames": 100,
+  "completedGames": 100,
+  "lifeTotalGames": 83,
+  "emptyLibraryGames": 17,
+  "simultaneousGames": 0,
+  "stalledGames": 0,
+  "turns": {
+    "minimum": 20,
+    "maximum": 108,
+    "average": 64.5
+  },
+  "events": {
+    "cardDrawn": 6333,
+    "combatDamage": 1237,
+    "damageDealt": 375,
+    "drawFailedEmptyLibrary": 17,
+    "landPlayed": 3255,
+    "lifeGained": 478,
+    "lifeLost": 352,
+    "lifePaid": 604,
+    "permanentExiled": 352,
+    "permanentResolved": 1057,
+    "permanentToGraveyard": 235,
+    "priorityPassed": 29251,
+    "spellCast": 1793,
+    "spellFizzled": 9,
+    "spellResolved": 727,
+    "turnStarted": 6450
+  },
+  "engineCoverage": {
+    "unsupportedRuleCount": 19,
+    "unsupportedRules": [
+      {
+        "cardId": "abrade",
+        "cardName": "Abrade",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "consult-the-star-charts",
+        "cardName": "Consult the Star Charts",
+        "ruleKind": "keywordAbility"
+      },
+      {
+        "cardId": "consult-the-star-charts",
+        "cardName": "Consult the Star Charts",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "cori-mountain-monastery",
+        "cardName": "Cori Mountain Monastery",
+        "ruleKind": "activatedAbility"
+      },
+      {
+        "cardId": "fire-magic",
+        "cardName": "Fire Magic",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "flashback",
+        "cardName": "Flashback",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "great-hall-of-the-biblioplex",
+        "cardName": "Great Hall of the Biblioplex",
+        "ruleKind": "activatedAbility"
+      },
+      {
+        "cardId": "great-hall-of-the-biblioplex",
+        "cardName": "Great Hall of the Biblioplex",
+        "ruleKind": "manaAbility"
+      },
+      {
+        "cardId": "impractical-joke",
+        "cardName": "Impractical Joke",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "improvisation-capstone",
+        "cardName": "Improvisation Capstone",
+        "ruleKind": "keywordAbility"
+      },
+      {
+        "cardId": "improvisation-capstone",
+        "cardName": "Improvisation Capstone",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "inevitable-defeat",
+        "cardName": "Inevitable Defeat",
+        "ruleKind": "staticAbility"
+      },
+      {
+        "cardId": "jeskai-revelation",
+        "cardName": "Jeskai Revelation",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "mistrise-village",
+        "cardName": "Mistrise Village",
+        "ruleKind": "activatedAbility"
+      },
+      {
+        "cardId": "north-wind-avatar",
+        "cardName": "North Wind Avatar",
+        "ruleKind": "triggeredAbility"
+      },
+      {
+        "cardId": "sanar-unfinished-genius",
+        "cardName": "Sanar, Unfinished Genius",
+        "ruleKind": "activatedAbility"
+      },
+      {
+        "cardId": "stock-up",
+        "cardName": "Stock Up",
+        "ruleKind": "spellAbility"
+      },
+      {
+        "cardId": "tablet-of-discovery",
+        "cardName": "Tablet of Discovery",
+        "ruleKind": "triggeredAbility"
+      },
+      {
+        "cardId": "thunder-magic",
+        "cardName": "Thunder Magic",
+        "ruleKind": "spellAbility"
+      }
+    ]
+  }
+}

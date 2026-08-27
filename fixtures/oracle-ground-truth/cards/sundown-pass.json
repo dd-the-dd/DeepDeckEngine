@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "sundown-pass",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Sundown Pass",
+    "setCode": "vow",
+    "collectorNumber": "266",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "This land enters tapped unless you control two or more other lands.\n{T}: Add {R} or {W}."
+  },
+  "abilities": [
+    {
+      "id": "sundown-pass:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "This land enters tapped unless you control two or more other lands.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "compare",
+            "operator": ">=",
+            "left": {
+              "kind": "countPermanents",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            "right": { "kind": "integer", "value": 2 }
+          }
+        },
+        "replacement": [{
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }]
+      }
+    },
+    {
+      "id": "sundown-pass:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {R} or {W}.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{R}", "{W}"] }
+        }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "inevitable-defeat",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Inevitable Defeat",
+    "setCode": "tdm",
+    "collectorNumber": "194",
+    "typeLine": "Instant",
+    "manaCost": "{1}{R}{W}{B}",
+    "oracleText": "This spell can't be countered.\nExile target nonland permanent. Its controller loses 3 life and you gain 3 life."
+  },
+  "abilities": [
+    {
+      "id": "inevitable-defeat:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "This spell can't be countered.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "stack" }
+        },
+        "modifiers": [
+          {
+            "kind": "cantBeCountered",
+            "object": { "kind": "self" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "inevitable-defeat:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Exile target nonland permanent. Its controller loses 3 life and you gain 3 life.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "targetPermanent",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": {
+                  "kind": "not",
+                  "operand": { "kind": "cardTypeContains", "value": "Land" }
+                }
+              }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "bind",
+            "id": "targetController",
+            "value": {
+              "kind": "controllerOf",
+              "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+            }
+          },
+          {
+            "kind": "exilePermanent",
+            "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+          },
+          {
+            "kind": "loseLife",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "amount": { "kind": "integer", "value": 3 }
+          },
+          {
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 3 }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The first Oracle line is a static ability that functions while Inevitable Defeat is a spell on the stack.",
+    "The nonland restriction belongs directly to the required target declaration.",
+    "The target's controller is read at resolution immediately before the target changes zones, not while the spell is being cast.",
+    "The bound controller remains available to the later lose-life effect after the permanent leaves the battlefield.",
+    "Life loss and life gain remain distinct Magic vocabulary actions so their corresponding game events can be observed."
+  ]
+}

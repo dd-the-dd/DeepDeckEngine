@@ -1,0 +1,33 @@
+[package]
+name = "mtg-engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenvy = "0.15"
+rand = "0.8"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", features = ["json"] }
+tungstenite = "0.27"
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+
+[lib]
+name = "mtg_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mtg-engine-server"
+path = "src/main.rs"
+
+# The canonical parser and game engine are intentionally large. Debug symbols
+# and incremental archives can consume tens of GiB without improving the test
+# signal, especially on Windows contributors' machines.
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false

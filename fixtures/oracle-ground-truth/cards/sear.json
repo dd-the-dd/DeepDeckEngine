@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "sear",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Sear",
+    "setCode": "ecl",
+    "collectorNumber": "154",
+    "typeLine": "Instant",
+    "manaCost": "{1}{R}",
+    "oracleText": "Sear deals 4 damage to target creature or planeswalker."
+  },
+  "abilities": [{
+    "id": "sear:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Sear deals 4 damage to target creature or planeswalker.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetDamageable",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "cardTypeContains", "value": "Planeswalker" }
+              ]
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 4 },
+        "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+      }]
+    }
+  }]
+}

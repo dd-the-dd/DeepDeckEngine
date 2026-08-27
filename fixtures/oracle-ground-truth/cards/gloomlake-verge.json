@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "gloomlake-verge",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Gloomlake Verge",
+    "setCode": "dsk",
+    "collectorNumber": "260",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "{T}: Add {U}.\n{T}: Add {B}. Activate only if you control an Island or a Swamp."
+  },
+  "abilities": [
+    {
+      "id": "gloomlake-verge:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {U}.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{U}"
+        }]
+      }
+    },
+    {
+      "id": "gloomlake-verge:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {B}. Activate only if you control an Island or a Swamp.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "activationCondition": {
+          "kind": "controlsPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "subtypeContains", "value": "Island" },
+              { "kind": "subtypeContains", "value": "Swamp" }
+            ]
+          }
+        },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": "{B}"
+        }]
+      }
+    }
+  ]
+}

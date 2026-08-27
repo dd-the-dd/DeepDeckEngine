@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "jeskai-revelation",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Jeskai Revelation",
+    "setCode": "tdm",
+    "collectorNumber": "196",
+    "typeLine": "Instant",
+    "manaCost": "{4}{U}{R}{W}",
+    "oracleText": "Return target spell or permanent to its owner's hand. Jeskai Revelation deals 4 damage to any target. Create two 1/1 white Monk creature tokens with prowess. Draw two cards. You gain 4 life."
+  },
+  "abilities": [{
+    "id": "jeskai-revelation:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Return target spell or permanent to its owner's hand. Jeskai Revelation deals 4 damage to any target. Create two 1/1 white Monk creature tokens with prowess. Draw two cards. You gain 4 life.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "targetToReturn",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "union",
+              "sets": [{ "kind": "spells" }, { "kind": "permanents" }]
+            }
+          },
+          {
+            "id": "targetForDamage",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": { "kind": "anyTarget" }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "returnToOwnersHand",
+          "object": { "kind": "chosenTarget", "id": "targetToReturn" }
+        },
+        {
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 4 },
+          "recipient": { "kind": "chosenTarget", "id": "targetForDamage" }
+        },
+        {
+          "kind": "createTokens",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "quantity": 2,
+          "token": {
+            "colors": ["White"],
+            "types": ["Creature"],
+            "subtypes": ["Monk"],
+            "power": 1,
+            "toughness": 1,
+            "abilities": [{ "kind": "prowess" }]
+          }
+        },
+        {
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": 2
+        },
+        {
+          "kind": "gainLife",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "amount": { "kind": "integer", "value": 4 }
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "The spell or permanent target and the any-target damage recipient are independent target decisions.",
+    "If at least one target remains legal, untargeted token, draw, and life effects still resolve."
+  ]
+}

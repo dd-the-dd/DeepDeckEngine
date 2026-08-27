@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "sacred-foundry",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Sacred Foundry",
+    "setCode": "rav",
+    "collectorNumber": "280",
+    "typeLine": "Land \u2014 Mountain Plains",
+    "manaCost": null,
+    "oracleText": "({T}: Add {R} or {W}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped."
+  },
+  "abilities": [
+    {
+      "id": "sacred-foundry:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "({T}: Add {R} or {W}.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{R}", "{W}"] }
+        }]
+      }
+    },
+    {
+      "id": "sacred-foundry:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "As this land enters, you may pay 2 life. If you don't, it enters tapped.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "decisions": [{
+          "id": "payTwoLife",
+          "kind": "chooseWhetherToPay",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "cost": {
+            "kind": "payLife",
+            "amount": { "kind": "integer", "value": 2 }
+          }
+        }],
+        "replacement": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "not",
+            "operand": { "kind": "costWasPaid", "decisionId": "payTwoLife" }
+          },
+          "then": [{
+            "kind": "setEnteringState",
+            "object": { "kind": "self" },
+            "tapped": true
+          }]
+        }]
+      }
+    }
+  ]
+}

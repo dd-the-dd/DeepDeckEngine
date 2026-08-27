@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "emeritus-of-ideation",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Emeritus of Ideation // Ancestral Recall",
+    "setCode": "sos",
+    "collectorNumber": "45",
+    "layout": "prepare",
+    "typeLine": "Creature \u2014 Human Wizard // Instant",
+    "manaCost": "{3}{U}{U} // {U}",
+    "oracleText": null,
+    "prepare": {
+      "permanentFaceId": "emeritus-of-ideation",
+      "spellFaceId": "ancestral-recall"
+    },
+    "faces": [
+      {
+        "id": "emeritus-of-ideation",
+        "name": "Emeritus of Ideation",
+        "typeLine": "Creature \u2014 Human Wizard",
+        "manaCost": "{3}{U}{U}",
+        "power": "5",
+        "toughness": "5",
+        "oracleText": "Flying, ward {2}\nThis creature enters prepared.\nWhenever this creature attacks, you may exile eight cards from your graveyard. If you do, this creature becomes prepared."
+      },
+      {
+        "id": "ancestral-recall",
+        "name": "Ancestral Recall",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target player draws three cards."
+      }
+    ]
+  },
+  "abilities": [
+    {
+      "id": "emeritus-of-ideation:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "emeritus-of-ideation",
+        "text": "Flying, ward {2}",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "keywordAbilityGroup",
+        "source": { "kind": "self" },
+        "abilities": [
+          { "kind": "flying" },
+          {
+            "kind": "ward",
+            "cost": { "kind": "payMana", "manaCost": "{2}" }
+          }
+        ]
+      }
+    },
+    {
+      "id": "emeritus-of-ideation:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "emeritus-of-ideation",
+        "text": "This creature enters prepared.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "replacement": [
+          {
+            "kind": "setPrepared",
+            "object": { "kind": "self" },
+            "value": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "emeritus-of-ideation:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "emeritus-of-ideation",
+        "text": "Whenever this creature attacks, you may exile eight cards from your graveyard. If you do, this creature becomes prepared.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "declaredAttacker",
+          "object": { "kind": "self" }
+        },
+        "effects": [
+          {
+            "kind": "optionalAction",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "action": {
+              "kind": "exileCards",
+              "count": 8,
+              "from": {
+                "kind": "graveyard",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }
+            },
+            "onPerformed": [
+              {
+                "kind": "setPrepared",
+                "object": { "kind": "self" },
+                "value": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "emeritus-of-ideation:ability:4",
+      "reviewStatus": "verified",
+      "source": {
+        "faceId": "ancestral-recall",
+        "text": "Target player draws three cards.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "targetPlayer",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": { "kind": "players" }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+            "count": { "kind": "integer", "value": 3 }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "Flying and ward share one Oracle ability line but remain two independent keyword compositions in the Rule IR.",
+    "Exiling eight cards is an optional all-or-nothing resolution action; it cannot be performed with fewer than eight cards in that graveyard.",
+    "Becoming prepared uses the face linkage in context and does not create an additional copy if the creature is already prepared."
+  ]
+}

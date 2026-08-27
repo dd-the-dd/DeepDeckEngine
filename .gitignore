@@ -1,0 +1,14 @@
+/target/
+/.tmp/
+/runs/
+/.local-app/
+/data/*.json
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite
+*.sqlite3
+.DS_Store
+.idea/
+.vscode/

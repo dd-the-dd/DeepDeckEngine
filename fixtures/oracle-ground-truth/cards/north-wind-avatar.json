@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "north-wind-avatar",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "North Wind Avatar",
+    "setCode": "tmt",
+    "collectorNumber": "162",
+    "typeLine": "Creature \u2014 Dragon Spirit Avatar",
+    "manaCost": "{2}{U}{U}{R}",
+    "power": "5",
+    "toughness": "5",
+    "oracleText": "Flying\nWhen this creature enters, if you cast it, you may put a card you own from outside the game into your hand."
+  },
+  "abilities": [
+    {
+      "id": "north-wind-avatar:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Flying",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": { "kind": "flying" }
+      }
+    },
+    {
+      "id": "north-wind-avatar:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "When this creature enters, if you cast it, you may put a card you own from outside the game into your hand.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "enterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "condition": {
+          "kind": "wasCast",
+          "object": { "kind": "self" }
+        },
+        "effects": [
+          {
+            "kind": "chooseCards",
+            "id": "outsideCard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "minimum": 0,
+            "maximum": 1,
+            "candidates": {
+              "kind": "cards",
+              "zone": { "kind": "outsideGame" },
+              "where": {
+                "kind": "ownedBy",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "outsideCard" },
+            "to": {
+              "kind": "hand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The cast condition is checked both when the ability would trigger and when it resolves.",
+    "The concrete outside-game card pool is supplied by the game format policy, normally the sideboard in tournament play."
+  ]
+}

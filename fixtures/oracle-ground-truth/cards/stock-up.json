@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "stock-up",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Stock Up",
+    "setCode": "dft",
+    "collectorNumber": "67",
+    "typeLine": "Sorcery",
+    "manaCost": "{2}{U}",
+    "oracleText": "Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order."
+  },
+  "abilities": [{
+    "id": "stock-up:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Look at the top five cards of your library. Put two of them into your hand and the rest on the bottom of your library in any order.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "lookAtTopCards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "count": { "kind": "integer", "value": 5 },
+          "bind": "lookedCards"
+        },
+        {
+          "kind": "chooseCards",
+          "id": "cardsForHand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "from": { "kind": "boundObjects", "binding": "lookedCards" },
+          "count": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 2 },
+              {
+                "kind": "countObjects",
+                "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "decisionResult", "decisionId": "cardsForHand" },
+          "to": {
+            "kind": "hand",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        },
+        {
+          "kind": "chooseOrder",
+          "id": "bottomOrder",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "objects": {
+            "kind": "setDifference",
+            "left": { "kind": "boundObjects", "binding": "lookedCards" },
+            "right": { "kind": "decisionResult", "decisionId": "cardsForHand" }
+          }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "decisionResult", "decisionId": "bottomOrder" },
+          "to": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "position": "bottom"
+          },
+          "order": { "kind": "decisionOrder", "decisionId": "bottomOrder" }
+        }
+      ]
+    }
+  }]
+}

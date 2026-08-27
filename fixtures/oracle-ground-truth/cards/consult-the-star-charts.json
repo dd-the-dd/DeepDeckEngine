@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "consult-the-star-charts",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Consult the Star Charts",
+    "setCode": "eoe",
+    "collectorNumber": "51",
+    "typeLine": "Instant",
+    "manaCost": "{1}{U}",
+    "oracleText": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)\nLook at the top X cards of your library, where X is the number of lands you control. Put one of those cards into your hand. If this spell was kicked, put two of those cards into your hand instead. Put the rest on the bottom of your library in a random order."
+  },
+  "abilities": [
+    {
+      "id": "consult-the-star-charts:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Kicker {1}{U} (You may pay an additional {1}{U} as you cast this spell.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": {
+          "kind": "kicker",
+          "cost": { "kind": "payMana", "manaCost": "{1}{U}" },
+          "repeatable": false
+        }
+      }
+    },
+    {
+      "id": "consult-the-star-charts:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Look at the top X cards of your library, where X is the number of lands you control. Put one of those cards into your hand. If this spell was kicked, put two of those cards into your hand instead. Put the rest on the bottom of your library in a random order.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [
+          {
+            "kind": "bind",
+            "id": "landCount",
+            "value": {
+              "kind": "countPermanents",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Land" }
+            }
+          },
+          {
+            "kind": "lookAtTopCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "count": { "kind": "boundValue", "id": "landCount" },
+            "bind": "lookedCards"
+          },
+          {
+            "kind": "chooseCards",
+            "id": "cardsForHand",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "from": { "kind": "boundObjects", "binding": "lookedCards" },
+            "count": {
+              "kind": "conditionalValue",
+              "condition": { "kind": "wasKicked", "spell": { "kind": "self" } },
+              "ifTrue": {
+                "kind": "minimum",
+                "operands": [
+                  { "kind": "integer", "value": 2 },
+                  {
+                    "kind": "countObjects",
+                    "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+                  }
+                ]
+              },
+              "ifFalse": {
+                "kind": "minimum",
+                "operands": [
+                  { "kind": "integer", "value": 1 },
+                  {
+                    "kind": "countObjects",
+                    "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "cardsForHand" },
+            "to": {
+              "kind": "hand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "setDifference",
+              "left": { "kind": "boundObjects", "binding": "lookedCards" },
+              "right": { "kind": "decisionResult", "decisionId": "cardsForHand" }
+            },
+            "to": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "position": "bottom"
+            },
+            "order": { "kind": "random" }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The land count and kicked state are read as the spell resolves.",
+    "The selected hand count is capped by the number of cards actually available to look at."
+  ]
+}

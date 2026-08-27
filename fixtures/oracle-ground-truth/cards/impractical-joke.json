@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "impractical-joke",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Impractical Joke",
+    "setCode": "sos",
+    "collectorNumber": "119",
+    "typeLine": "Sorcery",
+    "manaCost": "{R}",
+    "oracleText": "Damage can't be prevented this turn. Impractical Joke deals 3 damage to up to one target creature or planeswalker."
+  },
+  "abilities": [{
+    "id": "impractical-joke:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Damage can't be prevented this turn. Impractical Joke deals 3 damage to up to one target creature or planeswalker.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetDamageable",
+          "kind": "chooseTargets",
+          "minimum": 0,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "cardTypeContains", "value": "Planeswalker" }
+              ]
+            }
+          }
+        }]
+      },
+      "effects": [
+        {
+          "kind": "installRuleModifier",
+          "modifier": { "kind": "damageCantBePrevented" },
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionNotEmpty",
+            "selection": { "kind": "decisionResult", "decisionId": "targetDamageable" }
+          },
+          "then": [{
+            "kind": "dealDamage",
+            "source": { "kind": "self" },
+            "amount": { "kind": "integer", "value": 3 },
+            "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+          }]
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "The prevention modifier is created even when no optional target is chosen.",
+    "The optional target declaration allows Impractical Joke to be cast with no legal creature or planeswalker target."
+  ]
+}

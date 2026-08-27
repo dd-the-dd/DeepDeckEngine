@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "lightning-helix",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Lightning Helix",
+    "setCode": "rav",
+    "collectorNumber": "213",
+    "typeLine": "Instant",
+    "manaCost": "{R}{W}",
+    "oracleText": "Lightning Helix deals 3 damage to any target and you gain 3 life."
+  },
+  "abilities": [{
+    "id": "lightning-helix:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Lightning Helix deals 3 damage to any target and you gain 3 life.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetDamageable",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "anyTarget" }
+        }]
+      },
+      "effects": [
+        {
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 3 },
+          "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+        },
+        {
+          "kind": "gainLife",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "amount": { "kind": "integer", "value": 3 }
+        }
+      ]
+    }
+  }]
+}

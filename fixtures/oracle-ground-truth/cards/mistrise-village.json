@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "mistrise-village",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Mistrise Village",
+    "setCode": "tdm",
+    "collectorNumber": "261",
+    "typeLine": "Land",
+    "manaCost": null,
+    "oracleText": "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {U}.\n{U}, {T}: The next spell you cast this turn can't be countered."
+  },
+  "abilities": [
+    {
+      "id": "mistrise-village:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "This land enters tapped unless you control a Mountain or a Forest.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "wouldEnterBattlefield",
+          "object": { "kind": "self" }
+        },
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "controlsPermanent",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "subtypeContains", "value": "Mountain" },
+                { "kind": "subtypeContains", "value": "Forest" }
+              ]
+            }
+          }
+        },
+        "replacement": [
+          {
+            "kind": "setEnteringState",
+            "object": { "kind": "self" },
+            "tapped": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "mistrise-village:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {U}.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [
+          { "kind": "tap", "object": { "kind": "self" } }
+        ],
+        "effects": [
+          {
+            "kind": "addMana",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "mana": "{U}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mistrise-village:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{U}, {T}: The next spell you cast this turn can't be countered.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "costs": [
+          { "kind": "payMana", "manaCost": "{U}" },
+          { "kind": "tap", "object": { "kind": "self" } }
+        ],
+        "effects": [
+          {
+            "kind": "installOneShotModifier",
+            "capture": {
+              "player": { "kind": "abilityController" }
+            },
+            "expires": { "kind": "endOfCurrentTurn" },
+            "match": {
+              "kind": "spellCast",
+              "player": { "kind": "capturedValue", "name": "player" }
+            },
+            "apply": [
+              {
+                "kind": "modifyStackObject",
+                "object": { "kind": "eventSpell" },
+                "modifier": { "kind": "cantBeCountered" }
+              }
+            ],
+            "consume": { "kind": "firstMatchingEvent" }
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "The first line belongs to Mistrise Village and is preserved as its own enter-tapped replacement effect.",
+    "The activated ability captures its controller when it resolves; changing control of the land afterward does not change which player's next spell is modified.",
+    "The one-shot modifier is consumed by the first matching spell cast this turn, even when that spell already cannot be countered.",
+    "The modified spell remains a legal target for counter effects, but attempts to counter it fail."
+  ]
+}

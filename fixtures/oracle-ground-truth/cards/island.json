@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "island",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Island",
+    "setCode": "lea",
+    "collectorNumber": "288",
+    "typeLine": "Basic Land \u2014 Island",
+    "manaCost": null,
+    "oracleText": "({T}: Add {U}.)"
+  },
+  "abilities": [{
+    "id": "island:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "({T}: Add {U}.)",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{U}"
+      }]
+    }
+  }],
+  "reviewNotes": [
+    "The parenthesized Oracle text exposes the mana ability granted by the Island basic land type."
+  ]
+}

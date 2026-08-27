@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "abrade",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Abrade",
+    "setCode": "hou",
+    "collectorNumber": "83",
+    "typeLine": "Instant",
+    "manaCost": "{1}{R}",
+    "oracleText": "Choose one \u2014\n\u2022 Abrade deals 3 damage to target creature.\n\u2022 Destroy target artifact."
+  },
+  "abilities": [
+    {
+      "id": "abrade:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Choose one \u2014\n\u2022 Abrade deals 3 damage to target creature.\n\u2022 Destroy target artifact.",
+        "lineStart": 0,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "chosenModes",
+              "kind": "chooseModes",
+              "minimum": 1,
+              "maximum": 1,
+              "options": ["damageCreature", "destroyArtifact"]
+            },
+            {
+              "id": "targetCreature",
+              "kind": "chooseTargets",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "damageCreature"
+              },
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            },
+            {
+              "id": "targetArtifact",
+              "kind": "chooseTargets",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "destroyArtifact"
+              },
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": { "kind": "cardTypeContains", "value": "Artifact" }
+              }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "damageCreature"
+            },
+            "then": [
+              {
+                "kind": "dealDamage",
+                "source": { "kind": "self" },
+                "amount": { "kind": "integer", "value": 3 },
+                "recipient": { "kind": "chosenTarget", "id": "targetCreature" }
+              }
+            ]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "destroyArtifact"
+            },
+            "then": [
+              {
+                "kind": "destroyPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetArtifact" }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "Choosing the mode and assigning that mode's target are casting declarations, not payable costs.",
+    "The mode decision is stored before the ordered target decisions are evaluated.",
+    "Each target decision defines its own candidate spectrum and is activated by a boolean condition on the stored mode selection.",
+    "A required active target decision with no legal candidate invalidates that declaration path, so no separate completeLegalTargetAssignment node is needed.",
+    "Resolution uses ordinary conditional effects that inspect the stored mode selection.",
+    "Target legality is checked again on resolution. Because the chosen mode has exactly one target, Abrade does not resolve if that target has become illegal."
+  ]
+}

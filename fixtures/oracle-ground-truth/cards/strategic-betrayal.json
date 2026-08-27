@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "strategic-betrayal",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Strategic Betrayal",
+    "setCode": "tdm",
+    "collectorNumber": "94",
+    "typeLine": "Sorcery",
+    "manaCost": "{1}{B}",
+    "oracleText": "Target opponent exiles a creature they control and their graveyard."
+  },
+  "abilities": [{
+    "id": "strategic-betrayal:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Target opponent exiles a creature they control and their graveyard.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetOpponent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players",
+            "where": {
+              "kind": "isOpponentOf",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          }
+        }]
+      },
+      "effects": [
+        {
+          "kind": "choosePermanents",
+          "id": "creatureToExile",
+          "player": { "kind": "chosenTarget", "id": "targetOpponent" },
+          "minimum": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 1 },
+              {
+                "kind": "countPermanents",
+                "player": { "kind": "chosenTarget", "id": "targetOpponent" },
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            ]
+          },
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "controller": { "kind": "chosenTarget", "id": "targetOpponent" },
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        },
+        {
+          "kind": "exileTogether",
+          "objects": {
+            "kind": "union",
+            "sets": [
+              { "kind": "decisionResult", "decisionId": "creatureToExile" },
+              {
+                "kind": "cardsInZone",
+                "zone": {
+                  "kind": "graveyard",
+                  "player": { "kind": "chosenTarget", "id": "targetOpponent" }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "The targeted opponent, not the spell controller, chooses the untargeted creature.",
+    "The chosen creature and graveyard cards are exiled as one instruction."
+  ]
+}

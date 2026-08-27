@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "thunder-magic",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Thunder Magic",
+    "setCode": "fin",
+    "collectorNumber": "165",
+    "typeLine": "Instant",
+    "manaCost": "{R}",
+    "oracleText": "Tiered (Choose one additional cost.)\n\u2022 Thunder \u2014 {0} \u2014 Thunder Magic deals 2 damage to target creature.\n\u2022 Thundara \u2014 {3} \u2014 Thunder Magic deals 4 damage to target creature.\n\u2022 Thundaga \u2014 {5}{R} \u2014 Thunder Magic deals 8 damage to target creature."
+  },
+  "abilities": [
+    {
+      "id": "thunder-magic:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Tiered (Choose one additional cost.)\n\u2022 Thunder \u2014 {0} \u2014 Thunder Magic deals 2 damage to target creature.\n\u2022 Thundara \u2014 {3} \u2014 Thunder Magic deals 4 damage to target creature.\n\u2022 Thundaga \u2014 {5}{R} \u2014 Thunder Magic deals 8 damage to target creature.",
+        "lineStart": 0,
+        "lineEnd": 3
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "chosenModes",
+              "kind": "chooseModes",
+              "minimum": 1,
+              "maximum": 1,
+              "options": ["thunder", "thundara", "thundaga"]
+            },
+            {
+              "id": "targetCreature",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }
+          ],
+          "additionalCosts": [
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "thunder"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{0}" }]
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "thundara"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{3}" }]
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "selectionContains",
+                "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                "value": "thundaga"
+              },
+              "then": [{ "kind": "payMana", "manaCost": "{5}{R}" }]
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "thunder"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 2 },
+              "recipient": { "kind": "chosenTarget", "id": "targetCreature" }
+            }]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "thundara"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 4 },
+              "recipient": { "kind": "chosenTarget", "id": "targetCreature" }
+            }]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "thundaga"
+            },
+            "then": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 8 },
+              "recipient": { "kind": "chosenTarget", "id": "targetCreature" }
+            }]
+          }
+        ]
+      }
+    }
+  ],
+  "reviewNotes": [
+    "Tiered expands into one required mode decision, a conditional additional cost, and a conditional effect.",
+    "The identical required creature target from all three modes is simplified into one unconditional target decision."
+  ]
+}

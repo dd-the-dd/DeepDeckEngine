@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "flashfreeze",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Flashfreeze",
+    "setCode": "csp",
+    "collectorNumber": "33",
+    "typeLine": "Instant",
+    "manaCost": "{1}{U}",
+    "oracleText": "Counter target red or green spell."
+  },
+  "abilities": [{
+    "id": "flashfreeze:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Counter target red or green spell.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "colorContains", "value": "Red" },
+                { "kind": "colorContains", "value": "Green" }
+              ]
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      }]
+    }
+  }]
+}

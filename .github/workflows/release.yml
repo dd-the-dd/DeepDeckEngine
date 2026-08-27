@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  binary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo check --locked --all-targets
+      - run: >-
+          cargo test --locked
+          --test backend_contract
+          --test interactive_session
+          --test multiplayer_simulation
+          --test playable_model
+          --test random_game_engine
+      - run: cargo build --locked --release --bin mtg-engine-server
+      - run: tar -C target/release -czf deepdeck-engine-linux-x86_64.tar.gz mtg-engine-server
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: deepdeck-engine-linux-x86_64.tar.gz
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/dd-the-dd/deepdeck-engine:${{ github.ref_name }}

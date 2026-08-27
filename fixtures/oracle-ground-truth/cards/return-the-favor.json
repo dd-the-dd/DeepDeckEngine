@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "return-the-favor",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Return the Favor",
+    "setCode": "otj",
+    "collectorNumber": "142",
+    "typeLine": "Instant",
+    "manaCost": "{R}{R}",
+    "oracleText": "Spree (Choose one or more additional costs.)\n+ {1} \u2014 Copy target instant spell, sorcery spell, activated ability, or triggered ability. You may choose new targets for the copy.\n+ {1} \u2014 Change the target of target spell or ability with a single target."
+  },
+  "abilities": [{
+    "id": "return-the-favor:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Spree (Choose one or more additional costs.)\n+ {1} \u2014 Copy target instant spell, sorcery spell, activated ability, or triggered ability. You may choose new targets for the copy.\n+ {1} \u2014 Change the target of target spell or ability with a single target.",
+      "lineStart": 0,
+      "lineEnd": 2
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "chosenModes",
+            "kind": "chooseModes",
+            "minimum": 1,
+            "maximum": 2,
+            "options": ["copy", "changeTarget"]
+          },
+          {
+            "id": "targetToCopy",
+            "kind": "chooseTargets",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "copy"
+            },
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "stackItems",
+              "where": {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "and",
+                    "operands": [
+                      { "kind": "isSpell" },
+                      {
+                        "kind": "or",
+                        "operands": [
+                          { "kind": "cardTypeContains", "value": "Instant" },
+                          { "kind": "cardTypeContains", "value": "Sorcery" }
+                        ]
+                      }
+                    ]
+                  },
+                  { "kind": "isActivatedAbility" },
+                  { "kind": "isTriggeredAbility" }
+                ]
+              }
+            }
+          },
+          {
+            "id": "targetToChange",
+            "kind": "chooseTargets",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "changeTarget"
+            },
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "stackItems",
+              "where": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "or",
+                    "operands": [
+                      { "kind": "isSpell" },
+                      { "kind": "isActivatedAbility" },
+                      { "kind": "isTriggeredAbility" }
+                    ]
+                  },
+                  {
+                    "kind": "compare",
+                    "operator": "==",
+                    "left": { "kind": "targetCountOf", "object": { "kind": "candidate" } },
+                    "right": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "additionalCosts": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "copy"
+            },
+            "then": [{ "kind": "payMana", "manaCost": "{1}" }]
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "selectionContains",
+              "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+              "value": "changeTarget"
+            },
+            "then": [{ "kind": "payMana", "manaCost": "{1}" }]
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "copy"
+          },
+          "then": [{
+            "kind": "copyStackItem",
+            "object": { "kind": "chosenTarget", "id": "targetToCopy" },
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "newTargets": {
+              "kind": "mayChoose",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }
+          }]
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "changeTarget"
+          },
+          "then": [{
+            "kind": "changeSingleTarget",
+            "object": { "kind": "chosenTarget", "id": "targetToChange" },
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }]
+        }
+      ]
+    }
+  }],
+  "reviewNotes": [
+    "Spree expands into a nonempty subset of modes; each chosen mode contributes its own additional cost.",
+    "Each mode activates its own target decision and effect. The two targets are not required to be distinct.",
+    "New targets for a copied stack item are chosen during resolution, while spree modes and original targets were declared during casting."
+  ]
+}

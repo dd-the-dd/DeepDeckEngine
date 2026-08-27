@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "firebending-lesson",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Firebending Lesson",
+    "setCode": "tla",
+    "collectorNumber": "138",
+    "typeLine": "Instant — Lesson",
+    "manaCost": "{R}",
+    "oracleText": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nFirebending Lesson deals 2 damage to target creature. If this spell was kicked, it deals 5 damage to that creature instead."
+  },
+  "abilities": [
+    {
+      "id": "firebending-lesson:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Kicker {4} (You may pay an additional {4} as you cast this spell.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": {
+          "kind": "kicker",
+          "cost": {
+            "kind": "payMana",
+            "manaCost": "{4}"
+          },
+          "repeatable": false
+        }
+      }
+    },
+    {
+      "id": "firebending-lesson:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Firebending Lesson deals 2 damage to target creature. If this spell was kicked, it deals 5 damage to that creature instead.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "targetCreature",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "dealDamage",
+            "source": { "kind": "self" },
+            "amount": {
+              "kind": "conditionalValue",
+              "condition": {
+                "kind": "wasKicked",
+                "spell": { "kind": "self" }
+              },
+              "ifTrue": { "kind": "integer", "value": 5 },
+              "ifFalse": { "kind": "integer", "value": 2 }
+            },
+            "recipient": {
+              "kind": "chosenTarget",
+              "id": "targetCreature"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

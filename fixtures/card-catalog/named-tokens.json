@@ -1,0 +1,46 @@
+{
+  "cards": {
+    "treasure": [
+      {
+        "setCode": "fixture",
+        "collectorNumber": "1",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact — Treasure",
+        "oracleText": "{T}, Sacrifice this token: Add one mana of any color.",
+        "manaValue": 0,
+        "urlFront": "https://example.invalid/treasure.jpg"
+      }
+    ],
+    "clue": [
+      {
+        "setCode": "fixture",
+        "collectorNumber": "2",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact — Clue",
+        "oracleText": "{2}, Sacrifice this token: Draw a card.",
+        "manaValue": 0,
+        "urlFront": "https://example.invalid/clue.jpg"
+      }
+    ],
+    "blood": [
+      {
+        "setCode": "fixture",
+        "collectorNumber": "3",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact — Blood",
+        "oracleText": "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.",
+        "manaValue": 0,
+        "urlFront": "https://example.invalid/blood.jpg"
+      }
+    ]
+  },
+  "sets": {
+    "fixture": "Deterministic test fixtures"
+  }
+}
