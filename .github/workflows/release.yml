@@ -8,6 +8,10 @@ permissions:
   contents: write
   packages: write
 
+env:
+  CARGO_BUILD_JOBS: 2
+  RUST_MIN_STACK: 16777216
+
 jobs:
   binary:
     runs-on: ubuntu-latest
