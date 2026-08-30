@@ -12,7 +12,7 @@ use crate::local_app::{
 };
 use crate::model::playable_rules_for_face;
 use crate::oracle::{OracleCardParseRequest, parse_oracle_card};
-use crate::remote_ai::{control_training, controller_catalog, training_dashboard};
+use crate::remote_ai::controller_catalog;
 use crate::session::{
     CreateGameSessionRequest, GameSessionError, GameSessionManager, GameSessionView,
     SubmitGameSessionAction, UpdateGameSessionSettings, game_format_catalog,
@@ -2285,39 +2285,6 @@ fn route_json_with_headers(
         ("POST", "/game/decks/legal") => legal_deck_catalog(body),
         ("POST", "/game/matchmaking") => play_matchmaking(body),
         ("POST", "/game/setups/validate") => validate_game_setup(body),
-        ("GET", training_path)
-            if training_path == "/ai/training" || training_path.starts_with("/ai/training/") =>
-        {
-            match training_dashboard(
-                training_path
-                    .strip_prefix("/ai/training/")
-                    .filter(|id| !id.is_empty()),
-            ) {
-                Ok(status) => json_response(200, &status),
-                Err(error) => error_response(500, error.to_string()),
-            }
-        }
-        ("POST", "/ai/training/control") => {
-            match serde_json::from_str::<Value>(body)
-                .ok()
-                .and_then(|payload| {
-                    payload.get("action").and_then(Value::as_str).map(|action| {
-                        (
-                            payload
-                                .get("modelId")
-                                .and_then(Value::as_str)
-                                .map(str::to_string),
-                            action.to_string(),
-                        )
-                    })
-                }) {
-                Some((model_id, action)) => match control_training(model_id.as_deref(), &action) {
-                    Ok(status) => json_response(200, &status),
-                    Err(error) => error_response(409, error.to_string()),
-                },
-                None => error_response(400, "Invalid AI training control request"),
-            }
-        }
         ("GET", "/analytics/decks") => json_response(
             200,
             &deck_analytics_service().query(DeckAnalyticsQuery::default()),

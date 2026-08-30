@@ -1,20 +1,9 @@
 use crate::engine::{
     DecisionProvider, EngineDecisionRequest, EngineError, GameState, decision_number_bounds,
 };
-use crate::pilot_catalog::{PilotCapabilities, PilotDefinition, pilot_definition, training_pilots};
+use crate::pilot_catalog::{PilotCapabilities, pilot_definition};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use std::collections::BTreeMap;
-use std::fs::{self, OpenOptions};
-use std::io::{Read, Seek, SeekFrom};
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::{Mutex, OnceLock};
-use std::thread;
-use std::time::{Duration, Instant};
-
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
+use std::time::Duration;
 
 const DECISION_SCHEMA_VERSION: &str = "ai-decision/v1";
 const CONTROLLER_SCHEMA_VERSION: &str = "ai-controller-catalog/v1";
@@ -24,16 +13,6 @@ const V9_TRAINING_URL_ENV: &str = "MTG_AI_V9_TRAINING_URL";
 const V10_TRAINING_URL_ENV: &str = "MTG_AI_V10_TRAINING_URL";
 const V11_TRAINING_URL_ENV: &str = "MTG_AI_V11_TRAINING_URL";
 const V12_TRAINING_URL_ENV: &str = "MTG_AI_V12_TRAINING_URL";
-const AUTOSTART_ENV: &str = "MTG_AI_AUTOSTART";
-const PROJECT_ROOT_ENV: &str = "MTG_AI_PROJECT_ROOT";
-const PYTHON_ENV: &str = "MTG_AI_PYTHON";
-const INFERENCE_DEVICE_ENV: &str = "MTG_AI_INFERENCE_DEVICE";
-const STARTUP_TIMEOUT_ENV: &str = "MTG_AI_STARTUP_TIMEOUT_MS";
-const MODEL_REGISTRY_ENV: &str = "MTG_AI_MODEL_REGISTRY_PATH";
-const V10_TRAINING_CHECKPOINT_ENV: &str = "MTG_AI_V10_TRAINING_CHECKPOINT";
-const TRAINING_CONFIG_ENV: &str = "MTG_AI_TRAINING_CONFIG_PATH";
-const TRAINING_RUN_ENV: &str = "MTG_AI_TRAINING_RUN_PATH";
-const TRAINING_DASHBOARD_SCHEMA_VERSION: &str = "ai-training-dashboard/v1";
 
 fn controller_label(model_id: &str, training_step: u64) -> String {
     if let Some(definition) = pilot_definition(model_id)
@@ -100,11 +79,7 @@ struct RemoteDecisionResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RemoteHealthResponse {
-    #[serde(default)]
-    checkpoint_path: Option<String>,
     model: String,
-    #[serde(default)]
-    registry_path: Option<String>,
     #[serde(default)]
     training_step: u64,
 }
@@ -123,29 +98,6 @@ struct RemoteModelStatus {
 struct RemoteModelCatalog {
     schema_version: String,
     models: Vec<RemoteModelStatus>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LocalModelRegistry {
-    current_ground_truth: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum LocalAiService {
-    GroundTruth,
-    V10Training,
-}
-
-#[derive(Default)]
-struct LocalAiServiceManager {
-    ground_truth: Option<Child>,
-    v10_training: Option<Child>,
-}
-
-#[derive(Default)]
-struct LocalTrainingProcessManager {
-    trainers: BTreeMap<String, Child>,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,748 +281,7 @@ impl RemoteAi {
     }
 }
 
-fn autostart_enabled() -> bool {
-    std::env::var(AUTOSTART_ENV)
-        .ok()
-        .map(|value| {
-            !matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "0" | "false" | "no" | "off"
-            )
-        })
-        .unwrap_or(true)
-}
-
-fn endpoint_port(endpoint: &str) -> Option<u16> {
-    endpoint
-        .strip_prefix("http://127.0.0.1:")
-        .or_else(|| endpoint.strip_prefix("http://localhost:"))?
-        .trim_end_matches('/')
-        .parse()
-        .ok()
-}
-
-fn endpoint_health(endpoint: &str) -> Option<RemoteHealthResponse> {
-    ureq::get(&format!("{}/health", endpoint))
-        .timeout(Duration::from_millis(500))
-        .call()
-        .ok()?
-        .into_json()
-        .ok()
-}
-
-fn paths_identify_same_file(actual: Option<&str>, expected: &Path) -> bool {
-    let Some(actual) = actual else {
-        return false;
-    };
-    let actual = PathBuf::from(actual)
-        .canonicalize()
-        .unwrap_or_else(|_| PathBuf::from(actual));
-    let expected = expected
-        .canonicalize()
-        .unwrap_or_else(|_| expected.to_path_buf());
-    actual == expected
-}
-
-fn health_matches_service(
-    health: &RemoteHealthResponse,
-    service: LocalAiService,
-    root: &Path,
-) -> bool {
-    match service {
-        LocalAiService::GroundTruth => paths_identify_same_file(
-            health.registry_path.as_deref(),
-            &configured_path(
-                root,
-                MODEL_REGISTRY_ENV,
-                "runs/oracle-ai-league-v8-simplified/model-registry.json",
-            ),
-        ),
-        LocalAiService::V10Training => paths_identify_same_file(
-            health.checkpoint_path.as_deref(),
-            &configured_path(
-                root,
-                V10_TRAINING_CHECKPOINT_ENV,
-                "runs/oracle-ai-league-v10-from-scratch/live/ia-v10-in-training",
-            ),
-        ),
-    }
-}
-
-fn find_project_root_from(start: &Path) -> Option<PathBuf> {
-    start.ancestors().find_map(|candidate| {
-        candidate
-            .join("python/oracle_ai/oracle_ai/app.py")
-            .is_file()
-            .then(|| candidate.to_path_buf())
-    })
-}
-
-fn project_root() -> Result<PathBuf, EngineError> {
-    if let Some(root) = std::env::var_os(PROJECT_ROOT_ENV) {
-        let root = PathBuf::from(root);
-        if root.join("python/oracle_ai/oracle_ai/app.py").is_file() {
-            return Ok(root);
-        }
-        return Err(EngineError::new(format!(
-            "{PROJECT_ROOT_ENV} does not contain python/oracle_ai: {}",
-            root.display()
-        )));
-    }
-    if let Ok(current) = std::env::current_dir()
-        && let Some(root) = find_project_root_from(&current)
-    {
-        return Ok(root);
-    }
-    find_project_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
-        .ok_or_else(|| EngineError::new("could not locate the Oracle AI project root"))
-}
-
-fn configured_path(root: &Path, variable: &str, default: &str) -> PathBuf {
-    let path = std::env::var_os(variable)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(default));
-    if path.is_absolute() {
-        path
-    } else {
-        root.join(path)
-    }
-}
-
-fn training_definition(model_id: Option<&str>) -> Result<&'static PilotDefinition, EngineError> {
-    let requested = model_id.unwrap_or("v10");
-    pilot_definition(requested)
-        .filter(|definition| definition.capabilities.training)
-        .ok_or_else(|| EngineError::new(format!("unknown training model: {requested}")))
-}
-
-fn training_run_path(root: &Path, definition: &PilotDefinition) -> PathBuf {
-    let run = definition
-        .training_run
-        .expect("training-capable pilot has a run definition");
-    if run.id == "v10" {
-        configured_path(root, TRAINING_RUN_ENV, run.run_path)
-    } else {
-        root.join(run.run_path)
-    }
-}
-
-fn training_config_path(root: &Path, definition: &PilotDefinition) -> PathBuf {
-    let run = definition
-        .training_run
-        .expect("training-capable pilot has a run definition");
-    if run.id == "v10" {
-        configured_path(root, TRAINING_CONFIG_ENV, run.config_path)
-    } else {
-        root.join(run.config_path)
-    }
-}
-
-fn read_json(path: &Path) -> Option<Value> {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|contents| serde_json::from_str(&contents).ok())
-}
-
-fn recent_json_lines(path: &Path, limit: usize) -> Vec<Value> {
-    if limit == 0 {
-        return Vec::new();
-    }
-    let Ok(mut file) = fs::File::open(path) else {
-        return Vec::new();
-    };
-    let Ok(length) = file.metadata().map(|metadata| metadata.len()) else {
-        return Vec::new();
-    };
-    let read_length = length.min(1024 * 1024);
-    if file
-        .seek(SeekFrom::Start(length.saturating_sub(read_length)))
-        .is_err()
-    {
-        return Vec::new();
-    }
-    let mut bytes = Vec::with_capacity(read_length as usize);
-    if file.read_to_end(&mut bytes).is_err() {
-        return Vec::new();
-    }
-    let contents = String::from_utf8_lossy(&bytes);
-    let complete_contents = if read_length < length {
-        contents.split_once('\n').map_or("", |(_, rest)| rest)
-    } else {
-        contents.as_ref()
-    };
-    let mut values = complete_contents
-        .lines()
-        .rev()
-        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
-        .take(limit)
-        .collect::<Vec<_>>();
-    values.reverse();
-    values
-}
-
-fn compact_training_record(record: &Value) -> Value {
-    let round_number = record.get("roundNumber").cloned().unwrap_or_else(|| {
-        let turn_number = record.get("turnNumber").and_then(Value::as_u64);
-        let player_count = record.get("players").and_then(Value::as_u64);
-        match (turn_number, player_count) {
-            (Some(0), _) => Value::from(0),
-            (Some(turn), Some(players)) if players > 0 => Value::from(1 + (turn - 1) / players),
-            _ => Value::Null,
-        }
-    });
-    json!({
-        "episode": record.get("episode"),
-        "attempt": record.get("attempt"),
-        "trainingStep": record.get("trainingStep"),
-        "matchupId": record.get("matchupId"),
-        "gameMode": record.get("gameMode"),
-        "decks": record.get("decks"),
-        "opponentMode": record.get("opponentMode"),
-        "participantsByPlayer": record.get("participantsByPlayer"),
-        "anchorDeadlineRound": record.get("anchorDeadlineRound"),
-        "anchorOpeningHandPoolSize": record.get("anchorOpeningHandPoolSize"),
-        "players": record.get("players"),
-        "decisions": record.get("decisions"),
-        "roundNumber": round_number,
-        "gameDurationSeconds": record.get("gameDurationSeconds"),
-        "trainingDurationSeconds": record.get("trainingDurationSeconds"),
-        "episodeSeconds": record.get("episodeSeconds"),
-        "collectionSeconds": record.get("collectionSeconds"),
-        "ppoSeconds": record.get("ppoSeconds"),
-        "trainingHour": record.get("trainingHour"),
-        "rolloutBatch": record.get("rolloutBatch"),
-        "gameplay": record.get("gameplay"),
-        "ppo": record.get("ppo"),
-        "behavior": compact_behavior(record.get("behavior")),
-    })
-}
-
-fn compact_behavior(behavior: Option<&Value>) -> Value {
-    let behavior = behavior.unwrap_or(&Value::Null);
-    let anomalies = behavior.get("anomalies").unwrap_or(&Value::Null);
-    json!({
-        "totalDecisions": behavior.get("totalDecisions"),
-        "meanConfidence": behavior.get("meanConfidence"),
-        "meanEntropy": behavior.get("meanEntropy"),
-        "priority": behavior.get("priority"),
-        "combat": behavior.get("combat"),
-        "mulligan": behavior.get("mulligan"),
-        "anomalies": {
-            "counts": anomalies.get("counts"),
-            "rate": anomalies.get("rate"),
-            "total": anomalies.get("total"),
-        },
-    })
-}
-
-fn compact_evaluation_record(record: &Value) -> Value {
-    let summary = record.get("summary").unwrap_or(&Value::Null);
-    json!({
-        "period": record.get("period"),
-        "candidateTrainingStep": record.get("candidateTrainingStep"),
-        "opponentVersion": record.get("opponentVersion"),
-        "evaluationSeconds": record.get("evaluationSeconds"),
-        "perfectStreakAfter": record.get("perfectStreakAfter"),
-        "promotionCountAfter": record.get("promotionCountAfter"),
-        "promotion": record.get("promotion"),
-        "summary": {
-            "candidateWinRate": summary.get("candidateWinRate"),
-            "candidateWins": summary.get("candidateWins"),
-            "championWins": summary.get("championWins"),
-            "completedGames": summary.get("completedGames"),
-            "draws": summary.get("draws"),
-            "errors": summary.get("errors"),
-            "expectedGames": summary.get("expectedGames"),
-            "meanRounds": summary.get("meanRounds"),
-            "meanRoundsToCandidateWin": summary.get("meanRoundsToCandidateWin"),
-            "perfect": summary.get("perfect"),
-            "candidateBehavior": compact_behavior(summary.get("candidateBehavior")),
-        },
-    })
-}
-
-fn compact_ground_truth_evaluation(record: &Value) -> Value {
-    json!({
-        "period": record.get("period"),
-        "completedEpisodes": record.get("completedEpisodes"),
-        "trainingStep": record.get("trainingStep"),
-        "scenarioCount": record.get("scenarioCount"),
-        "decisionCount": record.get("decisionCount"),
-        "coverage": record.get("coverage"),
-        "metrics": record.get("metrics"),
-        "evaluatedAt": record.get("evaluatedAt"),
-    })
-}
-
-fn training_control_state(run: &Path) -> String {
-    read_json(&run.join("training-control.json"))
-        .and_then(|control| {
-            control
-                .get("desiredState")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        })
-        .filter(|state| matches!(state.as_str(), "paused" | "running"))
-        .unwrap_or_else(|| "running".to_string())
-}
-
-fn write_training_control(run: &Path, desired_state: &str) -> Result<(), EngineError> {
-    fs::create_dir_all(run)
-        .map_err(|error| EngineError::new(format!("could not create training run: {error}")))?;
-    let path = run.join("training-control.json");
-    let temporary = run.join(format!(".training-control.{}.tmp", std::process::id()));
-    fs::write(
-        &temporary,
-        serde_json::to_vec_pretty(&json!({ "desiredState": desired_state }))
-            .expect("training control serializes"),
-    )
-    .map_err(|error| EngineError::new(format!("could not write training control: {error}")))?;
-    fs::rename(&temporary, &path)
-        .map_err(|error| EngineError::new(format!("could not publish training control: {error}")))
-}
-
-#[cfg(windows)]
-fn process_is_running(process_id: u32) -> bool {
-    let mut command = Command::new("tasklist");
-    command
-        .args(["/FI", &format!("PID eq {process_id}"), "/FO", "CSV", "/NH"])
-        .creation_flags(0x0800_0000);
-    command.output().is_ok_and(|output| {
-        String::from_utf8_lossy(&output.stdout).contains(&format!("\"{process_id}\""))
-    })
-}
-
-#[cfg(not(windows))]
-fn process_is_running(process_id: u32) -> bool {
-    Path::new("/proc").join(process_id.to_string()).exists()
-}
-
-fn trainer_manager() -> &'static Mutex<LocalTrainingProcessManager> {
-    static TRAINER: OnceLock<Mutex<LocalTrainingProcessManager>> = OnceLock::new();
-    TRAINER.get_or_init(|| Mutex::new(LocalTrainingProcessManager::default()))
-}
-
-fn managed_trainer_is_running(
-    manager: &mut LocalTrainingProcessManager,
-    model_id: &str,
-) -> Result<bool, EngineError> {
-    let Some(child) = manager.trainers.get_mut(model_id) else {
-        return Ok(false);
-    };
-    match child
-        .try_wait()
-        .map_err(|error| EngineError::new(format!("training process check failed: {error}")))?
-    {
-        None => Ok(true),
-        Some(_) => {
-            manager.trainers.remove(model_id);
-            Ok(false)
-        }
-    }
-}
-
-fn spawn_training_process(
-    manager: &mut LocalTrainingProcessManager,
-    definition: &PilotDefinition,
-) -> Result<(), EngineError> {
-    let model_id = definition
-        .training_run
-        .expect("training-capable pilot has a run definition")
-        .id;
-    if managed_trainer_is_running(manager, model_id)? {
-        return Ok(());
-    }
-    let root = project_root()?;
-    let run = training_run_path(&root, definition);
-    let config = training_config_path(&root, definition);
-    if !config.is_file() {
-        return Err(EngineError::new(format!(
-            "training configuration is missing: {}",
-            config.display()
-        )));
-    }
-    fs::create_dir_all(&run)
-        .map_err(|error| EngineError::new(format!("could not create training run: {error}")))?;
-    let stdout = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(run.join("process.stdout.log"))
-        .map_err(|error| EngineError::new(format!("could not open trainer output: {error}")))?;
-    let stderr = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(run.join("process.stderr.log"))
-        .map_err(|error| EngineError::new(format!("could not open trainer errors: {error}")))?;
-    let mut command = Command::new(python_executable(&root));
-    command
-        .args(["-m", "oracle_ai.training.league", "--config"])
-        .arg(config)
-        .current_dir(&root)
-        .env("PYTHONPATH", root.join("python/oracle_ai"))
-        .env("PYTHONUNBUFFERED", "1")
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr));
-    #[cfg(windows)]
-    command.creation_flags(0x0800_0000);
-    manager.trainers.insert(
-        model_id.to_string(),
-        command
-            .spawn()
-            .map_err(|error| EngineError::new(format!("could not start trainer: {error}")))?,
-    );
-    Ok(())
-}
-
-#[cfg(windows)]
-fn terminate_process_tree(process_id: u32) {
-    let mut command = Command::new("taskkill");
-    command
-        .args(["/PID", &process_id.to_string(), "/T", "/F"])
-        .creation_flags(0x0800_0000);
-    let _ = command.output();
-}
-
-#[cfg(not(windows))]
-fn terminate_process_tree(process_id: u32) {
-    let _ = Command::new("kill")
-        .args(["-TERM", &process_id.to_string()])
-        .output();
-}
-
-fn stop_training_process(model_id: &str, state: Option<&Value>) -> Result<(), EngineError> {
-    let mut manager = trainer_manager()
-        .lock()
-        .map_err(|_| EngineError::new("training process manager lock is poisoned"))?;
-    if let Some(child) = manager.trainers.get_mut(model_id) {
-        terminate_process_tree(child.id());
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-    manager.trainers.remove(model_id);
-    if let Some(process_id) = state
-        .and_then(|state| state.get("processId"))
-        .and_then(Value::as_u64)
-        .and_then(|process_id| u32::try_from(process_id).ok())
-        && process_is_running(process_id)
-    {
-        terminate_process_tree(process_id);
-    }
-    Ok(())
-}
-
-fn training_process_is_running(model_id: &str, state: Option<&Value>) -> Result<bool, EngineError> {
-    let mut manager = trainer_manager()
-        .lock()
-        .map_err(|_| EngineError::new("training process manager lock is poisoned"))?;
-    if managed_trainer_is_running(&mut manager, model_id)? {
-        return Ok(true);
-    }
-    Ok(state
-        .and_then(|state| state.get("processId"))
-        .and_then(Value::as_u64)
-        .and_then(|process_id| u32::try_from(process_id).ok())
-        .is_some_and(process_is_running))
-}
-
-pub fn training_dashboard(model_id: Option<&str>) -> Result<Value, EngineError> {
-    let root = project_root()?;
-    let definition = training_definition(model_id)?;
-    let training_run = definition
-        .training_run
-        .expect("training-capable pilot has a run definition");
-    let run = training_run_path(&root, definition);
-    let state = read_json(&run.join("league-state.json"));
-    let desired_state = training_control_state(&run);
-    let running = training_process_is_running(training_run.id, state.as_ref())?;
-    let paused = state
-        .as_ref()
-        .and_then(|state| state.get("paused"))
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let status = match (running, desired_state.as_str(), paused) {
-        (true, "paused", true) => "paused",
-        (true, "paused", false) => "pausing",
-        (true, _, _) => "running",
-        (false, _, _) if state.is_none() => "not-started",
-        (false, _, _) => "stopped",
-    };
-    let training_history = recent_json_lines(&run.join("training.jsonl"), 40)
-        .iter()
-        .map(compact_training_record)
-        .collect::<Vec<_>>();
-    let evaluation_history = recent_json_lines(&run.join("evaluations.jsonl"), 12)
-        .iter()
-        .map(compact_evaluation_record)
-        .collect::<Vec<_>>();
-    let ground_truth_history = recent_json_lines(&run.join("ground-truth-evaluations.jsonl"), 100)
-        .iter()
-        .map(compact_ground_truth_evaluation)
-        .collect::<Vec<_>>();
-    let latest_error = recent_json_lines(&run.join("training-errors.jsonl"), 1)
-        .into_iter()
-        .next();
-    let baseline = read_json(&run.join("champions/ia-gt-0/manifest.json"));
-    let gameplay_hourly = read_json(&run.join("training-gameplay-hourly.json"));
-    let training_leaderboard = read_json(&run.join("training-leaderboard.json"));
-    Ok(json!({
-        "schemaVersion": TRAINING_DASHBOARD_SCHEMA_VERSION,
-        "selectedModelId": training_run.id,
-        "selectedModel": definition,
-        "models": training_pilots().map(|pilot| {
-            let run = pilot.training_run.expect("training pilot run");
-            json!({
-                "id": pilot.id,
-                "label": pilot.label,
-                "kind": pilot.kind,
-                "capabilities": pilot.capabilities,
-                "controllerId": pilot.controller_id,
-                "pilotId": pilot.pilot_id,
-                "trainingRun": run,
-                "available": training_config_path(&root, pilot).is_file(),
-            })
-        }).collect::<Vec<_>>(),
-        "status": status,
-        "desiredState": desired_state,
-        "running": running,
-        "runPath": run.strip_prefix(&root).unwrap_or(&run).to_string_lossy(),
-        "baseline": baseline.map(|manifest| json!({
-            "modelFamily": manifest.get("model_family"),
-            "trainingStep": manifest.get("training_step"),
-        })),
-        "state": state,
-        "training": {
-            "latest": training_history.last(),
-            "history": training_history,
-            "latestError": latest_error,
-            "gameplayHourly": gameplay_hourly,
-        },
-        "evaluation": {
-            "latest": evaluation_history.last(),
-            "history": evaluation_history,
-        },
-        "groundTruthEvaluation": {
-            "latest": ground_truth_history.last(),
-            "history": ground_truth_history,
-        },
-        "trainingLeaderboard": training_leaderboard,
-    }))
-}
-
-pub fn control_training(model_id: Option<&str>, action: &str) -> Result<Value, EngineError> {
-    let root = project_root()?;
-    let definition = training_definition(model_id)?;
-    let training_run = definition
-        .training_run
-        .expect("training-capable pilot has a run definition");
-    let run = training_run_path(&root, definition);
-    match action {
-        "pause" => write_training_control(&run, "paused")?,
-        "resume" => {
-            write_training_control(&run, "running")?;
-            let state = read_json(&run.join("league-state.json"));
-            if !training_process_is_running(training_run.id, state.as_ref())? {
-                let mut manager = trainer_manager()
-                    .lock()
-                    .map_err(|_| EngineError::new("training process manager lock is poisoned"))?;
-                spawn_training_process(&mut manager, definition)?;
-            }
-        }
-        "restart" => {
-            let state = read_json(&run.join("league-state.json"));
-            stop_training_process(training_run.id, state.as_ref())?;
-            write_training_control(&run, "running")?;
-            let mut manager = trainer_manager()
-                .lock()
-                .map_err(|_| EngineError::new("training process manager lock is poisoned"))?;
-            spawn_training_process(&mut manager, definition)?;
-        }
-        _ => {
-            return Err(EngineError::new(format!(
-                "unsupported training action: {action}"
-            )));
-        }
-    }
-    training_dashboard(Some(training_run.id))
-}
-
-fn python_executable(root: &Path) -> PathBuf {
-    if let Some(path) = std::env::var_os(PYTHON_ENV) {
-        return PathBuf::from(path);
-    }
-    let candidate = if cfg!(windows) {
-        root.join(".tmp/oracle-ai-venv/Scripts/python.exe")
-    } else {
-        root.join(".tmp/oracle-ai-venv/bin/python")
-    };
-    if candidate.is_file() {
-        candidate
-    } else {
-        PathBuf::from("python")
-    }
-}
-
-fn ground_truth_name(registry: &Path) -> String {
-    fs::read_to_string(registry)
-        .ok()
-        .and_then(|contents| serde_json::from_str::<LocalModelRegistry>(&contents).ok())
-        .and_then(|registry| registry.current_ground_truth)
-        .unwrap_or_else(|| "ia-gt-0".to_string())
-}
-
-fn spawn_local_service(service: LocalAiService, endpoint: &str) -> Result<Child, EngineError> {
-    let port = endpoint_port(endpoint).ok_or_else(|| {
-        EngineError::new(format!(
-            "AI autostart only supports local HTTP endpoints: {endpoint}"
-        ))
-    })?;
-    let root = project_root()?;
-    let registry = configured_path(
-        &root,
-        MODEL_REGISTRY_ENV,
-        "runs/oracle-ai-league-v8-simplified/model-registry.json",
-    );
-    let checkpoint = match service {
-        LocalAiService::V10Training => configured_path(
-            &root,
-            V10_TRAINING_CHECKPOINT_ENV,
-            "runs/oracle-ai-league-v10-from-scratch/live/ia-v10-in-training",
-        ),
-        LocalAiService::GroundTruth => PathBuf::new(),
-    };
-    let (model_name, log_name) = match service {
-        LocalAiService::GroundTruth => {
-            if !registry.is_file() {
-                return Err(EngineError::new(format!(
-                    "ground-truth model registry is missing: {}",
-                    registry.display()
-                )));
-            }
-            (ground_truth_name(&registry), "ia-gt.log")
-        }
-        LocalAiService::V10Training => {
-            if !checkpoint.join("manifest.json").is_file() {
-                return Err(EngineError::new(format!(
-                    "V10 training checkpoint is missing: {}",
-                    checkpoint.display()
-                )));
-            }
-            ("ia-v10-in-training".to_string(), "ia-v10-in-training.log")
-        }
-    };
-    let log_directory = root.join(".tmp/ai-services");
-    fs::create_dir_all(&log_directory)
-        .map_err(|error| EngineError::new(format!("could not create AI log directory: {error}")))?;
-    let log = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_directory.join(log_name))
-        .map_err(|error| EngineError::new(format!("could not open AI service log: {error}")))?;
-    let error_log = log
-        .try_clone()
-        .map_err(|error| EngineError::new(format!("could not clone AI service log: {error}")))?;
-    let mut command = Command::new(python_executable(&root));
-    command
-        .args(["-m", "uvicorn", "oracle_ai.app:app", "--app-dir"])
-        .arg(root.join("python/oracle_ai"))
-        .args(["--host", "127.0.0.1", "--port"])
-        .arg(port.to_string())
-        .current_dir(&root)
-        .env(
-            "ORACLE_AI_DEVICE",
-            std::env::var(INFERENCE_DEVICE_ENV).unwrap_or_else(|_| "cuda".to_string()),
-        )
-        .env("ORACLE_AI_MODEL_NAME", &model_name)
-        .env("ORACLE_AI_POLICY", "model")
-        .env("PYTHONUNBUFFERED", "1")
-        .stdout(Stdio::from(log))
-        .stderr(Stdio::from(error_log));
-    match service {
-        LocalAiService::GroundTruth => {
-            command
-                .env("ORACLE_AI_MODEL_REGISTRY", registry)
-                .env_remove("ORACLE_AI_CHECKPOINT");
-        }
-        LocalAiService::V10Training => {
-            command
-                .env("ORACLE_AI_CHECKPOINT", checkpoint)
-                .env_remove("ORACLE_AI_MODEL_REGISTRY");
-        }
-    }
-    #[cfg(windows)]
-    command.creation_flags(0x0800_0000);
-    command.spawn().map_err(|error| {
-        EngineError::new(format!("could not start Python AI {model_name}: {error}"))
-    })
-}
-
-impl LocalAiServiceManager {
-    fn ensure(&mut self, service: LocalAiService, endpoint: &str) -> Result<(), EngineError> {
-        let root = project_root()?;
-        if let Some(health) = endpoint_health(endpoint) {
-            if health_matches_service(&health, service, &root) {
-                return Ok(());
-            }
-            return Err(EngineError::new(format!(
-                "Python AI endpoint {endpoint} serves {} from a different run",
-                health.model
-            )));
-        }
-        let slot = match service {
-            LocalAiService::GroundTruth => &mut self.ground_truth,
-            LocalAiService::V10Training => &mut self.v10_training,
-        };
-        if let Some(child) = slot.as_mut()
-            && child
-                .try_wait()
-                .map_err(|error| EngineError::new(format!("AI process check failed: {error}")))?
-                .is_some()
-        {
-            *slot = None;
-        }
-        if slot.is_none() {
-            *slot = Some(spawn_local_service(service, endpoint)?);
-        }
-        let timeout = std::env::var(STARTUP_TIMEOUT_ENV)
-            .ok()
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(60_000);
-        let deadline = Instant::now() + Duration::from_millis(timeout);
-        while Instant::now() < deadline {
-            if let Some(health) = endpoint_health(endpoint) {
-                if health_matches_service(&health, service, &root) {
-                    return Ok(());
-                }
-                return Err(EngineError::new(format!(
-                    "Python AI endpoint {endpoint} started with the wrong model identity"
-                )));
-            }
-            if let Some(child) = slot.as_mut()
-                && let Some(status) = child.try_wait().map_err(|error| {
-                    EngineError::new(format!("AI process check failed: {error}"))
-                })?
-            {
-                *slot = None;
-                return Err(EngineError::new(format!(
-                    "Python AI service exited with {status}"
-                )));
-            }
-            thread::sleep(Duration::from_millis(250));
-        }
-        Err(EngineError::new(format!(
-            "Python AI service did not become healthy at {endpoint}"
-        )))
-    }
-}
-
-fn ensure_local_ai_services() -> Result<(), EngineError> {
-    // V12 training owns the sole inference service. Reading the Play catalog
-    // must not revive retired ground-truth, V8, V9, V10, or V11 processes.
-    Ok(())
-}
-
 pub fn controller_catalog() -> AiControllerCatalog {
-    let _ = ensure_local_ai_services();
     let mut controllers = vec![AiControllerStatus {
         id: "ai-random".to_string(),
         kind: "random".to_string(),
@@ -1158,11 +369,13 @@ pub fn controller_catalog() -> AiControllerCatalog {
         .map(|client| {
             client.status(
                 "ia-v10-in-training",
-                pilot_definition("v10").expect("V10 pilot definition").label,
+                pilot_definition("ia-v10-in-training")
+                    .expect("V10 pilot definition")
+                    .label,
             )
         })
         .unwrap_or_else(|_| {
-            let definition = pilot_definition("v10").expect("V10 pilot definition");
+            let definition = pilot_definition("ia-v10-in-training").expect("V10 pilot definition");
             AiControllerStatus {
                 id: definition.id.to_string(),
                 label: definition.label.to_string(),
@@ -1180,11 +393,13 @@ pub fn controller_catalog() -> AiControllerCatalog {
         .map(|client| {
             client.status(
                 "ia-v11-in-training",
-                pilot_definition("v11").expect("V11 pilot definition").label,
+                pilot_definition("ia-v11-in-training")
+                    .expect("V11 pilot definition")
+                    .label,
             )
         })
         .unwrap_or_else(|_| {
-            let definition = pilot_definition("v11").expect("V11 pilot definition");
+            let definition = pilot_definition("ia-v11-in-training").expect("V11 pilot definition");
             AiControllerStatus {
                 id: definition.id.to_string(),
                 label: definition.label.to_string(),
@@ -1202,11 +417,13 @@ pub fn controller_catalog() -> AiControllerCatalog {
         .map(|client| {
             client.status(
                 "ia-v12-in-training",
-                pilot_definition("v12").expect("V12 pilot definition").label,
+                pilot_definition("ia-v12-in-training")
+                    .expect("V12 pilot definition")
+                    .label,
             )
         })
         .unwrap_or_else(|_| {
-            let definition = pilot_definition("v12").expect("V12 pilot definition");
+            let definition = pilot_definition("ia-v12-in-training").expect("V12 pilot definition");
             AiControllerStatus {
                 id: definition.id.to_string(),
                 label: definition.label.to_string(),
@@ -1254,7 +471,6 @@ impl DecisionProvider for RemoteAi {
         state: &GameState,
         request: &EngineDecisionRequest,
     ) -> Result<usize, EngineError> {
-        ensure_local_ai_services()?;
         let agent_request = request.agent_facing();
         if agent_request.options.is_empty() {
             return Err(EngineError::new(format!(
@@ -1310,7 +526,6 @@ impl DecisionProvider for RemoteAi {
         state: &GameState,
         request: &EngineDecisionRequest,
     ) -> Result<i32, EngineError> {
-        ensure_local_ai_services()?;
         let agent_request = request.agent_facing();
         if agent_request.options.is_empty() {
             return Err(EngineError::new(format!(
@@ -1362,12 +577,7 @@ impl DecisionProvider for RemoteAi {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        RemoteAi, RemoteHealthResponse, compact_training_record, endpoint_port, recent_json_lines,
-        training_control_state, write_training_control,
-    };
-    use serde_json::json;
-    use std::fs;
+    use super::RemoteAi;
     use std::time::Duration;
 
     #[test]
@@ -1376,70 +586,5 @@ mod tests {
             .with_deterministic(false);
 
         assert!(!client.deterministic);
-    }
-
-    #[test]
-    fn autostart_accepts_only_local_http_endpoints() {
-        assert_eq!(endpoint_port("http://127.0.0.1:8790"), Some(8790));
-        assert_eq!(endpoint_port("http://localhost:8791/"), Some(8791));
-        assert_eq!(endpoint_port("https://example.test:8790"), None);
-    }
-
-    #[test]
-    fn health_response_reads_camel_case_model_paths() {
-        let health: RemoteHealthResponse = serde_json::from_str(
-            r#"{
-                "checkpointPath": "runs/live/ia-in-training",
-                "model": "ia-in-training",
-                "registryPath": "runs/model-registry.json",
-                "trainingStep": 42
-            }"#,
-        )
-        .expect("health response");
-
-        assert_eq!(
-            health.checkpoint_path.as_deref(),
-            Some("runs/live/ia-in-training")
-        );
-        assert_eq!(
-            health.registry_path.as_deref(),
-            Some("runs/model-registry.json")
-        );
-        assert_eq!(health.training_step, 42);
-    }
-
-    #[test]
-    fn dashboard_reads_only_recent_metrics_and_persists_pause() {
-        let run = std::env::temp_dir().join(format!("oracle-ai-dashboard-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&run);
-        fs::create_dir_all(&run).expect("temporary run directory");
-        fs::write(
-            run.join("training.jsonl"),
-            "{\"episode\":1}\n{\"episode\":2}\n{\"episode\":3}\n",
-        )
-        .expect("training fixture");
-
-        let recent = recent_json_lines(&run.join("training.jsonl"), 2);
-        assert_eq!(recent.len(), 2);
-        assert_eq!(recent[0]["episode"], 2);
-        assert_eq!(recent[1]["episode"], 3);
-
-        write_training_control(&run, "paused").expect("pause control");
-        assert_eq!(training_control_state(&run), "paused");
-        fs::remove_dir_all(&run).expect("temporary run cleanup");
-    }
-
-    #[test]
-    fn dashboard_keeps_game_and_optimizer_durations_distinct() {
-        let compact = compact_training_record(&json!({
-            "episode": 8,
-            "gameDurationSeconds": 12.5,
-            "trainingDurationSeconds": 3.25,
-            "episodeSeconds": 15.75,
-        }));
-
-        assert_eq!(compact["gameDurationSeconds"], 12.5);
-        assert_eq!(compact["trainingDurationSeconds"], 3.25);
-        assert_eq!(compact["episodeSeconds"], 15.75);
     }
 }

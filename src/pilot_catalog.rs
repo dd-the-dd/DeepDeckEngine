@@ -10,14 +10,6 @@ pub struct PilotCapabilities {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TrainingRunDefinition {
-    pub id: &'static str,
-    pub run_path: &'static str,
-    pub config_path: &'static str,
-}
-
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PilotDefinition {
     pub id: &'static str,
     pub label: &'static str,
@@ -25,7 +17,6 @@ pub struct PilotDefinition {
     pub capabilities: PilotCapabilities,
     pub controller_id: Option<&'static str>,
     pub pilot_id: &'static str,
-    pub training_run: Option<TrainingRunDefinition>,
 }
 
 const PLAY_AND_STATS: PilotCapabilities = PilotCapabilities {
@@ -54,7 +45,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: PLAY_AND_STATS,
         controller_id: Some("human"),
         pilot_id: "human",
-        training_run: None,
     },
     PilotDefinition {
         id: "network-human",
@@ -63,7 +53,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: STATS_ONLY,
         controller_id: None,
         pilot_id: "network-human",
-        training_run: None,
     },
     PilotDefinition {
         id: "ai-random",
@@ -72,7 +61,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: PLAY_AND_STATS,
         controller_id: Some("ai-random"),
         pilot_id: "ai-random",
-        training_run: None,
     },
     PilotDefinition {
         id: "ia-v6-in-training",
@@ -81,11 +69,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: None,
         pilot_id: "ia-v6-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v6",
-            run_path: "runs/oracle-ai-league-v6-alpha-zero",
-            config_path: "python/oracle_ai/configs/league-v6-alpha-zero.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v7-in-training",
@@ -94,11 +77,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: None,
         pilot_id: "ia-v7-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v7",
-            run_path: "runs/oracle-ai-league-v7-strategic",
-            config_path: "python/oracle_ai/configs/league-v7-strategic.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v8-in-training",
@@ -107,11 +85,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: Some("ia-in-training"),
         pilot_id: "ia-v8-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v8",
-            run_path: "runs/oracle-ai-league-v8-simplified",
-            config_path: "python/oracle_ai/configs/league-v8-simplified.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v9-in-training",
@@ -120,11 +93,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: Some("ia-v9-in-training"),
         pilot_id: "ia-v9-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v9",
-            run_path: "runs/oracle-ai-league-v9-consequence",
-            config_path: "python/oracle_ai/configs/league-v9-consequence.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v10-step-94266",
@@ -133,7 +101,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: PLAY_AND_STATS,
         controller_id: Some("ia-v10-step-94266"),
         pilot_id: "ia-v10-step-94266",
-        training_run: None,
     },
     PilotDefinition {
         id: "ia-v10-in-training",
@@ -142,11 +109,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: Some("ia-v10-in-training"),
         pilot_id: "ia-v10-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v10",
-            run_path: "runs/oracle-ai-league-v10-from-scratch",
-            config_path: "python/oracle_ai/configs/league-v10-events.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v11-in-training",
@@ -155,11 +117,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: Some("ia-v11-in-training"),
         pilot_id: "ia-v11-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v11",
-            run_path: "runs/oracle-ai-league-v11-alphastar",
-            config_path: "python/oracle_ai/configs/league-v11-alphastar.yaml",
-        }),
     },
     PilotDefinition {
         id: "ia-v12-in-training",
@@ -168,11 +125,6 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: MODEL_CAPABILITIES,
         controller_id: Some("ia-v12-in-training"),
         pilot_id: "ia-v12-in-training",
-        training_run: Some(TrainingRunDefinition {
-            id: "v12",
-            run_path: "runs/oracle-ai-league-v12-legacy",
-            config_path: "python/oracle_ai/configs/league-v12-legacy.yaml",
-        }),
     },
     PilotDefinition {
         id: "ai-training-anchor",
@@ -181,16 +133,12 @@ pub const PILOT_DEFINITIONS: &[PilotDefinition] = &[
         capabilities: STATS_ONLY,
         controller_id: None,
         pilot_id: "ai-training-anchor",
-        training_run: None,
     },
 ];
 
 pub fn pilot_definition(id: &str) -> Option<&'static PilotDefinition> {
     PILOT_DEFINITIONS.iter().find(|definition| {
-        definition.id == id
-            || definition.pilot_id == id
-            || definition.controller_id == Some(id)
-            || definition.training_run.is_some_and(|run| run.id == id)
+        definition.id == id || definition.pilot_id == id || definition.controller_id == Some(id)
     })
 }
 
@@ -221,7 +169,6 @@ mod tests {
         assert!(pilot.capabilities.play);
         assert!(pilot.capabilities.deck_stats);
         assert!(!pilot.capabilities.training);
-        assert!(pilot.training_run.is_none());
         assert!(!is_playable_model_controller("ia-v10-step-94266"));
         assert!(!is_playable_model_controller("unknown-model"));
     }
