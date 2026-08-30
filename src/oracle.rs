@@ -1,3 +1,5 @@
+mod audit;
+mod canonical;
 mod model;
 mod pipeline;
 mod syntax;
