@@ -3,7 +3,7 @@ use crate::engine::{
     GameSetup, GameState, GameStatus, GameStep, LegalAction,
 };
 use crate::pilot_catalog::{
-    PILOT_DEFINITIONS, PilotCapabilities, TrainingRunDefinition, pilot_definition, training_pilots,
+    PILOT_DEFINITIONS, PilotCapabilities, pilot_definition, training_pilots,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -1309,8 +1309,6 @@ pub struct AnalyticsPilotOption {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub controller_id: Option<String>,
     pub pilot_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub training_run: Option<TrainingRunDefinition>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1592,7 +1590,6 @@ fn query_dataset_with_creators(
             capabilities: definition.capabilities,
             controller_id: definition.controller_id.map(str::to_string),
             pilot_id: definition.pilot_id.to_string(),
-            training_run: definition.training_run,
         })
         .collect::<Vec<_>>();
     for pilot in observed_pilots {
@@ -1614,7 +1611,6 @@ fn query_dataset_with_creators(
             },
             controller_id: None,
             pilot_id: pilot,
-            training_run: None,
         });
     }
     pilots.sort_by(|left, right| left.label.cmp(&right.label));
