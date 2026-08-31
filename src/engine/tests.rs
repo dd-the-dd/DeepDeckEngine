@@ -10816,12 +10816,9 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
                     },
                 },
                 {
-                    "kind": "moveCards",
+                    "kind": "discardCards",
+                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
                     "cards": { "kind": "decisionResult", "decisionId": "discardedCard" },
-                    "to": {
-                        "kind": "graveyard",
-                        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    },
                 },
             ],
         })),
@@ -10849,6 +10846,11 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
             .iter()
             .any(|card| card.instance_id == "target-nonland")
     );
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "cardDiscarded"
+            && event.player_id.as_deref() == Some("player-1")
+            && event.card_instance_id.as_deref() == Some("target-nonland")
+    }));
 }
 
 #[test]
@@ -16363,6 +16365,131 @@ fn mobilize_creates_attacking_warriors_then_sacrifices_them_at_end_step() {
             .battlefield
             .iter()
             .all(|card| !card.definition.is_token)
+    );
+}
+
+#[test]
+fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Sneak Attack".to_string(),
+        type_line: "Enchantment".to_string(),
+        mana_cost: Some("{3}{R}".to_string()),
+        oracle_text: Some(
+            "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect::<Vec<_>>();
+    assert_eq!(rules.len(), 1);
+    assert!(rule_is_executable(&rules[0]));
+
+    let mut source_definition = test_definition("test-sneak-attack", "Enchantment");
+    source_definition.rules = rules;
+    let source = test_instance("test-sneak-attack", source_definition, "player-0");
+    let creature = test_instance(
+        "sneaked-creature",
+        test_definition("sneaked-creature", "Creature - Beast"),
+        "player-0",
+    );
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].battlefield = vec![source];
+    engine.state.players[0].hand = vec![creature];
+    engine.state.players[0].mana_pool = vec![FloatingMana {
+        symbol: "R".to_string(),
+        spend_restriction: None,
+    }];
+
+    let action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("test-sneak-attack")
+                && action.targets.get("handCard")
+                    == Some(&TargetRef::Card {
+                        instance_id: "sneaked-creature".to_string(),
+                    })
+        })
+        .expect("Sneak Attack offers the creature from hand");
+    engine
+        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
+        .expect("Sneak Attack is activated");
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Sneak Attack resolves");
+
+    let creature = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "sneaked-creature")
+        .expect("the selected creature remains on the battlefield");
+    assert!(has_keyword(&creature.definition, "haste"));
+    assert!(engine.state.players[0].graveyard.is_empty());
+    let delayed = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .find(|modifier| value_kind(modifier) == Some("delayedStepTrigger"))
+        .expect("the delayed end-step trigger is installed");
+    assert_eq!(delayed["trackedObjectId"], "sneaked-creature");
+
+    engine.enqueue_step_triggers("endStep");
+    assert!(engine.permanent_position("sneaked-creature").is_some());
+    assert_eq!(engine.state.stack.len(), 1);
+    assert_eq!(
+        engine.state.stack[0].ability_rule.as_ref().unwrap()["effects"][0]["kind"],
+        "sacrificePermanent"
+    );
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the delayed sacrifice trigger resolves");
+    assert!(engine.permanent_position("sneaked-creature").is_none());
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "sneaked-creature")
+    );
+
+    let decline_source = test_instance(
+        "declined-sneak-attack",
+        engine.state.players[0].battlefield[0].definition.clone(),
+        "player-0",
+    );
+    let mut decline_engine = test_engine(2);
+    decline_engine.state.step = GameStep::PrecombatMain;
+    decline_engine.state.players[0].battlefield = vec![decline_source];
+    decline_engine.state.players[0].mana_pool = vec![FloatingMana {
+        symbol: "R".to_string(),
+        spend_restriction: None,
+    }];
+    let decline = decline_engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility && !action.targets.contains_key("handCard")
+        })
+        .expect("the optional hand choice may be declined");
+    decline_engine
+        .apply_priority_action(&decline, &mut EmeritusDecisionProvider)
+        .expect("the declined activation is legal");
+    decline_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the declined activation resolves");
+    assert!(
+        decline_engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("delayedStepTrigger"))
     );
 }
 

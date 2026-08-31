@@ -9258,3 +9258,59 @@ fn flame_of_anor_conditional_modal_maximum_delegates_controlled_permanent_criter
     )
     .is_none());
 }
+
+#[test]
+fn targeted_hand_disruption_emits_a_discard_instead_of_a_zone_move() {
+    for (text, player_kind) in [
+        (
+            "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.",
+            "players",
+        ),
+        (
+            "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.",
+            "players",
+        ),
+    ] {
+        let parsed = parse_common_spell_ability(text)
+            .expect("targeted hand disruption should use the shared discard semantics");
+        assert_eq!(parsed.rule["effects"][2]["kind"], "discardCards");
+        assert_eq!(parsed.rule["effects"][2]["cards"]["kind"], "decisionResult");
+        assert_eq!(parsed.rule["effects"][2]["player"]["kind"], "chosenTarget");
+        assert_eq!(
+            parsed.rule["declaration"]["decisions"][0]["candidates"]["kind"],
+            player_kind
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(parse_common_spell_ability(
+        "Target player reveals their hand. You choose a nonland card from it. Put that card into that player's graveyard."
+    )
+    .is_none());
+}
+
+#[test]
+fn hand_to_battlefield_haste_uses_a_real_delayed_sacrifice_trigger() {
+    for text in [
+        "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+        "{2}{R}: You may put an artifact creature card from your hand onto the battlefield. That permanent gains haste. Sacrifice it at the beginning of the next end step.",
+    ] {
+        let parsed = parse_simple_activated_ability(text)
+            .expect("the shared hand-put and delayed-sacrifice grammar composes");
+        let delayed = &parsed.rule["effects"][2];
+        assert_eq!(delayed["kind"], "installDelayedStepTrigger");
+        assert_eq!(delayed["step"], "endStep");
+        assert_eq!(delayed["trackedObject"], chosen_target("handCard"));
+        assert_eq!(delayed["effects"][0]["kind"], "sacrificePermanent");
+        assert_eq!(
+            delayed["effects"][0]["permanent"]["kind"],
+            "triggeringPermanent"
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(parse_hand_put_haste_delayed_sacrifice(
+        "You may put a creature card from your graveyard onto the battlefield. That creature gains haste. Sacrifice it at the beginning of the next end step.",
+    )
+    .is_none());
+}
