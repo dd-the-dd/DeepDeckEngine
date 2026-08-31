@@ -122,27 +122,6 @@ pub(in crate::oracle::canonical) fn modal_bullet_instruction(line: &str) -> Opti
         .map(str::trim)
 }
 
-pub(in crate::oracle::canonical) fn strip_short_oracle_label(instruction: &str) -> &str {
-    if let Some((label, effect)) = instruction
-        .split_once(" \u{2014} ")
-        .or_else(|| instruction.split_once(" \u{2013} "))
-        .or_else(|| instruction.split_once(" - "))
-        && !label.contains('.')
-        && label.split_whitespace().count() <= 5
-    {
-        return effect.trim();
-    }
-    for separator in [" â€” ", " — ", " Ã¢â‚¬â€ "] {
-        if let Some((label, effect)) = instruction.split_once(separator)
-            && !label.contains('.')
-            && label.split_whitespace().count() <= 5
-        {
-            return effect.trim();
-        }
-    }
-    instruction
-}
-
 pub(in crate::oracle::canonical) fn parse_general_modal_spell(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {

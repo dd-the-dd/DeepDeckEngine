@@ -4,6 +4,7 @@ use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::card_catalog::named_token_printing;
+use crate::oracle::syntax::strip_short_oracle_label;
 
 mod abilities;
 mod conditions;

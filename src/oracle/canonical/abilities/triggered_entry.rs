@@ -23,6 +23,43 @@ pub(in crate::oracle::canonical) fn entry_trigger_rule(
     )
 }
 
+pub(in crate::oracle::canonical) fn parse_source_entry_trigger<'a>(
+    text: &'a str,
+    face_name: &str,
+) -> Option<(Value, &'a str)> {
+    let (event_text, instruction) = text.split_once(", ")?;
+    let subject_and_event = strip_prefix_ascii_case(event_text, "When ")
+        .or_else(|| strip_prefix_ascii_case(event_text, "Whenever "))?;
+    let subject = [" enters the battlefield", " comes into play", " enters"]
+        .into_iter()
+        .find_map(|suffix| strip_suffix_ascii_case(subject_and_event, suffix))?
+        .trim();
+    let source_kind = strip_prefix_ascii_case(subject, "this ");
+    let is_source = source_kind.is_some_and(|kind| {
+        [
+            "artifact",
+            "aura",
+            "creature",
+            "enchantment",
+            "equipment",
+            "land",
+            "permanent",
+            "room",
+            "spacecraft",
+            "token",
+            "vehicle",
+        ]
+        .iter()
+        .any(|candidate| kind.eq_ignore_ascii_case(candidate))
+    }) || source_reference_matches(subject, face_name);
+    is_source.then(|| {
+        (
+            json!({ "kind": "enterBattlefield", "object": self_ref() }),
+            instruction,
+        )
+    })
+}
+
 pub(in crate::oracle::canonical) fn mana_value_candidate_filter(
     operator: &str,
     value: i64,

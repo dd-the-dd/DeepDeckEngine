@@ -18,15 +18,11 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
             instruction,
         ));
     }
-    let text = [" — ", " â€” ", " Ã¢â‚¬â€ "]
-        .into_iter()
-        .find_map(|separator| text.split_once(separator).map(|(_, trigger)| trigger))
-        .filter(|trigger| {
-            trigger.starts_with("When ")
-                || trigger.starts_with("Whenever ")
-                || trigger.starts_with("At the beginning ")
-        })
-        .unwrap_or(text);
+    let text = strip_short_oracle_label(text);
+
+    if let Some(entry) = parse_source_entry_trigger(text, face_name) {
+        return Some(entry);
+    }
 
     let combat_damage_received_re =
         Regex::new(r"(?i)^Whenever one or more (.+?) deal combat damage to you, (.+)$")
@@ -416,38 +412,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
                     "player": controller(),
                     "where": parse_permanent_criteria(criteria, face_name)?,
                 }),
-                instruction,
-            ));
-        }
-    }
-
-    for subject in [
-        "Aura",
-        "creature",
-        "Equipment",
-        "Spacecraft",
-        "enchantment",
-        "artifact",
-        "land",
-    ] {
-        let prefix = format!("When this {subject} enters, ");
-        if let Some(instruction) = text.strip_prefix(&prefix) {
-            return Some((
-                json!({ "kind": "enterBattlefield", "object": self_ref() }),
-                instruction,
-            ));
-        }
-    }
-    if !face_name.is_empty()
-        && let Some(captures) = Regex::new(r"(?i)^When (.+) enters?, (.+)$")
-            .expect("named source entry trigger regex compiles")
-            .captures(text)
-    {
-        let subject = captures.get(1)?.as_str();
-        if source_reference_matches(subject, face_name) {
-            let instruction = captures.get(2)?.as_str();
-            return Some((
-                json!({ "kind": "enterBattlefield", "object": self_ref() }),
                 instruction,
             ));
         }
