@@ -782,6 +782,77 @@ fn legacy_rule_families_parse_without_card_specific_branches() {
 }
 
 #[test]
+fn permanent_selection_then_sacrifice_rest_composes_player_quantity_and_criteria() {
+    let cases = [
+        (
+            "{T}: Each opponent chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+            "opponentsOf",
+            4,
+            false,
+        ),
+        (
+            "{T}: Each player chooses two creatures from among the nonland permanents they control, then sacrifices the rest.",
+            "eachPlayer",
+            1,
+            false,
+        ),
+        (
+            "{T}: Target player chooses X from among the enchantments they control, then sacrifices the rest.",
+            "chosenTarget",
+            1,
+            true,
+        ),
+        (
+            "{T}: You choose an artifact from among the artifact permanents you control, then sacrifice the rest.",
+            "controllerOf",
+            1,
+            false,
+        ),
+        (
+            "{T}: A player chosen at random chooses at random one permanent from among the noncreature permanents they control, then sacrifices the rest.",
+            "randomPlayer",
+            1,
+            false,
+        ),
+    ];
+
+    for (text, player_kind, selection_count, targeted) in cases {
+        let parsed = parse_simple_activated_ability(text)
+            .unwrap_or_else(|| panic!("composed permanent selection parses: {text}"));
+        let effect = &parsed.rule["effects"][0];
+        assert_eq!(effect["kind"], "forEachPlayer");
+        assert_eq!(effect["players"]["kind"], player_kind);
+        assert_eq!(
+            effect["effects"][0]["groups"].as_array().map(Vec::len),
+            Some(selection_count)
+        );
+        assert_eq!(effect["effects"][0]["kind"], "selectPermanents");
+        assert_eq!(effect["effects"][1]["kind"], "sacrificePermanents");
+        assert_eq!(
+            effect["effects"][1]["objects"]["kind"],
+            "selectionRemainder"
+        );
+        assert_eq!(
+            parsed.rule["declaration"]["decisions"].as_array().is_some(),
+            targeted
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    let triggered = parse_expansion_triggered(
+        "When this creature enters, each player chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+        "",
+    )
+    .expect("the same composed effect parses inside an enters trigger");
+    assert_eq!(triggered.rule["effects"][0]["kind"], "forEachPlayer");
+    assert_eq!(
+        triggered.rule["effects"][0]["players"]["kind"],
+        "eachPlayer"
+    );
+    assert!(crate::engine::rule_is_executable(&triggered.rule));
+}
+
+#[test]
 fn topiary_lecturer_mana_scales_with_its_power() {
     let parsed = parse_mana_ability("{T}: Add an amount of {G} equal to this creature's power.")
         .map(promote_activated_mana_ability)

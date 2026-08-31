@@ -4228,6 +4228,123 @@ fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
 }
 
 #[test]
+fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        test_instance(
+            "kept-artifact",
+            test_definition("kept-artifact", "Artifact"),
+            "player-1",
+        ),
+        test_instance(
+            "extra-artifact",
+            test_definition("extra-artifact", "Artifact"),
+            "player-1",
+        ),
+        test_instance(
+            "kept-creature",
+            test_definition("kept-creature", "Creature"),
+            "player-1",
+        ),
+        test_instance(
+            "extra-enchantment",
+            test_definition("extra-enchantment", "Enchantment"),
+            "player-1",
+        ),
+        test_instance(
+            "unaffected-land",
+            test_definition("unaffected-land", "Land"),
+            "player-1",
+        ),
+    ];
+    let stack_object = StackObject {
+        id: "stack:keep-then-sacrifice".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "keep-then-sacrifice-source",
+            test_definition("keep-then-sacrifice-source", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+
+    engine
+        .execute_effects(
+            &json!([{
+                "kind": "forEachPlayer",
+                "players": {
+                    "kind": "opponentsOf",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                },
+                "effects": [{
+                    "kind": "selectPermanents",
+                    "id": "keptPermanents",
+                    "player": { "kind": "currentPlayer" },
+                    "candidates": {
+                        "kind": "permanents",
+                        "controller": { "kind": "currentPlayer" },
+                        "where": {
+                            "kind": "not",
+                            "operand": { "kind": "cardTypeContains", "value": "Land" },
+                        },
+                    },
+                    "groups": [
+                        {
+                            "quantity": { "kind": "integer", "value": 1 },
+                            "where": { "kind": "cardTypeContains", "value": "Artifact" },
+                        },
+                        {
+                            "quantity": { "kind": "integer", "value": 1 },
+                            "where": { "kind": "cardTypeContains", "value": "Creature" },
+                        },
+                    ],
+                    "selection": { "kind": "choice" },
+                }, {
+                    "kind": "sacrificePermanents",
+                    "objects": {
+                        "kind": "selectionRemainder",
+                        "selectionId": "keptPermanents",
+                        "candidates": {
+                            "kind": "permanents",
+                            "controller": { "kind": "currentPlayer" },
+                            "where": {
+                                "kind": "not",
+                                "operand": { "kind": "cardTypeContains", "value": "Land" },
+                            },
+                        },
+                    },
+                }],
+            }]),
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("each opponent keeps the requested selections and sacrifices the rest");
+
+    let battlefield = engine.state.players[1]
+        .battlefield
+        .iter()
+        .map(|card| card.instance_id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert!(battlefield.contains("unaffected-land"));
+    assert!(battlefield.contains("kept-creature"));
+    assert_eq!(battlefield.len(), 3);
+    assert_eq!(engine.state.players[1].graveyard.len(), 2);
+    assert!(
+        engine.state.players[1]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "extra-enchantment")
+    );
+}
+
+#[test]
 fn activated_declarations_bind_source_counter_variables_before_filtering_cards() {
     let mut engine = test_engine(2);
     let mut source = test_instance(

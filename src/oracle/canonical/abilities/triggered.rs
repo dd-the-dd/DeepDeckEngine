@@ -374,26 +374,6 @@ pub(in crate::oracle::canonical) fn parse_special_triggered_ability(
             &["Resolve Ao dying", "Choose and execute one death mode"],
         ));
     }
-    if text.starts_with("When this creature enters, each player chooses an artifact")
-        && text.ends_with("then sacrifices the rest.")
-    {
-        return Some(draft(
-            json!({
-                "kind": "triggeredAbility",
-                "source": self_ref(),
-                "event": { "kind": "enterBattlefield", "object": self_ref() },
-                "effects": [{
-                    "kind": "resolveTriggeredInstruction",
-                    "operation": "cataclysmicGearhulk",
-                }],
-            }),
-            &[
-                "Resolve Cataclysmic Gearhulk entering",
-                "Choose one permanent of each listed type per player",
-                "Sacrifice all other nonland permanents",
-            ],
-        ));
-    }
     if text.starts_with("Whenever Odric and at least three other creatures attack,") {
         return Some(draft(
             json!({

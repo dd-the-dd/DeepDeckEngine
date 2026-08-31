@@ -12,6 +12,10 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         instruction
     };
 
+    if let Some(parsed) = parse_choose_permanents_then_sacrifice_rest(instruction, face_name) {
+        return Some(parsed);
+    }
+
     if instruction.eq_ignore_ascii_case("The Ring tempts you.") {
         return Some((
             vec![json!({
