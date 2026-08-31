@@ -1,5 +1,51 @@
 use super::super::*;
 
+pub(in crate::oracle::canonical) fn parse_hand_put_haste_delayed_sacrifice(
+    instruction: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let pattern = Regex::new(
+        r"(?i)^You may put (?:an? )?(.+?) card from your hand onto the battlefield\. That (?:creature|permanent) gains haste\. Sacrifice (?:the creature|that creature|it) at the beginning of the next end step\.$",
+    )
+    .expect("hand put, haste, and delayed sacrifice regex compiles");
+    let captures = pattern.captures(instruction)?;
+    let decisions = vec![target_decision(
+        "handCard",
+        json!({
+            "kind": "cards",
+            "zone": hand(controller()),
+            "where": parse_permanent_criteria(&captures[1], "")?,
+        }),
+        0,
+        1,
+    )];
+    let effects = vec![
+        json!({
+            "kind": "moveTargetCard",
+            "card": chosen_target("handCard"),
+            "to": "battlefield",
+            "controller": controller(),
+            "tapped": false,
+        }),
+        json!({
+            "kind": "grantKeyword",
+            "object": chosen_target("handCard"),
+            "keyword": "haste",
+            "duration": { "kind": "permanent" },
+        }),
+        json!({
+            "kind": "installDelayedStepTrigger",
+            "controller": controller(),
+            "step": "endStep",
+            "trackedObject": chosen_target("handCard"),
+            "effects": [{
+                "kind": "sacrificePermanent",
+                "permanent": { "kind": "triggeringPermanent" },
+            }],
+        }),
+    ];
+    Some((effects, decisions))
+}
+
 pub(in crate::oracle::canonical) fn parse_simple_activated_ability(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
@@ -255,42 +301,12 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         }));
     }
 
-    let hand_put_haste_sacrifice_re = Regex::new(
-        r"(?i)^You may put (?:an? )?(.+?) card from your hand onto the battlefield\. That (?:creature|permanent) gains haste\. Sacrifice (?:the creature|that creature|it) at the beginning of the next end step\.$",
-    )
-    .expect("hand put, haste, and delayed sacrifice regex compiles");
     if effects.is_empty()
-        && let Some(captures) = hand_put_haste_sacrifice_re.captures(&instruction)
+        && let Some((parsed_effects, parsed_decisions)) =
+            parse_hand_put_haste_delayed_sacrifice(&instruction)
     {
-        decisions.push(target_decision(
-            "handCard",
-            json!({
-                "kind": "cards",
-                "zone": hand(controller()),
-                "where": parse_permanent_criteria(&captures[1], "")?,
-            }),
-            0,
-            1,
-        ));
-        effects.extend([
-            json!({
-                "kind": "moveTargetCard",
-                "card": chosen_target("handCard"),
-                "to": "battlefield",
-                "controller": controller(),
-                "tapped": false,
-            }),
-            json!({
-                "kind": "grantKeyword",
-                "object": chosen_target("handCard"),
-                "keyword": "haste",
-                "duration": { "kind": "permanent" },
-            }),
-            json!({
-                "kind": "sacrificeAtNextEndStep",
-                "object": chosen_target("handCard"),
-            }),
-        ]);
+        decisions.extend(parsed_decisions);
+        effects.extend(parsed_effects);
     }
     if !effects.is_empty() {
         // The generic activation assembly below preserves costs and the optional hand choice.

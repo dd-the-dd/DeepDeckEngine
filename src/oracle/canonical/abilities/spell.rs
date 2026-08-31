@@ -181,9 +181,9 @@ pub(in crate::oracle::canonical) fn parse_common_spell_ability(
                 },
             }),
             json!({
-                "kind": "moveCards",
+                "kind": "discardCards",
+                "player": target_player.clone(),
                 "cards": decision_result("discardedCard"),
-                "to": graveyard(target_player.clone()),
             }),
         ];
         if let Some(life) = captures.get(3) {

@@ -1066,9 +1066,9 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                     },
                 }),
                 json!({
-                    "kind": "moveCards",
+                    "kind": "discardCards",
+                    "player": target_player,
                     "cards": decision_result("discardedCard"),
-                    "to": graveyard(target_player),
                 }),
             ],
             vec![target_decision(
