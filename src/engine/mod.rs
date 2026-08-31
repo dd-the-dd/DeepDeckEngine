@@ -2657,6 +2657,14 @@ fn player_reference_supported(reference: &Value) -> bool {
     }
 }
 
+fn player_set_reference_supported(reference: &Value) -> bool {
+    match value_kind(reference) {
+        Some("randomPlayer") => true,
+        Some("randomOpponentOf") => player_reference_supported(&reference["player"]),
+        _ => player_reference_supported(reference),
+    }
+}
+
 fn keyword_kind_supported(value: &Value) -> bool {
     matches!(
         value_kind(value),
@@ -5553,6 +5561,37 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && effect["choices"].as_array().is_some_and(|choices| {
                     !choices.is_empty() && choices.iter().all(card_filter_supported)
                 })
+        }
+        Some("forEachPlayer") => {
+            let Some(effects) = effect["effects"].as_array() else {
+                return false;
+            };
+            let [selection, remainder] = effects.as_slice() else {
+                return false;
+            };
+            player_set_reference_supported(&effect["players"])
+                && value_kind(selection) == Some("selectPermanents")
+                && selection["id"].is_string()
+                && value_kind(&selection["player"]) == Some("currentPlayer")
+                && value_kind(&selection["candidates"]) == Some("permanents")
+                && (value_kind(&selection["candidates"]["controller"]) == Some("currentPlayer")
+                    || player_reference_supported(&selection["candidates"]["controller"]))
+                && card_filter_supported(&selection["candidates"]["where"])
+                && matches!(
+                    value_kind(&selection["selection"]),
+                    Some("choice" | "random")
+                )
+                && selection["groups"].as_array().is_some_and(|groups| {
+                    !groups.is_empty()
+                        && groups.iter().all(|group| {
+                            numeric_expression_supported(&group["quantity"])
+                                && card_filter_supported(&group["where"])
+                        })
+                })
+                && value_kind(remainder) == Some("sacrificePermanents")
+                && value_kind(&remainder["objects"]) == Some("selectionRemainder")
+                && remainder["objects"]["selectionId"] == selection["id"]
+                && remainder["objects"]["candidates"] == selection["candidates"]
         }
         Some("searchLibrary") => {
             player_reference_supported(&effect["player"])
@@ -42072,70 +42111,176 @@ impl GameEngine {
                     }
                 }
             }
-            Some("eachOpponentChoosesPermanentsByCriteriaThenSacrificesRest") => {
-                let Some(source_controller) =
-                    self.resolve_player(&effect["player"], stack_object, bindings)
-                else {
-                    return Ok(());
+            Some("eachOpponentChoosesPermanentsByCriteriaThenSacrificesRest" | "forEachPlayer") => {
+                let legacy = value_kind(effect)
+                    == Some("eachOpponentChoosesPermanentsByCriteriaThenSacrificesRest");
+                let composed = !legacy;
+                let players = if legacy {
+                    json!({ "kind": "opponentsOf", "player": effect["player"].clone() })
+                } else {
+                    effect["players"].clone()
                 };
-                let opponents = self
-                    .state
-                    .players
-                    .iter()
-                    .filter(|player| !player.has_lost && player.id != source_controller)
-                    .map(|player| player.id.clone())
-                    .collect::<Vec<_>>();
-                for opponent_id in opponents {
-                    if self.player_has_battlefield_static_modifier(
-                        &opponent_id,
-                        "preventOpponentForcedSacrifice",
-                    ) {
-                        continue;
+                let mut player_ids = match value_kind(&players) {
+                    Some("eachPlayer") | Some("randomPlayer") => self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>(),
+                    Some("opponentsOf" | "randomOpponentOf") => {
+                        let Some(reference_player) =
+                            self.resolve_player(&players["player"], stack_object, bindings)
+                        else {
+                            return Ok(());
+                        };
+                        self.state
+                            .players
+                            .iter()
+                            .filter(|player| !player.has_lost && player.id != reference_player)
+                            .map(|player| player.id.clone())
+                            .collect::<Vec<_>>()
                     }
-                    let mut kept = BTreeSet::new();
-                    for (choice_index, criteria) in effect["choices"]
+                    _ => self
+                        .resolve_player(&players, stack_object, bindings)
+                        .into_iter()
+                        .collect(),
+                };
+                if matches!(
+                    value_kind(&players),
+                    Some("randomPlayer" | "randomOpponentOf")
+                ) {
+                    player_ids.shuffle(&mut self.rng);
+                    player_ids.truncate(1);
+                }
+
+                let selections = if legacy {
+                    effect["choices"]
                         .as_array()
                         .into_iter()
                         .flatten()
-                        .enumerate()
+                        .map(|criteria| {
+                            json!({
+                                "quantity": { "kind": "integer", "value": 1 },
+                                "where": criteria,
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    effect["effects"][0]["groups"]
+                        .as_array()
+                        .cloned()
+                        .unwrap_or_default()
+                };
+                let among = if composed {
+                    effect["effects"][0]["candidates"]["where"].clone()
+                } else {
+                    effect["among"].clone()
+                };
+                let candidate_controller_reference = if composed {
+                    effect["effects"][0]["candidates"]["controller"].clone()
+                } else {
+                    effect["candidateController"].clone()
+                };
+                let selection_method = if composed {
+                    &effect["effects"][0]["selection"]
+                } else {
+                    &effect["selection"]
+                };
+                let selection_id = if composed {
+                    effect["effects"][0]["id"]
+                        .as_str()
+                        .unwrap_or("keptPermanents")
+                } else {
+                    "keptPermanents"
+                };
+                let random_selection = !legacy && value_kind(selection_method) == Some("random");
+
+                for choosing_player in player_ids {
+                    let candidate_controller = if legacy
+                        || matches!(
+                            value_kind(&candidate_controller_reference),
+                            Some("choosingPlayer" | "currentPlayer")
+                        ) {
+                        choosing_player.clone()
+                    } else {
+                        let Some(player_id) = self.resolve_player(
+                            &candidate_controller_reference,
+                            stack_object,
+                            bindings,
+                        ) else {
+                            continue;
+                        };
+                        player_id
+                    };
+                    if stack_object.controller != candidate_controller
+                        && self.player_has_battlefield_static_modifier(
+                            &candidate_controller,
+                            "preventOpponentForcedSacrifice",
+                        )
                     {
-                        let player_index = self.player_index(&opponent_id)?;
-                        let candidates = self.state.players[player_index]
+                        self.record_event(
+                            "sacrificePrevented",
+                            Some(candidate_controller),
+                            Some(stack_object.card.instance_id.clone()),
+                            json!({ "reason": "opponentSpellOrAbility" }),
+                        );
+                        continue;
+                    }
+
+                    let mut kept = BTreeSet::new();
+                    for (selection_index, selection) in selections.iter().enumerate() {
+                        let player_index = self.player_index(&candidate_controller)?;
+                        let mut candidates = self.state.players[player_index]
                             .battlefield
                             .iter()
                             .filter(|permanent| !kept.contains(&permanent.instance_id))
                             .filter(|permanent| {
-                                self.permanent_matches_effective_filter(permanent, criteria)
-                                    && self.permanent_matches_effective_filter(
-                                        permanent,
-                                        &effect["among"],
-                                    )
+                                self.permanent_matches_effective_filter(
+                                    permanent,
+                                    &selection["where"],
+                                ) && self.permanent_matches_effective_filter(permanent, &among)
                             })
                             .map(|permanent| permanent.instance_id.clone())
                             .collect::<Vec<_>>();
-                        if candidates.is_empty() {
+                        let required = self
+                            .runtime_numeric_expression(
+                                &selection["quantity"],
+                                stack_object,
+                                bindings,
+                                decisions,
+                            )
+                            .unwrap_or(0)
+                            .max(0) as usize;
+                        let required = required.min(candidates.len());
+                        if required == 0 {
                             continue;
                         }
-                        let selected = self.choose_resolution_objects(
-                            stack_object,
-                            provider,
-                            &opponent_id,
-                            &format!("keepPermanentType{choice_index}"),
-                            candidates,
-                            1,
-                            1,
-                            "Choose a permanent to keep.",
-                        )?;
+                        let selected = if random_selection {
+                            candidates.shuffle(&mut self.rng);
+                            candidates.truncate(required);
+                            candidates
+                        } else {
+                            self.choose_resolution_objects(
+                                stack_object,
+                                provider,
+                                &choosing_player,
+                                &format!("{selection_id}{selection_index}"),
+                                candidates,
+                                required,
+                                required,
+                                "Choose permanents to keep.",
+                            )?
+                        };
                         kept.extend(selected);
                     }
-                    let player_index = self.player_index(&opponent_id)?;
+                    let player_index = self.player_index(&candidate_controller)?;
                     let sacrifices = self.state.players[player_index]
                         .battlefield
                         .iter()
                         .filter(|permanent| {
                             !kept.contains(&permanent.instance_id)
-                                && self
-                                    .permanent_matches_effective_filter(permanent, &effect["among"])
+                                && self.permanent_matches_effective_filter(permanent, &among)
                         })
                         .map(|permanent| permanent.instance_id.clone())
                         .collect::<Vec<_>>();

@@ -1,3 +1,24 @@
+pub(crate) fn strip_short_oracle_label(instruction: &str) -> &str {
+    if let Some((label, effect)) = instruction
+        .split_once(" \u{2014} ")
+        .or_else(|| instruction.split_once(" \u{2013} "))
+        .or_else(|| instruction.split_once(" - "))
+        && !label.contains('.')
+        && label.split_whitespace().count() <= 5
+    {
+        return effect.trim();
+    }
+    for separator in [" â€” ", " — ", " Ã¢â‚¬â€ "] {
+        if let Some((label, effect)) = instruction.split_once(separator)
+            && !label.contains('.')
+            && label.split_whitespace().count() <= 5
+        {
+            return effect.trim();
+        }
+    }
+    instruction
+}
+
 pub(super) fn normalize_oracle_encoding(text: &str) -> String {
     text.replace("â€”", "—")
         .replace("â€¢", "•")

@@ -1,5 +1,17 @@
 use super::super::*;
 
+fn parse_optional_linked_hand_exile_criteria(instruction: &str) -> Option<&str> {
+    let instruction = instruction.trim().trim_end_matches('.');
+    let criteria = if let Some(rest) = strip_prefix_ascii_case(instruction, "You may exile ") {
+        strip_suffix_ascii_case(rest, " from your hand")?
+    } else if let Some(rest) = strip_prefix_ascii_case(instruction, "You may remove ") {
+        strip_suffix_ascii_case(rest, " in your hand from the game")?
+    } else {
+        return None;
+    };
+    Some(strip_leading_article(criteria.trim()))
+}
+
 pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     instruction: &str,
     face_name: &str,
@@ -11,6 +23,10 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     } else {
         instruction
     };
+
+    if let Some(parsed) = parse_choose_permanents_then_sacrifice_rest(instruction, face_name) {
+        return Some(parsed);
+    }
 
     if instruction.eq_ignore_ascii_case("The Ring tempts you.") {
         return Some((
@@ -1784,9 +1800,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
-    let linked_hand_exile_re = Regex::new(r"(?i)^You may exile (?:an? )?(.+?) from your hand\.$")
-        .expect("optional linked hand exile regex compiles");
-    if let Some(captures) = linked_hand_exile_re.captures(instruction) {
+    if let Some(criteria) = parse_optional_linked_hand_exile_criteria(instruction) {
         return Some((
             vec![json!({
                 "kind": "exileTargetCardWithSource",
@@ -1799,7 +1813,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 json!({
                     "kind": "cards",
                     "zone": hand(controller()),
-                    "where": parse_permanent_criteria(&captures[1], face_name)?,
+                    "where": parse_permanent_criteria(criteria, face_name)?,
                 }),
                 0,
                 1,

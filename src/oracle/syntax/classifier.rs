@@ -1,12 +1,9 @@
 use regex::Regex;
 
-use super::AbilityInput;
+use super::{AbilityInput, strip_short_oracle_label};
 
 pub(crate) fn activation_parts(text: &str) -> Option<(&str, &str)> {
-    let text = text
-        .split_once(" — ")
-        .map(|(_, activation)| activation)
-        .unwrap_or(text);
+    let text = strip_short_oracle_label(text);
     let activation_re = Regex::new(
         r"(?i)^\s*(?:\(\s*)?(?:(?:\{[^}]+\})+|Pay \d+ life)(?:\s*,\s*(?:(?:\{[^}]+\})+|Pay \d+ life))*\s*:",
     )
@@ -42,7 +39,7 @@ pub(crate) fn activation_parts(text: &str) -> Option<(&str, &str)> {
 
 pub(crate) fn classify_ability(input: &AbilityInput<'_>) -> &'static str {
     let text = input.source.text.trim();
-    let normalized = text.trim_start_matches('(').trim_start();
+    let normalized = strip_short_oracle_label(text.trim_start_matches('(').trim_start());
     let lower = normalized.to_ascii_lowercase();
 
     if activation_parts(text).is_some() {

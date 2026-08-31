@@ -4,6 +4,7 @@ use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::card_catalog::named_token_printing;
+use crate::oracle::syntax::strip_short_oracle_label;
 
 mod abilities;
 mod conditions;
@@ -12,6 +13,7 @@ mod costs;
 mod criteria;
 mod dispatch;
 mod effects;
+mod grammar;
 mod ir;
 mod numeric;
 mod operations;
@@ -24,6 +26,7 @@ use costs::*;
 use criteria::*;
 pub(crate) use dispatch::parse_canonical_rule;
 use effects::*;
+use grammar::*;
 use ir::*;
 use numeric::*;
 use operations::*;

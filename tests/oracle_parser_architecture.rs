@@ -5,9 +5,9 @@ use regex::Regex;
 
 const LEGACY_LONG_EXACT_COMPARISON_LIMIT: usize = 312;
 const LEGACY_TEXT_MATCH_LIMIT: usize = 35;
-// This ceiling dropped from 301 when the graveyard-exile/prepare card-shaped
-// regex was replaced with move, quantity, criteria, zone, and state primitives.
-const LEGACY_LONG_ANCHORED_REGEX_LIMIT: usize = 300;
+// This ceiling dropped from 300 when activated abilities stopped embedding
+// whole Oracle sentences and began composing typed grammar primitives.
+const LEGACY_LONG_ANCHORED_REGEX_LIMIT: usize = 289;
 
 fn rust_sources(directory: &Path) -> Vec<PathBuf> {
     let mut sources = Vec::new();
@@ -104,5 +104,15 @@ fn canonical_root_only_composes_parser_domains() {
     assert!(
         source.lines().count() <= 60,
         "canonical/mod.rs is growing back into a monolith"
+    );
+}
+
+#[test]
+fn activated_abilities_compose_typed_grammar_instead_of_inline_regexes() {
+    let source = include_str!("../src/oracle/canonical/abilities/activated.rs");
+    assert_eq!(
+        source.matches("Regex::new").count(),
+        0,
+        "activated abilities must call semantic grammar primitives instead of matching Oracle sentences inline",
     );
 }

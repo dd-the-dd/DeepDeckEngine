@@ -153,6 +153,37 @@ mod tests {
     }
 
     #[test]
+    fn chrome_mox_entry_wordings_are_triggered_abilities() {
+        for oracle_text in [
+            "Imprint — When Chrome Mox enters, you may exile a nonartifact, nonland card from your hand.",
+            "Imprint — When Chrome Mox enters the battlefield, you may exile a nonartifact, nonland card from your hand.",
+            "Imprint — When Chrome Mox comes into play, you may remove a nonartifact, nonland card in your hand from the game.",
+        ] {
+            let result = parse_oracle_card(OracleCardParseRequest {
+                card_name: "Chrome Mox".to_string(),
+                type_line: "Artifact".to_string(),
+                mana_cost: Some("{0}".to_string()),
+                oracle_text: Some(oracle_text.to_string()),
+                layout: None,
+                faces: Vec::new(),
+            });
+
+            assert_eq!(result.status, "canonical", "{oracle_text}");
+            assert_eq!(result.abilities.len(), 1, "{oracle_text}");
+            let ability = &result.abilities[0];
+            assert_eq!(ability.ability_type, "triggeredAbility", "{oracle_text}");
+            let rule = ability.rule.as_ref().expect("Chrome Mox rule");
+            assert_eq!(rule["kind"], "triggeredAbility", "{oracle_text}");
+            assert_eq!(rule["event"]["kind"], "enterBattlefield", "{oracle_text}");
+            assert_eq!(
+                rule["effects"][0]["kind"], "exileTargetCardWithSource",
+                "{oracle_text}"
+            );
+            assert!(crate::engine::rule_is_executable(rule), "{oracle_text}");
+        }
+    }
+
+    #[test]
     fn class_sections_apply_the_announced_minimum_level_to_following_abilities() {
         let result = parse_oracle_card(OracleCardParseRequest {
             card_name: "Scavenger's Talent".to_string(),

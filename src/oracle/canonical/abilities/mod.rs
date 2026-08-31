@@ -1,5 +1,6 @@
 mod activated;
 mod activated_avatar;
+mod activated_grammar;
 mod general;
 mod keyword;
 mod modal;
@@ -17,6 +18,7 @@ mod triggered_prepare;
 
 pub(super) use activated::*;
 pub(super) use activated_avatar::*;
+pub(super) use activated_grammar::*;
 pub(super) use general::*;
 pub(super) use keyword::*;
 pub(super) use modal::*;
