@@ -1,6 +1,11 @@
+mod audit;
+mod canonical;
+mod model;
 mod pipeline;
+mod syntax;
 
-pub use pipeline::{
+pub use model::{
     AbilitySource, OracleAuditStage, OracleCardFace, OracleCardParseRequest, OracleCardParseResult,
-    ParsedOracleAbility, parse_oracle_card,
+    ParsedOracleAbility,
 };
+pub use pipeline::parse_oracle_card;

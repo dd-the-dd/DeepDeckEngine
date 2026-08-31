@@ -952,6 +952,208 @@ fn test_engine(player_count: usize) -> GameEngine {
 }
 
 #[test]
+fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].hand = vec![
+        test_instance(
+            "known-hand-card",
+            test_definition("known-hand-card", "Instant"),
+            "player-0",
+        ),
+        test_instance(
+            "other-hand-card",
+            test_definition("other-hand-card", "Sorcery"),
+            "player-0",
+        ),
+    ];
+    let stack_object = StackObject {
+        id: "stack:hand-memory".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "hand-memory-source",
+            test_definition("hand-memory-source", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let reveal = json!({
+        "kind": "revealHand",
+        "player": { "kind": "abilityController" },
+        "duration": { "kind": "untilEndOfCurrentTurn" },
+    });
+    engine
+        .execute_effect(
+            &reveal,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the hand reveal is remembered");
+    let known = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .find(|modifier| value_kind(modifier) == Some("knownHandCards"))
+        .expect("the revealed hand snapshot is retained");
+    assert_eq!(
+        known["cardInstanceIds"],
+        json!(["known-hand-card", "other-hand-card"])
+    );
+    assert!(
+        engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("revealedHand"))
+    );
+
+    let mut bindings = BTreeMap::from([(
+        "brainstormCards".to_string(),
+        RuntimeBinding::Objects(vec!["known-hand-card".to_string()]),
+    )]);
+    let move_to_library = json!({
+        "kind": "moveCards",
+        "cards": { "kind": "boundObjects", "binding": "brainstormCards" },
+        "to": {
+            "kind": "library",
+            "player": { "kind": "abilityController" },
+            "position": "top",
+        },
+        "order": { "kind": "random" },
+    });
+    engine
+        .execute_effect(
+            &move_to_library,
+            None,
+            &stack_object,
+            &mut bindings,
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the hidden hand-to-library move resolves");
+
+    assert!(
+        engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("knownHandCards"))
+    );
+    assert_eq!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .map(|card| card.instance_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["other-hand-card"]
+    );
+    assert_eq!(
+        engine.state.players[0]
+            .library
+            .last()
+            .map(|card| card.instance_id.as_str()),
+        Some("known-hand-card")
+    );
+}
+
+#[test]
+fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Unmask".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{3}{B}".to_string()),
+        oracle_text: Some(
+            "You may exile a black card from your hand rather than pay this spell's mana cost."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut unmask_definition = test_definition("unmask", "Sorcery");
+    unmask_definition.name = "Unmask".to_string();
+    unmask_definition.mana_cost = "{3}{B}".to_string();
+    unmask_definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    assert!(unmask_definition.rules.iter().any(|rule| {
+        value_kind(rule) == Some("keywordAbility") && alternative_cost_supported(&rule["ability"])
+    }));
+    unmask_definition.rules.push(json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    }));
+
+    let mut grief_definition = test_definition("grief", "Creature - Elemental Incarnation");
+    grief_definition.name = "Grief".to_string();
+    grief_definition.mana_cost = "{2}{B}{B}".to_string();
+    let mut thoughtseize_definition = test_definition("thoughtseize", "Sorcery");
+    thoughtseize_definition.name = "Thoughtseize".to_string();
+    thoughtseize_definition.mana_cost = "{B}".to_string();
+    let mut plains_definition = test_definition("plains", "Basic Land - Plains");
+    plains_definition.name = "Plains".to_string();
+    plains_definition.mana_cost.clear();
+
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.players[0].hand = vec![
+        test_instance("unmask", unmask_definition, "player-0"),
+        test_instance("grief", grief_definition, "player-0"),
+        test_instance("thoughtseize", thoughtseize_definition, "player-0"),
+        test_instance("plains", plains_definition, "player-0"),
+    ];
+    engine.state.players[0].mana_pool = ["C", "C", "C", "B"]
+        .into_iter()
+        .map(|symbol| FloatingMana {
+            symbol: symbol.to_string(),
+            spend_restriction: None,
+        })
+        .collect();
+
+    let cast_actions = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("unmask")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(cast_actions.len(), 3, "actions: {cast_actions:#?}");
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("useAlternativeCost") == Some(&Value::Bool(false))
+            && action.label.ends_with("pay {3}{B}")
+    }));
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("alternativeExileCard") == Some(&json!("grief"))
+            && action.label.ends_with("exile Grief from hand")
+    }));
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("alternativeExileCard") == Some(&json!("thoughtseize"))
+            && action.label.ends_with("exile Thoughtseize from hand")
+    }));
+    let labels = cast_actions
+        .iter()
+        .map(|action| action.label.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(labels.len(), cast_actions.len());
+}
+
+#[test]
 fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Test Wizard".to_string(),
@@ -2165,6 +2367,62 @@ fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
             .iter()
             .any(|rule| value_kind(rule) == Some("manaAbility"))
     );
+}
+
+#[test]
+fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
+    let mut saga_definition = test_definition("completed-saga", "Enchantment - Saga");
+    let final_chapter_rule = json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+            "kind": "sagaChapterReached",
+            "object": { "kind": "self" },
+            "chapters": [{ "kind": "integer", "value": 3 }],
+        },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "abilityController" },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    });
+    saga_definition.rules = vec![final_chapter_rule.clone()];
+
+    let mut saga = test_instance("completed-saga", saga_definition, "player-0");
+    saga.counters.insert("lore".to_string(), 3);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![saga.clone()];
+    engine.state.stack.push(StackObject {
+        id: "stack:completed-saga:chapter-three".to_string(),
+        controller: "player-0".to_string(),
+        card: saga,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(final_chapter_rule),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    });
+
+    engine.check_state_based_actions();
+    assert!(engine.permanent_position("completed-saga").is_some());
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the final Saga chapter resolves");
+
+    assert!(engine.permanent_position("completed-saga").is_none());
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "completed-saga")
+    );
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "permanentToGraveyard"
+            && event.card_instance_id.as_deref() == Some("completed-saga")
+            && event.detail["reason"] == "sacrificed"
+    }));
 }
 
 #[test]
@@ -8534,6 +8792,137 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
 }
 
 #[test]
+fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Archivist".to_string(),
+        type_line: "Creature - Wizard".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Exile a creature card from your graveyard: Test Archivist becomes prepared. Activate only as a sorcery."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the composed activation has canonical IR");
+    assert!(rule_is_executable(&rule));
+    assert_eq!(value_kind(&rule["costs"][0]), Some("move"));
+
+    let mut archivist = test_definition("test-archivist", "Creature - Wizard");
+    archivist.name = "Test Archivist".to_string();
+    archivist.rules = vec![rule];
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.players[0].battlefield =
+        vec![test_instance("test-archivist", archivist, "player-0")];
+    engine.state.players[0].graveyard = vec![test_instance(
+        "payment-creature",
+        test_definition("payment-creature", "Creature - Spirit"),
+        "player-0",
+    )];
+
+    let action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("test-archivist")
+                && action.targets.get("exileGraveyardCost1")
+                    == Some(&TargetRef::Card {
+                        instance_id: "payment-creature".to_string(),
+                    })
+        })
+        .expect("the graveyard card can be chosen to pay the move operation");
+    assert!(
+        !action
+            .target_order
+            .iter()
+            .any(|id| id == "exileGraveyardCost1"),
+        "a payment object is not a target"
+    );
+    engine
+        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
+        .expect("the shared move operation pays the activation");
+
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "payment-creature")
+    );
+    assert!(
+        !engine
+            .state
+            .stack
+            .last()
+            .expect("activated ability on stack")
+            .targets
+            .contains_key("exileGraveyardCost1")
+    );
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the preparation effect resolves");
+    assert_eq!(
+        engine.state.players[0].battlefield[0].flags.get("prepared"),
+        Some(&true)
+    );
+
+    engine.state.players[0].graveyard.push(test_instance(
+        "effect-creature",
+        test_definition("effect-creature", "Creature - Spirit"),
+        "player-0",
+    ));
+    let move_effect = json!({
+        "kind": "move",
+        "objects": { "kind": "chosenObject", "id": "effectObject" },
+        "from": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        },
+        "to": { "kind": "exile" },
+    });
+    assert!(effect_supported(&move_effect));
+    let stack_object = StackObject {
+        id: "stack:shared-move-effect".to_string(),
+        controller: "player-0".to_string(),
+        card: engine.state.players[0].battlefield[0].clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "effectObject".to_string(),
+            TargetRef::Card {
+                instance_id: "effect-creature".to_string(),
+            },
+        )]),
+    };
+    engine
+        .execute_effect(
+            &move_effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the same move operation executes during resolution");
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "effect-creature")
+    );
+}
+
+#[test]
 fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     let mut engine = test_engine(2);
     let mut spell_definition = test_definition("costly-spell", "Sorcery");
@@ -10720,7 +11109,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
 
 #[test]
 fn card_choice_uses_the_player_named_by_the_candidate_zone() {
-    struct TargetHandProvider;
+    struct TargetHandProvider {
+        choice_was_presented: bool,
+    }
 
     impl DecisionProvider for TargetHandProvider {
         fn choose(
@@ -10738,6 +11129,7 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
             state: &GameState,
             request: &EngineDecisionRequest,
         ) -> Result<Vec<String>, EngineError> {
+            self.choice_was_presented = true;
             assert!(state.rule_modifiers.iter().any(|modifier| {
                 modifier["kind"] == "revealedHand" && modifier["playerId"] == "player-1"
             }));
@@ -10831,9 +11223,17 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
         )]),
     });
 
+    let mut provider = TargetHandProvider {
+        choice_was_presented: false,
+    };
     engine
-        .resolve_top_stack(&mut TargetHandProvider)
+        .resolve_top_stack(&mut provider)
         .expect("the targeted hand choice resolves");
+
+    assert!(
+        provider.choice_was_presented,
+        "choosing from another player's hand must remain explicit even for one legal card"
+    );
 
     assert_eq!(
         engine.state.players[0].hand[0].instance_id,

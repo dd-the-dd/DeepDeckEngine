@@ -1,0 +1,32 @@
+mod activated;
+mod activated_avatar;
+mod general;
+mod keyword;
+mod modal;
+mod replacement;
+mod replacement_entry;
+mod spell;
+mod spell_counter;
+mod spell_library;
+#[path = "static.rs"]
+mod static_ability;
+mod triggered;
+mod triggered_entry;
+mod triggered_expansion;
+mod triggered_prepare;
+
+pub(super) use activated::*;
+pub(super) use activated_avatar::*;
+pub(super) use general::*;
+pub(super) use keyword::*;
+pub(super) use modal::*;
+pub(super) use replacement::*;
+pub(super) use replacement_entry::*;
+pub(super) use spell::*;
+pub(super) use spell_counter::*;
+pub(super) use spell_library::*;
+pub(super) use static_ability::*;
+pub(super) use triggered::*;
+pub(super) use triggered_entry::*;
+pub(super) use triggered_expansion::*;
+pub(super) use triggered_prepare::*;
