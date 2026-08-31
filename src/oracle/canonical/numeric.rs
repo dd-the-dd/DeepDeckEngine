@@ -106,6 +106,16 @@ pub(super) fn parse_quantity_expression(value: &str) -> Option<Value> {
     parse_numeric_expression_text(value)
 }
 
+pub(super) fn parse_exact_quantity(value: &str) -> Option<Value> {
+    let count = parse_number_word(value)?;
+    (count > 0).then(|| {
+        json!({
+            "kind": "exactly",
+            "value": integer(count),
+        })
+    })
+}
+
 pub(super) fn parse_signed_stat_expression(value: &str) -> Option<Value> {
     let value = value.trim();
     let (negative, magnitude) = value

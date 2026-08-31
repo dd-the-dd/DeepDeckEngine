@@ -2131,7 +2131,13 @@ fn recurring_aura_energy_regeneration_and_delayed_sacrifice_grammar_composes() {
         "Exile a creature card from your graveyard: Regenerate this creature.",
     )
     .expect("graveyard-card regeneration cost parses");
-    assert_eq!(exile_choice.rule["costs"][0]["kind"], "exileGraveyardCard");
+    assert_eq!(exile_choice.rule["costs"][0]["kind"], "move");
+    assert_eq!(exile_choice.rule["costs"][0]["from"]["kind"], "graveyard");
+    assert_eq!(exile_choice.rule["costs"][0]["to"]["kind"], "exile");
+    assert_eq!(
+        exile_choice.rule["declaration"]["decisions"][0]["kind"],
+        "chooseObjects"
+    );
     assert_eq!(
         exile_choice.rule["declaration"]["decisions"][0]["candidates"]["where"]["value"],
         "Creature"
@@ -2161,6 +2167,57 @@ fn recurring_aura_energy_regeneration_and_delayed_sacrifice_grammar_composes() {
         let enchant =
             parse_common_static_ability(text, "").unwrap_or_else(|| panic!("{text} parses"));
         assert_eq!(enchant.rule["ability"]["kind"], "enchant");
+    }
+}
+
+#[test]
+fn graveyard_exile_prepare_composes_shared_operation_primitives() {
+    for (article, criteria, subject) in [
+        ("a", "creature", "this creature"),
+        ("an", "artifact", "Test Archivist"),
+        ("one", "blue", "this permanent"),
+    ] {
+        let text = format!(
+            "Exile {article} {criteria} card from your graveyard: {subject} becomes prepared. Activate only as a sorcery."
+        );
+        let parsed = parse_simple_activated_ability(&text)
+            .unwrap_or_else(|| panic!("composed exile/prepare activation did not parse: {text}"));
+        assert_eq!(
+            parsed.rule,
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "move",
+                    "objects": {
+                        "kind": "chosenObjects",
+                        "id": "exileGraveyardCost1",
+                    },
+                    "from": graveyard(controller()),
+                    "to": { "kind": "exile" },
+                }],
+                "effects": [prepared_effect()],
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [{
+                        "id": "exileGraveyardCost1",
+                        "kind": "chooseObjects",
+                        "quantity": {
+                            "kind": "exactly",
+                            "value": integer(1),
+                        },
+                        "candidates": {
+                            "kind": "cards",
+                            "zone": graveyard(controller()),
+                            "where": parse_permanent_criteria(criteria, "")
+                                .expect("test criterion parses"),
+                        },
+                    }],
+                },
+                "activationCondition": { "kind": "sorceryTiming" },
+            })
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
     }
 }
 

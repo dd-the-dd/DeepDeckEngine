@@ -10,8 +10,8 @@ names:
 - `pipeline.rs` orchestrates parsing and audit output.
 - `audit.rs` builds simplification iterations and audit stages.
 - `canonical/dispatch.rs` owns parser precedence by ability family.
-- `canonical/context.rs`, `ir.rs`, `numeric.rs`, and `values.rs` own reusable
-  semantic primitives and construction context.
+- `canonical/context.rs`, `ir.rs`, `numeric.rs`, `operations.rs`, and
+  `values.rs` own reusable semantic primitives and construction context.
 - `canonical/costs.rs`, `criteria.rs`, and `conditions.rs` own reusable grammar.
 - `canonical/effects/` owns effect parsing and composition.
 - `canonical/abilities/` owns activated, triggered, replacement, static, spell,
@@ -41,3 +41,18 @@ Further decomposition should continue to follow grammar and semantics:
   keyword, and modal abilities.
 
 Exact Oracle text belongs in tests and fixtures only.
+
+## Operations and execution contexts
+
+Costs and resolving effects share canonical operations. For example, moving a
+card from a graveyard to exile is represented by the same `move` operation in
+either context. The containing `costs` or `effects` sequence determines how the
+engine executes it:
+
+- a cost operation is chosen during declaration, must be fully payable, and is
+  committed while activating the ability;
+- a resolving operation uses resolution semantics and does as much as it can.
+
+Object choices used to pay a cost are represented by `chooseObjects` and
+`chosenObjects`; they are deliberately distinct from `chooseTargets` and do not
+become targets of the resulting stack object.

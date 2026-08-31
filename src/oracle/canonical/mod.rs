@@ -14,6 +14,7 @@ mod dispatch;
 mod effects;
 mod ir;
 mod numeric;
+mod operations;
 mod values;
 
 use abilities::*;
@@ -25,6 +26,7 @@ pub(crate) use dispatch::parse_canonical_rule;
 use effects::*;
 use ir::*;
 use numeric::*;
+use operations::*;
 use values::*;
 #[cfg(test)]
 #[path = "tests.rs"]

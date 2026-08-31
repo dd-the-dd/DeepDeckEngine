@@ -8534,6 +8534,137 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
 }
 
 #[test]
+fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Archivist".to_string(),
+        type_line: "Creature - Wizard".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Exile a creature card from your graveyard: Test Archivist becomes prepared. Activate only as a sorcery."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the composed activation has canonical IR");
+    assert!(rule_is_executable(&rule));
+    assert_eq!(value_kind(&rule["costs"][0]), Some("move"));
+
+    let mut archivist = test_definition("test-archivist", "Creature - Wizard");
+    archivist.name = "Test Archivist".to_string();
+    archivist.rules = vec![rule];
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.players[0].battlefield =
+        vec![test_instance("test-archivist", archivist, "player-0")];
+    engine.state.players[0].graveyard = vec![test_instance(
+        "payment-creature",
+        test_definition("payment-creature", "Creature - Spirit"),
+        "player-0",
+    )];
+
+    let action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("test-archivist")
+                && action.targets.get("exileGraveyardCost1")
+                    == Some(&TargetRef::Card {
+                        instance_id: "payment-creature".to_string(),
+                    })
+        })
+        .expect("the graveyard card can be chosen to pay the move operation");
+    assert!(
+        !action
+            .target_order
+            .iter()
+            .any(|id| id == "exileGraveyardCost1"),
+        "a payment object is not a target"
+    );
+    engine
+        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
+        .expect("the shared move operation pays the activation");
+
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "payment-creature")
+    );
+    assert!(
+        !engine
+            .state
+            .stack
+            .last()
+            .expect("activated ability on stack")
+            .targets
+            .contains_key("exileGraveyardCost1")
+    );
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the preparation effect resolves");
+    assert_eq!(
+        engine.state.players[0].battlefield[0].flags.get("prepared"),
+        Some(&true)
+    );
+
+    engine.state.players[0].graveyard.push(test_instance(
+        "effect-creature",
+        test_definition("effect-creature", "Creature - Spirit"),
+        "player-0",
+    ));
+    let move_effect = json!({
+        "kind": "move",
+        "objects": { "kind": "chosenObject", "id": "effectObject" },
+        "from": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        },
+        "to": { "kind": "exile" },
+    });
+    assert!(effect_supported(&move_effect));
+    let stack_object = StackObject {
+        id: "stack:shared-move-effect".to_string(),
+        controller: "player-0".to_string(),
+        card: engine.state.players[0].battlefield[0].clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "effectObject".to_string(),
+            TargetRef::Card {
+                instance_id: "effect-creature".to_string(),
+            },
+        )]),
+    };
+    engine
+        .execute_effect(
+            &move_effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the same move operation executes during resolution");
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "effect-creature")
+    );
+}
+
+#[test]
 fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     let mut engine = test_engine(2);
     let mut spell_definition = test_definition("costly-spell", "Sorcery");

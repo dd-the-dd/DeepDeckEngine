@@ -403,24 +403,13 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             }));
             continue;
         }
-        let exile_graveyard_re = Regex::new(r"^exile (?:a|an) (.+?) card from your graveyard$")
-            .expect("graveyard-card activation cost regex compiles");
-        if let Some(captures) = exile_graveyard_re.captures(&lower) {
-            let decision_id = format!("exileGraveyardCost{}", decisions.len() + 1);
-            decisions.push(target_decision(
-                &decision_id,
-                json!({
-                    "kind": "cards",
-                    "zone": { "kind": "graveyard", "player": controller() },
-                    "where": parse_permanent_criteria(&captures[1], "")?,
-                }),
-                1,
-                1,
-            ));
-            costs.push(json!({
-                "kind": "exileGraveyardCard",
-                "card": chosen_target(&decision_id),
-            }));
+        let decision_id = format!("exileGraveyardCost{}", decisions.len() + 1);
+        if let Some((operation, decision)) =
+            parse_exile_cards_from_zone_operation(cost, "", &decision_id)
+            && operation["from"]["kind"].as_str() == Some("graveyard")
+        {
+            decisions.push(decision);
+            costs.push(operation);
             continue;
         }
         let return_controlled_re = Regex::new(&format!(

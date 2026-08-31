@@ -5,9 +5,9 @@ use regex::Regex;
 
 const LEGACY_LONG_EXACT_COMPARISON_LIMIT: usize = 312;
 const LEGACY_TEXT_MATCH_LIMIT: usize = 35;
-// The legacy monolith contains 300; numeric.rs contains one reusable anchored
-// numeric grammar that is included now that the ceiling covers every source.
-const LEGACY_LONG_ANCHORED_REGEX_LIMIT: usize = 301;
+// This ceiling dropped from 301 when the graveyard-exile/prepare card-shaped
+// regex was replaced with move, quantity, criteria, zone, and state primitives.
+const LEGACY_LONG_ANCHORED_REGEX_LIMIT: usize = 300;
 
 fn rust_sources(directory: &Path) -> Vec<PathBuf> {
     let mut sources = Vec::new();

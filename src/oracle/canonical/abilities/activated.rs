@@ -76,43 +76,6 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         }
     }
 
-    let graveyard_exile_prepare_re = Regex::new(
-        r"(?i)^Exile (?:a|an) (.+?) card from your graveyard: (?:this creature|[A-Z][A-Za-z0-9 ',.-]+) becomes prepared\. Activate only as a sorcery\.$",
-    )
-    .expect("graveyard-exile prepare activation regex compiles");
-    if let Some(captures) = graveyard_exile_prepare_re.captures(normalized) {
-        return Some(draft(
-            json!({
-                "kind": "activatedAbility",
-                "source": self_ref(),
-                "activationCondition": { "kind": "sorceryTiming" },
-                "costs": [{
-                    "kind": "exileGraveyardCard",
-                    "card": chosen_target("exiledGraveyardCard"),
-                }],
-                "declaration": {
-                    "kind": "castingDeclaration",
-                    "decisions": [target_decision(
-                        "exiledGraveyardCard",
-                        json!({
-                            "kind": "cards",
-                            "zone": graveyard(controller()),
-                            "where": parse_permanent_criteria(&captures[1], "")?,
-                        }),
-                        1,
-                        1,
-                    )],
-                },
-                "effects": [prepared_effect()],
-            }),
-            &[
-                "Choose a qualifying graveyard card",
-                "Exile it as a cost",
-                "Apply sorcery timing",
-                "Set prepared designation",
-            ],
-        ));
-    }
     let (cost_text, raw_instruction) = normalized.split_once(':')?;
     let (mut costs, mut decisions) = parse_activation_costs(cost_text)?;
     let activation_instruction = raw_instruction.trim().to_string();
