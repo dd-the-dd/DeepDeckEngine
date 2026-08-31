@@ -1,6 +1,8 @@
 use crate::card_catalog::{named_card_printing, named_token_printing};
 use crate::engine::{CardDefinition, rule_is_executable};
-use crate::oracle::{OracleCardParseRequest, OracleCardParseResult, parse_oracle_card};
+use crate::oracle::{
+    OracleCardParseRequest, OracleCardParseResult, ParsedOracleAbility, parse_oracle_card,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -184,6 +186,42 @@ fn linked_prepare_face_id<'a>(
     (selected_face_id == Some(permanent_face.id.as_str())).then_some(spell_face.id.as_str())
 }
 
+fn has_intrinsic_basic_land_mana_ability(type_line: &str) -> bool {
+    let words = || {
+        type_line
+            .split(|character: char| !character.is_ascii_alphabetic())
+            .filter(|word| !word.is_empty())
+    };
+    words().any(|word| word.eq_ignore_ascii_case("land"))
+        && words().any(|word| {
+            ["plains", "island", "swamp", "mountain", "forest"]
+                .iter()
+                .any(|subtype| word.eq_ignore_ascii_case(subtype))
+        })
+}
+
+fn is_intrinsic_basic_land_mana_reminder(type_line: &str, ability: &ParsedOracleAbility) -> bool {
+    if !matches!(
+        ability.ability_type.as_str(),
+        "activatedAbility" | "manaAbility"
+    ) || !has_intrinsic_basic_land_mana_ability(type_line)
+    {
+        return false;
+    }
+    let text = ability.source.text.trim();
+    let normalized = text.to_ascii_lowercase();
+    text.starts_with('(')
+        && text.ends_with(')')
+        && normalized.contains("{t}")
+        && normalized.contains(": add ")
+}
+
+fn playable_rule_for_ability(ability: &ParsedOracleAbility, type_line: &str) -> Option<Value> {
+    (!is_intrinsic_basic_land_mana_reminder(type_line, ability))
+        .then(|| ability.rule.clone())
+        .flatten()
+}
+
 pub fn playable_rules_for_face(
     parser_result: &OracleCardParseResult,
     selected_face_id: Option<&str>,
@@ -207,7 +245,7 @@ pub fn playable_rules_for_face(
                     .filter(move |ability| {
                         ability.source.face_id.as_deref() == Some(face.id.as_str())
                     })
-                    .filter_map(|ability| ability.rule.clone())
+                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
                     .map(move |mut rule| {
                         if rule["kind"].as_str() != Some("rulesMarker") {
                             rule["roomDoorIndex"] = Value::from(door_index as u64);
@@ -234,7 +272,7 @@ pub fn playable_rules_for_face(
                 "toughness": face.toughness,
                 "rules": parser_result.abilities.iter()
                     .filter(|ability| ability.source.face_id.as_deref() == Some(face.id.as_str()))
-                    .filter_map(|ability| ability.rule.clone())
+                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
                     .collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         })];
@@ -262,7 +300,7 @@ pub fn playable_rules_for_face(
                     .filter(move |ability| {
                         ability.source.face_id.as_deref() == Some(face.id.as_str())
                     })
-                    .filter_map(|ability| ability.rule.clone())
+                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
                     .map(move |mut rule| {
                         rule["activeFaceIndex"] = Value::from(face_index as u64);
                         rule
@@ -285,11 +323,21 @@ pub fn playable_rules_for_face(
         return rules;
     }
 
+    let selected_type_line = selected_face_id
+        .and_then(|face_id| {
+            parser_result
+                .context
+                .faces
+                .iter()
+                .find(|face| face.id == face_id)
+                .map(|face| face.type_line.as_str())
+        })
+        .unwrap_or(parser_result.context.type_line.as_str());
     let mut rules = parser_result
         .abilities
         .iter()
         .filter(|ability| ability.source.face_id.as_deref() == selected_face_id)
-        .filter_map(|ability| ability.rule.clone())
+        .filter_map(|ability| playable_rule_for_ability(ability, selected_type_line))
         .collect::<Vec<_>>();
 
     let Some(spell_face_id) = linked_prepare_face_id(parser_result, selected_face_id) else {
@@ -307,7 +355,7 @@ pub fn playable_rules_for_face(
         .abilities
         .iter()
         .filter(|ability| ability.source.face_id.as_deref() == Some(spell_face_id))
-        .filter_map(|ability| ability.rule.clone())
+        .filter_map(|ability| playable_rule_for_ability(ability, &spell_face.type_line))
         .collect::<Vec<_>>();
     rules.push(json!({
         "kind": "prepareSpell",
@@ -320,6 +368,63 @@ pub fn playable_rules_for_face(
         }
     }));
     rules
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_single_face(type_line: &str, oracle_text: &str) -> OracleCardParseResult {
+        parse_oracle_card(OracleCardParseRequest {
+            card_name: "Test Land".to_string(),
+            type_line: type_line.to_string(),
+            mana_cost: None,
+            oracle_text: Some(oracle_text.to_string()),
+            layout: None,
+            faces: Vec::new(),
+        })
+    }
+
+    #[test]
+    fn intrinsic_basic_land_mana_reminder_is_not_a_playable_rule() {
+        let parser_result = parse_single_face("Basic Land — Island", "({T}: Add {U}.)");
+
+        assert!(
+            parser_result
+                .abilities
+                .iter()
+                .any(|ability| ability.rule.is_some())
+        );
+        assert!(
+            playable_rules_for_face(&parser_result, None).is_empty(),
+            "{:#?}",
+            parser_result.abilities
+        );
+    }
+
+    #[test]
+    fn typed_dual_land_mana_reminder_is_not_a_playable_rule() {
+        let parser_result = parse_single_face("Land — Island Forest", "({T}: Add {U} or {G}.)");
+
+        assert!(
+            parser_result
+                .abilities
+                .iter()
+                .any(|ability| ability.rule.is_some())
+        );
+        assert!(
+            playable_rules_for_face(&parser_result, None).is_empty(),
+            "{:#?}",
+            parser_result.abilities
+        );
+    }
+
+    #[test]
+    fn explicit_mana_ability_on_untyped_land_remains_playable() {
+        let parser_result = parse_single_face("Land", "{T}: Add {C}.");
+
+        assert!(!playable_rules_for_face(&parser_result, None).is_empty());
+    }
 }
 
 pub fn compile_playable_card(input: PlayableCardInput) -> Result<PlayableCardCompilation, String> {
