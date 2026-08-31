@@ -5571,6 +5571,7 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
         Some("revealHand") => {
             player_reference_supported(&effect["player"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+                && effect.get("continuous").is_none_or(Value::is_boolean)
         }
         Some("grantHandPlayPermission") => {
             player_reference_supported(&effect["player"])
@@ -9176,6 +9177,60 @@ impl GameEngine {
                     .map(|object| object.card.definition.name.clone())
             })
             .unwrap_or_else(|| "Unknown card".to_string())
+    }
+
+    fn remember_revealed_hand(&mut self, player_id: &str) {
+        let card_instance_ids = self
+            .player_index(player_id)
+            .ok()
+            .map(|player_index| {
+                self.state.players[player_index]
+                    .hand
+                    .iter()
+                    .map(|card| card.instance_id.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        self.forget_known_hand_cards(player_id);
+        if !card_instance_ids.is_empty() {
+            self.state.rule_modifiers.push(json!({
+                "kind": "knownHandCards",
+                "playerId": player_id,
+                "cardInstanceIds": card_instance_ids,
+            }));
+        }
+    }
+
+    fn forget_known_hand_cards(&mut self, player_id: &str) {
+        self.state.rule_modifiers.retain(|modifier| {
+            value_kind(modifier) != Some("knownHandCards")
+                || modifier["playerId"].as_str() != Some(player_id)
+        });
+    }
+
+    fn forget_known_hand_card_ids(&mut self, card_instance_ids: &[String]) {
+        if card_instance_ids.is_empty() {
+            return;
+        }
+        let forgotten = card_instance_ids.iter().cloned().collect::<BTreeSet<_>>();
+        for modifier in &mut self.state.rule_modifiers {
+            if value_kind(modifier) != Some("knownHandCards") {
+                continue;
+            }
+            if let Some(known) = modifier["cardInstanceIds"].as_array_mut() {
+                known.retain(|instance_id| {
+                    instance_id
+                        .as_str()
+                        .is_none_or(|instance_id| !forgotten.contains(instance_id))
+                });
+            }
+        }
+        self.state.rule_modifiers.retain(|modifier| {
+            value_kind(modifier) != Some("knownHandCards")
+                || modifier["cardInstanceIds"]
+                    .as_array()
+                    .is_some_and(|known| !known.is_empty())
+        });
     }
 
     fn target_exists(&self, target: &TargetRef) -> bool {
@@ -14067,6 +14122,94 @@ impl GameEngine {
         reserved
     }
 
+    fn casting_cost_choice_detail(
+        &self,
+        card: &CardDefinition,
+        decisions: &BTreeMap<String, Value>,
+        mana_costs: &[String],
+    ) -> Option<String> {
+        let payable_mana = mana_costs
+            .iter()
+            .filter(|cost| !cost.is_empty())
+            .cloned()
+            .collect::<Vec<_>>()
+            .join(" + ");
+        let mana_label = || {
+            if payable_mana.is_empty() {
+                "pay the mana cost".to_string()
+            } else {
+                format!("pay {payable_mana}")
+            }
+        };
+
+        if let Some(use_alternative) = decisions.get("useAlternativeCost").and_then(Value::as_bool)
+        {
+            if !use_alternative {
+                return Some(mana_label());
+            }
+
+            let mut details = card
+                .rules
+                .iter()
+                .find_map(|rule| {
+                    (value_kind(rule) == Some("keywordAbility")
+                        && alternative_cost_supported(&rule["ability"]))
+                    .then_some(&rule["ability"])
+                })
+                .and_then(|ability| ability["costs"].as_array())
+                .into_iter()
+                .flatten()
+                .filter(|cost| value_kind(cost) == Some("payLife"))
+                .filter_map(|cost| integer_value(&cost["amount"]))
+                .filter(|amount| *amount > 0)
+                .map(|amount| format!("pay {amount} life"))
+                .collect::<Vec<_>>();
+            if let Some(instance_id) = decisions
+                .get("alternativeExileCard")
+                .and_then(Value::as_str)
+            {
+                details.push(format!(
+                    "exile {} from hand",
+                    self.card_name_for_instance(instance_id)
+                ));
+            }
+            if let Some(instance_id) = decisions
+                .get("alternativeReturnPermanent")
+                .and_then(Value::as_str)
+            {
+                details.push(format!(
+                    "return {} to its owner's hand",
+                    self.card_name_for_instance(instance_id)
+                ));
+            }
+            return Some(if details.is_empty() {
+                "use the alternative cost".to_string()
+            } else {
+                details.join(" and ")
+            });
+        }
+
+        if let Some(use_alternative) = decisions
+            .get("useSacrificeAlternativeCost")
+            .and_then(Value::as_bool)
+        {
+            if !use_alternative {
+                return Some(mana_label());
+            }
+            return Some(
+                decisions
+                    .get("alternativeSacrifice")
+                    .and_then(Value::as_str)
+                    .map(|instance_id| {
+                        format!("sacrifice {}", self.card_name_for_instance(instance_id))
+                    })
+                    .unwrap_or_else(|| "use the sacrifice alternative cost".to_string()),
+            );
+        }
+
+        None
+    }
+
     fn casting_mana_costs(
         &self,
         card: &CardDefinition,
@@ -18489,6 +18632,13 @@ impl GameEngine {
                         selected_modes.join(", ")
                     )
                 };
+                let label = self
+                    .casting_cost_choice_detail(
+                        &card.definition,
+                        &declaration.decisions,
+                        &mana_costs,
+                    )
+                    .map_or(label.clone(), |detail| format!("{label} — {detail}"));
                 let mut decisions = declaration.decisions;
                 decisions.insert(
                     "castSourceZone".to_string(),
@@ -32107,6 +32257,8 @@ impl GameEngine {
                         else {
                             continue;
                         };
+                        self.forget_known_hand_cards(&player_id);
+                        self.forget_known_hand_card_ids(std::slice::from_ref(&instance_id));
                         let card = self.state.players[player_index].hand.remove(card_index);
                         let destination_index = self.player_index(&destination_player_id)?;
                         self.state.players[destination_index].library.push(card);
@@ -33265,6 +33417,7 @@ impl GameEngine {
                     .collect::<Vec<_>>();
                 for player_id in &player_ids {
                     let player_index = self.player_index(player_id)?;
+                    self.forget_known_hand_cards(player_id);
                     let graveyard_ids = self.state.players[player_index]
                         .graveyard
                         .iter()
@@ -33463,6 +33616,10 @@ impl GameEngine {
                     .filter_map(Value::as_str)
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>();
+                if !selected.is_empty() {
+                    self.forget_known_hand_cards(&player_id);
+                    self.forget_known_hand_card_ids(&selected);
+                }
                 let mut moved = Vec::new();
                 for instance_id in selected {
                     if let Some(index) = self.state.players[player_index]
@@ -37180,6 +37337,25 @@ impl GameEngine {
                 } else {
                     value_kind(&effect["to"]).unwrap_or_default().to_string()
                 };
+                if destination == "library" {
+                    let hand_player_ids = self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| {
+                            player.hand.iter().any(|card| {
+                                objects
+                                    .iter()
+                                    .any(|instance_id| instance_id == &card.instance_id)
+                            })
+                        })
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>();
+                    for hand_player_id in hand_player_ids {
+                        self.forget_known_hand_cards(&hand_player_id);
+                    }
+                    self.forget_known_hand_card_ids(&objects);
+                }
                 let mut moved = Vec::new();
                 for object in &objects {
                     let source_zone = (destination == "battlefield")
@@ -42081,12 +42257,15 @@ impl GameEngine {
                 if let Some(player_id) =
                     self.resolve_player(&effect["player"], stack_object, bindings)
                 {
-                    self.state.rule_modifiers.push(json!({
-                        "kind": "revealedHand",
-                        "playerId": player_id,
-                        "expiresAfterTurn": self.state.turn_number,
-                        "sourceCardInstanceId": stack_object.card.instance_id,
-                    }));
+                    self.remember_revealed_hand(&player_id);
+                    if effect["continuous"].as_bool() == Some(true) {
+                        self.state.rule_modifiers.push(json!({
+                            "kind": "revealedHand",
+                            "playerId": player_id,
+                            "expiresAfterTurn": self.state.turn_number,
+                            "sourceCardInstanceId": stack_object.card.instance_id,
+                        }));
+                    }
                 }
             }
             Some("grantHandPlayPermission") => {

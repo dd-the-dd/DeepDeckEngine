@@ -1278,6 +1278,7 @@ pub(in crate::oracle::canonical) fn parse_expansion_instruction(
                     "kind": "revealHand",
                     "player": target.clone(),
                     "duration": { "kind": "untilEndOfCurrentTurn" },
+                    "continuous": true,
                 }),
                 json!({
                     "kind": "grantHandPlayPermission",

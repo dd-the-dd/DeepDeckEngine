@@ -952,6 +952,208 @@ fn test_engine(player_count: usize) -> GameEngine {
 }
 
 #[test]
+fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].hand = vec![
+        test_instance(
+            "known-hand-card",
+            test_definition("known-hand-card", "Instant"),
+            "player-0",
+        ),
+        test_instance(
+            "other-hand-card",
+            test_definition("other-hand-card", "Sorcery"),
+            "player-0",
+        ),
+    ];
+    let stack_object = StackObject {
+        id: "stack:hand-memory".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "hand-memory-source",
+            test_definition("hand-memory-source", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let reveal = json!({
+        "kind": "revealHand",
+        "player": { "kind": "abilityController" },
+        "duration": { "kind": "untilEndOfCurrentTurn" },
+    });
+    engine
+        .execute_effect(
+            &reveal,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the hand reveal is remembered");
+    let known = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .find(|modifier| value_kind(modifier) == Some("knownHandCards"))
+        .expect("the revealed hand snapshot is retained");
+    assert_eq!(
+        known["cardInstanceIds"],
+        json!(["known-hand-card", "other-hand-card"])
+    );
+    assert!(
+        engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("revealedHand"))
+    );
+
+    let mut bindings = BTreeMap::from([(
+        "brainstormCards".to_string(),
+        RuntimeBinding::Objects(vec!["known-hand-card".to_string()]),
+    )]);
+    let move_to_library = json!({
+        "kind": "moveCards",
+        "cards": { "kind": "boundObjects", "binding": "brainstormCards" },
+        "to": {
+            "kind": "library",
+            "player": { "kind": "abilityController" },
+            "position": "top",
+        },
+        "order": { "kind": "random" },
+    });
+    engine
+        .execute_effect(
+            &move_to_library,
+            None,
+            &stack_object,
+            &mut bindings,
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the hidden hand-to-library move resolves");
+
+    assert!(
+        engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("knownHandCards"))
+    );
+    assert_eq!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .map(|card| card.instance_id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["other-hand-card"]
+    );
+    assert_eq!(
+        engine.state.players[0]
+            .library
+            .last()
+            .map(|card| card.instance_id.as_str()),
+        Some("known-hand-card")
+    );
+}
+
+#[test]
+fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Unmask".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{3}{B}".to_string()),
+        oracle_text: Some(
+            "You may exile a black card from your hand rather than pay this spell's mana cost."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut unmask_definition = test_definition("unmask", "Sorcery");
+    unmask_definition.name = "Unmask".to_string();
+    unmask_definition.mana_cost = "{3}{B}".to_string();
+    unmask_definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    assert!(unmask_definition.rules.iter().any(|rule| {
+        value_kind(rule) == Some("keywordAbility") && alternative_cost_supported(&rule["ability"])
+    }));
+    unmask_definition.rules.push(json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    }));
+
+    let mut grief_definition = test_definition("grief", "Creature - Elemental Incarnation");
+    grief_definition.name = "Grief".to_string();
+    grief_definition.mana_cost = "{2}{B}{B}".to_string();
+    let mut thoughtseize_definition = test_definition("thoughtseize", "Sorcery");
+    thoughtseize_definition.name = "Thoughtseize".to_string();
+    thoughtseize_definition.mana_cost = "{B}".to_string();
+    let mut plains_definition = test_definition("plains", "Basic Land - Plains");
+    plains_definition.name = "Plains".to_string();
+    plains_definition.mana_cost.clear();
+
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.players[0].hand = vec![
+        test_instance("unmask", unmask_definition, "player-0"),
+        test_instance("grief", grief_definition, "player-0"),
+        test_instance("thoughtseize", thoughtseize_definition, "player-0"),
+        test_instance("plains", plains_definition, "player-0"),
+    ];
+    engine.state.players[0].mana_pool = ["C", "C", "C", "B"]
+        .into_iter()
+        .map(|symbol| FloatingMana {
+            symbol: symbol.to_string(),
+            spend_restriction: None,
+        })
+        .collect();
+
+    let cast_actions = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("unmask")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(cast_actions.len(), 3, "actions: {cast_actions:#?}");
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("useAlternativeCost") == Some(&Value::Bool(false))
+            && action.label.ends_with("pay {3}{B}")
+    }));
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("alternativeExileCard") == Some(&json!("grief"))
+            && action.label.ends_with("exile Grief from hand")
+    }));
+    assert!(cast_actions.iter().any(|action| {
+        action.decisions.get("alternativeExileCard") == Some(&json!("thoughtseize"))
+            && action.label.ends_with("exile Thoughtseize from hand")
+    }));
+    let labels = cast_actions
+        .iter()
+        .map(|action| action.label.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(labels.len(), cast_actions.len());
+}
+
+#[test]
 fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Test Wizard".to_string(),

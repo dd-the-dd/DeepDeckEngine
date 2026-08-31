@@ -321,11 +321,28 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
                         .as_u64()
                         .is_none_or(|turn| turn >= u64::from(view.state.turn_number))
             });
-        if player.id != viewer_player_id && !hand_is_revealed {
+        let known_hand_card_ids = view
+            .state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                modifier["kind"].as_str() == Some("knownHandCards")
+                    && modifier["playerId"].as_str() == Some(player.id.as_str())
+            })
+            .flat_map(|modifier| modifier["cardInstanceIds"].as_array().into_iter().flatten())
+            .filter_map(Value::as_str)
+            .collect::<BTreeSet<_>>();
+        if player.id != viewer_player_id {
             for (index, card) in player.hand.iter_mut().enumerate() {
+                if hand_is_revealed || known_hand_card_ids.contains(card.instance_id.as_str()) {
+                    card.flags.insert("knownToViewer".to_string(), true);
+                    continue;
+                }
                 hidden_instance_ids.insert(card.instance_id.clone());
                 hidden_card(card, "hand", index);
             }
+        }
+        if player.id != viewer_player_id {
             for (index, card) in player.sideboard.iter_mut().enumerate() {
                 hidden_instance_ids.insert(card.instance_id.clone());
                 hidden_card(card, "sideboard", index);
@@ -2889,6 +2906,33 @@ mod tests {
             "Hidden card"
         );
         assert!(player_two.decision.is_none());
+
+        view.state.players[1].hand.push(private_card(
+            "player-2",
+            "player-2:hand:1",
+            "Force of Will",
+        ));
+        view.state.rule_modifiers.push(json!({
+            "kind": "knownHandCards",
+            "playerId": "player-2",
+            "cardInstanceIds": ["player-2:hand:0"],
+        }));
+        let partially_known = project_session_view(view.clone(), "player-1");
+        assert_eq!(
+            partially_known.state.players[1].hand[0].definition.name,
+            "Shock"
+        );
+        assert_eq!(
+            partially_known.state.players[1].hand[0]
+                .flags
+                .get("knownToViewer"),
+            Some(&true)
+        );
+        assert_eq!(
+            partially_known.state.players[1].hand[1].definition.name,
+            "Hidden card"
+        );
+        view.state.rule_modifiers.clear();
 
         view.state.rule_modifiers.push(json!({
             "kind": "revealedHand",
