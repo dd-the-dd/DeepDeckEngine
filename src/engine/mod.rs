@@ -3777,8 +3777,12 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("discardCards") => {
-            numeric_expression_supported(&effect["count"])
-                && player_reference_supported(&effect["player"])
+            player_reference_supported(&effect["player"])
+                && match (effect.get("cards"), effect.get("count")) {
+                    (Some(cards), None) => object_expression_supported(cards),
+                    (None, Some(count)) => numeric_expression_supported(count),
+                    _ => false,
+                }
                 && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("discardHand") => {
@@ -5723,6 +5727,9 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
         Some("installDelayedStepTrigger") => {
             matches!(effect["step"].as_str(), Some("upkeep" | "endStep"))
                 && player_reference_supported(&effect["controller"])
+                && effect
+                    .get("trackedObject")
+                    .is_none_or(target_reference_supported)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
@@ -24964,13 +24971,23 @@ impl GameEngine {
             if let Some(controller_id) = modifier["controllerId"].as_str() {
                 source.controller = controller_id.to_string();
             }
-            self.put_triggered_ability_on_stack(
+            let decisions = modifier["trackedObjectId"]
+                .as_str()
+                .map(|instance_id| {
+                    BTreeMap::from([(
+                        "triggeringPermanentId".to_string(),
+                        Value::String(instance_id.to_string()),
+                    )])
+                })
+                .unwrap_or_default();
+            self.put_triggered_ability_on_stack_with_decisions(
                 &source,
                 json!({
                     "kind": "triggeredAbility",
                     "source": { "kind": "self" },
                     "effects": modifier["effects"].clone(),
                 }),
+                decisions,
             );
         }
         self.state.rule_modifiers.retain(|modifier| {
@@ -32775,32 +32792,42 @@ impl GameEngine {
                         .into_iter()
                         .collect::<Vec<_>>(),
                 };
-                let count = self
-                    .runtime_numeric_expression(&effect["count"], stack_object, bindings, decisions)
-                    .unwrap_or(0)
-                    .max(0) as usize;
                 let mut discarded_ids = Vec::new();
                 for player_id in player_ids {
                     let player_index = self.player_index(&player_id)?;
-                    let player_count = count.min(self.state.players[player_index].hand.len());
-                    if player_count == 0 {
-                        continue;
-                    }
-                    let candidates = self.state.players[player_index]
-                        .hand
-                        .iter()
-                        .map(|card| card.instance_id.clone())
-                        .collect::<Vec<_>>();
-                    let selected = self.choose_resolution_objects(
-                        stack_object,
-                        provider,
-                        &player_id,
-                        "discardCards",
-                        candidates,
-                        player_count,
-                        player_count,
-                        &format!("Choose {player_count} card(s) to discard"),
-                    )?;
+                    let selected = if let Some(cards) = effect.get("cards") {
+                        self.resolve_runtime_object_ids(cards, stack_object, bindings, decisions)
+                            .unwrap_or_default()
+                    } else {
+                        let count = self
+                            .runtime_numeric_expression(
+                                &effect["count"],
+                                stack_object,
+                                bindings,
+                                decisions,
+                            )
+                            .unwrap_or(0)
+                            .max(0) as usize;
+                        let player_count = count.min(self.state.players[player_index].hand.len());
+                        if player_count == 0 {
+                            continue;
+                        }
+                        let candidates = self.state.players[player_index]
+                            .hand
+                            .iter()
+                            .map(|card| card.instance_id.clone())
+                            .collect::<Vec<_>>();
+                        self.choose_resolution_objects(
+                            stack_object,
+                            provider,
+                            &player_id,
+                            "discardCards",
+                            candidates,
+                            player_count,
+                            player_count,
+                            &format!("Choose {player_count} card(s) to discard"),
+                        )?
+                    };
                     for instance_id in selected {
                         if let Some(card_index) = self.state.players[player_index]
                             .hand
@@ -42584,12 +42611,28 @@ impl GameEngine {
                     bindings,
                     decisions,
                 );
+                let tracked_object_id = if let Some(object) = effect.get("trackedObject") {
+                    let Some(instance_id) = self
+                        .resolve_target(object, stack_object, bindings)
+                        .and_then(|target| match target {
+                            TargetRef::Permanent { instance_id }
+                            | TargetRef::Card { instance_id } => Some(instance_id),
+                            _ => None,
+                        })
+                    else {
+                        return Ok(());
+                    };
+                    Some(instance_id)
+                } else {
+                    None
+                };
                 let modifier = json!({
                     "kind": "delayedStepTrigger",
                     "step": effect["step"],
                     "controllerId": controller_id,
                     "effects": delayed_effects,
                     "sourceCard": stack_object.card,
+                    "trackedObjectId": tracked_object_id,
                 });
                 self.state.rule_modifiers.push(modifier.clone());
                 self.record_event(
