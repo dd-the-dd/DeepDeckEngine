@@ -6245,13 +6245,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     }
 }
 
-fn saga_chapter_rule_is_final(source: &CardDefinition, rule: &Value) -> bool {
-    if !type_line_contains(&source.type_line, "Saga")
-        || value_kind(&rule["event"]) != Some("sagaChapterReached")
-    {
-        return false;
-    }
-    let final_chapter = source
+fn saga_final_chapter(source: &CardDefinition) -> Option<i32> {
+    type_line_contains(&source.type_line, "Saga").then_some(())?;
+    source
         .rules
         .iter()
         .filter(|candidate| value_kind(&candidate["event"]) == Some("sagaChapterReached"))
@@ -6262,8 +6258,14 @@ fn saga_chapter_rule_is_final(source: &CardDefinition, rule: &Value) -> bool {
                 .flatten()
         })
         .filter_map(integer_value)
-        .max();
-    final_chapter.is_some_and(|final_chapter| {
+        .max()
+}
+
+fn saga_chapter_rule_is_final(source: &CardDefinition, rule: &Value) -> bool {
+    if value_kind(&rule["event"]) != Some("sagaChapterReached") {
+        return false;
+    }
+    saga_final_chapter(source).is_some_and(|final_chapter| {
         rule["event"]["chapters"]
             .as_array()
             .into_iter()
@@ -29162,6 +29164,7 @@ impl GameEngine {
                     Some(stack_object.card.instance_id),
                     json!({ "stackId": stack_object.id }),
                 );
+                self.check_state_based_actions_with_provider(Some(provider))?;
                 return Ok(());
             }
             let controller = stack_object.controller.clone();
@@ -61316,6 +61319,36 @@ impl GameEngine {
                     "movedCardInstanceIds": moved_ids,
                 }),
             );
+        }
+        let sagas_with_pending_chapter_abilities = self
+            .state
+            .stack
+            .iter()
+            .filter(|stack_object| {
+                stack_object.ability_kind.as_deref() == Some("triggeredAbility")
+                    && stack_object.ability_rule.as_ref().is_some_and(|rule| {
+                        value_kind(&rule["event"]) == Some("sagaChapterReached")
+                    })
+            })
+            .map(|stack_object| stack_object.card.instance_id.clone())
+            .collect::<BTreeSet<_>>();
+        let completed_sagas = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| {
+                saga_final_chapter(&permanent.definition).is_some_and(|final_chapter| {
+                    permanent.counters.get("lore").copied().unwrap_or(0) >= final_chapter
+                })
+            })
+            .filter(|permanent| {
+                !sagas_with_pending_chapter_abilities.contains(&permanent.instance_id)
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>();
+        for instance_id in completed_sagas {
+            self.move_permanent_to_graveyard(&instance_id, "sacrificed")?;
         }
         let lethal = self
             .state

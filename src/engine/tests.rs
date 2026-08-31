@@ -2168,6 +2168,62 @@ fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
 }
 
 #[test]
+fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
+    let mut saga_definition = test_definition("completed-saga", "Enchantment - Saga");
+    let final_chapter_rule = json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+            "kind": "sagaChapterReached",
+            "object": { "kind": "self" },
+            "chapters": [{ "kind": "integer", "value": 3 }],
+        },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "abilityController" },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    });
+    saga_definition.rules = vec![final_chapter_rule.clone()];
+
+    let mut saga = test_instance("completed-saga", saga_definition, "player-0");
+    saga.counters.insert("lore".to_string(), 3);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![saga.clone()];
+    engine.state.stack.push(StackObject {
+        id: "stack:completed-saga:chapter-three".to_string(),
+        controller: "player-0".to_string(),
+        card: saga,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(final_chapter_rule),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    });
+
+    engine.check_state_based_actions();
+    assert!(engine.permanent_position("completed-saga").is_some());
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the final Saga chapter resolves");
+
+    assert!(engine.permanent_position("completed-saga").is_none());
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "completed-saga")
+    );
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "permanentToGraveyard"
+            && event.card_instance_id.as_deref() == Some("completed-saga")
+            && event.detail["reason"] == "sacrificed"
+    }));
+}
+
+#[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Burn, Burn, Tree and Fern".to_string(),
