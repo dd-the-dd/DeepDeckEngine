@@ -30879,7 +30879,20 @@ impl GameEngine {
                 "resolution decision {decision_id} has no legal values"
             )));
         };
-        let selected = if values.len() == 1 {
+        let observes_another_players_hand = match &choice {
+            DecisionChoice::CardSelection {
+                candidate_card_instance_ids,
+                ..
+            } => self.state.players.iter().any(|player| {
+                player.id != player_id
+                    && player
+                        .hand
+                        .iter()
+                        .any(|card| candidate_card_instance_ids.contains(&card.instance_id))
+            }),
+            _ => false,
+        };
+        let selected = if values.len() == 1 && !observes_another_players_hand {
             first.clone()
         } else {
             let is_card_order = matches!(&choice, DecisionChoice::CardOrder { .. });

@@ -10851,7 +10851,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
 
 #[test]
 fn card_choice_uses_the_player_named_by_the_candidate_zone() {
-    struct TargetHandProvider;
+    struct TargetHandProvider {
+        choice_was_presented: bool,
+    }
 
     impl DecisionProvider for TargetHandProvider {
         fn choose(
@@ -10869,6 +10871,7 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
             state: &GameState,
             request: &EngineDecisionRequest,
         ) -> Result<Vec<String>, EngineError> {
+            self.choice_was_presented = true;
             assert!(state.rule_modifiers.iter().any(|modifier| {
                 modifier["kind"] == "revealedHand" && modifier["playerId"] == "player-1"
             }));
@@ -10965,9 +10968,17 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
         )]),
     });
 
+    let mut provider = TargetHandProvider {
+        choice_was_presented: false,
+    };
     engine
-        .resolve_top_stack(&mut TargetHandProvider)
+        .resolve_top_stack(&mut provider)
         .expect("the targeted hand choice resolves");
+
+    assert!(
+        provider.choice_was_presented,
+        "choosing from another player's hand must remain explicit even for one legal card"
+    );
 
     assert_eq!(
         engine.state.players[0].hand[0].instance_id,

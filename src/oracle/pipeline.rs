@@ -113,6 +113,46 @@ mod tests {
     }
 
     #[test]
+    fn unmask_compiles_to_alternative_cost_and_shared_hand_operations() {
+        let result = parse_oracle_card(OracleCardParseRequest {
+            card_name: "Unmask".to_string(),
+            type_line: "Sorcery".to_string(),
+            mana_cost: Some("{3}{B}".to_string()),
+            oracle_text: Some(
+                "You may exile a black card from your hand rather than pay this spell's mana cost.\n\
+                 Target player reveals their hand. You choose a nonland card from it. That player discards that card."
+                    .to_string(),
+            ),
+            layout: None,
+            faces: Vec::new(),
+        });
+
+        assert_eq!(result.status, "canonical");
+        assert_eq!(result.abilities.len(), 2);
+        assert_eq!(
+            result.abilities[0].rule.as_ref().unwrap()["ability"]["kind"],
+            "alternativeCost"
+        );
+        let spell = result.abilities[1].rule.as_ref().unwrap();
+        assert_eq!(
+            spell["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|effect| effect["kind"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["revealHand", "chooseCards", "moveCards"]
+        );
+        assert!(
+            result
+                .abilities
+                .iter()
+                .filter_map(|ability| ability.rule.as_ref())
+                .all(crate::engine::rule_is_executable)
+        );
+    }
+
+    #[test]
     fn class_sections_apply_the_announced_minimum_level_to_following_abilities() {
         let result = parse_oracle_card(OracleCardParseRequest {
             card_name: "Scavenger's Talent".to_string(),
