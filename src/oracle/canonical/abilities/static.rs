@@ -35,6 +35,50 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         )
     };
 
+    // Ability-word conditions such as Threshold must be handled before broad
+    // subject/keyword grammars can mistake the tail ("can't block") for a
+    // standalone restriction.
+    let graveyard_threshold_bonus_re = Regex::new(&format!(
+        r"(?i)^As long as there are ({}) or more (.+?) in your graveyard, this (?:creature|permanent) gets ([+-]\d+)/([+-]\d+) and (?:has )?(.+)\.$",
+        count_word_pattern(),
+    ))
+    .expect("graveyard-threshold self bonus regex compiles");
+    if let Some(captures) = graveyard_threshold_bonus_re.captures(strip_short_oracle_label(text)) {
+        let condition = compare(
+            ">=",
+            json!({
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": if matches!(captures[2].to_ascii_lowercase().as_str(), "card" | "cards") {
+                    Value::Null
+                } else {
+                    parse_permanent_criteria(&captures[2], face_name)?
+                },
+            }),
+            integer(parse_number_word(&captures[1])?),
+        );
+        let mut modifiers = vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": integer(captures[3].parse::<i64>().ok()?),
+            "toughness": integer(captures[4].parse::<i64>().ok()?),
+            "condition": condition.clone(),
+        })];
+        modifiers.extend(
+            oracle_keyword_list(&captures[5])?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "grantKeyword",
+                        "objects": self_ref(),
+                        "keyword": keyword,
+                        "condition": condition.clone(),
+                    })
+                }),
+        );
+        return Some(static_rule(modifiers));
+    }
+
     let supplement_named_token_creation_re = Regex::new(
         r"(?i)^If you would create (?:a|an) ([A-Za-z][A-Za-z '-]+) token, instead create (?:a|an) ([A-Za-z][A-Za-z '-]+) token and (?:a|an) ([A-Za-z][A-Za-z '-]+) token\.$",
     )
@@ -2018,46 +2062,6 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         })]));
     }
 
-    let conditional_self_bonus_re = Regex::new(&format!(
-        r"(?i)^(?:[^—]+— )?As long as there are ({}) or more (.+?) in your graveyard, this (?:creature|permanent) gets ([+-]\d+)/([+-]\d+) and (?:has )?(.+)\.$",
-        count_word_pattern(),
-    ))
-    .expect("graveyard-threshold self bonus regex compiles");
-    if let Some(captures) = conditional_self_bonus_re.captures(text) {
-        let condition = compare(
-            ">=",
-            json!({
-                "kind": "countCards",
-                "zone": graveyard(controller()),
-                "where": if matches!(captures[2].to_ascii_lowercase().as_str(), "card" | "cards") {
-                    Value::Null
-                } else {
-                    parse_permanent_criteria(&captures[2], face_name)?
-                },
-            }),
-            integer(parse_number_word(&captures[1])?),
-        );
-        let mut modifiers = vec![json!({
-            "kind": "modifyPowerToughness",
-            "objects": self_ref(),
-            "power": integer(captures[3].parse::<i64>().ok()?),
-            "toughness": integer(captures[4].parse::<i64>().ok()?),
-            "condition": condition.clone(),
-        })];
-        modifiers.extend(
-            oracle_keyword_list(&captures[5])?
-                .into_iter()
-                .map(|keyword| {
-                    json!({
-                        "kind": "grantKeyword",
-                        "objects": self_ref(),
-                        "keyword": keyword,
-                        "condition": condition.clone(),
-                    })
-                }),
-        );
-        return Some(static_rule(modifiers));
-    }
     let attack_tax_re = Regex::new(
         r"(?i)^Creatures can't attack you(?: or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:of those creatures|creature they control that's attacking you)\.$",
     )

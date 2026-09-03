@@ -279,6 +279,24 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
         decision.kind == crate::engine::DecisionKind::Sideboarding
             && decision.player_id == viewer_player_id
     });
+    let decision_visible_card_ids = view
+        .decision
+        .as_ref()
+        .filter(|decision| decision.player_id == viewer_player_id)
+        .and_then(|decision| decision.choice.as_ref())
+        .map(|choice| match choice {
+            crate::engine::DecisionChoice::CardSelection {
+                candidate_card_instance_ids,
+                ..
+            } => candidate_card_instance_ids.clone(),
+            crate::engine::DecisionChoice::CardOrder {
+                card_instance_ids, ..
+            } => card_instance_ids.clone(),
+            _ => Vec::new(),
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .collect::<BTreeSet<_>>();
     let continuously_revealed_hands = view
         .state
         .players
@@ -306,8 +324,30 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
         })
         .collect::<BTreeSet<_>>();
     for player in &mut view.state.players {
+        let known_library_card_ids = view
+            .state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                modifier["kind"].as_str() == Some("knownLibraryCards")
+                    && modifier["playerId"].as_str() == Some(player.id.as_str())
+                    && modifier["viewerId"].as_str() == Some(viewer_player_id)
+            })
+            .flat_map(|modifier| modifier["cardInstanceIds"].as_array().into_iter().flatten())
+            .filter_map(Value::as_str)
+            .collect::<BTreeSet<_>>();
+        let top_library_index = player.library.len().checked_sub(1);
         for (index, card) in player.library.iter_mut().enumerate() {
             if viewer_is_sideboarding && player.id == viewer_player_id {
+                continue;
+            }
+            if decision_visible_card_ids.contains(card.instance_id.as_str()) {
+                continue;
+            }
+            if top_library_index == Some(index)
+                && known_library_card_ids.contains(card.instance_id.as_str())
+            {
+                card.flags.insert("knownToViewer".to_string(), true);
                 continue;
             }
             hidden_instance_ids.insert(card.instance_id.clone());
@@ -328,6 +368,9 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
             .filter(|modifier| {
                 modifier["kind"].as_str() == Some("knownHandCards")
                     && modifier["playerId"].as_str() == Some(player.id.as_str())
+                    && modifier["viewerId"]
+                        .as_str()
+                        .is_none_or(|viewer_id| viewer_id == viewer_player_id)
             })
             .flat_map(|modifier| modifier["cardInstanceIds"].as_array().into_iter().flatten())
             .filter_map(Value::as_str)
@@ -365,6 +408,10 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
     {
         view.decision = None;
     }
+    view.state.rule_modifiers.retain(|modifier| {
+        modifier["kind"].as_str() != Some("observedCardsNote")
+            || modifier["viewerId"].as_str() == Some(viewer_player_id)
+    });
     view
 }
 
@@ -2907,6 +2954,58 @@ mod tests {
         );
         assert!(player_two.decision.is_none());
 
+        let mut library_decision_view = view.clone();
+        library_decision_view.decision = Some(crate::engine::EngineDecisionRequest {
+            id: "scry:1".to_string(),
+            kind: crate::engine::DecisionKind::ResolutionChoice,
+            player_id: "player-1".to_string(),
+            source_card: None,
+            source_card_instance_id: None,
+            choice: Some(crate::engine::DecisionChoice::CardSelection {
+                decision_id: "scryCards".to_string(),
+                candidate_card_instance_ids: vec!["player-1:library:0".to_string()],
+                minimum: 0,
+                maximum: 1,
+                prompt: "Choose cards for the bottom.".to_string(),
+            }),
+            options: Vec::new(),
+        });
+        let visible_during_scry = project_session_view(library_decision_view, "player-1");
+        assert_eq!(
+            visible_during_scry.state.players[0].library[0]
+                .definition
+                .name,
+            "Brainstorm"
+        );
+
+        view.state.rule_modifiers.push(json!({
+            "kind": "knownLibraryCards",
+            "playerId": "player-2",
+            "viewerId": "player-1",
+            "cardInstanceIds": ["player-2:library:0"],
+        }));
+        let known_library_top = project_session_view(view.clone(), "player-1");
+        assert_eq!(
+            known_library_top.state.players[1].library[0]
+                .definition
+                .name,
+            "Brainstorm"
+        );
+        assert_eq!(
+            known_library_top.state.players[1].library[0]
+                .flags
+                .get("knownToViewer"),
+            Some(&true)
+        );
+        let private_for_other_viewer = project_session_view(view.clone(), "player-2");
+        assert_eq!(
+            private_for_other_viewer.state.players[1].library[0]
+                .definition
+                .name,
+            "Hidden card"
+        );
+        view.state.rule_modifiers.clear();
+
         view.state.players[1].hand.push(private_card(
             "player-2",
             "player-2:hand:1",
@@ -2946,6 +3045,30 @@ mod tests {
                 .definition
                 .name,
             "Shock"
+        );
+        view.state.rule_modifiers.clear();
+
+        view.state.rule_modifiers.push(json!({
+            "kind": "observedCardsNote",
+            "viewerId": "player-1",
+            "playerId": "player-2",
+            "zones": [{ "zone": "library", "cards": [{ "name": "Brainstorm", "count": 1 }] }],
+        }));
+        let note_owner = project_session_view(view.clone(), "player-1");
+        assert!(
+            note_owner
+                .state
+                .rule_modifiers
+                .iter()
+                .any(|modifier| { modifier["kind"] == "observedCardsNote" })
+        );
+        let note_opponent = project_session_view(view.clone(), "player-2");
+        assert!(
+            note_opponent
+                .state
+                .rule_modifiers
+                .iter()
+                .all(|modifier| { modifier["kind"] != "observedCardsNote" })
         );
         view.state.rule_modifiers.clear();
 

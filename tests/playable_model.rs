@@ -141,6 +141,36 @@ fn expansion_explosion_request() -> OracleCardParseRequest {
     }
 }
 
+fn witch_enchanter_request() -> OracleCardParseRequest {
+    OracleCardParseRequest {
+        card_name: "Witch Enchanter // Witch-Blessed Meadow".to_string(),
+        faces: vec![
+            OracleCardFace {
+                id: "witch-enchanter".to_string(),
+                mana_cost: Some("{3}{W}".to_string()),
+                name: "Witch Enchanter".to_string(),
+                oracle_text: "When Witch Enchanter enters, destroy target artifact or enchantment an opponent controls.".to_string(),
+                power: Some("2".to_string()),
+                toughness: Some("2".to_string()),
+                type_line: "Creature - Human Warlock".to_string(),
+            },
+            OracleCardFace {
+                id: "witch-blessed-meadow".to_string(),
+                mana_cost: Some(String::new()),
+                name: "Witch-Blessed Meadow".to_string(),
+                oracle_text: "Witch-Blessed Meadow enters tapped.\n{T}: Add {W}.".to_string(),
+                power: None,
+                toughness: None,
+                type_line: "Land".to_string(),
+            },
+        ],
+        layout: Some("modal_dfc".to_string()),
+        mana_cost: None,
+        oracle_text: None,
+        type_line: "Creature - Human Warlock // Land".to_string(),
+    }
+}
+
 /// Feature: The playable-card adapter consumes production parser rules rather than a truth fixture.
 #[test]
 fn playable_card_compilation_uses_production_oracle_output() {
@@ -316,6 +346,38 @@ fn playable_card_compilation_preserves_both_split_spells() {
         marker["splitFaces"][1]["rules"][0]["effects"][0]["operation"],
         "explosion"
     );
+}
+
+/// Feature: A modal double-faced card exposes separate creature and land definitions.
+#[test]
+fn playable_card_compilation_preserves_modal_double_faced_card_faces() {
+    let compilation = compile_playable_card(PlayableCardInput {
+        face_id: None,
+        id: "witch-enchanter".to_string(),
+        is_game_piece: false,
+        is_sideboard: false,
+        is_token: false,
+        oracle: witch_enchanter_request(),
+        power: Some("2".to_string()),
+        toughness: Some("2".to_string()),
+    })
+    .expect("Witch Enchanter has two playable faces");
+
+    let marker = compilation
+        .card
+        .rules
+        .iter()
+        .find(|rule| rule["splitFaces"].is_array())
+        .expect("modal face marker");
+    assert_eq!(marker["splitFaces"][0]["name"], "Witch Enchanter");
+    assert_eq!(
+        marker["splitFaces"][0]["typeLine"],
+        "Creature - Human Warlock"
+    );
+    assert_eq!(marker["splitFaces"][0]["power"], "2");
+    assert_eq!(marker["splitFaces"][1]["name"], "Witch-Blessed Meadow");
+    assert_eq!(marker["splitFaces"][1]["typeLine"], "Land");
+    assert!(marker["splitFaces"][1]["power"].is_null());
 }
 
 /// Feature: Unsupported Oracle text never leaks a partial unique rule into the playable model.

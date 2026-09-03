@@ -420,6 +420,11 @@ pub enum DecisionChoice {
         options: Vec<String>,
         prompt: String,
     },
+    CardNameSelection {
+        decision_id: String,
+        suggestions: Vec<String>,
+        prompt: String,
+    },
     NumberSelection {
         decision_id: String,
         minimum: i32,

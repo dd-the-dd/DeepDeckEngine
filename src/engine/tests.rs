@@ -2,6 +2,109 @@ use super::*;
 use crate::oracle::{OracleCardParseRequest, parse_oracle_card};
 
 #[test]
+fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
+    let mut engine = test_engine(2);
+    let mut extracted_definition = test_definition("extracted-card", "Creature - Zombie Imp");
+    extracted_definition.name = "Putrid Imp".to_string();
+    let target = test_instance("putrid-graveyard", extracted_definition.clone(), "player-1");
+    engine.state.players[1].graveyard.push(target.clone());
+    engine.state.players[1].hand.push(test_instance(
+        "putrid-hand",
+        extracted_definition.clone(),
+        "player-1",
+    ));
+    engine.state.players[1].library.push(test_instance(
+        "putrid-library",
+        extracted_definition.clone(),
+        "player-1",
+    ));
+    engine.state.players[1].battlefield.push(test_instance(
+        "putrid-battlefield",
+        extracted_definition,
+        "player-1",
+    ));
+
+    let source = test_instance(
+        "surgical-extraction",
+        test_definition("surgical-extraction", "Instant"),
+        "player-0",
+    );
+    let stack_object = StackObject {
+        id: "stack:surgical-extraction".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetNamedCard".to_string(),
+            TargetRef::Card {
+                instance_id: target.instance_id,
+            },
+        )]),
+    };
+    let effect = json!({
+        "kind": "exileNamedCardsFromZones",
+        "player": { "kind": "chosenTarget", "id": "targetNamedCard" },
+        "chooser": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "nameFromCard": { "kind": "chosenTarget", "id": "targetNamedCard" },
+        "zones": ["graveyard", "hand", "library"],
+        "shuffleLibrary": true,
+    });
+
+    engine
+        .execute_effect(
+            &effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Surgical Extraction resolves");
+
+    let exiled_ids = engine.state.players[1]
+        .exile
+        .iter()
+        .map(|card| card.instance_id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert!(exiled_ids.contains("putrid-graveyard"));
+    assert!(exiled_ids.contains("putrid-hand"));
+    assert!(exiled_ids.contains("putrid-library"));
+    assert!(!exiled_ids.contains("putrid-battlefield"));
+    assert!(
+        engine.state.players[1]
+            .battlefield
+            .iter()
+            .any(|card| card.instance_id == "putrid-battlefield")
+    );
+    let note = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .find(|modifier| modifier["kind"] == "observedCardsNote")
+        .expect("searching the hidden zones records a private observation note");
+    assert_eq!(note["viewerId"], "player-0");
+    assert_eq!(note["playerId"], "player-1");
+    assert_eq!(note["sourceName"], "surgical-extraction");
+    assert_eq!(note["orderKnown"], false);
+    assert!(
+        note["zones"]
+            .as_array()
+            .is_some_and(|zones| zones.iter().any(|zone| {
+                zone["zone"] == "library"
+                    && zone["cards"].as_array().is_some_and(|cards| {
+                        cards
+                            .iter()
+                            .any(|card| card["name"] == "Putrid Imp" && card["count"] == 1)
+                    })
+            }))
+    );
+}
+
+#[test]
 fn hand_card_exiled_with_a_source_remains_linked_and_can_be_copied() {
     let mut engine = test_engine(2);
     let source = test_instance(
@@ -1060,6 +1163,38 @@ fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
             .last()
             .map(|card| card.instance_id.as_str()),
         Some("known-hand-card")
+    );
+}
+
+#[test]
+fn looked_at_hand_memory_is_private_to_the_viewer_and_tracks_existing_cards() {
+    let mut engine = test_engine(2);
+    engine.state.players[1].hand = vec![
+        test_instance(
+            "peacekeeper-known-a",
+            test_definition("peacekeeper-known-a", "Instant"),
+            "player-1",
+        ),
+        test_instance(
+            "peacekeeper-known-b",
+            test_definition("peacekeeper-known-b", "Creature - Human"),
+            "player-1",
+        ),
+    ];
+
+    engine.remember_looked_at_hand("player-1", "player-0");
+
+    let known = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .find(|modifier| value_kind(modifier) == Some("knownHandCards"))
+        .expect("Anointed Peacekeeper remembers the inspected hand");
+    assert_eq!(known["playerId"], "player-1");
+    assert_eq!(known["viewerId"], "player-0");
+    assert_eq!(
+        known["cardInstanceIds"],
+        json!(["peacekeeper-known-a", "peacekeeper-known-b"])
     );
 }
 
@@ -4987,6 +5122,81 @@ fn targeted_player_can_copy_the_resolving_spell() {
 }
 
 #[test]
+fn optional_library_shuffle_publishes_distinct_keep_and_shuffle_actions() {
+    struct ShuffleChoiceProvider {
+        labels: Vec<String>,
+        prompt: Option<String>,
+    }
+
+    impl DecisionProvider for ShuffleChoiceProvider {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            self.labels = request
+                .options
+                .iter()
+                .map(|action| action.label.clone())
+                .collect();
+            self.prompt = request.choice.as_ref().and_then(|choice| match choice {
+                DecisionChoice::OptionSelection { prompt, .. } => Some(prompt.clone()),
+                _ => None,
+            });
+            Ok(0)
+        }
+    }
+
+    let mut engine = test_engine(2);
+    let stack_object = StackObject {
+        id: "stack:ponder".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("ponder", test_definition("Ponder", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let effect = json!({
+        "kind": "optionalEffects",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "effects": [{
+            "kind": "shuffleZone",
+            "zone": {
+                "kind": "library",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+        }],
+    });
+    let mut provider = ShuffleChoiceProvider {
+        labels: Vec::new(),
+        prompt: None,
+    };
+
+    engine
+        .execute_effect(
+            &effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut provider,
+        )
+        .expect("the optional shuffle decision resolves");
+
+    assert_eq!(provider.prompt.as_deref(), Some("Shuffle the library?"));
+    assert_eq!(
+        provider.labels,
+        [
+            "Choose Keep the current order".to_string(),
+            "Choose Shuffle the library".to_string(),
+        ]
+    );
+}
+
+#[test]
 fn conditional_draw_replacements_add_to_the_draw_event() {
     let mut engine = test_engine(2);
     engine.state.players[0].hand.clear();
@@ -5428,6 +5638,65 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
         .expect("the selected creature entered the battlefield");
     assert_eq!(permanent.counters.get("+1/+1"), Some(&3));
     assert!(effect_engine.permanent_has_keyword(permanent, "hexproof"));
+}
+
+#[test]
+fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
+    let trigger = json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+        "effects": [{
+            "kind": "conditionalEffect",
+            "condition": {
+                "kind": "not",
+                "operand": {
+                    "kind": "completedDungeon",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "name": "Tomb of Annihilation"
+                }
+            },
+            "then": [
+                { "kind": "returnToOwnersHand", "object": { "kind": "self" } },
+                { "kind": "ventureDungeon", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+            ],
+            "else": []
+        }]
+    });
+    let mut acererak_definition = test_definition("acererak", "Legendary Creature - Zombie Wizard");
+    acererak_definition.name = "Acererak the Archlich".to_string();
+    acererak_definition.rules = vec![trigger];
+    let acererak = test_instance("acererak", acererak_definition, "player-0");
+    let mut tomb = test_definition("tomb-of-annihilation", "Dungeon");
+    tomb.name = "Tomb of Annihilation".to_string();
+    tomb.is_game_piece = true;
+    tomb.rules = vec![json!({
+        "kind": "dungeonRoom",
+        "room": "Trapped Entry",
+        "nextRooms": ["Veils of Fear", "Sandfall Cell"],
+        "effects": []
+    })];
+
+    let mut engine = test_engine(2);
+    engine.state.game_pieces = vec![tomb];
+    engine.state.players[0].battlefield.push(acererak.clone());
+    engine.enqueue_enter_battlefield_triggers(&acererak);
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Acererak's incomplete-Tomb trigger resolves");
+
+    assert!(engine.state.players[0].battlefield.is_empty());
+    assert!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| { card.definition.name == "Acererak the Archlich" })
+    );
+    assert!(engine.state.rule_modifiers.iter().any(|modifier| {
+        value_kind(modifier) == Some("dungeonPosition")
+            && modifier["dungeonId"] == "tomb-of-annihilation"
+            && modifier["room"] == "Trapped Entry"
+    }));
 }
 
 #[test]
@@ -10921,6 +11190,166 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
 }
 
 #[test]
+fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
+    #[derive(Default)]
+    struct GroupedScryProvider {
+        order_choices: usize,
+        selection_choices: usize,
+    }
+
+    impl DecisionProvider for GroupedScryProvider {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            _request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            Err(EngineError::new("scry must use direct card choices"))
+        }
+
+        fn choose_card_instance_ids(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<Vec<String>, EngineError> {
+            match request.choice.as_ref() {
+                Some(DecisionChoice::CardSelection {
+                    candidate_card_instance_ids,
+                    minimum,
+                    maximum,
+                    prompt,
+                    ..
+                }) => {
+                    self.selection_choices += 1;
+                    assert_eq!(candidate_card_instance_ids, &["scry-top", "scry-second"]);
+                    assert_eq!((*minimum, *maximum), (0, 2));
+                    assert!(prompt.contains("bottom"));
+                    Ok(Vec::new())
+                }
+                Some(DecisionChoice::CardOrder {
+                    card_instance_ids, ..
+                }) => {
+                    self.order_choices += 1;
+                    Ok(card_instance_ids.clone())
+                }
+                choice => Err(EngineError::new(format!(
+                    "unexpected grouped scry choice: {choice:?}"
+                ))),
+            }
+        }
+    }
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].library = ["library-bottom", "scry-second", "scry-top"]
+        .into_iter()
+        .map(|id| test_instance(id, test_definition(id, "Sorcery"), "player-0"))
+        .collect();
+    let source = StackObject {
+        id: "stack:scry-two".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "scry-source",
+            test_definition("scry-source", "Instant"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut provider = GroupedScryProvider::default();
+    engine
+        .execute_effect(
+            &json!({
+                "kind": "scry",
+                "player": { "kind": "abilityController" },
+                "count": { "kind": "integer", "value": 2 },
+            }),
+            None,
+            &source,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut provider,
+        )
+        .expect("scry two resolves as one grouped choice");
+
+    assert_eq!(provider.selection_choices, 1);
+    assert_eq!(provider.order_choices, 1);
+}
+
+#[test]
+fn looked_at_library_top_is_remembered_until_that_library_changes() {
+    let mut engine = test_engine(2);
+    engine.state.players[1].library = ["library-bottom", "known-top"]
+        .into_iter()
+        .map(|id| test_instance(id, test_definition(id, "Instant"), "player-1"))
+        .collect();
+    let source = StackObject {
+        id: "stack:bauble".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "mishras-bauble",
+            test_definition("mishras-bauble", "Artifact"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetPlayer".to_string(),
+            TargetRef::Player {
+                player_id: "player-1".to_string(),
+            },
+        )]),
+    };
+    engine
+        .execute_effect(
+            &json!({
+                "kind": "lookAtTopCards",
+                "zone": {
+                    "kind": "library",
+                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                },
+                "count": { "kind": "integer", "value": 1 },
+                "bind": "lookedTopCards",
+            }),
+            None,
+            &source,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Bauble remembers the inspected top card");
+
+    assert!(engine.state.rule_modifiers.iter().any(|modifier| {
+        value_kind(modifier) == Some("knownLibraryCards")
+            && modifier["playerId"] == "player-1"
+            && modifier["viewerId"] == "player-0"
+            && modifier["cardInstanceIds"] == json!(["known-top"])
+    }));
+
+    engine
+        .draw_cards("player-1", 1)
+        .expect("the opponent draws the known top card");
+    assert!(
+        engine
+            .state
+            .rule_modifiers
+            .iter()
+            .all(|modifier| value_kind(modifier) != Some("knownLibraryCards"))
+    );
+    assert!(engine.state.rule_modifiers.iter().any(|modifier| {
+        value_kind(modifier) == Some("knownHandCards")
+            && modifier["playerId"] == "player-1"
+            && modifier["viewerId"] == "player-0"
+            && modifier["cardInstanceIds"] == json!(["known-top"])
+    }));
+}
+
+#[test]
 fn connive_draws_discards_and_counters_for_any_canonical_source() {
     let mut engine = test_engine(2);
     let mut operative_definition = test_definition("test-operative", "Creature - Human Rogue");
@@ -11248,7 +11677,9 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
         ) -> Result<Vec<String>, EngineError> {
             self.choice_was_presented = true;
             assert!(state.rule_modifiers.iter().any(|modifier| {
-                modifier["kind"] == "revealedHand" && modifier["playerId"] == "player-1"
+                modifier["kind"] == "knownHandCards"
+                    && modifier["playerId"] == "player-1"
+                    && modifier["cardInstanceIds"] == json!(["target-land", "target-nonland"])
             }));
             let Some(DecisionChoice::CardSelection {
                 candidate_card_instance_ids,
@@ -16685,6 +17116,63 @@ fn multiversal_passage_chooses_a_basic_land_type_before_optional_life_payment() 
 }
 
 #[test]
+fn cavern_of_souls_offers_creature_subtypes_from_oracle_type_lines() {
+    struct EldraziDecisionProvider;
+
+    impl DecisionProvider for EldraziDecisionProvider {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            request
+                .options
+                .iter()
+                .position(|action| action.label == "Choose Eldrazi")
+                .ok_or_else(|| EngineError::new("Eldrazi must be offered as a creature type"))
+        }
+    }
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].library.push(test_instance(
+        "eldrazi-creature",
+        test_definition("eldrazi-creature", "Creature \u{2014} Eldrazi Drone"),
+        "player-0",
+    ));
+    let mut cavern = test_instance(
+        "cavern",
+        test_definition("cavern-of-souls", "Land"),
+        "player-0",
+    );
+    cavern.definition.name = "Cavern of Souls".to_string();
+    cavern.definition.rules = vec![json!({
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": {
+            "kind": "wouldEnterBattlefield",
+            "object": { "kind": "self" }
+        },
+        "decisions": [{
+            "id": "chosenCreatureType",
+            "kind": "chooseCreatureType"
+        }],
+        "replacement": [{
+            "kind": "storeDecision",
+            "decisionId": "chosenCreatureType"
+        }]
+    })];
+
+    engine
+        .apply_enter_replacements(&mut cavern, &mut EldraziDecisionProvider)
+        .expect("Cavern creature-type choice applies");
+
+    assert_eq!(
+        stored_decision_value(&cavern.definition, "chosenCreatureType"),
+        Some("Eldrazi")
+    );
+}
+
+#[test]
 fn self_dies_trigger_fires_only_when_its_source_dies() {
     let mut engine = test_engine(2);
     let mut sage_definition = test_definition("infestation-sage", "Creature - Elf Warlock");
@@ -17131,11 +17619,17 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
             }
         }]
     })];
-    let graveyard_land = test_instance(
+    let mut graveyard_land = test_instance(
         "graveyard-land",
-        test_definition("graveyard-land", "Land"),
+        test_definition("graveyard-land", "Enchantment Land - Urza's Saga"),
         "player-0",
     );
+    graveyard_land.counters.insert("lore".to_string(), 3);
+    graveyard_land.counters.insert("stun".to_string(), 1);
+    graveyard_land.tapped = true;
+    graveyard_land.damage_marked = 4;
+    graveyard_land.power_modifier = 2;
+    graveyard_land.flags.insert("attacking".to_string(), true);
     engine.state.players[0].battlefield = vec![explorer];
     engine.state.players[0].graveyard = vec![graveyard_land];
 
@@ -17152,13 +17646,76 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("graveyard land is played");
 
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .any(|card| card.instance_id == "graveyard-land")
-    );
+    let returned = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "graveyard-land")
+        .expect("Urza's Saga enters as a new game object");
+    assert_eq!(returned.counters, BTreeMap::from([("lore".to_string(), 1)]));
+    assert!(!returned.tapped);
+    assert_eq!(returned.damage_marked, 0);
+    assert_eq!(returned.power_modifier, 0);
+    assert!(!returned.flags.contains_key("attacking"));
     assert!(engine.state.players[0].graveyard.is_empty());
+}
+
+#[test]
+fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counters() {
+    let mut engine = test_engine(2);
+    let mut returned = test_instance(
+        "returned-creature",
+        test_definition("returned-creature", "Creature - Wizard"),
+        "player-0",
+    );
+    returned.counters.insert("+1/+1".to_string(), 4);
+    returned.counters.insert("stun".to_string(), 1);
+    returned.tapped = true;
+    returned.damage_marked = 3;
+    returned.power_modifier = 5;
+    returned.toughness_modifier = -2;
+    returned.flags.insert("attacking".to_string(), true);
+    engine.state.players[0].graveyard.push(returned);
+    let stack_object = StackObject {
+        id: "stack:reanimate".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "reanimation-source",
+            test_definition("reanimation-source", "Creature"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+
+    engine
+        .return_graveyard_card_to_battlefield(
+            &stack_object,
+            &mut EmeritusDecisionProvider,
+            "player-0",
+            json!({ "kind": "cardTypeContains", "value": "Creature" }),
+            false,
+            Some("finality"),
+        )
+        .expect("the card returns from the graveyard");
+
+    let permanent = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "returned-creature")
+        .expect("the returned card is on the battlefield");
+    assert_eq!(
+        permanent.counters,
+        BTreeMap::from([("finality".to_string(), 1)])
+    );
+    assert!(!permanent.tapped);
+    assert_eq!(permanent.damage_marked, 0);
+    assert_eq!(permanent.power_modifier, 0);
+    assert_eq!(permanent.toughness_modifier, 0);
+    assert!(!permanent.flags.contains_key("attacking"));
 }
 
 #[test]
@@ -20588,6 +21145,68 @@ fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
         engine.current_power(&engine.state.players[0].battlefield[infusion_index]),
         3
     );
+}
+
+#[test]
+fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+
+    let mut eye = test_definition("eye-of-ugin", "Legendary Land");
+    eye.name = "Eye of Ugin".to_string();
+    eye.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [{
+            "kind": "reduceCastingCost",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": {
+                "kind": "and",
+                "operands": [
+                    {
+                        "kind": "compare",
+                        "operator": "==",
+                        "left": {
+                            "kind": "colorCountOf",
+                            "object": { "kind": "candidate" },
+                        },
+                        "right": { "kind": "integer", "value": 0 },
+                    },
+                    { "kind": "subtypeContains", "value": "Eldrazi" },
+                ],
+            },
+            "amount": { "kind": "integer", "value": 2 },
+        }],
+    })];
+    engine.state.players[0].battlefield = vec![test_instance("eye", eye, "player-0")];
+
+    let mut eldrazi = test_definition("eye-target", "Creature - Eldrazi");
+    eldrazi.mana_cost = "{3}".to_string();
+    let mut ordinary = test_definition("ordinary-target", "Artifact Creature - Golem");
+    ordinary.mana_cost = "{3}".to_string();
+    engine.state.players[0].hand = vec![
+        test_instance("eye-target", eldrazi, "player-0"),
+        test_instance("ordinary-target", ordinary, "player-0"),
+    ];
+    engine.state.players[0].mana_pool = vec![FloatingMana {
+        symbol: "C".to_string(),
+        spend_restriction: None,
+    }];
+
+    let actions = engine.legal_priority_actions(0);
+    assert!(actions.iter().any(|action| {
+        action.kind == ActionKind::CastSpell
+            && action.card_instance_id.as_deref() == Some("eye-target")
+    }));
+    assert!(actions.iter().all(|action| {
+        action.kind != ActionKind::CastSpell
+            || action.card_instance_id.as_deref() != Some("ordinary-target")
+    }));
 }
 
 #[test]

@@ -1416,6 +1416,18 @@ fn reusable_criteria_stats_and_shared_subject_grammars_cover_legacy_forms() {
     .expect("colorless plus subtype criteria compose in a casting reduction");
     assert_eq!(reduction.rule["modifiers"][0]["kind"], "reduceCastingCost");
     assert_eq!(reduction.rule["modifiers"][0]["where"]["kind"], "and");
+    assert_eq!(
+        reduction.rule["modifiers"][0]["where"]["operands"][0]["left"]["kind"],
+        "colorCountOf"
+    );
+    assert_eq!(
+        reduction.rule["modifiers"][0]["where"]["operands"][1]["kind"],
+        "subtypeContains"
+    );
+    assert_eq!(
+        reduction.rule["modifiers"][0]["where"]["operands"][1]["value"],
+        "Eldrazi"
+    );
     assert!(crate::engine::rule_is_executable(&reduction.rule));
 
     let mana = parse_mana_ability(
@@ -2908,6 +2920,25 @@ fn dungeon_and_graveyard_trigger_grammar_is_data_driven() {
             |draft| draft.rule["effects"][0]["kind"] == "unsupportedDungeonRoomInstruction"
         )
     );
+}
+
+#[test]
+fn acererak_named_entry_return_and_venture_uses_the_dungeon_grammar() {
+    let instruction = "if you haven't completed Tomb of Annihilation, return Acererak to its owner's hand and venture into the dungeon.";
+    let (effects, decisions) = parse_expansion_instruction(instruction, "Acererak the Archlich")
+        .expect("Acererak's conditional venture instruction parses");
+    assert!(decisions.is_empty());
+    assert_eq!(effects[0]["kind"], "conditionalEffect");
+    assert_eq!(effects[0]["then"][0]["kind"], "returnToOwnersHand");
+    assert_eq!(effects[0]["then"][1]["kind"], "ventureDungeon");
+
+    let trigger = parse_expansion_triggered(
+        &format!("When Acererak enters, {instruction}"),
+        "Acererak the Archlich",
+    )
+    .expect("Acererak's named entry trigger parses");
+    assert_eq!(trigger.rule["event"]["kind"], "enterBattlefield");
+    assert_eq!(trigger.rule["effects"][0]["kind"], "conditionalEffect");
 }
 
 #[test]

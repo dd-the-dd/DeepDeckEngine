@@ -226,6 +226,29 @@ pub fn playable_rules_for_face(
     parser_result: &OracleCardParseResult,
     selected_face_id: Option<&str>,
 ) -> Vec<Value> {
+    if parser_result.context.layout.as_deref() == Some("modal_dfc")
+        && parser_result.context.faces.len() >= 2
+    {
+        return vec![json!({
+            "kind": "rulesMarker",
+            "text": "Modal double-faced card faces.",
+            "splitFaces": parser_result.context.faces.iter().map(|face| json!({
+                "id": face.id,
+                "name": face.name,
+                "typeLine": face.type_line,
+                "manaCost": face.mana_cost.as_deref().unwrap_or_default(),
+                "oracleText": face.oracle_text,
+                "power": face.power,
+                "toughness": face.toughness,
+                "rules": parser_result.abilities.iter()
+                    .filter(|ability| ability.source.face_id.as_deref() == Some(face.id.as_str()))
+                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
+                    .filter(rule_is_executable)
+                    .collect::<Vec<_>>(),
+            })).collect::<Vec<_>>(),
+        })];
+    }
+
     if parser_result.context.faces.len() == 2
         && parser_result
             .context
