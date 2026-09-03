@@ -234,6 +234,22 @@ pub(super) fn card_qualifier_filter(value: &str, face_name: &str) -> Option<Valu
     }
 
     let words = trimmed.split_whitespace().collect::<Vec<_>>();
+    if words.len() >= 2 && words[0].eq_ignore_ascii_case("colorless") {
+        let subtype_terms = words[1..]
+            .iter()
+            .map(|word| singular_card_term(word.trim_matches(',')))
+            .collect::<Vec<_>>();
+        if subtype_terms.iter().all(|term| {
+            term.chars().next().is_some_and(char::is_uppercase)
+                && term
+                    .chars()
+                    .all(|character| character.is_alphabetic() || character == '-')
+        }) {
+            return Some(and(std::iter::once(colorless_filter())
+                .chain(subtype_terms.iter().map(|term| subtype(term)))
+                .collect()));
+        }
+    }
     if words.len() >= 2
         && let Some(card_type_filter) = words.last().and_then(|word| known_card_type_filter(word))
     {

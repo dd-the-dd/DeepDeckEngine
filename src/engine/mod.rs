@@ -152,6 +152,42 @@ pub trait DecisionProvider {
             })
     }
 
+    fn choose_card_name(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<String, EngineError> {
+        let option_index = self.choose(state, request)?;
+        let action = request.options.get(option_index).ok_or_else(|| {
+            EngineError::new(format!(
+                "decision provider selected invalid option {option_index} for {}",
+                request.id
+            ))
+        })?;
+        let decision_id = match request.choice.as_ref() {
+            Some(DecisionChoice::CardNameSelection { decision_id, .. }) => decision_id,
+            _ => {
+                return Err(EngineError::new(format!(
+                    "decision {} is not a card-name selection",
+                    request.id
+                )));
+            }
+        };
+        action
+            .decisions
+            .get(decision_id)
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| {
+                EngineError::new(format!(
+                    "decision option {} has no card name for {decision_id}",
+                    action.id
+                ))
+            })
+    }
+
     fn requests_explicit_priority_pass(&self, _player_id: &str) -> bool {
         false
     }
@@ -946,6 +982,18 @@ fn type_line_contains(type_line: &str, value: &str) -> bool {
 
 fn has_card_type(card: &CardDefinition, card_type: &str) -> bool {
     type_line_contains(&card.type_line, card_type)
+}
+
+fn split_type_line(type_line: &str) -> Option<(&str, &str)> {
+    [" \u{2014} ", " - ", " \u{2013} "]
+        .into_iter()
+        .find_map(|separator| type_line.split_once(separator))
+}
+
+fn type_line_subtypes(type_line: &str) -> &str {
+    split_type_line(type_line)
+        .map(|(_, subtypes)| subtypes)
+        .unwrap_or_default()
 }
 
 fn is_land(card: &CardDefinition) -> bool {
@@ -6934,9 +6982,9 @@ fn rule_supported(rule: &Value) -> bool {
                             face["name"].is_string()
                                 && face["typeLine"].is_string()
                                 && face["manaCost"].is_string()
-                                && face["rules"].as_array().is_some_and(|rules| {
-                                    !rules.is_empty() && rules.iter().all(rule_supported)
-                                })
+                                && face["rules"]
+                                    .as_array()
+                                    .is_some_and(|rules| rules.iter().all(rule_supported))
                         })
                 })
         }
@@ -8556,14 +8604,33 @@ impl GameEngine {
             self.pending_empty_draws.insert(player_id.to_string());
             return Ok(());
         };
+        let card_id = card.instance_id.clone();
+        let knowing_viewers = self
+            .state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                value_kind(modifier) == Some("knownLibraryCards")
+                    && modifier["playerId"].as_str() == Some(player_id)
+                    && modifier["cardInstanceIds"].as_array().is_some_and(|known| {
+                        known
+                            .iter()
+                            .any(|value| value.as_str() == Some(card_id.as_str()))
+                    })
+            })
+            .filter_map(|modifier| modifier["viewerId"].as_str().map(ToOwned::to_owned))
+            .collect::<Vec<_>>();
+        self.forget_known_library_cards(player_id);
         let first_card_drawn_this_turn = !self.state.events.iter().any(|event| {
             event.turn_number == self.state.turn_number
                 && event.kind == "cardDrawn"
                 && event.player_id.as_deref() == Some(player_id)
         });
-        let card_id = card.instance_id.clone();
         let drawn_card = card.clone();
         self.state.players[player_index].hand.push(card);
+        for viewer_id in knowing_viewers {
+            self.remember_known_hand_card(player_id, &viewer_id, &card_id);
+        }
         self.record_event(
             "cardDrawn",
             Some(player_id.to_string()),
@@ -9247,6 +9314,23 @@ impl GameEngine {
         }
     }
 
+    fn remember_looked_at_hand(&mut self, player_id: &str, viewer_id: &str) {
+        let card_instance_ids = self
+            .player_index(player_id)
+            .ok()
+            .map(|player_index| {
+                self.state.players[player_index]
+                    .hand
+                    .iter()
+                    .map(|card| card.instance_id.clone())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        for card_instance_id in card_instance_ids {
+            self.remember_known_hand_card(player_id, viewer_id, &card_instance_id);
+        }
+    }
+
     fn forget_known_hand_cards(&mut self, player_id: &str) {
         self.state.rule_modifiers.retain(|modifier| {
             value_kind(modifier) != Some("knownHandCards")
@@ -9277,6 +9361,41 @@ impl GameEngine {
                     .as_array()
                     .is_some_and(|known| !known.is_empty())
         });
+    }
+
+    fn forget_known_library_cards(&mut self, player_id: &str) {
+        self.state.rule_modifiers.retain(|modifier| {
+            value_kind(modifier) != Some("knownLibraryCards")
+                || modifier["playerId"].as_str() != Some(player_id)
+        });
+    }
+
+    fn remember_known_hand_card(
+        &mut self,
+        player_id: &str,
+        viewer_id: &str,
+        card_instance_id: &str,
+    ) {
+        if let Some(modifier) = self.state.rule_modifiers.iter_mut().find(|modifier| {
+            value_kind(modifier) == Some("knownHandCards")
+                && modifier["playerId"].as_str() == Some(player_id)
+                && modifier["viewerId"].as_str() == Some(viewer_id)
+        }) {
+            if let Some(known) = modifier["cardInstanceIds"].as_array_mut()
+                && !known
+                    .iter()
+                    .any(|value| value.as_str() == Some(card_instance_id))
+            {
+                known.push(Value::String(card_instance_id.to_string()));
+            }
+            return;
+        }
+        self.state.rule_modifiers.push(json!({
+            "kind": "knownHandCards",
+            "playerId": player_id,
+            "viewerId": viewer_id,
+            "cardInstanceIds": [card_instance_id],
+        }));
     }
 
     fn target_exists(&self, target: &TargetRef) -> bool {
@@ -18102,20 +18221,42 @@ impl GameEngine {
             .count() as i32;
         let land_play_limit = 1 + self.additional_land_play_count(&player.id);
         if active_main && self.state.stack.is_empty() && land_plays_used < land_play_limit {
-            for (card, source_zone) in card_sources
-                .iter()
-                .filter(|(card, _)| is_land(&card.definition))
-            {
+            let land_sources = card_sources.iter().flat_map(|(card, source_zone)| {
+                let faces = split_face_definitions(&card.definition);
+                if faces.is_empty() {
+                    return is_land(&card.definition)
+                        .then(|| vec![((*card).clone(), *source_zone, None)])
+                        .unwrap_or_default();
+                }
+                faces
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(_, definition)| is_land(definition))
+                    .map(|(face_index, definition)| {
+                        let mut land_card = (*card).clone();
+                        land_card.definition = definition;
+                        (land_card, *source_zone, Some(face_index))
+                    })
+                    .collect::<Vec<_>>()
+            });
+            for (card, source_zone, face_index) in land_sources {
                 let mut decisions = BTreeMap::new();
                 decisions.insert(
                     "castSourceZone".to_string(),
-                    Value::String((*source_zone).to_string()),
+                    Value::String(source_zone.to_string()),
+                );
+                if let Some(face_index) = face_index {
+                    decisions.insert("splitFaceIndex".to_string(), Value::from(face_index));
+                }
+                let action_id = face_index.map_or_else(
+                    || format!("play:{source_zone}:{}", card.instance_id),
+                    |index| format!("play:{source_zone}:{}:{index}", card.instance_id),
                 );
                 actions.push(LegalAction {
-                    id: format!("play:{source_zone}:{}", card.instance_id),
+                    id: action_id,
                     kind: ActionKind::PlayLand,
                     player_id: player.id.clone(),
-                    label: format!("Play {}", card.definition.name),
+                    label: format!("Play {} as land", card.definition.name),
                     card_instance_id: Some(card.instance_id.clone()),
                     payment_sources: Vec::new(),
                     decisions,
@@ -18678,6 +18819,11 @@ impl GameEngine {
                         selected_modes.join(", ")
                     )
                 };
+                let label = declaration
+                    .decisions
+                    .get("xValue")
+                    .and_then(Value::as_i64)
+                    .map_or(label.clone(), |x_value| format!("{label} (X = {x_value})"));
                 let label = self
                     .casting_cost_choice_detail(
                         &card.definition,
@@ -21625,6 +21771,8 @@ impl GameEngine {
                 Some(source.instance_id.clone()),
                 json!({
                     "additionalTrigger": copy_index > 0,
+                    "cardName": source.definition.name,
+                    "objectKind": "triggeredAbility",
                     "stackId": stack_id,
                     "triggerLimitId": trigger_limit_id,
                 }),
@@ -21806,6 +21954,8 @@ impl GameEngine {
             Some(original.controller.clone()),
             Some(card_id),
             json!({
+                "cardName": copied_definition.name.clone(),
+                "objectKind": "stackCopy",
                 "originalStackId": original_stack_id,
                 "stackId": stack_id,
             }),
@@ -25396,6 +25546,16 @@ impl GameEngine {
         match action.kind {
             ActionKind::PlayLand => {
                 let mut card = self.take_action_source_card(player_index, action)?;
+                reset_after_leaving_battlefield(&mut card);
+                if let Some(face_index) = action
+                    .decisions
+                    .get("splitFaceIndex")
+                    .and_then(Value::as_u64)
+                    .and_then(|value| usize::try_from(value).ok())
+                    && !apply_split_face(&mut card, face_index)
+                {
+                    return Err(EngineError::new("modal land face is no longer available"));
+                }
                 card.controller = action.player_id.clone();
                 let used_after_play = self
                     .state
@@ -25910,6 +26070,7 @@ impl GameEngine {
                         "manaValue": mana_value_with_decisions(&spell_definition, &action.decisions),
                         "manaCost": spell_definition.mana_cost.clone(),
                         "colors": card_color_symbols(&spell_definition),
+                        "objectKind": "spell",
                         "stackId": stack_id,
                         "decisions": action.decisions,
                         "targets": action.targets,
@@ -26608,8 +26769,13 @@ impl GameEngine {
                     self.record_event(
                         "activatedAbilityPutOnStack",
                         Some(action.player_id.clone()),
-                        Some(source.instance_id),
-                        json!({ "sourceZone": zone_name, "stackId": stack_id }),
+                        Some(source.instance_id.clone()),
+                        json!({
+                            "cardName": source.definition.name,
+                            "objectKind": "activatedAbility",
+                            "sourceZone": zone_name,
+                            "stackId": stack_id,
+                        }),
                     );
                     self.enqueue_nonmana_ability_activated_triggers(&action.player_id, &stack_id);
                     self.enqueue_ward_triggers(&stack_id, &action.player_id, &action.targets);
@@ -26691,8 +26857,13 @@ impl GameEngine {
                     self.record_event(
                         "activatedAbilityPutOnStack",
                         Some(action.player_id.clone()),
-                        Some(source.instance_id),
-                        json!({ "stackId": stack_id, "grantedBy": equipment_id }),
+                        Some(source.instance_id.clone()),
+                        json!({
+                            "cardName": source.definition.name,
+                            "grantedBy": equipment_id,
+                            "objectKind": "activatedAbility",
+                            "stackId": stack_id,
+                        }),
                     );
                     self.enqueue_nonmana_ability_activated_triggers(&action.player_id, &stack_id);
                     return Ok(());
@@ -26751,8 +26922,12 @@ impl GameEngine {
                     self.record_event(
                         "activatedAbilityPutOnStack",
                         Some(action.player_id.clone()),
-                        Some(source.instance_id),
-                        json!({ "stackId": stack_id }),
+                        Some(source.instance_id.clone()),
+                        json!({
+                            "cardName": source.definition.name,
+                            "objectKind": "activatedAbility",
+                            "stackId": stack_id,
+                        }),
                     );
                     self.enqueue_nonmana_ability_activated_triggers(&action.player_id, &stack_id);
                     return Ok(());
@@ -26867,7 +27042,11 @@ impl GameEngine {
                         "cardCycled",
                         Some(action.player_id.clone()),
                         Some(source.instance_id.clone()),
-                        json!({ "stackId": stack_id }),
+                        json!({
+                            "cardName": source.definition.name,
+                            "objectKind": "activatedAbility",
+                            "stackId": stack_id,
+                        }),
                     );
                     for rule in source
                         .definition
@@ -26956,8 +27135,12 @@ impl GameEngine {
                     self.record_event(
                         "cardTypecycled",
                         Some(action.player_id.clone()),
-                        Some(source.instance_id),
-                        json!({ "stackId": stack_id }),
+                        Some(source.instance_id.clone()),
+                        json!({
+                            "cardName": source.definition.name,
+                            "objectKind": "activatedAbility",
+                            "stackId": stack_id,
+                        }),
                     );
                     self.check_state_based_actions_with_provider(Some(provider))?;
                     return Ok(());
@@ -27051,8 +27234,12 @@ impl GameEngine {
                     self.record_event(
                         "equipAbilityPutOnStack",
                         Some(action.player_id.clone()),
-                        Some(source.instance_id),
-                        json!({ "stackId": stack_id }),
+                        Some(source.instance_id.clone()),
+                        json!({
+                            "cardName": source.definition.name,
+                            "objectKind": "activatedAbility",
+                            "stackId": stack_id,
+                        }),
                     );
                     self.check_state_based_actions_with_provider(Some(provider))?;
                     return Ok(());
@@ -27478,7 +27665,11 @@ impl GameEngine {
                     "activatedAbilityPutOnStack",
                     Some(action.player_id.clone()),
                     Some(source.instance_id.clone()),
-                    json!({ "stackId": stack_id }),
+                    json!({
+                        "cardName": source.definition.name,
+                        "objectKind": "activatedAbility",
+                        "stackId": stack_id,
+                    }),
                 );
                 self.enqueue_nonmana_ability_activated_triggers(&action.player_id, &stack_id);
                 if rule["costs"].as_array().is_some_and(|costs| {
@@ -28963,32 +29154,26 @@ impl GameEngine {
                     continue;
                 }
                 if value_kind(decision) == Some("chooseCardName") {
-                    let mut names = self
-                        .state
-                        .players
+                    if decision["lookAtOpponentHand"].as_bool() == Some(true)
+                        && let Some(opponent_id) = self
+                            .state
+                            .players
+                            .iter()
+                            .find(|player| player.id != card.controller && !player.has_lost)
+                            .map(|player| player.id.clone())
+                    {
+                        self.remember_looked_at_hand(&opponent_id, &card.controller);
+                    }
+                    let suggestions = self.visible_card_name_suggestions(
+                        &card.controller,
+                        &decision["where"],
+                        &card.definition.name,
+                    );
+                    let options = suggestions
                         .iter()
-                        .flat_map(|player| {
-                            player
-                                .library
-                                .iter()
-                                .chain(&player.hand)
-                                .chain(&player.battlefield)
-                                .chain(&player.graveyard)
-                                .chain(&player.exile)
-                                .chain(&player.sideboard)
-                                .chain(&player.command_zone)
-                        })
-                        .chain(self.state.stack.iter().map(|object| &object.card))
-                        .filter(|candidate| {
-                            matches_card_filter(&candidate.definition, &decision["where"])
-                        })
-                        .map(|candidate| candidate.definition.name.clone())
-                        .collect::<BTreeSet<_>>();
-                    names.insert(card.definition.name.clone());
-                    let options = names
-                        .into_iter()
-                        .map(|name| LegalAction {
-                            id: format!("choose:{decision_id}:{}", name.to_ascii_lowercase()),
+                        .enumerate()
+                        .map(|(index, name)| LegalAction {
+                            id: format!("choose:{decision_id}:name:{index}"),
                             kind: ActionKind::ChooseResolution,
                             player_id: card.controller.clone(),
                             label: format!("Choose {name}"),
@@ -28996,7 +29181,7 @@ impl GameEngine {
                             payment_sources: Vec::new(),
                             decisions: BTreeMap::from([(
                                 decision_id.to_string(),
-                                Value::String(name),
+                                Value::Array(vec![Value::String(name.clone())]),
                             )]),
                             targets: BTreeMap::new(),
                             target_order: Vec::new(),
@@ -29004,24 +29189,33 @@ impl GameEngine {
                             blocker_id: None,
                         })
                         .collect::<Vec<_>>();
-                    let choice = self.choose_action(
-                        provider,
-                        EngineDecisionRequest {
-                            id: format!("replacement:{}:{decision_id}", card.instance_id),
-                            kind: DecisionKind::ReplacementChoice,
-                            player_id: card.controller.clone(),
-                            source_card: Some(card.clone()),
-                            source_card_instance_id: Some(card.instance_id.clone()),
-                            choice: None,
-                            options,
-                        },
-                    )?;
-                    let chosen_name = choice
-                        .decisions
-                        .get(decision_id)
-                        .cloned()
-                        .ok_or_else(|| EngineError::new("card-name choice is missing"))?;
-                    decisions.insert(decision_id.to_string(), chosen_name);
+                    let request = EngineDecisionRequest {
+                        id: format!("replacement:{}:{decision_id}", card.instance_id),
+                        kind: DecisionKind::ReplacementChoice,
+                        player_id: card.controller.clone(),
+                        source_card: Some(card.clone()),
+                        source_card_instance_id: Some(card.instance_id.clone()),
+                        choice: Some(DecisionChoice::CardNameSelection {
+                            decision_id: decision_id.to_string(),
+                            suggestions,
+                            prompt: "Choose a card name.".to_string(),
+                        }),
+                        options,
+                    };
+                    let chosen_name = provider.choose_card_name(&self.state, &request)?;
+                    let chosen_name = chosen_name.trim();
+                    if chosen_name.is_empty()
+                        || chosen_name.chars().count() > 256
+                        || chosen_name.chars().any(char::is_control)
+                    {
+                        return Err(EngineError::new(
+                            "card name must contain 1 to 256 printable characters",
+                        ));
+                    }
+                    decisions.insert(
+                        decision_id.to_string(),
+                        Value::String(chosen_name.to_string()),
+                    );
                     continue;
                 }
                 if value_kind(decision) == Some("chooseCardType") {
@@ -29085,12 +29279,7 @@ impl GameEngine {
                         })
                         .filter(|candidate| has_card_type(&candidate.definition, "Creature"))
                         .flat_map(|candidate| {
-                            candidate
-                                .definition
-                                .type_line
-                                .split_once(" - ")
-                                .map(|(_, subtypes)| subtypes)
-                                .unwrap_or_default()
+                            type_line_subtypes(&candidate.definition.type_line)
                                 .split_whitespace()
                                 .map(|subtype| subtype.trim_matches(',').to_string())
                                 .collect::<Vec<_>>()
@@ -29796,7 +29985,7 @@ impl GameEngine {
                 let permanent = &mut self.state.players[player_index].battlefield[card_index];
                 if !has_card_type(&permanent.definition, "Creature") {
                     permanent.definition.type_line = if let Some((types, subtypes)) =
-                        permanent.definition.type_line.split_once(" - ")
+                        split_type_line(&permanent.definition.type_line)
                     {
                         format!("{types} Creature - {subtypes}")
                     } else {
@@ -31202,6 +31391,126 @@ impl GameEngine {
         Ok(())
     }
 
+    fn visible_card_name_suggestions(
+        &self,
+        player_id: &str,
+        card_filter: &Value,
+        fallback_name: &str,
+    ) -> Vec<String> {
+        let known_hand_card_ids = self
+            .state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| {
+                value_kind(modifier) == Some("knownHandCards")
+                    && modifier["viewerId"]
+                        .as_str()
+                        .is_none_or(|viewer_id| viewer_id == player_id)
+            })
+            .flat_map(|modifier| modifier["cardInstanceIds"].as_array().into_iter().flatten())
+            .filter_map(Value::as_str)
+            .collect::<BTreeSet<_>>();
+        let mut names = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| {
+                player
+                    .battlefield
+                    .iter()
+                    .chain(&player.graveyard)
+                    .chain(&player.exile)
+                    .chain(&player.command_zone)
+                    .chain(player.hand.iter().filter(|card| {
+                        player.id == player_id
+                            || known_hand_card_ids.contains(card.instance_id.as_str())
+                    }))
+            })
+            .chain(self.state.stack.iter().map(|object| &object.card))
+            .filter(|card| matches_card_filter(&card.definition, card_filter))
+            .map(|card| card.definition.name.clone())
+            .collect::<BTreeSet<_>>();
+        if !fallback_name.trim().is_empty() {
+            names.insert(fallback_name.to_string());
+        }
+        names.into_iter().collect()
+    }
+
+    fn make_card_name_decision<P: DecisionProvider>(
+        &mut self,
+        decision_id: &str,
+        player_id: &str,
+        source: &StackObject,
+        card_filter: &Value,
+        decisions: &mut BTreeMap<String, Value>,
+        provider: &mut P,
+    ) -> Result<String, EngineError> {
+        let suggestions = self.visible_card_name_suggestions(
+            player_id,
+            card_filter,
+            &source.card.definition.name,
+        );
+        let options = suggestions
+            .iter()
+            .enumerate()
+            .map(|(index, name)| LegalAction {
+                id: format!("resolve:{}:{decision_id}:name:{index}", source.id),
+                kind: ActionKind::ChooseResolution,
+                player_id: player_id.to_string(),
+                label: format!("Choose {name}"),
+                card_instance_id: Some(source.card.instance_id.clone()),
+                payment_sources: Vec::new(),
+                decisions: BTreeMap::from([(
+                    decision_id.to_string(),
+                    Value::Array(vec![Value::String(name.clone())]),
+                )]),
+                targets: BTreeMap::new(),
+                target_order: Vec::new(),
+                attacker_id: None,
+                blocker_id: None,
+            })
+            .collect::<Vec<_>>();
+        let request = EngineDecisionRequest {
+            id: format!("resolution:{}:{decision_id}", source.id),
+            kind: DecisionKind::ResolutionChoice,
+            player_id: player_id.to_string(),
+            source_card: Some(source.card.clone()),
+            source_card_instance_id: Some(source.card.instance_id.clone()),
+            choice: Some(DecisionChoice::CardNameSelection {
+                decision_id: decision_id.to_string(),
+                suggestions,
+                prompt: "Choose a card name.".to_string(),
+            }),
+            options,
+        };
+        let selected = provider.choose_card_name(&self.state, &request)?;
+        let selected = selected.trim();
+        if selected.is_empty()
+            || selected.chars().count() > 256
+            || selected.chars().any(char::is_control)
+        {
+            return Err(EngineError::new(
+                "card name must contain 1 to 256 printable characters",
+            ));
+        }
+        let selected = selected.to_string();
+        decisions.insert(
+            decision_id.to_string(),
+            Value::Array(vec![Value::String(selected.clone())]),
+        );
+        self.record_event(
+            "resolutionChoiceMade",
+            Some(player_id.to_string()),
+            Some(source.card.instance_id.clone()),
+            json!({
+                "decisionId": decision_id,
+                "selected": [selected.clone()],
+                "stackId": source.id,
+            }),
+        );
+        Ok(selected)
+    }
+
     fn make_card_order_decision<P: DecisionProvider>(
         &mut self,
         decision_id: &str,
@@ -31343,6 +31652,23 @@ impl GameEngine {
         None
     }
 
+    fn take_card_from_player_named_zone(
+        player: &mut EnginePlayer,
+        zone_name: &str,
+        instance_id: &str,
+    ) -> Option<CardInstance> {
+        let zone = match zone_name {
+            "library" => &mut player.library,
+            "hand" => &mut player.hand,
+            "graveyard" => &mut player.graveyard,
+            _ => return None,
+        };
+        let index = zone
+            .iter()
+            .position(|card| card.instance_id == instance_id)?;
+        Some(zone.remove(index))
+    }
+
     fn move_card_to_exile(
         &mut self,
         instance_id: &str,
@@ -31394,6 +31720,21 @@ impl GameEngine {
         };
         for (index, effect) in effects.iter().enumerate() {
             let event_count_before = self.state.events.len();
+            let libraries_before = self
+                .state
+                .players
+                .iter()
+                .map(|player| {
+                    (
+                        player.id.clone(),
+                        player
+                            .library
+                            .iter()
+                            .map(|card| card.instance_id.clone())
+                            .collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<Vec<_>>();
             let graveyards_before = self
                 .state
                 .players
@@ -31417,6 +31758,21 @@ impl GameEngine {
                 decisions,
                 provider,
             )?;
+            for (player_id, before) in libraries_before {
+                let changed = self
+                    .player_index(&player_id)
+                    .ok()
+                    .is_none_or(|player_index| {
+                        self.state.players[player_index]
+                            .library
+                            .iter()
+                            .map(|card| card.instance_id.as_str())
+                            .ne(before.iter().map(String::as_str))
+                    });
+                if changed {
+                    self.forget_known_library_cards(&player_id);
+                }
+            }
             for (player_id, before) in graveyards_before {
                 let after = self
                     .player_index(&player_id)
@@ -32131,15 +32487,34 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
-                if !self.confirm_resolution_action(
-                    stack_object,
-                    provider,
-                    &player_id,
-                    "Perform the optional effects",
-                )? {
+                let effects = effect["effects"].as_array().cloned().unwrap_or_default();
+                let is_library_shuffle = effects.len() == 1
+                    && value_kind(&effects[0]) == Some("shuffleZone")
+                    && value_kind(&effects[0]["zone"]) == Some("library");
+                let perform = if is_library_shuffle {
+                    self.choose_resolution_option(
+                        stack_object,
+                        provider,
+                        &player_id,
+                        vec![
+                            "Keep the current order".to_string(),
+                            "Shuffle the library".to_string(),
+                        ],
+                        "Shuffle the library?",
+                    )?
+                    .as_deref()
+                        == Some("Shuffle the library")
+                } else {
+                    self.confirm_resolution_action(
+                        stack_object,
+                        provider,
+                        &player_id,
+                        "Perform the optional effects",
+                    )?
+                };
+                if !perform {
                     return Ok(());
                 }
-                let effects = effect["effects"].as_array().cloned().unwrap_or_default();
                 for (index, nested_effect) in effects.iter().enumerate() {
                     self.execute_effect(
                         nested_effect,
@@ -36595,6 +36970,19 @@ impl GameEngine {
                         RuntimeBinding::Objects(objects.clone()),
                     );
                 }
+                self.state.rule_modifiers.retain(|modifier| {
+                    value_kind(modifier) != Some("knownLibraryCards")
+                        || modifier["playerId"].as_str() != Some(player_id.as_str())
+                        || modifier["viewerId"].as_str() != Some(stack_object.controller.as_str())
+                });
+                if !objects.is_empty() {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "knownLibraryCards",
+                        "playerId": player_id,
+                        "viewerId": stack_object.controller,
+                        "cardInstanceIds": objects,
+                    }));
+                }
                 self.record_event(
                     "cardsLookedAt",
                     Some(player_id),
@@ -36763,55 +37151,14 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
-                let names = self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| {
-                        player
-                            .library
-                            .iter()
-                            .chain(&player.hand)
-                            .chain(&player.battlefield)
-                            .chain(&player.graveyard)
-                            .chain(&player.exile)
-                            .chain(&player.sideboard)
-                            .chain(&player.command_zone)
-                    })
-                    .chain(self.state.stack.iter().map(|object| &object.card))
-                    .filter(|card| matches_card_filter(&card.definition, &effect["where"]))
-                    .map(|card| card.definition.name.clone())
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect::<Vec<_>>();
-                if names.is_empty() {
-                    return Ok(());
-                }
-                let values = names
-                    .iter()
-                    .map(|name| vec![name.clone()])
-                    .collect::<Vec<_>>();
-                self.make_resolution_decision(
+                let chosen_name = self.make_card_name_decision(
                     decision_id,
                     &player_id,
                     stack_object,
-                    DecisionChoice::OptionSelection {
-                        decision_id: decision_id.to_string(),
-                        options: names,
-                        prompt: "Choose a card name.".to_string(),
-                    },
-                    values,
+                    &effect["where"],
                     decisions,
                     provider,
                 )?;
-                let Some(chosen_name) = decisions[decision_id]
-                    .as_array()
-                    .and_then(|values| values.first())
-                    .and_then(Value::as_str)
-                    .map(ToOwned::to_owned)
-                else {
-                    return Ok(());
-                };
                 if value_kind(&effect["persistOn"]) == Some("self")
                     && let Some((player_index, card_index)) =
                         self.permanent_position(&stack_object.card.instance_id)
@@ -36826,7 +37173,7 @@ impl GameEngine {
                     rules.push(json!({
                         "kind": "storedDecisionValue",
                         "decisionId": decision_id,
-                        "value": chosen_name,
+                        "value": chosen_name.clone(),
                     }));
                 }
                 self.record_event(
@@ -36906,6 +37253,41 @@ impl GameEngine {
                     return Ok(());
                 };
                 let target_player_index = self.player_index(&target_player_id)?;
+                let observed_zones = effect["zones"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .filter_map(|zone| {
+                        let cards = match zone {
+                            "graveyard" => &self.state.players[target_player_index].graveyard,
+                            "hand" => &self.state.players[target_player_index].hand,
+                            "library" => &self.state.players[target_player_index].library,
+                            _ => return None,
+                        };
+                        let mut counts = BTreeMap::<String, usize>::new();
+                        for card in cards {
+                            *counts.entry(card.definition.name.clone()).or_default() += 1;
+                        }
+                        Some(json!({
+                            "zone": zone,
+                            "cards": counts.into_iter().map(|(name, count)| json!({
+                                "name": name,
+                                "count": count,
+                            })).collect::<Vec<_>>(),
+                        }))
+                    })
+                    .collect::<Vec<_>>();
+                self.state.rule_modifiers.push(json!({
+                    "kind": "observedCardsNote",
+                    "viewerId": chooser_id,
+                    "playerId": target_player_id,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                    "sourceName": stack_object.card.definition.name,
+                    "turnNumber": self.state.turn_number,
+                    "orderKnown": false,
+                    "zones": observed_zones,
+                }));
                 let mut candidates = Vec::new();
                 for zone in effect["zones"]
                     .as_array()
@@ -36965,11 +37347,21 @@ impl GameEngine {
                     .filter_map(Value::as_str)
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>();
+                let searched_zones = effect["zones"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>();
                 for instance_id in &selected {
-                    if let Some(card) = Self::take_card_from_player_zones(
-                        &mut self.state.players[target_player_index],
-                        instance_id,
-                    ) {
+                    let card = searched_zones.iter().find_map(|zone_name| {
+                        Self::take_card_from_player_named_zone(
+                            &mut self.state.players[target_player_index],
+                            zone_name,
+                            instance_id,
+                        )
+                    });
+                    if let Some(card) = card {
                         let owner_index = self.player_index(&card.owner)?;
                         self.state.players[owner_index].exile.push(card);
                     }
@@ -37895,9 +38287,10 @@ impl GameEngine {
                     },
                 )?;
                 self.stack_sequence += 1;
+                let reflexive_stack_id = format!("stack:{}", self.stack_sequence);
                 self.state.stack.push(StackObject {
-                    id: format!("stack:{}", self.stack_sequence),
-                    controller: player_id,
+                    id: reflexive_stack_id.clone(),
+                    controller: player_id.clone(),
                     card: stack_object.card.clone(),
                     cant_be_countered: false,
                     exile_on_leave_stack: false,
@@ -37906,6 +38299,16 @@ impl GameEngine {
                     decisions: target_choice.decisions,
                     targets: target_choice.targets,
                 });
+                self.record_event(
+                    "reflexiveTriggeredAbilityPutOnStack",
+                    Some(player_id),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({
+                        "cardName": stack_object.card.definition.name,
+                        "objectKind": "triggeredAbility",
+                        "stackId": reflexive_stack_id,
+                    }),
+                );
             }
             Some("addSubtypeToPermanent") => {
                 let instance_id = if matches!(
@@ -37956,8 +38359,8 @@ impl GameEngine {
                     .filter_map(Value::as_str)
                     .collect::<Vec<_>>();
                 let permanent = &mut self.state.players[player_index].battlefield[card_index];
-                let (main_types, subtypes) =
-                    permanent.definition.type_line.split_once(" - ").map_or(
+                let (main_types, subtypes) = split_type_line(&permanent.definition.type_line)
+                    .map_or(
                         (permanent.definition.type_line.as_str(), None),
                         |(main, subtypes)| (main, Some(subtypes)),
                     );
@@ -38997,7 +39400,11 @@ impl GameEngine {
                     "reflexiveTriggeredAbilityPutOnStack",
                     Some(player_id),
                     Some(stack_object.card.instance_id.clone()),
-                    json!({ "stackId": reflexive_stack_id }),
+                    json!({
+                        "cardName": stack_object.card.definition.name,
+                        "objectKind": "triggeredAbility",
+                        "stackId": reflexive_stack_id,
+                    }),
                 );
             }
             Some("createReflexiveTrigger") => {
@@ -39119,7 +39526,11 @@ impl GameEngine {
                     "reflexiveTriggeredAbilityPutOnStack",
                     Some(player_id),
                     Some(stack_object.card.instance_id.clone()),
-                    json!({ "stackId": reflexive_stack_id }),
+                    json!({
+                        "cardName": stack_object.card.definition.name,
+                        "objectKind": "triggeredAbility",
+                        "stackId": reflexive_stack_id,
+                    }),
                 );
             }
             Some("returnRecentGraveyardCards") => {
@@ -39205,6 +39616,7 @@ impl GameEngine {
                     };
                     let owner_id = self.state.players[owner_index].id.clone();
                     let mut card = self.state.players[owner_index].graveyard.remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     let destination_player = controller_override
                         .clone()
                         .unwrap_or_else(|| owner_id.clone());
@@ -39217,12 +39629,10 @@ impl GameEngine {
                         if card.printed_definition.is_none() {
                             card.printed_definition = Some(card.definition.clone());
                         }
-                        let supertypes = card
-                            .definition
-                            .type_line
-                            .split_once(" - ")
+                        let type_line = card.definition.type_line.as_str();
+                        let supertypes = split_type_line(type_line)
                             .map(|(main, _)| main)
-                            .unwrap_or(card.definition.type_line.as_str())
+                            .unwrap_or(type_line)
                             .split_whitespace()
                             .filter(|word| {
                                 matches!(
@@ -39786,6 +40196,7 @@ impl GameEngine {
                 let Some(mut card) = found else {
                     return Ok(());
                 };
+                reset_after_leaving_battlefield(&mut card);
                 if let Some(owner_id) = graveyard_owner {
                     self.enqueue_cards_left_graveyard_triggers(
                         &owner_id,
@@ -39895,6 +40306,7 @@ impl GameEngine {
                 let Some(mut card) = found else {
                     return Ok(());
                 };
+                reset_after_leaving_battlefield(&mut card);
                 let counter = if has_card_type(&card.definition, "Creature") {
                     effect["creatureCounter"].as_str()
                 } else if has_card_type(&card.definition, "Planeswalker") {
@@ -40001,6 +40413,7 @@ impl GameEngine {
                     let mut card = self.state.players[player_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = player_id.clone();
                     card.summoning_sick = true;
                     self.apply_enter_replacements(&mut card, provider)?;
@@ -40255,7 +40668,12 @@ impl GameEngine {
                     "stackObjectCopied",
                     Some(stack_object.controller.clone()),
                     Some(stack_object.card.instance_id.clone()),
-                    json!({ "resolvingSpell": true, "stackId": copy_stack_id }),
+                    json!({
+                        "cardName": stack_object.card.definition.name,
+                        "objectKind": "stackCopy",
+                        "resolvingSpell": true,
+                        "stackId": copy_stack_id,
+                    }),
                 );
                 if effect["chooseNewTargets"].as_bool().unwrap_or(false) {
                     self.choose_new_targets_for_copy(
@@ -41452,6 +41870,7 @@ impl GameEngine {
                         .position(|card| card.instance_id == instance_id)
                 {
                     let mut card = self.state.players[player_index].graveyard.remove(index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = player_id.clone();
                     card.tapped = effect["tapped"].as_bool().unwrap_or(false);
                     card.summoning_sick = true;
@@ -41718,41 +42137,20 @@ impl GameEngine {
                     .take(count)
                     .map(|card| card.instance_id.clone())
                     .collect::<Vec<_>>();
-                let mut moved = Vec::new();
-                for (index, instance_id) in inspected.iter().enumerate() {
-                    let decision_id = format!(
-                        "{}Move:{}:{index}",
-                        value_kind(effect).unwrap_or("librarySelection"),
-                        stack_object.id,
-                    );
-                    let choice = DecisionChoice::CardSelection {
-                        decision_id: decision_id.clone(),
-                        candidate_card_instance_ids: vec![instance_id.clone()],
-                        minimum: 0,
-                        maximum: 1,
-                        prompt: if value_kind(effect) == Some("scry") {
-                            "Put this card on the bottom?".to_string()
-                        } else {
-                            "Put this card into your graveyard?".to_string()
-                        },
-                    };
-                    let mut local_decisions = BTreeMap::new();
-                    self.make_resolution_decision(
-                        &decision_id,
-                        &player_id,
-                        stack_object,
-                        choice,
-                        vec![Vec::new(), vec![instance_id.clone()]],
-                        &mut local_decisions,
-                        provider,
-                    )?;
-                    let should_move = local_decisions[&decision_id]
-                        .as_array()
-                        .is_some_and(|cards| !cards.is_empty());
-                    if should_move {
-                        moved.push(instance_id.clone());
-                    }
-                }
+                let moved = self.choose_resolution_objects(
+                    stack_object,
+                    provider,
+                    &player_id,
+                    &format!("{}Move", value_kind(effect).unwrap_or("librarySelection")),
+                    inspected.clone(),
+                    0,
+                    inspected.len(),
+                    if value_kind(effect) == Some("scry") {
+                        "Choose the cards to put on the bottom of the library."
+                    } else {
+                        "Choose the cards to put into your graveyard."
+                    },
+                )?;
                 let kept = inspected
                     .iter()
                     .filter(|instance_id| !moved.contains(instance_id))
@@ -42772,7 +43170,7 @@ impl GameEngine {
                                 &mut self.state.players[player_index].battlefield[card_index];
                             if !type_line_contains(&permanent.definition.type_line, card_type) {
                                 permanent.definition.type_line = if let Some((types, subtypes)) =
-                                    permanent.definition.type_line.split_once(" - ")
+                                    split_type_line(&permanent.definition.type_line)
                                 {
                                     format!("{types} {card_type} - {subtypes}")
                                 } else {
@@ -44773,6 +45171,7 @@ impl GameEngine {
         let Some(mut card) = found else {
             return Ok(());
         };
+        reset_after_leaving_battlefield(&mut card);
         let owner_index = self.player_index(&card.owner)?;
         card.controller = card.owner.clone();
         card.tapped = true;
@@ -46020,11 +46419,7 @@ impl GameEngine {
             })
             .filter(|card| is_creature(&card.definition))
             .flat_map(|card| {
-                card.definition
-                    .type_line
-                    .split_once(" - ")
-                    .map(|(_, subtypes)| subtypes)
-                    .unwrap_or_default()
+                type_line_subtypes(&card.definition.type_line)
                     .split_whitespace()
                     .map(|subtype| subtype.trim_matches(',').to_string())
                     .collect::<Vec<_>>()
@@ -48321,6 +48716,7 @@ impl GameEngine {
                     let mut card = self.state.players[damaged_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     let controller_index = self.player_index(&controller_id)?;
                     card.controller = controller_id.clone();
                     card.summoning_sick = true;
@@ -48571,6 +48967,7 @@ impl GameEngine {
                     let mut card = self.state.players[damaged_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = controller_id.clone();
                     card.summoning_sick = true;
                     self.apply_enter_replacements(&mut card, provider)?;
@@ -51013,6 +51410,7 @@ impl GameEngine {
                     .position(|card| card.instance_id == stack_object.card.instance_id)
                 {
                     let mut card = self.state.players[owner_index].graveyard.remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = card.owner.clone();
                     card.definition.type_line = card
                         .definition
@@ -51102,7 +51500,12 @@ impl GameEngine {
                         "triggeredAbilityCopied",
                         Some(controller_id),
                         Some(stack_object.card.instance_id.clone()),
-                        json!({ "stackId": copy_id, "copiedStackId": triggering_stack_id }),
+                        json!({
+                            "cardName": stack_object.card.definition.name,
+                            "copiedStackId": triggering_stack_id,
+                            "objectKind": "triggeredAbility",
+                            "stackId": copy_id,
+                        }),
                     );
                 }
             }
@@ -51640,6 +52043,7 @@ impl GameEngine {
         let mut card = self.state.players[player_index]
             .graveyard
             .remove(card_index);
+        reset_after_leaving_battlefield(&mut card);
         card.controller = player_id.to_string();
         card.tapped = tapped;
         card.summoning_sick = true;
@@ -53859,6 +54263,7 @@ impl GameEngine {
                     let mut card = self.state.players[player_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = owner_id.to_string();
                     card.summoning_sick = true;
                     self.apply_enter_replacements(&mut card, provider)?;
@@ -53887,6 +54292,7 @@ impl GameEngine {
                     let mut card = self.state.players[player_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = owner_id.to_string();
                     card.tapped = true;
                     card.summoning_sick = true;
@@ -54160,6 +54566,7 @@ impl GameEngine {
                     let mut card = self.state.players[player_index]
                         .graveyard
                         .remove(card_index);
+                    reset_after_leaving_battlefield(&mut card);
                     card.controller = controller_id.clone();
                     card.tapped = true;
                     card.summoning_sick = true;
@@ -54227,6 +54634,7 @@ impl GameEngine {
                         }
                     }
                     if let Some(mut card) = found {
+                        reset_after_leaving_battlefield(&mut card);
                         card.controller = controller_id.clone();
                         if !type_line_contains(&card.definition.type_line, "Phyrexian") {
                             card.definition.type_line.push_str(" Phyrexian");
@@ -57111,6 +57519,7 @@ impl GameEngine {
                 let (Some(mut card), Some(owner_id)) = (found, owner_id) else {
                     return Ok(());
                 };
+                reset_after_leaving_battlefield(&mut card);
                 let owner_index = self.player_index(&owner_id)?;
                 if stack_object.decisions["kicked"].as_bool().unwrap_or(false) {
                     card.controller = owner_id.clone();
@@ -59843,6 +60252,7 @@ impl GameEngine {
                         let mut card = self.state.players[player_index]
                             .graveyard
                             .remove(card_index);
+                        reset_after_leaving_battlefield(&mut card);
                         card.controller = controller_id.clone();
                         card.tapped = true;
                         card.summoning_sick = true;
@@ -64299,7 +64709,15 @@ fn audit_game_state_and_events(state: &GameState) -> Vec<SimulationAuditFinding>
 
         let stack_id = event.detail["stackId"].as_str().map(ToOwned::to_owned);
         match event.kind.as_str() {
-            "spellCast" | "activatedAbilityPutOnStack" | "triggeredAbilityPutOnStack" => {
+            "spellCast"
+            | "activatedAbilityPutOnStack"
+            | "cardCycled"
+            | "cardTypecycled"
+            | "equipAbilityPutOnStack"
+            | "reflexiveTriggeredAbilityPutOnStack"
+            | "stackObjectCopied"
+            | "triggeredAbilityCopied"
+            | "triggeredAbilityPutOnStack" => {
                 let Some(stack_id) = stack_id else {
                     findings.push(simulation_finding(
                         "stack_event_missing_id",

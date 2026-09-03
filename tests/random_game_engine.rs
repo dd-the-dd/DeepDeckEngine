@@ -2413,6 +2413,19 @@ fn spell_stack_lifecycle_events_are_correlatable() {
     assert!(!cast_ids.is_empty());
     assert_eq!(start_ids, cast_ids);
     assert_eq!(resolved_ids, cast_ids);
+    assert!(
+        engine
+            .state()
+            .events
+            .iter()
+            .filter(|event| { event.kind == "spellCast" })
+            .all(|event| {
+                event.detail["cardName"]
+                    .as_str()
+                    .is_some_and(|name| !name.is_empty())
+                    && event.detail["objectKind"].as_str() == Some("spell")
+            })
+    );
 }
 
 /// Feature: Tokens that leave the battlefield cease to exist at the next state check.

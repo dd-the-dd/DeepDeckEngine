@@ -2317,10 +2317,11 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
     }
     let trigger_condition_re =
         Regex::new(r"(?i)^if (.+?), (.+)$").expect("generic trigger condition regex compiles");
-    if let Some(captures) = trigger_condition_re.captures(instruction) {
-        let condition = parse_condition_text(captures.get(1)?.as_str())?;
-        let (effects, decisions) =
-            parse_expansion_instruction(captures.get(2)?.as_str(), face_name)?;
+    if let Some(captures) = trigger_condition_re.captures(instruction)
+        && let Some(condition) = parse_condition_text(captures.get(1)?.as_str())
+        && let Some((effects, decisions)) =
+            parse_expansion_instruction(captures.get(2)?.as_str(), face_name)
+    {
         let mut rule = json!({
             "kind": "triggeredAbility",
             "source": self_ref(),

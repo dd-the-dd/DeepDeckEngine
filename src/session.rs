@@ -220,6 +220,8 @@ pub struct SubmitGameSessionAction {
     pub number_value: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub card_instance_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub card_name: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -283,6 +285,7 @@ struct SessionChoice {
     card_instance_ids: Option<Vec<String>>,
     decision_id: String,
     number_value: Option<i32>,
+    card_name: Option<String>,
 }
 
 struct SharedSession {
@@ -477,6 +480,21 @@ impl<P: DecisionProvider> DecisionProvider for HistoryDecisionProvider<P> {
                 serde_json::json!({ "cardInstanceIds": card_instance_ids }),
                 None,
             ),
+            Err(error) => (serde_json::Value::Null, Some(error.to_string())),
+        };
+        self.publish_decision(state, request, selected, started.elapsed(), error);
+        result
+    }
+
+    fn choose_card_name(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<String, EngineError> {
+        let started = Instant::now();
+        let result = self.inner.choose_card_name(state, request);
+        let (selected, error) = match &result {
+            Ok(card_name) => (serde_json::json!({ "cardName": card_name }), None),
             Err(error) => (serde_json::Value::Null, Some(error.to_string())),
         };
         self.publish_decision(state, request, selected, started.elapsed(), error);
@@ -753,6 +771,41 @@ impl DecisionProvider for InteractiveDecisionProvider {
         };
         validate_decision_card_instance_ids(request, &selected)?;
         Ok(selected)
+    }
+
+    fn choose_card_name(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<String, EngineError> {
+        if !self.human_player_ids.contains(&request.player_id) {
+            let option = self.choose(state, request)?;
+            let action = request.options.get(option).ok_or_else(|| {
+                EngineError::new(format!(
+                    "decision provider selected invalid option {option} for {}",
+                    request.id
+                ))
+            })?;
+            let decision_id = match request.choice.as_ref() {
+                Some(DecisionChoice::CardNameSelection { decision_id, .. }) => decision_id,
+                _ => return Err(EngineError::new("decision is not a card-name selection")),
+            };
+            return action
+                .decisions
+                .get(decision_id)
+                .and_then(serde_json::Value::as_array)
+                .and_then(|values| values.first())
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| EngineError::new("card-name choice is missing"));
+        }
+        let choice = self.receive_human_choice(state, request)?;
+        choice.card_name.ok_or_else(|| {
+            EngineError::new(format!(
+                "session did not provide a card name for {}",
+                request.id
+            ))
+        })
     }
 
     fn requests_explicit_priority_pass(&self, player_id: &str) -> bool {
@@ -1617,13 +1670,48 @@ impl GameSessionManager {
             None => {}
         }
         if let Some(card_instance_ids) = submission.card_instance_ids.as_ref() {
-            if submission.number_value.is_some() {
+            if submission.number_value.is_some() || submission.card_name.is_some() {
                 return Err(GameSessionError::new(
-                    "a session choice cannot contain both numberValue and cardInstanceIds",
+                    "a session choice cannot combine cardInstanceIds with another value",
                 ));
             }
             validate_decision_card_instance_ids(decision, card_instance_ids)
                 .map_err(|error| GameSessionError::new(error.to_string()))?;
+        }
+        match decision.choice.as_ref() {
+            Some(DecisionChoice::CardNameSelection { .. }) => {
+                let card_name =
+                    submission
+                        .card_name
+                        .as_deref()
+                        .map(str::trim)
+                        .ok_or_else(|| {
+                            GameSessionError::new(format!(
+                                "card-name selection {} requires cardName",
+                                decision.id
+                            ))
+                        })?;
+                if card_name.is_empty()
+                    || card_name.chars().count() > 256
+                    || card_name.chars().any(char::is_control)
+                {
+                    return Err(GameSessionError::new(
+                        "cardName must contain 1 to 256 printable characters",
+                    ));
+                }
+                if submission.number_value.is_some() {
+                    return Err(GameSessionError::new(
+                        "a session choice cannot contain both numberValue and cardName",
+                    ));
+                }
+            }
+            _ if submission.card_name.is_some() => {
+                return Err(GameSessionError::new(format!(
+                    "decision {} does not accept cardName",
+                    decision.id
+                )));
+            }
+            _ => {}
         }
         handle
             .choices
@@ -1632,6 +1720,7 @@ impl GameSessionManager {
                 card_instance_ids: submission.card_instance_ids,
                 decision_id: submission.decision_id,
                 number_value: submission.number_value,
+                card_name: submission.card_name.map(|name| name.trim().to_string()),
             })
             .map_err(|_| GameSessionError::new("game session is no longer running"))?;
         match handle

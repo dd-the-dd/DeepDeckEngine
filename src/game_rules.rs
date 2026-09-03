@@ -297,7 +297,7 @@ fn validate_legacy_deck(player: &PlayerDeck) -> Vec<DeckViolation> {
     let sideboard = player
         .cards
         .iter()
-        .filter(|card| card.is_sideboard && !card.is_token && !card.is_game_piece)
+        .filter(|card| card.is_sideboard && !is_auxiliary_game_piece(card))
         .collect::<Vec<_>>();
     let mut violations = Vec::new();
 
@@ -509,7 +509,16 @@ fn validate_commander_deck(player: &PlayerDeck) -> Vec<DeckViolation> {
 }
 
 fn is_deck_card(card: &CardDefinition) -> bool {
-    !card.is_token && !card.is_game_piece && !card.is_sideboard
+    !is_auxiliary_game_piece(card) && !card.is_sideboard
+}
+
+fn is_auxiliary_game_piece(card: &CardDefinition) -> bool {
+    let type_line = card.type_line.trim().to_ascii_lowercase();
+    card.is_token
+        || card.is_game_piece
+        || type_line.starts_with("token ")
+        || type_line.starts_with("emblem")
+        || type_line.starts_with("dungeon")
 }
 
 fn is_basic_land(card: &CardDefinition) -> bool {
@@ -716,6 +725,19 @@ mod tests {
         assert!(codes.contains("legacy-card-count"));
         assert!(codes.contains("legacy-sideboard-count"));
         assert!(codes.contains("legacy-commander"));
+    }
+
+    #[test]
+    fn legacy_does_not_count_auxiliary_game_pieces_even_without_flags() {
+        let mut deck = legal_legacy_deck();
+        let mut main_token = card(75, "Zombie".to_string(), "");
+        main_token.type_line = "Token Creature — Zombie".to_string();
+        let mut sideboard_token = card(76, "Marit Lage".to_string(), "");
+        sideboard_token.type_line = "Token Legendary Creature — Avatar".to_string();
+        sideboard_token.is_sideboard = true;
+        deck.cards.extend([main_token, sideboard_token]);
+
+        GameRules::legacy().validate(&setup(deck)).unwrap();
     }
 
     #[test]

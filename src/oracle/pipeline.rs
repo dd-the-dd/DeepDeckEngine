@@ -153,6 +153,80 @@ mod tests {
     }
 
     #[test]
+    fn putrid_imp_threshold_compiles_with_its_oracle_ability_label() {
+        let result = parse_oracle_card(OracleCardParseRequest {
+            card_name: "Putrid Imp".to_string(),
+            type_line: "Creature — Zombie Imp".to_string(),
+            mana_cost: Some("{B}".to_string()),
+            oracle_text: Some(
+                "Discard a card: This creature gains flying until end of turn.\n\
+                 Threshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1 and can't block."
+                    .to_string(),
+            ),
+            layout: None,
+            faces: Vec::new(),
+        });
+
+        assert_eq!(result.status, "canonical");
+        assert_eq!(
+            result
+                .abilities
+                .iter()
+                .filter(|ability| ability.rule.is_some())
+                .count(),
+            2
+        );
+        let threshold = result.abilities[1]
+            .rule
+            .as_ref()
+            .expect("Putrid Imp threshold rule");
+        assert_eq!(threshold["modifiers"][0]["kind"], "modifyPowerToughness");
+        assert_eq!(threshold["modifiers"][0]["power"]["value"], 1);
+        assert_eq!(threshold["modifiers"][1]["keyword"], "cantBlock");
+        assert!(crate::engine::rule_is_executable(threshold));
+    }
+
+    #[test]
+    fn acererak_compiles_its_incomplete_tomb_return_and_venture_trigger() {
+        let result = parse_oracle_card(OracleCardParseRequest {
+            card_name: "Acererak the Archlich".to_string(),
+            type_line: "Legendary Creature — Zombie Wizard".to_string(),
+            mana_cost: Some("{2}{B}".to_string()),
+            oracle_text: Some(
+                "When Acererak enters, if you haven't completed Tomb of Annihilation, return Acererak to its owner's hand and venture into the dungeon.\n\
+                 Whenever Acererak attacks, for each opponent, you create a 2/2 black Zombie creature token unless that player sacrifices a creature of their choice."
+                    .to_string(),
+            ),
+            layout: None,
+            faces: Vec::new(),
+        });
+
+        assert_eq!(result.status, "canonical");
+        let rules = result
+            .abilities
+            .iter()
+            .filter_map(|ability| ability.rule.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0]["event"]["kind"], "enterBattlefield");
+        assert_eq!(rules[0]["effects"][0]["kind"], "conditionalEffect");
+        assert_eq!(
+            rules[0]["effects"][0]["condition"]["operand"]["name"],
+            "Tomb of Annihilation"
+        );
+        assert_eq!(
+            rules[0]["effects"][0]["then"][0]["kind"],
+            "returnToOwnersHand"
+        );
+        assert_eq!(rules[0]["effects"][0]["then"][1]["kind"], "ventureDungeon");
+        assert!(
+            rules
+                .iter()
+                .all(|rule| crate::engine::rule_is_executable(rule))
+        );
+    }
+
+    #[test]
     fn chrome_mox_entry_wordings_are_triggered_abilities() {
         for oracle_text in [
             "Imprint — When Chrome Mox enters, you may exile a nonartifact, nonland card from your hand.",

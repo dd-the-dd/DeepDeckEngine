@@ -317,6 +317,7 @@ fn submit(
             SubmitGameSessionAction {
                 action_id: action.id.clone(),
                 card_instance_ids: None,
+                card_name: None,
                 decision_id: decision(view).id.clone(),
                 number_value: None,
                 revision: view.revision,
@@ -396,6 +397,7 @@ fn session_moves_starfield_shepherds_selected_card_to_hand() {
             SubmitGameSessionAction {
                 action_id: selection_action.id.clone(),
                 card_instance_ids: Some(vec![candidate.clone()]),
+                card_name: None,
                 decision_id: decision(&view).id.clone(),
                 number_value: None,
                 revision: view.revision,
