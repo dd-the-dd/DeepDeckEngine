@@ -15,10 +15,30 @@ pub(super) fn ordinal_word_pattern() -> &'static str {
     r"first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d+(?:st|nd|rd|th)"
 }
 
+pub(super) fn multiplicative_word_pattern() -> &'static str {
+    r"twice|double|two times|thrice|triple|three times|quadruple|four times|five times|six times|seven times|eight times|nine times|ten times"
+}
+
+pub(super) fn parse_multiplicative_word(value: &str) -> Option<i64> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "twice" | "double" | "two times" => Some(2),
+        "thrice" | "triple" | "three times" => Some(3),
+        "quadruple" | "four times" => Some(4),
+        "five times" => Some(5),
+        "six times" => Some(6),
+        "seven times" => Some(7),
+        "eight times" => Some(8),
+        "nine times" => Some(9),
+        "ten times" => Some(10),
+        _ => None,
+    }
+}
+
 pub(super) fn numeric_expression_pattern() -> String {
     let atom = quantity_word_pattern();
+    let multiplier = multiplicative_word_pattern();
     let prefixed =
-        format!(r"(?:twice|double|half(?: of)?)\s+(?:{atom})(?:,?\s+rounded\s+(?:up|down))?");
+        format!(r"(?:{multiplier}|half(?: of)?)\s+(?:{atom})(?:,?\s+rounded\s+(?:up|down))?");
     let operand = format!(r"(?:{prefixed}|{atom})");
     format!(
         r"{operand}(?:\s+(?:plus|minus|times|multiplied by|divided by)\s+{operand}(?:,?\s+rounded\s+(?:up|down))?)*"
@@ -192,9 +212,11 @@ pub(super) fn parse_numeric_expression_text(value: &str) -> Option<Value> {
         }));
     }
 
-    let prefix_rounded_re =
-        Regex::new(r"(?i)^(twice|double|half(?: of)?)\s+(.+?),?\s+rounded\s+(up|down)$")
-            .expect("rounded numeric prefix operation regex compiles");
+    let prefix_rounded_re = Regex::new(&format!(
+        r"(?i)^({}|half(?: of)?)\s+(.+?),?\s+rounded\s+(up|down)$",
+        multiplicative_word_pattern(),
+    ))
+    .expect("rounded numeric prefix operation regex compiles");
     if let Some(captures) = prefix_rounded_re.captures(value) {
         let operand = parse_numeric_expression_text(captures.get(2)?.as_str())?;
         if captures[1].to_ascii_lowercase().starts_with("half") {
@@ -208,12 +230,15 @@ pub(super) fn parse_numeric_expression_text(value: &str) -> Option<Value> {
         return Some(json!({
             "kind": "multiply",
             "left": operand,
-            "right": integer(2),
+            "right": integer(parse_multiplicative_word(&captures[1])?),
         }));
     }
 
-    let prefix_re = Regex::new(r"(?i)^(twice|double|half(?: of)?)\s+(.+)$")
-        .expect("numeric prefix operation regex compiles");
+    let prefix_re = Regex::new(&format!(
+        r"(?i)^({}|half(?: of)?)\s+(.+)$",
+        multiplicative_word_pattern(),
+    ))
+    .expect("numeric prefix operation regex compiles");
     if let Some(captures) = prefix_re.captures(value) {
         let operand = parse_numeric_expression_text(captures.get(2)?.as_str())?;
         if captures[1].to_ascii_lowercase().starts_with("half") {
@@ -227,7 +252,7 @@ pub(super) fn parse_numeric_expression_text(value: &str) -> Option<Value> {
         return Some(json!({
             "kind": "multiply",
             "left": operand,
-            "right": integer(2),
+            "right": integer(parse_multiplicative_word(&captures[1])?),
         }));
     }
 

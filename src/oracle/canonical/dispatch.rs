@@ -16,6 +16,28 @@ pub(crate) fn parse_canonical_rule(
     if let Some(parsed) = parse_alternative_cost_ability(text) {
         return Some(parsed);
     }
+    if let Some(parsed) = parse_ancient_vendetta(text) {
+        return Some(parsed);
+    }
+    let lower_text = text.to_ascii_lowercase();
+    if lower_text.starts_with("choose ")
+        && lower_text.contains(" target players. each of them searches their library ")
+        && let Some(parsed) = parse_common_zone_and_value_spell(text, input.face_name)
+    {
+        return Some(parsed);
+    }
+    if lower_text.starts_with("look at the top ")
+        && let Some(parsed) = parse_library_spell(text)
+    {
+        return Some(parsed);
+    }
+    if text
+        .to_ascii_lowercase()
+        .starts_with("as an additional cost to cast this spell,")
+        && let Some(parsed) = parse_common_zone_and_value_spell(text, input.face_name)
+    {
+        return Some(parsed);
+    }
 
     if input
         .face_type_line

@@ -675,6 +675,66 @@ pub(super) fn parse_alternative_cost_ability(text: &str) -> Option<CanonicalRule
             },
             "costs": costs,
         })
+    } else if let Some(captures) = Regex::new(&format!(
+        r"(?i)^If an opponent had ({}) or more cards put into their graveyard from anywhere this turn, you may pay ((?:\{{[^}}]+\}})+) rather than pay this spell's mana cost\.$",
+        count_word_pattern(),
+    ))
+    .expect("opponent graveyard-count alternative cost regex compiles")
+    .captures(text)
+    {
+        let (costs, decisions) = parse_activation_costs(&captures[2])?;
+        if !decisions.is_empty() {
+            return None;
+        }
+        json!({
+            "kind": "alternativeCost",
+            "condition": {
+                "kind": "opponentCardsEnteredGraveyardThisTurn",
+                "minimum": integer(parse_number_word(&captures[1])?),
+            },
+            "costs": costs,
+        })
+    } else if let Some(captures) = Regex::new(&format!(
+        r"(?i)^If an opponent had ({}) or more (.+?) enter the battlefield under their control this turn, you may pay ((?:\{{[^}}]+\}})+) rather than pay this spell's mana cost\.$",
+        count_word_pattern(),
+    ))
+    .expect("opponent permanent-entry alternative cost regex compiles")
+    .captures(text)
+    {
+        let (costs, decisions) = parse_activation_costs(&captures[3])?;
+        if !decisions.is_empty() {
+            return None;
+        }
+        json!({
+            "kind": "alternativeCost",
+            "condition": {
+                "kind": "opponentPermanentsEnteredThisTurn",
+                "minimum": integer(parse_number_word(&captures[1])?),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(2)?.as_str()),
+                    "",
+                )?,
+            },
+            "costs": costs,
+        })
+    } else if let Some(captures) = Regex::new(
+        r"(?i)^If (?:a|an) (.+?) spell you cast this turn was countered by (?:a|an) spell or ability an opponent controlled, you may pay ((?:\{[^}]+\})+) rather than pay this spell's mana cost\.$",
+    )
+    .expect("controlled filtered spell countered alternative cost regex compiles")
+    .captures(text)
+    {
+        let (costs, decisions) = parse_activation_costs(&captures[2])?;
+        if !decisions.is_empty() {
+            return None;
+        }
+        json!({
+            "kind": "alternativeCost",
+            "condition": {
+                "kind": "controlledSpellCounteredByOpponentThisTurn",
+                "where": parse_permanent_criteria(&captures[1], "")?,
+            },
+            "costs": costs,
+        })
     } else if let Some(captures) = Regex::new(
         r"(?i)^If an opponent searched their library this turn, you may pay ((?:\{[^}]+\})+) rather than pay this spell's mana cost\.$",
     )

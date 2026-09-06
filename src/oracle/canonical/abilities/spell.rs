@@ -87,6 +87,44 @@ pub(in crate::oracle::canonical) fn parse_common_spell_ability(
     if let Some(parsed) = parse_own_casting_reduction(text) {
         return Some(parsed);
     }
+    let council_counter_or_copy_re = Regex::new(
+        r"(?i)^Will of the council (?:—|-) Choose target (.+?) spell\. Starting with you, each player votes for denial or duplication\. If denial gets more votes, counter the spell\. If duplication gets more votes or the vote is tied, copy the spell\. You may choose new targets for the copy\.$",
+    )
+    .expect("Will of the council counter-or-copy regex compiles");
+    if let Some(captures) = council_counter_or_copy_re.captures(text) {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetSpell",
+                        json!({
+                            "kind": "spells",
+                            "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "willOfCouncilCounterOrCopy",
+                    "spell": chosen_target("targetSpell"),
+                    "player": controller(),
+                    "counterVote": "denial",
+                    "copyVote": "duplication",
+                    "tiesCopy": true,
+                    "mayChooseNewTargets": true,
+                }],
+            }),
+            &[
+                "Declare the instant or sorcery spell target",
+                "Collect votes in turn order starting with the controller",
+                "Counter on a denial majority; otherwise copy and optionally retarget",
+            ],
+        ));
+    }
     let spell = |declaration: Option<Value>, effects: Vec<Value>| {
         let mut rule = json!({
             "kind": "spellAbility",
@@ -1179,11 +1217,12 @@ pub(in crate::oracle::canonical) fn parse_ancient_vendetta(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
     let targeted_name_search_re = Regex::new(
-        r"^Choose target card in a graveyard other than (?:a )?(.+?) card\. Search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them\. Then that player shuffles\.$",
+        r"^Choose target card in a graveyard other than (?:a )?(.+?) card\. Search its owner's graveyard, hand, and library for (any number of|all) cards with the same name as that card and exile them\. Then that player shuffles\.$",
     )
     .expect("targeted same-name multi-zone search regex compiles");
     if let Some(captures) = targeted_name_search_re.captures(text) {
         let excluded = parse_permanent_criteria(&captures[1], "")?;
+        let exile_all = captures[2].eq_ignore_ascii_case("all");
         return Some(draft(
             json!({
                 "kind": "spellAbility",
@@ -1207,6 +1246,7 @@ pub(in crate::oracle::canonical) fn parse_ancient_vendetta(
                     "chooser": controller(),
                     "nameFromCard": chosen_target("targetNamedCard"),
                     "zones": ["graveyard", "hand", "library"],
+                    "all": exile_all,
                     "shuffleLibrary": true,
                 }],
             }),
@@ -1219,10 +1259,26 @@ pub(in crate::oracle::canonical) fn parse_ancient_vendetta(
             ],
         ));
     }
-    if text
-        != "Choose a card name. Search target opponent's graveyard, hand, and library for up to four cards with that name and exile them. Then that player shuffles."
-    {
-        return None;
+    let named_search_re = Regex::new(
+        r"^Choose (?:a|an) (.+?) card name\. Search target opponent's graveyard, hand, and library for (any number of|up to (\w+)) cards with that name and exile them\. Then that player shuffles\.$",
+    )
+    .expect("chosen-name multi-zone search regex compiles");
+    let captures = named_search_re.captures(text)?;
+    let named_where = parse_permanent_criteria(&captures[1], "")?;
+    let maximum = captures
+        .get(3)
+        .and_then(|count| parse_number_word(count.as_str()))
+        .map(integer);
+    let mut exile_effect = json!({
+        "kind": "exileNamedCardsFromZones",
+        "player": chosen_target("targetOpponent"),
+        "chooser": controller(),
+        "decisionId": "chosenCardName",
+        "zones": ["graveyard", "hand", "library"],
+        "shuffleLibrary": true,
+    });
+    if let Some(maximum) = maximum {
+        exile_effect["maximum"] = maximum;
     }
     Some(draft(
         json!({
@@ -1250,17 +1306,9 @@ pub(in crate::oracle::canonical) fn parse_ancient_vendetta(
                     "kind": "chooseCardName",
                     "id": "chosenCardName",
                     "player": controller(),
-                    "where": Value::Null,
+                    "where": named_where,
                 },
-                {
-                    "kind": "exileNamedCardsFromZones",
-                    "player": chosen_target("targetOpponent"),
-                    "chooser": controller(),
-                    "decisionId": "chosenCardName",
-                    "maximum": integer(4),
-                    "zones": ["graveyard", "hand", "library"],
-                    "shuffleLibrary": true,
-                },
+                exile_effect,
             ],
         }),
         &[
@@ -1277,6 +1325,79 @@ pub(in crate::oracle::canonical) fn parse_common_zone_and_value_spell(
     text: &str,
     face_name: &str,
 ) -> Option<CanonicalRuleDraft> {
+    let graveyard_return_and_self_exile_re = Regex::new(
+        r"(?i)^Return target (.+?) card from your graveyard to your hand\. Exile (.+?)\.$",
+    )
+    .expect("graveyard return and resolving-source exile regex compiles");
+    if let Some(captures) = graveyard_return_and_self_exile_re.captures(text)
+        && source_reference_matches(captures.get(2)?.as_str(), face_name)
+    {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetGraveyardCard",
+                        json!({
+                            "kind": "cards",
+                            "zone": graveyard(controller()),
+                            "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "moveTargetCard",
+                    "card": chosen_target("targetGraveyardCard"),
+                    "to": "hand",
+                    "tapped": false,
+                }],
+                "exileAfterResolution": true,
+            }),
+            &[
+                "Target a graveyard card through the shared criteria grammar",
+                "Return the target to its owner's hand",
+                "Replace the resolving spell's graveyard destination with exile",
+            ],
+        ));
+    }
+
+    let chosen_players_search_to_top_re = Regex::new(&format!(
+        r"(?i)^Choose ({}) target players\. Each of them searches their library for (?:a|one) card, then shuffles(?: their library)? and puts that card on top(?: of it)?\.$",
+        count_word_pattern(),
+    ))
+    .expect("chosen players search libraries to top regex compiles");
+    if let Some(captures) = chosen_players_search_to_top_re.captures(text) {
+        let count = parse_number_word(captures.get(1)?.as_str())?;
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPlayers",
+                        json!({ "kind": "players" }),
+                        count,
+                        count,
+                    )],
+                },
+                "effects": [{
+                    "kind": "chosenPlayersSearchLibrariesToTop",
+                    "targetsDecisionId": "targetPlayers",
+                }],
+            }),
+            &[
+                "Declare the requested number of distinct player targets",
+                "Let each targeted player search their own library",
+                "Shuffle each searched library and put its selected card on top",
+            ],
+        ));
+    }
+
     if let Some((effects, decisions)) = parse_conditional_effect_amendment(text, face_name) {
         let mut rule = json!({
             "kind": "spellAbility",

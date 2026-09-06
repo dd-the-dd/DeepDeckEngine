@@ -4,6 +4,30 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
     text: &'a str,
     face_name: &str,
 ) -> Option<(Value, &'a str)> {
+    let any_player_cast_re = Regex::new(r"(?i)^When(?:ever)? a player casts a spell, (.+)$")
+        .expect("any-player spell-cast trigger regex compiles");
+    if let Some(captures) = any_player_cast_re.captures(text) {
+        return Some((
+            json!({ "kind": "spellCast", "anyPlayer": true, "where": Value::Null }),
+            captures.get(1)?.as_str(),
+        ));
+    }
+
+    let opponent_graveyard_card_re = Regex::new(
+        r"(?i)^Whenever (?:a|an) (.+?) card is put into an opponent's graveyard from anywhere, (.+)$",
+    )
+    .expect("filtered opponent graveyard trigger regex compiles");
+    if let Some(captures) = opponent_graveyard_card_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "opponentCardEnteredGraveyard",
+                "player": controller(),
+                "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            }),
+            captures.get(2)?.as_str(),
+        ));
+    }
+
     if let Some(instruction) = text.strip_prefix("Whenever you cast a spell, ") {
         return Some((
             json!({ "kind": "spellCast", "player": controller(), "where": Value::Null }),
@@ -1743,7 +1767,7 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
         .unwrap_or((text, None));
     let trigger_text = strip_short_oracle_label(trigger_text);
     let cast_source_enter_re = Regex::new(
-        r"(?i)^When (.+?) enters, if you cast (?:it|that (?:spell|card|permanent)), (.+)$",
+        r"(?i)^When (.+?) enters, if (?:you cast (?:it|that (?:spell|card|permanent))|it was cast), (.+)$",
     )
     .expect("cast source enter trigger regex compiles");
     if let Some(captures) = cast_source_enter_re.captures(trigger_text) {

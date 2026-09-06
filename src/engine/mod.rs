@@ -201,6 +201,310 @@ pub trait DecisionProvider {
     fn is_cancelled(&self) -> bool {
         false
     }
+
+    fn begin_loop_shortcut(
+        &mut self,
+        _player_id: &str,
+        _action_id: &str,
+        _additional_iterations: usize,
+    ) {
+    }
+
+    fn begin_loop_iteration(&mut self, _player_id: &str, _action_id: &str) {}
+
+    fn choose_loop_shortcut_policy(
+        &mut self,
+        _state: &GameState,
+        _request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        Ok(0)
+    }
+}
+
+#[derive(Clone)]
+struct ReusedLoopChoice {
+    option_index: usize,
+    action: LegalAction,
+}
+
+#[derive(Clone, Copy)]
+enum LoopChoicePolicy {
+    Repeat,
+    AskEachTime,
+}
+
+struct LoopChoiceSlot {
+    player_id: String,
+    kind: DecisionKind,
+    choice: Option<DecisionChoice>,
+    policy: LoopChoicePolicy,
+    selected: ReusedLoopChoice,
+}
+
+struct ActiveLoopShortcut {
+    player_id: String,
+    action_id: String,
+    remaining_iterations: usize,
+    decision_cursor: usize,
+    slots: Vec<LoopChoiceSlot>,
+}
+
+struct LoopShortcutDecisionProvider<'a, P> {
+    inner: &'a mut P,
+    active: Option<ActiveLoopShortcut>,
+}
+
+impl<'a, P> LoopShortcutDecisionProvider<'a, P> {
+    fn new(inner: &'a mut P) -> Self {
+        Self {
+            inner,
+            active: None,
+        }
+    }
+
+    fn action_matches_reused_choice(
+        request: &EngineDecisionRequest,
+        candidate: &LegalAction,
+        reused: &LegalAction,
+    ) -> bool {
+        candidate.kind == reused.kind
+            && candidate.card_instance_id == reused.card_instance_id
+            && candidate.label == reused.label
+            && (request.kind == DecisionKind::Priority
+                || (candidate.decisions == reused.decisions && candidate.targets == reused.targets))
+    }
+
+    fn reusable_option_index(
+        request: &EngineDecisionRequest,
+        reused: &ReusedLoopChoice,
+    ) -> Option<usize> {
+        request
+            .options
+            .get(reused.option_index)
+            .filter(|candidate| {
+                Self::action_matches_reused_choice(request, candidate, &reused.action)
+            })
+            .map(|_| reused.option_index)
+            .or_else(|| {
+                let matches = request
+                    .options
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, candidate)| {
+                        Self::action_matches_reused_choice(request, candidate, &reused.action)
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                (matches.len() == 1).then_some(matches[0])
+            })
+    }
+
+    fn choose_reuse_policy(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+        selected: &LegalAction,
+        slot_index: usize,
+    ) -> Result<LoopChoicePolicy, EngineError>
+    where
+        P: DecisionProvider,
+    {
+        let priority = request.kind == DecisionKind::Priority;
+        let prompt = if priority {
+            "Use this same priority response for the remaining loop iterations?"
+        } else {
+            "Use this same choice for the remaining loop iterations?"
+        };
+        let policy_request = EngineDecisionRequest {
+            id: format!(
+                "loop-choice-policy:{}:{}:{slot_index}",
+                request.player_id, request.id
+            ),
+            kind: DecisionKind::ResolutionChoice,
+            player_id: request.player_id.clone(),
+            source_card: request.source_card.clone(),
+            source_card_instance_id: request.source_card_instance_id.clone(),
+            choice: None,
+            options: vec![
+                LegalAction {
+                    id: format!("repeat-loop-choice:{slot_index}"),
+                    kind: ActionKind::ChooseResolution,
+                    player_id: request.player_id.clone(),
+                    label: format!("Repeat '{}' for the whole loop", selected.label),
+                    card_instance_id: selected.card_instance_id.clone(),
+                    payment_sources: Vec::new(),
+                    decisions: BTreeMap::from([(
+                        "loopChoicePolicy".to_string(),
+                        Value::String("repeat".to_string()),
+                    )]),
+                    targets: BTreeMap::new(),
+                    target_order: Vec::new(),
+                    attacker_id: None,
+                    blocker_id: None,
+                },
+                LegalAction {
+                    id: format!("step-loop-choice:{slot_index}"),
+                    kind: ActionKind::DeclinePayment,
+                    player_id: request.player_id.clone(),
+                    label: "Ask me again on every iteration".to_string(),
+                    card_instance_id: selected.card_instance_id.clone(),
+                    payment_sources: Vec::new(),
+                    decisions: BTreeMap::from([(
+                        "loopChoicePolicy".to_string(),
+                        Value::String("step".to_string()),
+                    )]),
+                    targets: BTreeMap::new(),
+                    target_order: Vec::new(),
+                    attacker_id: None,
+                    blocker_id: None,
+                },
+            ],
+        };
+        let selected_policy = self
+            .inner
+            .choose_loop_shortcut_policy(state, &policy_request)?;
+        match selected_policy {
+            0 => Ok(LoopChoicePolicy::Repeat),
+            1 => Ok(LoopChoicePolicy::AskEachTime),
+            _ => Err(EngineError::new(format!(
+                "decision provider selected invalid option {selected_policy} for {} ({prompt})",
+                policy_request.id
+            ))),
+        }
+    }
+}
+
+impl<P: DecisionProvider> DecisionProvider for LoopShortcutDecisionProvider<'_, P> {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let should_manage = self.active.as_ref().is_some_and(|active| {
+            request.options.len() > 1
+                && !(request.kind == DecisionKind::Priority
+                    && request.player_id == active.player_id
+                    && state.stack.is_empty())
+        });
+        if !should_manage {
+            return self.inner.choose(state, request);
+        }
+
+        let slot_index = self
+            .active
+            .as_ref()
+            .map_or(0, |active| active.decision_cursor);
+        let existing_policy = self.active.as_ref().and_then(|active| {
+            active.slots.get(slot_index).and_then(|slot| {
+                (slot.player_id == request.player_id
+                    && slot.kind == request.kind
+                    && slot.choice == request.choice)
+                    .then_some(slot.policy)
+            })
+        });
+        let reusable = self.active.as_ref().and_then(|active| {
+            active.slots.get(slot_index).and_then(|slot| {
+                matches!(existing_policy, Some(LoopChoicePolicy::Repeat))
+                    .then(|| Self::reusable_option_index(request, &slot.selected))
+                    .flatten()
+            })
+        });
+        if let Some(active) = self.active.as_mut() {
+            active.decision_cursor = active.decision_cursor.saturating_add(1);
+        }
+        if let Some(option_index) = reusable {
+            return Ok(option_index);
+        }
+
+        let option_index = self.inner.choose(state, request)?;
+        let selected = request.options.get(option_index).cloned().ok_or_else(|| {
+            EngineError::new(format!(
+                "decision provider selected invalid option {option_index} for {}",
+                request.id
+            ))
+        })?;
+        let policy = if matches!(existing_policy, Some(LoopChoicePolicy::AskEachTime)) {
+            LoopChoicePolicy::AskEachTime
+        } else {
+            self.choose_reuse_policy(state, request, &selected, slot_index)?
+        };
+        let slot = LoopChoiceSlot {
+            player_id: request.player_id.clone(),
+            kind: request.kind.clone(),
+            choice: request.choice.clone(),
+            policy,
+            selected: ReusedLoopChoice {
+                option_index,
+                action: selected,
+            },
+        };
+        if let Some(active) = self.active.as_mut() {
+            if slot_index < active.slots.len() {
+                active.slots[slot_index] = slot;
+            } else {
+                active.slots.push(slot);
+            }
+        }
+        Ok(option_index)
+    }
+
+    fn choose_number(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<i32, EngineError> {
+        self.inner.choose_number(state, request)
+    }
+
+    fn requests_explicit_priority_pass(&self, player_id: &str) -> bool {
+        self.inner.requests_explicit_priority_pass(player_id)
+    }
+
+    fn allows_combat_declaration_revisions(&self, player_id: &str) -> bool {
+        self.inner.allows_combat_declaration_revisions(player_id)
+    }
+
+    fn observe_turn_completed(&mut self, state: &GameState) {
+        self.inner.observe_turn_completed(state);
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.inner.is_cancelled()
+    }
+
+    fn begin_loop_shortcut(
+        &mut self,
+        player_id: &str,
+        action_id: &str,
+        additional_iterations: usize,
+    ) {
+        self.active = Some(ActiveLoopShortcut {
+            player_id: player_id.to_string(),
+            action_id: action_id.to_string(),
+            remaining_iterations: additional_iterations,
+            decision_cursor: 0,
+            slots: Vec::new(),
+        });
+    }
+
+    fn begin_loop_iteration(&mut self, player_id: &str, action_id: &str) {
+        let Some(active) = self.active.as_mut() else {
+            return;
+        };
+        if active.player_id != player_id || active.action_id != action_id {
+            return;
+        }
+        active.decision_cursor = 0;
+        active.remaining_iterations = active.remaining_iterations.saturating_sub(1);
+    }
+
+    fn choose_loop_shortcut_policy(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        self.inner.choose_loop_shortcut_policy(state, request)
+    }
 }
 
 pub struct RandomAi {
@@ -996,6 +1300,10 @@ fn type_line_subtypes(type_line: &str) -> &str {
         .unwrap_or_default()
 }
 
+fn has_card_subtype(card: &CardDefinition, subtype: &str) -> bool {
+    type_line_contains(type_line_subtypes(&card.type_line), subtype)
+}
+
 fn is_land(card: &CardDefinition) -> bool {
     has_card_type(card, "land")
 }
@@ -1690,7 +1998,7 @@ fn basic_land_mana(card: &CardDefinition) -> Vec<Vec<String>> {
         ("Wastes", "C"),
     ]
     .iter()
-    .filter(|(subtype, _)| type_line_contains(&card.type_line, subtype))
+    .filter(|(subtype, _)| has_card_subtype(card, subtype))
     .map(|(_, symbol)| vec![symbol.to_string()])
     .collect()
 }
@@ -1700,9 +2008,9 @@ fn matches_card_filter(card: &CardDefinition, filter: &Value) -> bool {
         Some("cardTypeContains") => filter["value"]
             .as_str()
             .is_some_and(|value| has_card_type(card, value)),
-        Some("subtypeContains") => filter["value"].as_str().is_some_and(|value| {
-            has_keyword(card, "changeling") || type_line_contains(&card.type_line, value)
-        }),
+        Some("subtypeContains") => filter["value"]
+            .as_str()
+            .is_some_and(|value| has_keyword(card, "changeling") || has_card_subtype(card, value)),
         Some("typeLineContains") => filter["value"].as_str().is_some_and(|value| {
             card.type_line
                 .to_ascii_lowercase()
@@ -1861,7 +2169,7 @@ fn matches_card_filter_with_decisions(
                 })
             })
             .is_some_and(|chosen_type| {
-                has_keyword(card, "changeling") || type_line_contains(&card.type_line, chosen_type)
+                has_keyword(card, "changeling") || has_card_subtype(card, chosen_type)
             }),
         Some("compare") if value_kind(&filter["right"]) == Some("sourceCastXValue") => {
             let left = match value_kind(&filter["left"]) {
@@ -2470,6 +2778,16 @@ fn condition_supported(condition: &Value) -> bool {
         Some("opponentCastSpellsThisTurn") => {
             integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
         }
+        Some("opponentCardsEnteredGraveyardThisTurn") => {
+            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
+        }
+        Some("opponentPermanentsEnteredThisTurn") => {
+            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
+                && card_filter_supported(&condition["where"])
+        }
+        Some("controlledSpellCounteredByOpponentThisTurn") => {
+            card_filter_supported(&condition["where"])
+        }
         Some("opponentSearchedLibraryThisTurn") => true,
         Some("opponentCastSpellWithAnyColor") => {
             condition["colors"].as_array().is_some_and(|colors| {
@@ -2483,6 +2801,7 @@ fn condition_supported(condition: &Value) -> bool {
             })
         }
         Some("triggeringSpellManaSourceMatches") => card_filter_supported(&condition["where"]),
+        Some("noManaSpentToCastTargetSpell") => target_reference_supported(&condition["spell"]),
         Some("not") => condition_supported(&condition["operand"]),
         Some("or" | "and") => condition["operands"]
             .as_array()
@@ -2648,6 +2967,9 @@ fn target_candidates_supported(candidates: &Value) -> bool {
                 && candidates
                     .get("targetingControllerOrPermanent")
                     .is_none_or(Value::is_boolean)
+                && candidates
+                    .get("targetingControlledPermanentWhere")
+                    .is_none_or(card_filter_supported)
         }
         Some("stackObjects") => stack_filter_supported(&candidates["where"]),
         Some("stackItems") => stack_item_filter_supported(&candidates["where"]),
@@ -2748,6 +3070,7 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "openingHandBattlefield"
                 | "prowess"
                 | "reach"
+                | "readAhead"
                 | "shadow"
                 | "splitSecond"
                 | "exalted"
@@ -3495,6 +3818,16 @@ fn replacement_operation_supported(operation: &Value) -> bool {
             operation["counter"].is_string() && operation["decisionId"].is_string()
         }
         Some("copyEnteringCreatureAsSakashima") => operation["decisionId"].is_string(),
+        Some("copyEnteringGraveyardCard") => {
+            operation["decisionId"].is_string()
+                && operation["name"].is_string()
+                && integer_value(&operation["basePower"]).is_some()
+                && integer_value(&operation["baseToughness"]).is_some()
+                && operation["addTypes"]
+                    .as_array()
+                    .is_some_and(|types| !types.is_empty() && types.iter().all(Value::is_string))
+                && operation["exileChosenCard"].is_boolean()
+        }
         Some("copyEnteringPermanent") => {
             operation["decisionId"].is_string() && operation["tapped"].is_boolean()
         }
@@ -3567,6 +3900,10 @@ fn replacement_rule_supported(rule: &Value) -> bool {
                             decision["optional"].as_bool().is_some()
                         }
                         Some("chooseBattlefieldPermanent") => {
+                            decision["optional"].as_bool().is_some()
+                                && card_filter_supported(&decision["where"])
+                        }
+                        Some("chooseGraveyardCard") => {
                             decision["optional"].as_bool().is_some()
                                 && card_filter_supported(&decision["where"])
                         }
@@ -3713,23 +4050,31 @@ fn exile_from_top_until_supported(effect: &Value) -> bool {
 }
 
 fn cast_any_number_supported(effect: &Value) -> bool {
-    let payment_supported = effect["withoutPayingManaCost"].as_bool() == Some(true)
-        && effect.get("alternativeCost").is_none()
-        || effect["withoutPayingManaCost"].as_bool() == Some(false)
-            && value_kind(&effect["alternativeCost"]) == Some("payPlayerCounters")
-            && effect["alternativeCost"]["counter"].is_string()
-            && value_kind(&effect["alternativeCost"]["count"]) == Some("manaValueOfCastCard");
+    let without_paying = effect["withoutPayingManaCost"].as_bool();
+    let alternative_costs_allowed = effect["alternativeCostsAllowed"].as_bool();
+    let payment_supported = match (
+        without_paying,
+        effect.get("alternativeCost").and_then(value_kind),
+    ) {
+        (Some(true), None) => alternative_costs_allowed == Some(false),
+        (Some(false), None) => alternative_costs_allowed == Some(true),
+        (Some(false), Some("payPlayerCounters")) => {
+            alternative_costs_allowed == Some(false)
+                && effect["alternativeCost"]["counter"].is_string()
+                && value_kind(&effect["alternativeCost"]["count"]) == Some("manaValueOfCastCard")
+        }
+        _ => false,
+    };
     player_reference_supported(&effect["player"])
         && object_expression_supported(&effect["cards"])
         && value_kind(&effect["where"]) == Some("canBeCastAsSpell")
         && value_kind(&effect["timing"]) == Some("duringResolution")
         && payment_supported
-        && effect["alternativeCostsAllowed"].as_bool() == Some(false)
         && effect["additionalCostsApply"].as_bool() == Some(true)
         && integer_value(&effect["variableManaValue"]) == Some(0)
         && effect
             .get("sourceZone")
-            .is_none_or(|zone| matches!(zone.as_str(), Some("exile" | "hand")))
+            .is_none_or(|zone| matches!(zone.as_str(), Some("exile" | "graveyard" | "hand")))
         && effect
             .get("maximum")
             .is_none_or(|maximum| integer_value(maximum).is_some_and(|value| value > 0))
@@ -4530,6 +4875,9 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && effect["addSubtypes"]
                     .as_array()
                     .is_some_and(|types| types.iter().all(Value::is_string))
+                && effect["addColors"]
+                    .as_array()
+                    .is_none_or(|colors| colors.iter().all(Value::is_string))
                 && integer_value(&effect["basePower"]).is_some()
                 && integer_value(&effect["baseToughness"]).is_some()
                 && effect["retainExistingTypes"].as_bool() == Some(true)
@@ -4655,6 +5003,7 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && effect
                     .get("maximum")
                     .is_none_or(|maximum| integer_value(maximum).is_some_and(|maximum| maximum > 0))
+                && effect.get("all").is_none_or(Value::is_boolean)
                 && effect["zones"].as_array().is_some_and(|zones| {
                     !zones.is_empty()
                         && zones.iter().all(|zone| {
@@ -4734,6 +5083,32 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                     Some("battlefield") => {
                         player_reference_supported(&effect["to"]["player"])
                             && effect["to"]["tapped"].is_boolean()
+                            && effect["to"]
+                                .get("enterWithCounters")
+                                .is_none_or(|counters| {
+                                    counters.as_array().is_some_and(|counters| {
+                                        counters.iter().all(|counter| {
+                                            counter["counter"].is_string()
+                                                && numeric_expression_supported(&counter["count"])
+                                        })
+                                    })
+                                })
+                            && ["addTypes", "addSubtypes"].iter().all(|key| {
+                                effect["to"].get(*key).is_none_or(|values| {
+                                    values
+                                        .as_array()
+                                        .is_some_and(|values| values.iter().all(Value::is_string))
+                                })
+                            })
+                            && effect["to"]
+                                .get("basePower")
+                                .is_none_or(|value| integer_value(value).is_some())
+                            && effect["to"]
+                                .get("baseToughness")
+                                .is_none_or(|value| integer_value(value).is_some())
+                            && effect["to"]
+                                .get("retainExistingTypes")
+                                .is_none_or(Value::is_boolean)
                     }
                     Some("handOrBattlefieldMorbid") => {
                         player_reference_supported(&effect["to"]["player"])
@@ -4793,6 +5168,7 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
         }
         Some("optionalEffects") => {
             player_reference_supported(&effect["player"])
+                && effect.get("revealSource").is_none_or(Value::is_boolean)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
@@ -4806,6 +5182,7 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && (value_kind(&effect["duration"]) != Some("untilNextTurn")
                     || player_reference_supported(&effect["duration"]["player"]))
         }
+        Some("grantNoMaximumHandSize") => player_reference_supported(&effect["player"]),
         Some("installNextCreatureSpellModifier") => {
             player_reference_supported(&effect["player"])
                 && value_kind(&effect["expiresAfterTurn"]) == Some("currentTurn")
@@ -4897,6 +5274,11 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && numeric_expression_supported(&effect["count"])
                 && effect["faceDown"].is_boolean()
                 && effect["bind"].is_string()
+        }
+        Some("exileLibrariesExceptBottom") => {
+            value_kind(&effect["players"]) == Some("eachPlayer")
+                && integer_value(&effect["retainBottom"]).is_some_and(|count| count >= 0)
+                && effect["faceDown"].is_boolean()
         }
         Some("grantCardPermission") => {
             let alternative_cost_supported =
@@ -5664,6 +6046,19 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
                 && effect.get("continuous").is_none_or(Value::is_boolean)
         }
+        Some("lookAtHand") => {
+            player_reference_supported(&effect["player"])
+                && player_reference_supported(&effect["viewer"])
+        }
+        Some("chosenPlayersSearchLibrariesToTop") => effect["targetsDecisionId"].is_string(),
+        Some("installAdditionalManaOnLandTap") => {
+            card_filter_supported(&effect["where"])
+                && matches!(
+                    effect["mana"].as_str(),
+                    Some("W" | "U" | "B" | "R" | "G" | "C")
+                )
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
         Some("grantHandPlayPermission") => {
             player_reference_supported(&effect["player"])
                 && player_reference_supported(&effect["handOwner"])
@@ -5867,6 +6262,14 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                 && effect
                     .get("mayChooseNewTargets")
                     .is_none_or(Value::is_boolean)
+        }
+        Some("willOfCouncilCounterOrCopy") => {
+            target_reference_supported(&effect["spell"])
+                && player_reference_supported(&effect["player"])
+                && effect["counterVote"].is_string()
+                && effect["copyVote"].is_string()
+                && effect["tiesCopy"].as_bool() == Some(true)
+                && effect["mayChooseNewTargets"].is_boolean()
         }
         Some("copyResolvingStackObject") => {
             player_reference_supported(&effect["controller"])
@@ -6163,6 +6566,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                             | "beginCombat"
                     )
                 )
+                && event.get("firstOnly").is_none_or(Value::is_boolean)
         }
         Some("cardDrawn" | "controlledCreaturesAttacked") => {
             (player_reference_supported(&event["player"])
@@ -6273,7 +6677,10 @@ fn triggered_event_supported(event: &Value) -> bool {
             player_reference_supported(&event["player"]) && card_filter_supported(&event["where"])
         }
         Some("librarySearched") => event["anyPlayer"].as_bool() == Some(true),
-        Some("opponentCardEnteredGraveyard") => player_reference_supported(&event["player"]),
+        Some("opponentCardEnteredGraveyard") => {
+            player_reference_supported(&event["player"])
+                && event.get("where").is_none_or(card_filter_supported)
+        }
         Some("opponentDestroyedControlledPermanent") => {
             player_reference_supported(&event["player"]) && card_filter_supported(&event["where"])
         }
@@ -6389,7 +6796,7 @@ fn triggered_rule_supported(rule: &Value) -> bool {
         && rule.get("condition").is_none_or(condition_supported)
         && rule
             .get("triggerZone")
-            .is_none_or(|zone| matches!(zone.as_str(), Some("battlefield" | "graveyard")))
+            .is_none_or(|zone| matches!(zone.as_str(), Some("battlefield" | "graveyard" | "hand")))
         && rule
             .get("minimumClassLevel")
             .is_none_or(|level| integer_value(level).is_some_and(|level| (2..=3).contains(&level)))
@@ -6696,6 +7103,11 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         }
         Some("multiplyTokenCreation") => {
             player_reference_supported(&modifier["player"])
+                && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
+        }
+        Some("multiplyMill") => {
+            value_kind(&modifier["players"]) == Some("opponentsOf")
+                && player_reference_supported(&modifier["players"]["player"])
                 && integer_value(&modifier["factor"]).is_some_and(|factor| factor > 1)
         }
         Some("blockRestriction") => {
@@ -8924,6 +9336,7 @@ impl GameEngine {
         source_controller: Option<&str>,
     ) -> Result<Vec<String>, EngineError> {
         let player_index = self.player_index(player_id)?;
+        let count = count.saturating_mul(self.mill_factor(player_id).max(1) as usize);
         let mut milled = Vec::new();
         let mut milled_cards = Vec::new();
         for _ in 0..count {
@@ -9482,6 +9895,15 @@ impl GameEngine {
                     | RuntimeBinding::Target(_)
                     | RuntimeBinding::Integer(_) => true,
                 }),
+            Some("noManaSpentToCastTargetSpell") => self
+                .resolve_target(&condition["spell"], stack_object, bindings)
+                .and_then(|target| match target {
+                    TargetRef::StackObject { stack_id } => {
+                        self.state.stack.iter().find(|object| object.id == stack_id)
+                    }
+                    _ => None,
+                })
+                .is_some_and(|spell| mana_spent_from_cast_decisions(&spell.decisions) == 0),
             Some("not") => !self.runtime_condition_value(
                 &condition["operand"],
                 stack_object,
@@ -9590,6 +10012,70 @@ impl GameEngine {
                     }
                 }
                 counts.values().any(|count| *count >= minimum)
+            }
+            Some("opponentCardsEnteredGraveyardThisTurn") => {
+                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
+                let mut counts = BTreeMap::<&str, usize>::new();
+                for event in self.state.events.iter().filter(|event| {
+                    event.turn_number == self.state.turn_number
+                        && event.kind == "cardsEnteredGraveyard"
+                        && event.player_id.as_deref() != Some(controller_id)
+                }) {
+                    if let Some(player_id) = event.player_id.as_deref() {
+                        let count = event.detail["cardIds"].as_array().map_or(0, Vec::len);
+                        *counts.entry(player_id).or_default() += count;
+                    }
+                }
+                counts.values().any(|count| *count >= minimum)
+            }
+            Some("opponentPermanentsEnteredThisTurn") => {
+                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
+                let mut counts = BTreeMap::<&str, usize>::new();
+                for event in self.state.events.iter().filter(|event| {
+                    event.turn_number == self.state.turn_number
+                        && event.kind == "permanentEnteredBattlefield"
+                        && event.player_id.as_deref() != Some(controller_id)
+                        && event
+                            .card_instance_id
+                            .as_deref()
+                            .and_then(|instance_id| {
+                                self.permanent_position(instance_id)
+                                    .map(|(player_index, card_index)| {
+                                        &self.state.players[player_index].battlefield[card_index]
+                                            .definition
+                                    })
+                                    .or_else(|| {
+                                        self.card_outside_battlefield(instance_id)
+                                            .map(|card| &card.definition)
+                                    })
+                            })
+                            .is_some_and(|definition| {
+                                matches_card_filter(definition, &condition["where"])
+                            })
+                }) {
+                    if let Some(player_id) = event.player_id.as_deref() {
+                        *counts.entry(player_id).or_default() += 1;
+                    }
+                }
+                counts.values().any(|count| *count >= minimum)
+            }
+            Some("controlledSpellCounteredByOpponentThisTurn") => {
+                self.state.events.iter().any(|event| {
+                    event.turn_number == self.state.turn_number
+                        && event.kind == "spellCountered"
+                        && event.player_id.as_deref() == Some(controller_id)
+                        && event.detail["objectKind"].as_str() == Some("spell")
+                        && event.detail["counterSourceControllerId"]
+                            .as_str()
+                            .is_some_and(|player_id| player_id != controller_id)
+                        && event
+                            .card_instance_id
+                            .as_deref()
+                            .and_then(|instance_id| self.card_outside_battlefield(instance_id))
+                            .is_some_and(|card| {
+                                matches_card_filter(&card.definition, &condition["where"])
+                            })
+                })
             }
             Some("opponentSearchedLibraryThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
@@ -12058,6 +12544,17 @@ impl GameEngine {
             .filter(|(source, modifier)| {
                 source.controller == player_id
                     && value_kind(modifier) == Some("multiplyTokenCreation")
+            })
+            .filter_map(|(_, modifier)| integer_value(&modifier["factor"]))
+            .fold(1_i32, i32::saturating_mul)
+            .max(1)
+    }
+
+    fn mill_factor(&self, player_id: &str) -> i32 {
+        self.battlefield_static_modifiers()
+            .iter()
+            .filter(|(source, modifier)| {
+                source.controller != player_id && value_kind(modifier) == Some("multiplyMill")
             })
             .filter_map(|(_, modifier)| integer_value(&modifier["factor"]))
             .fold(1_i32, i32::saturating_mul)
@@ -16098,6 +16595,27 @@ impl GameEngine {
                                                 == controller_id
                                         }),
                                     _ => false,
+                                })
+                        })
+                        .filter(|object| {
+                            candidates
+                                .get("targetingControlledPermanentWhere")
+                                .is_none_or(|where_filter| {
+                                    object.targets.values().any(|target| match target {
+                                        TargetRef::Permanent { instance_id } => self
+                                            .permanent_position(instance_id)
+                                            .is_some_and(|(player_index, card_index)| {
+                                                let permanent = &self.state.players[player_index]
+                                                    .battlefield[card_index];
+                                                permanent.controller == controller_id
+                                                    && self.permanent_matches_target_filter(
+                                                        permanent,
+                                                        where_filter,
+                                                        controller_id,
+                                                    )
+                                            }),
+                                        _ => false,
+                                    })
                                 })
                         })
                         .filter(|object| {
@@ -21552,7 +22070,22 @@ impl GameEngine {
                 metadata.insert("producedBySnowSource".to_string(), Value::Bool(true));
             }
         }
-        for symbol in &choice.symbols {
+        let mut produced_symbols = choice.symbols.clone();
+        if has_tap_cost {
+            produced_symbols.extend(
+                self.state
+                    .rule_modifiers
+                    .iter()
+                    .filter(|modifier| {
+                        value_kind(modifier) == Some("additionalManaOnLandTap")
+                            && modifier["expiresAfterTurn"].as_u64()
+                                == Some(u64::from(self.state.turn_number))
+                            && matches_card_filter(&source.definition, &modifier["where"])
+                    })
+                    .filter_map(|modifier| modifier["mana"].as_str().map(ToOwned::to_owned)),
+            );
+        }
+        for symbol in &produced_symbols {
             self.state.players[player_index]
                 .mana_pool
                 .push(FloatingMana {
@@ -21566,11 +22099,11 @@ impl GameEngine {
             Some(source.instance_id.clone()),
             json!({
                 "lifePaid": choice.life_cost,
-                "mana": choice.symbols,
+                "mana": produced_symbols.clone(),
                 "spendRestriction": choice.spend_restriction,
             }),
         );
-        self.enqueue_mana_ability_activated_triggers(&source, &choice.symbols);
+        self.enqueue_mana_ability_activated_triggers(&source, &produced_symbols);
         for source in tapped_sources {
             self.enqueue_permanent_tapped_triggers(&source);
         }
@@ -23643,45 +24176,70 @@ impl GameEngine {
                 std::slice::from_ref(&discarded),
             );
         } else {
-            self.enqueue_opponent_card_entered_graveyard_triggers(discarding_player_id);
+            self.enqueue_opponent_card_entered_graveyard_triggers(discarding_player_id, &[]);
         }
     }
 
-    fn enqueue_opponent_card_entered_graveyard_triggers(&mut self, player_id: &str) {
-        let triggers = self
+    fn enqueue_opponent_card_entered_graveyard_triggers(
+        &mut self,
+        player_id: &str,
+        cards: &[CardInstance],
+    ) {
+        let sources = self
             .state
             .players
             .iter()
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| source.controller != player_id)
-            .flat_map(|source| {
-                source
-                    .definition
-                    .rules
-                    .iter()
-                    .filter(|rule| {
-                        triggered_rule_supported(rule)
-                            && triggered_event_variants(&rule["event"])
-                                .iter()
-                                .any(|event| {
-                                    value_kind(event) == Some("opponentCardEnteredGraveyard")
-                                })
-                    })
-                    .cloned()
-                    .map(|rule| (source.clone(), rule))
-                    .collect::<Vec<_>>()
-            })
+            .cloned()
             .collect::<Vec<_>>();
-        for (source, rule) in triggers {
-            self.put_triggered_ability_on_stack_with_decisions(
-                &source,
-                rule,
-                BTreeMap::from([(
-                    "triggeringPlayerId".to_string(),
-                    Value::String(player_id.to_string()),
-                )]),
-            );
+        let mut triggers = Vec::new();
+        for source in sources {
+            for rule in &source.definition.rules {
+                if !triggered_rule_supported(rule) {
+                    continue;
+                }
+                let events = triggered_event_variants(&rule["event"])
+                    .into_iter()
+                    .filter(|event| value_kind(event) == Some("opponentCardEnteredGraveyard"))
+                    .collect::<Vec<_>>();
+                if events.is_empty() {
+                    continue;
+                }
+                if cards.is_empty() {
+                    if events.iter().any(|event| event.get("where").is_none()) {
+                        triggers.push((source.clone(), rule.clone(), None));
+                    }
+                    continue;
+                }
+                for card in cards {
+                    if events.iter().any(|event| {
+                        event
+                            .get("where")
+                            .is_none_or(|filter| matches_card_filter(&card.definition, filter))
+                    }) {
+                        triggers.push((
+                            source.clone(),
+                            rule.clone(),
+                            Some(card.instance_id.clone()),
+                        ));
+                    }
+                }
+            }
+        }
+        for (source, rule, triggering_card_id) in triggers {
+            let mut decisions = BTreeMap::from([(
+                "triggeringPlayerId".to_string(),
+                Value::String(player_id.to_string()),
+            )]);
+            if let Some(card_id) = triggering_card_id {
+                decisions.insert(
+                    "triggeringCardIds".to_string(),
+                    Value::Array(vec![Value::String(card_id)]),
+                );
+            }
+            self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
         }
     }
 
@@ -23757,7 +24315,7 @@ impl GameEngine {
                 )]),
             );
         }
-        self.enqueue_opponent_card_entered_graveyard_triggers(player_id);
+        self.enqueue_opponent_card_entered_graveyard_triggers(player_id, cards);
     }
 
     fn enqueue_cards_left_graveyard_triggers(&mut self, player_id: &str, card_ids: &[String]) {
@@ -25248,32 +25806,56 @@ impl GameEngine {
 
     fn enqueue_step_triggers(&mut self, step: &str) {
         let active_player_id = self.state.players[self.state.active_player].id.clone();
-        let sources = self
+        let mut sources = self
             .state
             .players
             .iter()
             .flat_map(|player| player.battlefield.iter())
             .cloned()
+            .map(|source| (source, "battlefield"))
             .collect::<Vec<_>>();
-        for source in sources {
-            let mut candidate_rules = source.definition.rules.iter().cloned().collect::<Vec<_>>();
-            candidate_rules.extend(
-                self.battlefield_static_modifiers()
-                    .into_iter()
-                    .filter(|(grant_source, modifier)| {
-                        value_kind(modifier) == Some("grantTriggeredAbility")
-                            && Self::static_selector_matches(
-                                grant_source,
-                                &modifier["objects"],
-                                &source,
-                            )
+        if step == "upkeep" && self.state.turn_number == 1 {
+            sources.extend(
+                self.state
+                    .players
+                    .iter()
+                    .flat_map(|player| player.hand.iter())
+                    .filter(|source| {
+                        source.definition.rules.iter().any(|rule| {
+                            rule["triggerZone"].as_str() == Some("hand")
+                                && triggered_rule_supported(rule)
+                        })
                     })
-                    .map(|(_, modifier)| modifier["ability"].clone()),
+                    .cloned()
+                    .map(|source| (source, "hand")),
             );
+        }
+        for (source, source_zone) in sources {
+            let mut candidate_rules = source.definition.rules.iter().cloned().collect::<Vec<_>>();
+            if source_zone == "battlefield" {
+                candidate_rules.extend(
+                    self.battlefield_static_modifiers()
+                        .into_iter()
+                        .filter(|(grant_source, modifier)| {
+                            value_kind(modifier) == Some("grantTriggeredAbility")
+                                && Self::static_selector_matches(
+                                    grant_source,
+                                    &modifier["objects"],
+                                    &source,
+                                )
+                        })
+                        .map(|(_, modifier)| modifier["ability"].clone()),
+                );
+            }
             let rules = candidate_rules
                 .into_iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
+                        && if source_zone == "hand" {
+                            rule["triggerZone"].as_str() == Some("hand")
+                        } else {
+                            rule["triggerZone"].as_str() != Some("hand")
+                        }
                         && rule.get("condition").is_none_or(|condition| {
                             self.condition_value_with_source(
                                 condition,
@@ -25287,6 +25869,8 @@ impl GameEngine {
                             .any(|event| {
                                 value_kind(event) == Some("stepBegan")
                                     && event["step"].as_str() == Some(step)
+                                    && (event["firstOnly"].as_bool() != Some(true)
+                                        || self.state.turn_number == 1)
                                     && match value_kind(&event["player"]) {
                                         Some("eachPlayer") => true,
                                         Some("controllerOfAttachedPermanent") => source
@@ -25311,6 +25895,7 @@ impl GameEngine {
                 self.put_triggered_ability_on_stack(&source, rule);
             }
             if step == "endStep"
+                && source_zone == "battlefield"
                 && source.controller == active_player_id
                 && source
                     .flags
@@ -27699,6 +28284,14 @@ impl GameEngine {
         &mut self,
         provider: &mut P,
     ) -> Result<(), EngineError> {
+        let mut shortcut_provider = LoopShortcutDecisionProvider::new(provider);
+        self.run_priority_window_with_shortcuts(&mut shortcut_provider)
+    }
+
+    fn run_priority_window_with_shortcuts<P: DecisionProvider>(
+        &mut self,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
         let started = Instant::now();
         let mut priority_player = self.first_live_player_from(self.state.active_player);
         let mut consecutive_passes = 0;
@@ -27793,23 +28386,34 @@ impl GameEngine {
                     .unwrap_or_default();
                 let repetition_key = (player_id.clone(), selected.id.clone());
                 let resource_snapshot = self.loop_resource_snapshot();
-                let state_is_equal_or_greater = loop_resource_history
-                    .get(&repetition_key)
-                    .is_some_and(|history| {
-                        history
-                            .iter()
-                            .any(|earlier| resource_snapshot.dominates(earlier))
-                    });
+                let prior_action_occurrence = loop_resource_history.get(&repetition_key);
+                let state_is_equal_or_greater = prior_action_occurrence.is_some_and(|history| {
+                    history
+                        .iter()
+                        .any(|earlier| resource_snapshot.dominates(earlier))
+                });
+                let bounded_progress_loop = !state_is_equal_or_greater
+                    && prior_action_occurrence.is_some()
+                    && self.priority_action_has_renewable_cost(&selected);
                 loop_resource_history
                     .entry(repetition_key.clone())
                     .or_default()
                     .push(resource_snapshot);
                 // CR 732 applies when the sequence can return to a functionally
                 // equivalent state, or to one that retains every previously
-                // available resource. A sequence that depletes tokens, counters,
-                // cards, mana, or life remains finite and is not shortcut as an
-                // unbounded loop.
-                let repeated_action = seen.contains(&selected.id) || state_is_equal_or_greater;
+                // available resource. We also allow a bounded shortcut when the
+                // repeated action itself has a renewable cost: its useful effects
+                // may still change life totals, hands, or libraries. Every chosen
+                // iteration is executed normally, so those finite effects can end
+                // the sequence without being incorrectly treated as unbounded.
+                let repeated_action = seen.contains(&selected.id)
+                    || state_is_equal_or_greater
+                    || bounded_progress_loop;
+                let loop_kind = if bounded_progress_loop {
+                    "boundedProgressLoop"
+                } else {
+                    "optionalStateLoop"
+                };
                 let repetition_allowed = if !repeated_action {
                     true
                 } else if let Some(remaining) = loop_iteration_allowances.get_mut(&repetition_key) {
@@ -27830,12 +28434,16 @@ impl GameEngine {
                         "loopIterations".to_string(),
                         0,
                         MAX_OPTIONAL_LOOP_ITERATIONS,
-                        "Choose how many additional times to repeat this non-depleting action"
-                            .to_string(),
+                        if bounded_progress_loop {
+                            "Choose how many additional times to repeat this action".to_string()
+                        } else {
+                            "Choose how many additional times to repeat this non-depleting action"
+                                .to_string()
+                        },
                         selected.card_instance_id.clone(),
                     )?;
                     loop_iteration_allowances.insert(
-                        repetition_key,
+                        repetition_key.clone(),
                         usize::try_from(repeat_count.saturating_sub(1)).unwrap_or(0),
                     );
                     self.record_event(
@@ -27845,12 +28453,23 @@ impl GameEngine {
                         json!({
                             "actionId": selected.id,
                             "iterations": repeat_count,
-                            "loopKind": "optionalStateLoop",
-                            "stateNonDepleting": true,
+                            "loopKind": loop_kind,
+                            "stateNonDepleting": !bounded_progress_loop,
+                            "iterationsAreExecuted": true,
                         }),
                     );
+                    if repeat_count > 0 {
+                        provider.begin_loop_shortcut(
+                            &player_id,
+                            &selected.id,
+                            usize::try_from(repeat_count).unwrap_or(0),
+                        );
+                    }
                     repeat_count > 0
                 };
+                if repetition_allowed {
+                    provider.begin_loop_iteration(&player_id, &selected.id);
+                }
                 let selected = if !repetition_allowed {
                     let mut alternatives = request
                         .options
@@ -27879,7 +28498,7 @@ impl GameEngine {
                                 "decisionKind": "priority",
                                 "repeatedActionId": selected.id,
                                 "replacementActionId": replacement.id,
-                                "loopKind": "optionalStateLoop",
+                                "loopKind": loop_kind,
                             }),
                         );
                         replacement
@@ -27971,6 +28590,70 @@ impl GameEngine {
 
     fn loop_state_fingerprint(&self) -> u64 {
         self.state_fingerprint(false)
+    }
+
+    fn priority_action_has_renewable_cost(&self, action: &LegalAction) -> bool {
+        if action.kind != ActionKind::CastSpell
+            || action
+                .decisions
+                .get("castSourceZone")
+                .and_then(Value::as_str)
+                != Some("hand")
+            || !action.payment_sources.is_empty()
+            || action
+                .decisions
+                .get("manaPayment")
+                .and_then(Value::as_array)
+                .is_some_and(|payments| !payments.is_empty())
+            || action
+                .decisions
+                .get("manaPoolPayment")
+                .and_then(Value::as_array)
+                .is_some_and(|payments| !payments.is_empty())
+            || action
+                .decisions
+                .get("castingLifePayment")
+                .and_then(Value::as_i64)
+                .is_some_and(|amount| amount > 0)
+            || action
+                .decisions
+                .get("useAlternativePlayerCounterCost")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+            || action.decisions.contains_key("staticCastingSacrifice")
+            || action
+                .decisions
+                .get("delveCards")
+                .and_then(Value::as_array)
+                .is_some_and(|cards| !cards.is_empty())
+            || action
+                .decisions
+                .get("historicExileCost")
+                .and_then(Value::as_array)
+                .is_some_and(|cards| !cards.is_empty())
+        {
+            return false;
+        }
+
+        let Some(card) = action
+            .card_instance_id
+            .as_deref()
+            .and_then(|instance_id| self.card_outside_battlefield(instance_id))
+            .map(|card| &card.definition)
+        else {
+            return false;
+        };
+
+        self.casting_sacrifice_cost_targets(card, &action.player_id, &action.decisions)
+            .is_empty()
+            && self
+                .casting_discard_cost_targets(card, &action.player_id, &action.decisions)
+                .is_empty()
+            && self
+                .casting_put_counter_costs(card, &action.player_id, &action.decisions)
+                .is_empty()
+            && Self::escalate_cost_target_ids(card, &action.decisions).is_empty()
+            && self.splice_cost_target_ids(action).is_empty()
     }
 
     fn loop_resource_snapshot(&self) -> LoopResourceSnapshot {
@@ -28665,6 +29348,91 @@ impl GameEngine {
                         }],
                     }));
                 }
+                Some("copyEnteringGraveyardCard") => {
+                    let decision_id = operation["decisionId"]
+                        .as_str()
+                        .unwrap_or("graveyardEntryCopy");
+                    let Some(instance_id) = decisions
+                        .get(decision_id)
+                        .and_then(Value::as_array)
+                        .and_then(|values| values.first())
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned)
+                    else {
+                        continue;
+                    };
+                    let Some((graveyard_index, card_index)) = self
+                        .state
+                        .players
+                        .iter()
+                        .enumerate()
+                        .find_map(|(player_index, player)| {
+                            player
+                                .graveyard
+                                .iter()
+                                .position(|candidate| candidate.instance_id == instance_id)
+                                .map(|card_index| (player_index, card_index))
+                        })
+                    else {
+                        continue;
+                    };
+                    let copied_card =
+                        self.state.players[graveyard_index].graveyard[card_index].clone();
+                    card.printed_definition = Some(card.definition.clone());
+                    card.definition = copied_card
+                        .printed_definition
+                        .clone()
+                        .unwrap_or_else(|| copied_card.definition.clone());
+                    card.definition.name = operation["name"]
+                        .as_str()
+                        .unwrap_or(&card.definition.name)
+                        .to_string();
+                    card.definition.power =
+                        integer_value(&operation["basePower"]).map(|value| value.to_string());
+                    card.definition.toughness =
+                        integer_value(&operation["baseToughness"]).map(|value| value.to_string());
+                    let added_types = operation["addTypes"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Value::as_str)
+                        .filter(|card_type| {
+                            !type_line_contains(&card.definition.type_line, card_type)
+                        })
+                        .collect::<Vec<_>>();
+                    if !added_types.is_empty() {
+                        let separator = if card.definition.type_line.contains(" - ") {
+                            " "
+                        } else {
+                            " - "
+                        };
+                        card.definition.type_line = format!(
+                            "{}{separator}{}",
+                            card.definition.type_line,
+                            added_types.join(" ")
+                        );
+                    }
+                    if operation["exileChosenCard"].as_bool() == Some(true) {
+                        let graveyard_owner_id = self.state.players[graveyard_index].id.clone();
+                        let mut exiled = self.state.players[graveyard_index]
+                            .graveyard
+                            .remove(card_index);
+                        exiled.flags.remove("faceDown");
+                        let owner_id = exiled.owner.clone();
+                        let owner_index = self.player_index(&owner_id)?;
+                        self.state.players[owner_index].exile.push(exiled);
+                        self.enqueue_cards_left_graveyard_triggers(
+                            &graveyard_owner_id,
+                            std::slice::from_ref(&instance_id),
+                        );
+                        self.record_event(
+                            "cardExiled",
+                            Some(card.controller.clone()),
+                            Some(instance_id),
+                            json!({ "reason": "entryCopyReflexiveTrigger" }),
+                        );
+                    }
+                }
                 Some("copyEnteringPermanent") => {
                     let decision_id = operation["decisionId"].as_str().unwrap_or("entryCopy");
                     let Some(instance_id) = decisions
@@ -28816,6 +29584,9 @@ impl GameEngine {
             let mut decisions = initial_decisions.clone();
             for decision in rule["decisions"].as_array().into_iter().flatten() {
                 let decision_id = decision["id"].as_str().unwrap_or("replacementChoice");
+                if decisions.contains_key(decision_id) {
+                    continue;
+                }
                 if value_kind(decision) == Some("chooseCardForReplacement") {
                     let player_index = self.player_index(&card.controller)?;
                     let candidates = self.state.players[player_index]
@@ -28991,6 +29762,71 @@ impl GameEngine {
                                     )
                                 })
                                 .unwrap_or_else(|| "Do not copy a permanent".to_string()),
+                            card_instance_id: Some(card.instance_id.clone()),
+                            payment_sources: Vec::new(),
+                            decisions: BTreeMap::from([(
+                                decision_id.to_string(),
+                                Value::Array(selection.into_iter().map(Value::String).collect()),
+                            )]),
+                            targets: BTreeMap::new(),
+                            target_order: Vec::new(),
+                            attacker_id: None,
+                            blocker_id: None,
+                        })
+                        .collect::<Vec<_>>();
+                    let choice = self.choose_action(
+                        provider,
+                        EngineDecisionRequest {
+                            id: format!("replacement:{}:{decision_id}", card.instance_id),
+                            kind: DecisionKind::ReplacementChoice,
+                            player_id: card.controller.clone(),
+                            source_card: Some(card.clone()),
+                            source_card_instance_id: Some(card.instance_id.clone()),
+                            choice: None,
+                            options,
+                        },
+                    )?;
+                    decisions.insert(
+                        decision_id.to_string(),
+                        choice
+                            .decisions
+                            .get(decision_id)
+                            .cloned()
+                            .unwrap_or_else(|| Value::Array(Vec::new())),
+                    );
+                    continue;
+                }
+                if value_kind(decision) == Some("chooseGraveyardCard") {
+                    let candidates = self
+                        .state
+                        .players
+                        .iter()
+                        .flat_map(|player| player.graveyard.iter())
+                        .filter(|candidate| {
+                            matches_card_filter(&candidate.definition, &decision["where"])
+                        })
+                        .map(|candidate| candidate.instance_id.clone())
+                        .collect::<Vec<_>>();
+                    let mut selections = candidates
+                        .iter()
+                        .cloned()
+                        .map(|instance_id| vec![instance_id])
+                        .collect::<Vec<_>>();
+                    if decision["optional"].as_bool().unwrap_or(false) {
+                        selections.insert(0, Vec::new());
+                    }
+                    let options = selections
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, selection)| LegalAction {
+                            id: format!("choose:{decision_id}:{index}"),
+                            kind: ActionKind::ChooseResolution,
+                            player_id: card.controller.clone(),
+                            label: selection
+                                .first()
+                                .and_then(|instance_id| self.card_outside_battlefield(instance_id))
+                                .map(|candidate| format!("Copy {}", candidate.definition.name))
+                                .unwrap_or_else(|| "Do not copy a graveyard card".to_string()),
                             card_instance_id: Some(card.instance_id.clone()),
                             payment_sources: Vec::new(),
                             decisions: BTreeMap::from([(
@@ -29407,6 +30243,53 @@ impl GameEngine {
         if graft_counters > 0 {
             let count = self.adjusted_counter_placement(card, "+1/+1", graft_counters);
             *card.counters.entry("+1/+1".to_string()).or_default() += count;
+        }
+        let has_read_ahead = card.definition.rules.iter().any(|rule| {
+            value_kind(rule) == Some("keywordAbility")
+                && value_kind(&rule["ability"]) == Some("readAhead")
+        });
+        if has_read_ahead
+            && !card.counters.contains_key("lore")
+            && let Some(final_chapter) = saga_final_chapter(&card.definition)
+        {
+            let options = (1..=final_chapter)
+                .map(|chapter| LegalAction {
+                    id: format!("readAhead:{}:{chapter}", card.instance_id),
+                    kind: ActionKind::ChooseResolution,
+                    player_id: card.controller.clone(),
+                    label: format!("Start on chapter {chapter}"),
+                    card_instance_id: Some(card.instance_id.clone()),
+                    payment_sources: Vec::new(),
+                    decisions: BTreeMap::from([(
+                        "readAheadChapter".to_string(),
+                        Value::from(chapter),
+                    )]),
+                    targets: BTreeMap::new(),
+                    target_order: Vec::new(),
+                    attacker_id: None,
+                    blocker_id: None,
+                })
+                .collect::<Vec<_>>();
+            let choice = self.choose_action(
+                provider,
+                EngineDecisionRequest {
+                    id: format!("readAhead:{}", card.instance_id),
+                    kind: DecisionKind::ReplacementChoice,
+                    player_id: card.controller.clone(),
+                    source_card: Some(card.clone()),
+                    source_card_instance_id: Some(card.instance_id.clone()),
+                    choice: None,
+                    options,
+                },
+            )?;
+            let chapter = choice
+                .decisions
+                .get("readAheadChapter")
+                .and_then(Value::as_i64)
+                .and_then(|value| i32::try_from(value).ok())
+                .filter(|value| (1..=final_chapter).contains(value))
+                .ok_or_else(|| EngineError::new("invalid Read ahead chapter choice"))?;
+            card.counters.insert("lore".to_string(), chapter);
         }
         if type_line_contains(&card.definition.type_line, "Saga")
             && !card.counters.contains_key("lore")
@@ -31050,6 +31933,34 @@ impl GameEngine {
                         .collect(),
                 )
             }
+            Some("filterObjects") => {
+                let mut objects = self.resolve_runtime_object_ids(
+                    &expression["objects"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                )?;
+                objects.retain(|instance_id| {
+                    self.card_outside_battlefield(instance_id)
+                        .or_else(|| {
+                            self.permanent_position(instance_id).map(
+                                |(player_index, card_index)| {
+                                    &self.state.players[player_index].battlefield[card_index]
+                                },
+                            )
+                        })
+                        .is_some_and(|card| {
+                            self.runtime_card_filter_matches(
+                                &card.definition,
+                                &expression["where"],
+                                stack_object,
+                                bindings,
+                                decisions,
+                            )
+                        })
+                });
+                Some(objects)
+            }
             Some("cardsInZone") => {
                 let player_id =
                     self.resolve_player(&expression["zone"]["player"], stack_object, bindings)?;
@@ -31964,6 +32875,14 @@ impl GameEngine {
                     .filter(|card| object_ids.contains(&card.instance_id))
                     .cloned()
                     .collect::<Vec<_>>(),
+                "graveyard" => self
+                    .state
+                    .players
+                    .iter()
+                    .flat_map(|player| player.graveyard.iter())
+                    .filter(|card| object_ids.contains(&card.instance_id))
+                    .cloned()
+                    .collect::<Vec<_>>(),
                 "exile" => self
                     .state
                     .players
@@ -32003,11 +32922,14 @@ impl GameEngine {
                     }
                 }
             }
-            let mut options = self.cast_without_paying_actions_from_zone(
+            let normal_costs_apply = effect["withoutPayingManaCost"].as_bool() == Some(false)
+                && alternative_counter.is_none();
+            let mut options = self.cast_actions_from_zone(
                 player_index,
                 &cards,
                 "duringResolution",
                 source_zone,
+                normal_costs_apply,
             );
             if let Some(counter) = alternative_counter {
                 let available = self.state.players[player_index]
@@ -32514,6 +33436,29 @@ impl GameEngine {
                 };
                 if !perform {
                     return Ok(());
+                }
+                if effect["revealSource"].as_bool() == Some(true) {
+                    let owner_id = stack_object.card.owner.clone();
+                    let viewer_ids = self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>();
+                    for viewer_id in viewer_ids {
+                        self.remember_known_hand_card(
+                            &owner_id,
+                            &viewer_id,
+                            &stack_object.card.instance_id,
+                        );
+                    }
+                    self.record_event(
+                        "cardRevealed",
+                        Some(owner_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "zone": "hand", "reason": "openingHandAbility" }),
+                    );
                 }
                 for (index, nested_effect) in effects.iter().enumerate() {
                     self.execute_effect(
@@ -33457,23 +34402,50 @@ impl GameEngine {
                 self.gain_life(&stack_object.controller, total_lost)?;
             }
             Some("drawCards") => {
-                let player_ids = if value_kind(&effect["player"]) == Some("chosenTargets") {
-                    let target_id = effect["player"]["id"].as_str().unwrap_or_default();
-                    stack_object
-                        .targets
+                let player_ids = match value_kind(&effect["player"]) {
+                    Some("chosenTargets") => {
+                        let target_id = effect["player"]["id"].as_str().unwrap_or_default();
+                        stack_object
+                            .targets
+                            .iter()
+                            .filter(|(id, _)| {
+                                id.as_str() == target_id || id.starts_with(&format!("{target_id}:"))
+                            })
+                            .filter_map(|(_, target)| match target {
+                                TargetRef::Player { player_id } => Some(player_id.clone()),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                    Some("opponentsOf") => {
+                        let reference_player = self.resolve_player(
+                            &effect["player"]["player"],
+                            stack_object,
+                            bindings,
+                        );
+                        self.state
+                            .players
+                            .iter()
+                            .filter(|player| {
+                                !player.has_lost
+                                    && reference_player
+                                        .as_deref()
+                                        .is_some_and(|reference| player.id != reference)
+                            })
+                            .map(|player| player.id.clone())
+                            .collect::<Vec<_>>()
+                    }
+                    Some("eachPlayer") => self
+                        .state
+                        .players
                         .iter()
-                        .filter(|(id, _)| {
-                            id.as_str() == target_id || id.starts_with(&format!("{target_id}:"))
-                        })
-                        .filter_map(|(_, target)| match target {
-                            TargetRef::Player { player_id } => Some(player_id.clone()),
-                            _ => None,
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    self.resolve_player(&effect["player"], stack_object, bindings)
+                        .filter(|player| !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>(),
+                    _ => self
+                        .resolve_player(&effect["player"], stack_object, bindings)
                         .into_iter()
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<_>>(),
                 };
                 let count = self
                     .runtime_numeric_expression(&effect["count"], stack_object, bindings, decisions)
@@ -36837,6 +37809,18 @@ impl GameEngine {
                                 added_subtypes.join(" ")
                             );
                         }
+                        let colors = effect["addColors"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(Value::as_str)
+                            .collect::<Vec<_>>();
+                        if !colors.is_empty() {
+                            permanent.definition.rules.push(json!({
+                                "kind": "rulesMarker",
+                                "colorIndicator": colors,
+                            }));
+                        }
                         permanent.definition.power =
                             integer_value(&effect["basePower"]).map(|value| value.to_string());
                         permanent.definition.toughness =
@@ -37314,32 +38298,39 @@ impl GameEngine {
                     .unwrap_or(candidates.len() as i32)
                     .max(0)
                     .min(candidates.len() as i32) as usize;
-                let mut values = Vec::new();
-                for count in 0..=maximum {
-                    values.extend(Self::resolution_selections(
-                        &candidates,
-                        count,
-                        128 - values.len(),
-                    ));
-                }
                 let selection_id = "namedCardsToExile";
-                self.make_resolution_decision(
-                    selection_id,
-                    &chooser_id,
-                    stack_object,
-                    DecisionChoice::CardSelection {
-                        decision_id: selection_id.to_string(),
-                        candidate_card_instance_ids: candidates,
-                        minimum: 0,
-                        maximum,
-                        prompt: format!(
-                            "Choose up to {maximum} cards named {chosen_name} to exile."
-                        ),
-                    },
-                    values,
-                    decisions,
-                    provider,
-                )?;
+                if effect["all"].as_bool() == Some(true) {
+                    decisions.insert(
+                        selection_id.to_string(),
+                        Value::Array(candidates.iter().cloned().map(Value::String).collect()),
+                    );
+                } else {
+                    let mut values = Vec::new();
+                    for count in 0..=maximum {
+                        values.extend(Self::resolution_selections(
+                            &candidates,
+                            count,
+                            128 - values.len(),
+                        ));
+                    }
+                    self.make_resolution_decision(
+                        selection_id,
+                        &chooser_id,
+                        stack_object,
+                        DecisionChoice::CardSelection {
+                            decision_id: selection_id.to_string(),
+                            candidate_card_instance_ids: candidates,
+                            minimum: 0,
+                            maximum,
+                            prompt: format!(
+                                "Choose up to {maximum} cards named {chosen_name} to exile."
+                            ),
+                        },
+                        values,
+                        decisions,
+                        provider,
+                    )?;
+                }
                 let selected = decisions[selection_id]
                     .as_array()
                     .into_iter()
@@ -37905,6 +38896,71 @@ impl GameEngine {
                             card.controller = player_id.clone();
                             card.tapped = tapped;
                             card.summoning_sick = true;
+                            let added_types = effect["to"]["addTypes"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter_map(Value::as_str)
+                                .filter(|card_type| {
+                                    !type_line_contains(&card.definition.type_line, card_type)
+                                })
+                                .collect::<Vec<_>>();
+                            if !added_types.is_empty() {
+                                card.definition.type_line = format!(
+                                    "{} {}",
+                                    card.definition.type_line,
+                                    added_types.join(" ")
+                                );
+                            }
+                            let added_subtypes = effect["to"]["addSubtypes"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter_map(Value::as_str)
+                                .filter(|subtype| {
+                                    !type_line_contains(&card.definition.type_line, subtype)
+                                })
+                                .collect::<Vec<_>>();
+                            if !added_subtypes.is_empty() {
+                                let separator = if card.definition.type_line.contains(" - ") {
+                                    " "
+                                } else {
+                                    " - "
+                                };
+                                card.definition.type_line = format!(
+                                    "{}{separator}{}",
+                                    card.definition.type_line,
+                                    added_subtypes.join(" ")
+                                );
+                            }
+                            if let Some(power) = integer_value(&effect["to"]["basePower"]) {
+                                card.definition.power = Some(power.to_string());
+                            }
+                            if let Some(toughness) = integer_value(&effect["to"]["baseToughness"]) {
+                                card.definition.toughness = Some(toughness.to_string());
+                            }
+                            for counter in effect["to"]["enterWithCounters"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                            {
+                                let Some(counter_name) = counter["counter"].as_str() else {
+                                    continue;
+                                };
+                                let count = self
+                                    .runtime_numeric_expression(
+                                        &counter["count"],
+                                        stack_object,
+                                        bindings,
+                                        decisions,
+                                    )
+                                    .unwrap_or(0)
+                                    .max(0);
+                                if count > 0 {
+                                    *card.counters.entry(counter_name.to_string()).or_default() +=
+                                        count;
+                                }
+                            }
                             self.apply_enter_replacements(&mut card, provider)?;
                             if tapped {
                                 card.tapped = true;
@@ -37965,6 +39021,25 @@ impl GameEngine {
                 self.record_event(
                     "ruleModifierInstalled",
                     Some(stack_object.controller.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    modifier,
+                );
+            }
+            Some("grantNoMaximumHandSize") => {
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let modifier = json!({
+                    "kind": "noMaximumHandSize",
+                    "playerId": player_id,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                });
+                self.state.rule_modifiers.push(modifier.clone());
+                self.record_event(
+                    "noMaximumHandSizeGranted",
+                    Some(player_id),
                     Some(stack_object.card.instance_id.clone()),
                     modifier,
                 );
@@ -39181,6 +40256,51 @@ impl GameEngine {
                         "faceDown": face_down,
                     }),
                 );
+            }
+            Some("exileLibrariesExceptBottom") => {
+                let retain_bottom = self
+                    .runtime_numeric_expression(
+                        &effect["retainBottom"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )
+                    .unwrap_or(0)
+                    .max(0) as usize;
+                let face_down = effect["faceDown"].as_bool().unwrap_or(false);
+                let player_ids = self
+                    .state
+                    .players
+                    .iter()
+                    .filter(|player| !player.has_lost)
+                    .map(|player| player.id.clone())
+                    .collect::<Vec<_>>();
+                for player_id in player_ids {
+                    let player_index = self.player_index(&player_id)?;
+                    let exile_count = self.state.players[player_index]
+                        .library
+                        .len()
+                        .saturating_sub(retain_bottom);
+                    let mut exiled_ids = Vec::with_capacity(exile_count);
+                    for _ in 0..exile_count {
+                        let Some(mut card) = self.state.players[player_index].library.pop() else {
+                            break;
+                        };
+                        card.flags.insert("faceDown".to_string(), face_down);
+                        exiled_ids.push(card.instance_id.clone());
+                        self.state.players[player_index].exile.push(card);
+                    }
+                    self.record_event(
+                        "libraryExiledExceptBottom",
+                        Some(player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({
+                            "cardIds": exiled_ids,
+                            "retainedBottom": retain_bottom,
+                            "faceDown": face_down,
+                        }),
+                    );
+                }
             }
             Some("grantCardPermission") => {
                 let Some(player_id) =
@@ -42838,6 +43958,96 @@ impl GameEngine {
                     }
                 }
             }
+            Some("lookAtHand") => {
+                let hand_owner = self.resolve_player(&effect["player"], stack_object, bindings);
+                let viewer = self.resolve_player(&effect["viewer"], stack_object, bindings);
+                if let (Some(hand_owner), Some(viewer)) = (hand_owner, viewer) {
+                    self.remember_looked_at_hand(&hand_owner, &viewer);
+                    self.record_event(
+                        "handLookedAt",
+                        Some(viewer),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "handOwnerId": hand_owner }),
+                    );
+                }
+            }
+            Some("chosenPlayersSearchLibrariesToTop") => {
+                let Some(targets_decision_id) = effect["targetsDecisionId"].as_str() else {
+                    return Ok(());
+                };
+                let target_player_ids = stack_object
+                    .targets
+                    .iter()
+                    .filter(|(target_id, _)| {
+                        target_id.as_str() == targets_decision_id
+                            || target_id.starts_with(&format!("{targets_decision_id}:"))
+                    })
+                    .filter_map(|(_, target)| match target {
+                        TargetRef::Player { player_id } => Some(player_id.clone()),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                for player_id in target_player_ids {
+                    let player_index = self.player_index(&player_id)?;
+                    let candidates = self.state.players[player_index]
+                        .library
+                        .iter()
+                        .map(|card| card.instance_id.clone())
+                        .collect::<Vec<_>>();
+                    let decision_id = format!("searchedLibraryCard:{player_id}");
+                    let mut values = vec![Vec::new()];
+                    values.extend(candidates.iter().cloned().map(|candidate| vec![candidate]));
+                    self.make_resolution_decision(
+                        &decision_id,
+                        &player_id,
+                        stack_object,
+                        DecisionChoice::CardSelection {
+                            decision_id: decision_id.clone(),
+                            candidate_card_instance_ids: candidates,
+                            minimum: 0,
+                            maximum: 1,
+                            prompt: "Search your library for a card to put on top.".to_string(),
+                        },
+                        values,
+                        decisions,
+                        provider,
+                    )?;
+                    let selected_id = decisions
+                        .get(&decision_id)
+                        .and_then(Value::as_array)
+                        .and_then(|cards| cards.first())
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned);
+                    let selected_card = selected_id.as_deref().and_then(|instance_id| {
+                        self.state.players[player_index]
+                            .library
+                            .iter()
+                            .position(|card| card.instance_id == instance_id)
+                            .map(|index| self.state.players[player_index].library.remove(index))
+                    });
+                    self.state.players[player_index]
+                        .library
+                        .shuffle(&mut self.rng);
+                    if let Some(card) = selected_card {
+                        self.state.players[player_index].library.push(card);
+                    }
+                    self.record_event(
+                        "librarySearchedToTop",
+                        Some(player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "selectedCardId": selected_id }),
+                    );
+                }
+            }
+            Some("installAdditionalManaOnLandTap") => {
+                self.state.rule_modifiers.push(json!({
+                    "kind": "additionalManaOnLandTap",
+                    "where": effect["where"],
+                    "mana": effect["mana"],
+                    "expiresAfterTurn": self.state.turn_number,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                }));
+            }
             Some("grantHandPlayPermission") => {
                 let permitted_player =
                     self.resolve_player(&effect["player"], stack_object, bindings);
@@ -43576,7 +44786,11 @@ impl GameEngine {
                     {
                         target.exile_on_leave_stack = true;
                     }
-                    self.counter_spell(&stack_id, &stack_object.card.instance_id)?;
+                    self.counter_spell(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                     let countered = !self.state.stack.iter().any(|object| object.id == stack_id);
                     if countered && let Some(target) = target {
                         if exile_instead && let Some(binding_id) = effect["bindExiledAs"].as_str() {
@@ -43639,7 +44853,11 @@ impl GameEngine {
                 if let Some(TargetRef::StackObject { stack_id }) =
                     self.resolve_target(&effect["object"], stack_object, bindings)
                 {
-                    self.counter_stack_object(&stack_id, &stack_object.card.instance_id)?;
+                    self.counter_stack_object(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                 }
             }
             Some("copyStackItem") => {
@@ -43665,6 +44883,113 @@ impl GameEngine {
                         self.choose_new_targets_for_copy(&copy_id, &chooser, provider)?;
                     }
                 }
+            }
+            Some("willOfCouncilCounterOrCopy") => {
+                let Some(TargetRef::StackObject { stack_id }) =
+                    self.resolve_target(&effect["spell"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let Some(starting_player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let start = self.player_index(&starting_player_id)?;
+                let voters = (0..self.state.players.len())
+                    .map(|offset| (start + offset) % self.state.players.len())
+                    .filter(|index| !self.state.players[*index].has_lost)
+                    .map(|index| self.state.players[index].id.clone())
+                    .collect::<Vec<_>>();
+                let counter_vote = effect["counterVote"].as_str().unwrap_or("denial");
+                let copy_vote = effect["copyVote"].as_str().unwrap_or("duplication");
+                let mut counter_votes = 0_usize;
+                let mut copy_votes = 0_usize;
+                for (index, voter) in voters.into_iter().enumerate() {
+                    let decision_id = format!("councilVote{index}");
+                    let options = [counter_vote, copy_vote]
+                        .into_iter()
+                        .map(|vote| LegalAction {
+                            id: format!("vote:{}:{index}:{vote}", stack_object.id),
+                            kind: ActionKind::ChooseResolution,
+                            player_id: voter.clone(),
+                            label: format!("Vote for {vote}"),
+                            card_instance_id: Some(stack_object.card.instance_id.clone()),
+                            payment_sources: Vec::new(),
+                            decisions: BTreeMap::from([(
+                                decision_id.clone(),
+                                Value::String(vote.to_string()),
+                            )]),
+                            targets: BTreeMap::new(),
+                            target_order: Vec::new(),
+                            attacker_id: None,
+                            blocker_id: None,
+                        })
+                        .collect::<Vec<_>>();
+                    let choice = self.choose_action(
+                        provider,
+                        EngineDecisionRequest {
+                            id: format!("councilVote:{}:{index}", stack_object.id),
+                            kind: DecisionKind::ResolutionChoice,
+                            player_id: voter.clone(),
+                            source_card: Some(stack_object.card.clone()),
+                            source_card_instance_id: Some(stack_object.card.instance_id.clone()),
+                            choice: None,
+                            options,
+                        },
+                    )?;
+                    let vote = choice
+                        .decisions
+                        .get(&decision_id)
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| EngineError::new("council vote choice is missing"))?;
+                    match vote {
+                        value if value == counter_vote => counter_votes += 1,
+                        value if value == copy_vote => copy_votes += 1,
+                        _ => return Err(EngineError::new("invalid council vote choice")),
+                    }
+                    self.record_event(
+                        "councilVoteCast",
+                        Some(voter),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "vote": vote, "stackId": stack_id }),
+                    );
+                }
+                if counter_votes > copy_votes {
+                    self.counter_stack_object(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
+                } else if let Some(copy_id) = self.copy_stack_object(&stack_id) {
+                    if let Some(copy) = self
+                        .state
+                        .stack
+                        .iter_mut()
+                        .find(|object| object.id == copy_id)
+                    {
+                        copy.controller = stack_object.controller.clone();
+                        copy.card.controller = stack_object.controller.clone();
+                    }
+                    if effect["mayChooseNewTargets"].as_bool() == Some(true) {
+                        self.choose_new_targets_for_copy(
+                            &copy_id,
+                            &stack_object.controller,
+                            provider,
+                        )?;
+                    }
+                }
+                self.record_event(
+                    "councilVoteResolved",
+                    Some(stack_object.controller.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({
+                        "counterVotes": counter_votes,
+                        "copyVotes": copy_votes,
+                        "result": if counter_votes > copy_votes { "counter" } else { "copy" },
+                        "stackId": stack_id,
+                    }),
+                );
             }
             Some("copyResolvingStackObject") => {
                 let copy_id = self.copy_stack_object_value(stack_object, &stack_object.id);
@@ -44153,7 +45478,11 @@ impl GameEngine {
                     {
                         target.exile_on_leave_stack = true;
                     }
-                    self.counter_stack_object(&target_stack_id, &stack_object.card.instance_id)?;
+                    self.counter_stack_object(
+                        &target_stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                 }
             }
             Some("conditional" | "conditionalEffect") => {
@@ -45496,7 +46825,12 @@ impl GameEngine {
         Ok(())
     }
 
-    fn counter_stack_object(&mut self, stack_id: &str, source: &str) -> Result<(), EngineError> {
+    fn counter_stack_object(
+        &mut self,
+        stack_id: &str,
+        source: &str,
+        source_controller: &str,
+    ) -> Result<(), EngineError> {
         let Some(index) = self
             .state
             .stack
@@ -45550,6 +46884,7 @@ impl GameEngine {
                 "destination": destination,
                 "objectKind": object_kind,
                 "source": source,
+                "counterSourceControllerId": source_controller,
                 "stackId": stack_id,
             }),
         );
@@ -45570,7 +46905,12 @@ impl GameEngine {
         Ok(())
     }
 
-    fn counter_spell(&mut self, stack_id: &str, source: &str) -> Result<(), EngineError> {
+    fn counter_spell(
+        &mut self,
+        stack_id: &str,
+        source: &str,
+        source_controller: &str,
+    ) -> Result<(), EngineError> {
         let is_spell = self
             .state
             .stack
@@ -45580,7 +46920,7 @@ impl GameEngine {
         if !is_spell {
             return Ok(());
         }
-        self.counter_stack_object(stack_id, source)
+        self.counter_stack_object(stack_id, source, source_controller)
     }
 
     fn create_token_copy<P: DecisionProvider>(
@@ -49414,7 +50754,11 @@ impl GameEngine {
                     candidates,
                     "Choose an instant or sorcery spell to counter.",
                 )? {
-                    self.counter_stack_object(&stack_id, &stack_object.card.instance_id)?;
+                    self.counter_stack_object(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                 }
             }
             "kheruSpellsnatcherCounter" => {
@@ -49446,7 +50790,11 @@ impl GameEngine {
                     {
                         target.exile_on_leave_stack = true;
                     }
-                    self.counter_stack_object(&stack_id, &stack_object.card.instance_id)?;
+                    self.counter_stack_object(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                     if let Some(card_instance_id) = countered_card_id
                         && self.state.players.iter().any(|player| {
                             player
@@ -56786,7 +58134,11 @@ impl GameEngine {
                     return Ok(());
                 };
                 let amount = mana_value_with_decisions(&target.card.definition, &target.decisions);
-                self.counter_stack_object(stack_id, &stack_object.card.instance_id)?;
+                self.counter_stack_object(
+                    stack_id,
+                    &stack_object.card.instance_id,
+                    &stack_object.controller,
+                )?;
                 let active_player_id = self.state.players[self.state.active_player].id.as_str();
                 let before_first_main = active_player_id == controller_id
                     && matches!(
@@ -59453,6 +60805,7 @@ impl GameEngine {
                                 self.counter_stack_object(
                                     &stack_id,
                                     &stack_object.card.instance_id,
+                                    &stack_object.controller,
                                 )?;
                             }
                         }
@@ -59815,7 +61168,11 @@ impl GameEngine {
                     })
                     .collect::<Vec<_>>();
                 for stack_id in stack_ids.into_iter().take(4) {
-                    self.counter_stack_object(&stack_id, &stack_object.card.instance_id)?;
+                    self.counter_stack_object(
+                        &stack_id,
+                        &stack_object.card.instance_id,
+                        &stack_object.controller,
+                    )?;
                 }
             }
             "katarasReversalUntap" => {
@@ -64026,13 +65383,15 @@ impl GameEngine {
         self.transition_to_step(GameStep::Cleanup);
         let active = self.state.active_player;
         let active_player_id = self.state.players[active].id.clone();
-        let no_maximum_hand_size =
-            self.battlefield_static_modifiers()
-                .into_iter()
-                .any(|(source, modifier)| {
-                    value_kind(&modifier) == Some("noMaximumHandSize")
-                        && source.controller == active_player_id
-                });
+        let no_maximum_hand_size = self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some("noMaximumHandSize")
+                && modifier["playerId"].as_str() == Some(active_player_id.as_str())
+        }) || self.battlefield_static_modifiers().into_iter().any(
+            |(source, modifier)| {
+                value_kind(&modifier) == Some("noMaximumHandSize")
+                    && source.controller == active_player_id
+            },
+        );
         let configured_maximum_hand_size = self
             .battlefield_static_modifiers()
             .into_iter()

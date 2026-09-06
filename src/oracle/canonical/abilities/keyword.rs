@@ -220,6 +220,24 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
             ],
         ));
     }
+    let read_ahead_re = Regex::new(
+        r"(?i)^Read ahead(?: \(Choose a chapter and start with that many lore counters\. Add one after your draw step\. Skipped chapters don't trigger\. Sacrifice after [IVX]+\.\))?$",
+    )
+    .expect("read ahead keyword regex compiles");
+    if read_ahead_re.is_match(text) {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": { "kind": "readAhead" },
+            }),
+            &[
+                "Recognize Read ahead",
+                "Choose the Saga's initial lore-counter count",
+                "Trigger only the chosen starting chapter",
+            ],
+        ));
+    }
     let splice_text = text
         .split_once(" (")
         .filter(|(_, reminder)| reminder.ends_with(')'))

@@ -160,6 +160,40 @@ pub(in crate::oracle::canonical) fn parse_counter_spell(text: &str) -> Option<Ca
     } else {
         text
     };
+    if text.eq_ignore_ascii_case("Counter target spell if no mana was spent to cast it.") {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetSpell",
+                        json!({ "kind": "spells" }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "noManaSpentToCastTargetSpell",
+                        "spell": chosen_target("targetSpell"),
+                    },
+                    "then": [{
+                        "kind": "counterSpell",
+                        "spell": chosen_target("targetSpell"),
+                    }],
+                    "else": [],
+                }],
+            }),
+            &[
+                "Declare the spell target",
+                "Inspect the mana actually spent to cast it",
+                "Counter it only when that amount is zero",
+            ],
+        ));
+    }
     let counter_rule = |criteria: Option<&str>, mut effect: Value| {
         let mut candidates = json!({ "kind": "spells" });
         if let Some(criteria) = criteria {
