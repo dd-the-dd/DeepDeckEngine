@@ -456,6 +456,22 @@ impl<P: DecisionProvider> DecisionProvider for LoopShortcutDecisionProvider<'_, 
         self.inner.choose_number(state, request)
     }
 
+    fn choose_card_instance_ids(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<Vec<String>, EngineError> {
+        self.inner.choose_card_instance_ids(state, request)
+    }
+
+    fn choose_card_name(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<String, EngineError> {
+        self.inner.choose_card_name(state, request)
+    }
+
     fn requests_explicit_priority_pass(&self, player_id: &str) -> bool {
         self.inner.requests_explicit_priority_pass(player_id)
     }
