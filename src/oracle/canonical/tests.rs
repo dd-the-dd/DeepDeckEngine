@@ -170,6 +170,34 @@ fn bounded_free_cast_from_hand_composes_spell_criteria_and_runtime_arithmetic() 
 }
 
 #[test]
+fn multiplicative_numeric_prefixes_build_factors_through_ten() {
+    for (word, factor) in [
+        ("twice", 2),
+        ("double", 2),
+        ("two times", 2),
+        ("thrice", 3),
+        ("triple", 3),
+        ("three times", 3),
+        ("quadruple", 4),
+        ("four times", 4),
+        ("five times", 5),
+        ("six times", 6),
+        ("seven times", 7),
+        ("eight times", 8),
+        ("nine times", 9),
+        ("ten times", 10),
+    ] {
+        let expression = parse_numeric_expression_text(&format!("{word} X"))
+            .unwrap_or_else(|| panic!("{word} should be a numeric multiplier"));
+        assert_eq!(expression["kind"], "multiply", "{word}");
+        assert!(
+            expression["left"] == integer(factor) || expression["right"] == integer(factor),
+            "{word}: {expression:#}"
+        );
+    }
+}
+
+#[test]
 fn controlled_counted_lord_bonus_composes_selectors_criteria_and_scaling() {
     let parsed = parse_common_static_ability(
         "Other Dwarves you control get +1/+0 for each artifact token you control.",
@@ -351,6 +379,10 @@ fn fetch_land_subtype_lists_strip_indefinite_articles_from_every_alternative() {
     for (text, expected) in [
         (
             "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
+            ["Island", "Swamp"],
+        ),
+        (
+            "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or a Swamp card, put it onto the battlefield, then shuffle.",
             ["Island", "Swamp"],
         ),
         (

@@ -535,7 +535,7 @@ pub(in crate::oracle::canonical) fn parse_composed_entry_triggered(
         ));
     }
     let linked_exile_re = Regex::new(
-        r"^When this (?:Aura|enchantment|creature) enters, exile (up to one )?(another )?target (.+) until this (?:Aura|enchantment|creature) leaves the battlefield(?:\. \(.+\))?\.$",
+        r"^When this (?:Aura|artifact|enchantment|creature) enters, exile (up to one )?(another )?target (.+) until this (?:Aura|artifact|enchantment|creature) leaves the battlefield(?:\. \(.+\))?\.$",
     )
     .expect("linked exile trigger regex compiles");
     if let Some(captures) = linked_exile_re.captures(text) {

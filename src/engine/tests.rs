@@ -901,6 +901,50 @@ impl DecisionProvider for CountedLoopDecisionProvider {
 }
 
 #[derive(Default)]
+struct CountedCastLoopDecisionProvider {
+    number_requests: usize,
+}
+
+impl DecisionProvider for CountedCastLoopDecisionProvider {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let preferred = if request.kind == DecisionKind::Priority && state.stack.is_empty() {
+            ActionKind::CastSpell
+        } else {
+            ActionKind::PassPriority
+        };
+        request
+            .options
+            .iter()
+            .position(|action| action.kind == preferred)
+            .or_else(|| {
+                request
+                    .options
+                    .iter()
+                    .position(|action| action.kind == ActionKind::PassPriority)
+            })
+            .ok_or_else(|| EngineError::new("counted cast loop test has no option"))
+    }
+
+    fn choose_number(
+        &mut self,
+        _state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<i32, EngineError> {
+        assert_eq!(decision_number_bounds(request), Some((0, 100)));
+        self.number_requests += 1;
+        Ok(3)
+    }
+
+    fn requests_explicit_priority_pass(&self, _player_id: &str) -> bool {
+        true
+    }
+}
+
+#[derive(Default)]
 struct MultipleBlockersDecisionProvider {
     attackers_declared: usize,
     blockers_declared: usize,
@@ -3479,6 +3523,433 @@ fn graveyard_destination_replacement_applies_from_any_zone_without_death_trigger
             .graveyard
             .iter()
             .any(|card| card.instance_id == "controller-library-card")
+    );
+}
+
+#[test]
+fn stacked_mill_multipliers_apply_to_opponents_only() {
+    let mut engine = test_engine(2);
+    let mut bruvac = test_definition("bruvac", "Legendary Creature - Human Advisor");
+    bruvac.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [{
+            "kind": "multiplyMill",
+            "players": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "factor": { "kind": "integer", "value": 2 },
+        }],
+    })];
+    engine.state.players[0].battlefield = (0..4)
+        .map(|index| test_instance(&format!("bruvac-{index}"), bruvac.clone(), "player-0"))
+        .collect();
+    engine.state.players[1].library = (0..20)
+        .map(|index| {
+            let id = format!("opponent-library-{index}");
+            test_instance(&id, test_definition(&id, "Instant"), "player-1")
+        })
+        .collect();
+
+    engine
+        .mill_cards("player-1", 1, Some("player-0"))
+        .expect("four Bruvacs multiply one mill event by sixteen");
+    assert_eq!(engine.state.players[1].graveyard.len(), 16);
+    assert_eq!(engine.state.players[1].library.len(), 4);
+
+    let controller_library_before = engine.state.players[0].library.len();
+    engine
+        .mill_cards("player-0", 1, Some("player-0"))
+        .expect("Bruvac does not multiply its controller's mill");
+    assert_eq!(
+        engine.state.players[0].library.len(),
+        controller_library_before - 1
+    );
+}
+
+#[test]
+fn profane_memento_triggers_once_for_each_matching_milled_card() {
+    let mut engine = test_engine(2);
+    let mut memento = test_definition("profane-memento", "Artifact");
+    memento.rules = vec![json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+            "kind": "opponentCardEnteredGraveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+        },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "abilityController" },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    })];
+    engine.state.players[0].battlefield =
+        vec![test_instance("profane-memento", memento, "player-0")];
+    engine.state.players[1].library = vec![
+        test_instance(
+            "milled-creature-a",
+            test_definition("milled-creature-a", "Creature - Beast"),
+            "player-1",
+        ),
+        test_instance(
+            "milled-instant",
+            test_definition("milled-instant", "Instant"),
+            "player-1",
+        ),
+        test_instance(
+            "milled-creature-b",
+            test_definition("milled-creature-b", "Artifact Creature - Robot"),
+            "player-1",
+        ),
+    ];
+    let life_before = engine.state.players[0].life;
+
+    engine
+        .mill_cards("player-1", 3, Some("player-0"))
+        .expect("the three cards are milled");
+    assert_eq!(engine.state.stack.len(), 2);
+    while !engine.state.stack.is_empty() {
+        engine
+            .resolve_top_stack(&mut EmeritusDecisionProvider)
+            .expect("each Profane Memento trigger resolves");
+    }
+    assert_eq!(engine.state.players[0].life, life_before + 2);
+}
+
+#[test]
+fn linked_exiled_creatures_return_with_entering_characteristics() {
+    let mut engine = test_engine(2);
+    let source = test_instance(
+        "ghost-vacuum",
+        test_definition("ghost-vacuum", "Artifact"),
+        "player-0",
+    );
+    let creature = test_instance(
+        "vacuumed-creature",
+        test_definition("vacuumed-creature", "Creature - Beast"),
+        "player-1",
+    );
+    let instant = test_instance(
+        "vacuumed-instant",
+        test_definition("vacuumed-instant", "Instant"),
+        "player-1",
+    );
+    engine.state.players[1].exile = vec![creature, instant];
+    for card_id in ["vacuumed-creature", "vacuumed-instant"] {
+        engine.state.rule_modifiers.push(json!({
+            "kind": "exiledWithSource",
+            "sourceCardInstanceId": "ghost-vacuum",
+            "cardInstanceId": card_id,
+        }));
+    }
+    let stack_object = StackObject {
+        id: "stack:ghost-vacuum".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let effect = json!({
+        "kind": "moveCards",
+        "cards": {
+            "kind": "filterObjects",
+            "objects": { "kind": "cardsExiledWithSource" },
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+        },
+        "to": {
+            "kind": "battlefield",
+            "player": { "kind": "abilityController" },
+            "tapped": false,
+            "enterWithCounters": [{
+                "counter": "flying",
+                "count": { "kind": "integer", "value": 1 },
+            }],
+            "addTypes": ["Creature"],
+            "addSubtypes": ["Spirit"],
+            "basePower": { "kind": "integer", "value": 1 },
+            "baseToughness": { "kind": "integer", "value": 1 },
+            "retainExistingTypes": true,
+        },
+    });
+
+    engine
+        .execute_effect(
+            &effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the linked creature return resolves");
+
+    let returned = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "vacuumed-creature")
+        .expect("the linked creature returns under the ability controller's control");
+    assert_eq!(returned.controller, "player-0");
+    assert_eq!(returned.definition.power.as_deref(), Some("1"));
+    assert_eq!(returned.definition.toughness.as_deref(), Some("1"));
+    assert!(type_line_contains(&returned.definition.type_line, "Spirit"));
+    assert_eq!(returned.counters.get("flying"), Some(&1));
+    assert!(
+        engine.state.players[1]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "vacuumed-instant")
+    );
+}
+
+#[test]
+fn high_tide_adds_blue_mana_only_to_tapped_islands() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        mana_source("island", "Basic Land - Island", "{U}", None),
+        mana_source("wastes", "Basic Land - Wastes", "{C}", None),
+    ];
+    let stack_object = StackObject {
+        id: "stack:high-tide".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "high-tide",
+            test_definition("high-tide", "Instant"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .execute_effect(
+            &json!({
+                "kind": "installAdditionalManaOnLandTap",
+                "where": { "kind": "subtypeContains", "value": "Island" },
+                "mana": "U",
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            }),
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("High Tide installs its temporary mana modifier");
+
+    let island_action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| action.card_instance_id.as_deref() == Some("island"))
+        .expect("the Island has a mana action");
+    engine
+        .apply_priority_action(&island_action, &mut EmeritusDecisionProvider)
+        .expect("the Island mana ability resolves");
+    assert_eq!(
+        engine.state.players[0]
+            .mana_pool
+            .iter()
+            .map(|mana| mana.symbol.as_str())
+            .collect::<Vec<_>>(),
+        vec!["U", "U"]
+    );
+
+    let wastes_action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| action.card_instance_id.as_deref() == Some("wastes"))
+        .expect("Wastes has a mana action");
+    engine
+        .apply_priority_action(&wastes_action, &mut EmeritusDecisionProvider)
+        .expect("the non-Island mana ability resolves");
+    assert_eq!(
+        engine.state.players[0]
+            .mana_pool
+            .iter()
+            .map(|mana| mana.symbol.as_str())
+            .collect::<Vec<_>>(),
+        vec!["U", "U", "C"]
+    );
+}
+
+#[test]
+fn doomsday_exiles_each_library_except_its_bottom_cards() {
+    let mut engine = test_engine(2);
+    for (player_index, count) in [(0, 10), (1, 8)] {
+        let owner = format!("player-{player_index}");
+        engine.state.players[player_index].library = (0..count)
+            .map(|index| {
+                let id = format!("{owner}-library-{index}");
+                test_instance(&id, test_definition(&id, "Instant"), &owner)
+            })
+            .collect();
+    }
+    let source = test_instance(
+        "doomsday-excruciator",
+        test_definition("doomsday-excruciator", "Creature - Demon"),
+        "player-0",
+    );
+    let stack_object = StackObject {
+        id: "stack:doomsday-excruciator".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let effect = json!({
+        "kind": "exileLibrariesExceptBottom",
+        "players": { "kind": "eachPlayer" },
+        "retainBottom": { "kind": "integer", "value": 6 },
+        "faceDown": true,
+    });
+
+    engine
+        .execute_effect(
+            &effect,
+            None,
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Doomsday Excruciator's library effect resolves");
+
+    assert_eq!(engine.state.players[0].library.len(), 6);
+    assert_eq!(engine.state.players[1].library.len(), 6);
+    assert_eq!(engine.state.players[0].exile.len(), 4);
+    assert_eq!(engine.state.players[1].exile.len(), 2);
+    assert!(
+        engine
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.exile.iter())
+            .all(|card| card.flags.get("faceDown") == Some(&true))
+    );
+}
+
+#[test]
+fn trap_alternative_cost_conditions_use_turn_history() {
+    let mut engine = test_engine(2);
+    let ravenous_condition = json!({
+        "kind": "opponentCardsEnteredGraveyardThisTurn",
+        "minimum": { "kind": "integer", "value": 3 },
+    });
+    engine.record_event(
+        "cardsEnteredGraveyard",
+        Some("player-1".to_string()),
+        None,
+        json!({ "cardIds": ["grave-a", "grave-b"] }),
+    );
+    assert!(!engine.condition_value(&ravenous_condition, "player-0", &BTreeMap::new()));
+    engine.record_event(
+        "cardsEnteredGraveyard",
+        Some("player-1".to_string()),
+        None,
+        json!({ "cardIds": ["grave-c"] }),
+    );
+    assert!(engine.condition_value(&ravenous_condition, "player-0", &BTreeMap::new()));
+
+    let countered_creature = test_instance(
+        "countered-creature",
+        test_definition("countered-creature", "Creature - Beast"),
+        "player-0",
+    );
+    engine.state.players[0].graveyard.push(countered_creature);
+    let summoning_condition = json!({
+        "kind": "controlledSpellCounteredByOpponentThisTurn",
+        "where": { "kind": "cardTypeContains", "value": "Creature" },
+    });
+    engine.record_event(
+        "spellCountered",
+        Some("player-0".to_string()),
+        Some("countered-creature".to_string()),
+        json!({
+            "objectKind": "spell",
+            "counterSourceControllerId": "player-1",
+        }),
+    );
+    assert!(engine.condition_value(&summoning_condition, "player-0", &BTreeMap::new()));
+    assert!(!engine.condition_value(&summoning_condition, "player-1", &BTreeMap::new()));
+}
+
+#[test]
+fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
+    let mut engine = test_engine(2);
+    let copied = test_instance(
+        "graveyard-wizard",
+        test_definition("Graveyard Wizard", "Creature - Wizard"),
+        "player-1",
+    );
+    engine.state.players[1].graveyard.push(copied);
+    let mut entering_definition = test_definition(
+        "Superior Spider-Man",
+        "Legendary Creature - Spider Human Hero",
+    );
+    entering_definition.rules = vec![json!({
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+        "decisions": [{
+            "id": "graveyardEntryCopy",
+            "kind": "chooseGraveyardCard",
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+            "optional": true,
+        }],
+        "replacement": [{
+            "kind": "copyEnteringGraveyardCard",
+            "decisionId": "graveyardEntryCopy",
+            "name": "Superior Spider-Man",
+            "basePower": { "kind": "integer", "value": 4 },
+            "baseToughness": { "kind": "integer", "value": 4 },
+            "addTypes": ["Spider", "Human", "Hero"],
+            "exileChosenCard": true,
+        }],
+    })];
+    let mut entering = test_instance("superior-spider-man", entering_definition, "player-0");
+    let decisions = BTreeMap::from([(
+        "graveyardEntryCopy".to_string(),
+        json!(["graveyard-wizard"]),
+    )]);
+
+    engine
+        .apply_enter_replacements_with_decisions(
+            &mut entering,
+            &mut EmeritusDecisionProvider,
+            &decisions,
+        )
+        .expect("Superior Spider-Man's entry replacement resolves");
+
+    assert_eq!(entering.definition.name, "Superior Spider-Man");
+    assert_eq!(entering.definition.power.as_deref(), Some("4"));
+    assert_eq!(entering.definition.toughness.as_deref(), Some("4"));
+    for subtype in ["Wizard", "Spider", "Human", "Hero"] {
+        assert!(type_line_contains(&entering.definition.type_line, subtype));
+    }
+    assert!(engine.state.players[1].graveyard.is_empty());
+    assert!(
+        engine.state.players[1]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "graveyard-wizard")
     );
 }
 
@@ -9784,6 +10255,99 @@ fn repeated_priority_action_uses_the_chosen_iteration_count() {
 }
 
 #[test]
+fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+
+    let mut aluren = test_definition("aluren", "Enchantment");
+    aluren.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "modifiers": [{
+            "kind": "castingPermission",
+            "players": { "kind": "eachPlayer" },
+            "sourceZone": "hand",
+            "where": {
+                "kind": "and",
+                "operands": [
+                    { "kind": "cardTypeContains", "value": "Creature" },
+                    {
+                        "kind": "compare",
+                        "operator": "<=",
+                        "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                        "right": { "kind": "integer", "value": 3 }
+                    }
+                ]
+            },
+            "withoutPayingManaCost": true,
+            "asThoughFlash": true
+        }]
+    })];
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("aluren", aluren, "player-0"));
+
+    let mut acererak = test_definition(
+        "acererak-progress-loop",
+        "Legendary Creature - Zombie Wizard",
+    );
+    acererak.name = "Acererak the Archlich".to_string();
+    acererak.mana_cost = "{2}{B}".to_string();
+    acererak.rules = vec![json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+        "effects": [
+            { "kind": "returnToOwnersHand", "object": { "kind": "self" } },
+            {
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 }
+            },
+            {
+                "kind": "loseLife",
+                "player": {
+                    "kind": "opponentsOf",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                },
+                "amount": { "kind": "integer", "value": 1 }
+            }
+        ]
+    })];
+    engine.state.players[0].hand = vec![test_instance(
+        "acererak-progress-loop",
+        acererak,
+        "player-0",
+    )];
+    let library_before = engine.state.players[0].library.len();
+    let mut provider = CountedCastLoopDecisionProvider::default();
+
+    engine
+        .run_priority_window(&mut provider)
+        .expect("the changing Acererak-style loop uses the chosen bounded count");
+
+    assert_eq!(provider.number_requests, 1);
+    assert_eq!(
+        engine
+            .state
+            .events
+            .iter()
+            .filter(|event| event.kind == "spellCast")
+            .count(),
+        4
+    );
+    assert_eq!(engine.state.players[0].library.len(), library_before - 4);
+    assert_eq!(engine.state.players[1].life, 16);
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "loopIterationCountChosen"
+            && event.detail["iterations"] == 3
+            && event.detail["loopKind"] == "boundedProgressLoop"
+            && event.detail["stateNonDepleting"] == false
+            && event.detail["iterationsAreExecuted"] == true
+    }));
+}
+
+#[test]
 fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     let mut engine = test_engine(2);
     let mut source = test_definition("finite-token-source", "Artifact");
@@ -14568,7 +15132,7 @@ fn countered_offspring_spell_never_creates_a_copy() {
         .expect("cast with offspring");
     let stack_id = engine.state.stack[0].id.clone();
     engine
-        .counter_stack_object(&stack_id, "counterspell")
+        .counter_stack_object(&stack_id, "counterspell", "player-1")
         .expect("counter offspring spell");
 
     assert!(engine.state.stack.is_empty());
@@ -18043,6 +18607,11 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
             "player-0",
         ),
         test_instance(
+            "ineligible-ancient-tomb",
+            test_definition("Ancient Tomb", "Land"),
+            "player-0",
+        ),
+        test_instance(
             "ineligible-forest",
             test_definition("ineligible-forest", "Land - Forest"),
             "player-0",
@@ -18086,6 +18655,12 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
             .library
             .iter()
             .any(|card| card.instance_id == "ineligible-forest")
+    );
+    assert!(
+        engine.state.players[0]
+            .library
+            .iter()
+            .any(|card| card.instance_id == "ineligible-ancient-tomb")
     );
 }
 

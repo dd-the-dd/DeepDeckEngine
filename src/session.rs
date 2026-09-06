@@ -519,6 +519,28 @@ impl<P: DecisionProvider> DecisionProvider for HistoryDecisionProvider<P> {
     fn is_cancelled(&self) -> bool {
         self.inner.is_cancelled()
     }
+
+    fn choose_loop_shortcut_policy(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let started = Instant::now();
+        let result = self.inner.choose_loop_shortcut_policy(state, request);
+        let (selected, error) = match &result {
+            Ok(index) => (
+                request
+                    .options
+                    .get(*index)
+                    .map(|action| serde_json::to_value(action).expect("legal action serializes"))
+                    .unwrap_or_else(|| serde_json::json!({ "optionIndex": index })),
+                None,
+            ),
+            Err(error) => (serde_json::Value::Null, Some(error.to_string())),
+        };
+        self.publish_decision(state, request, selected, started.elapsed(), error);
+        result
+    }
 }
 
 struct GameSessionHandle {
@@ -692,6 +714,14 @@ impl DecisionProvider for InteractiveDecisionProvider {
             )));
         }
         Ok(selected)
+    }
+
+    fn choose_loop_shortcut_policy(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        self.choose(state, request)
     }
 
     fn choose_card_instance_ids(

@@ -35,6 +35,112 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         )
     };
 
+    let mill_multiplier_re = Regex::new(&format!(
+        r"(?i)^If an opponent would mill one or more cards, they mill ({}) that many cards instead\.(?: \(.+\))?$",
+        multiplicative_word_pattern(),
+    ))
+    .expect("opponent mill multiplier regex compiles");
+    if let Some(captures) = mill_multiplier_re.captures(text) {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyMill",
+            "players": { "kind": "opponentsOf", "player": controller() },
+            "factor": integer(parse_multiplicative_word(&captures[1])?),
+        })]));
+    }
+
+    let graveyard_entry_copy_re = Regex::new(
+        r"(?i)^You may have (.+?) enter as a copy of any (.+?) card in a graveyard, except (?:his|her|its|their) name is (.+?) and (?:he's|she's|it's|they're) a (\d+)/(\d+) (.+?) in addition to (?:his|her|its|their) other types\. When you do, exile that card\.$",
+    )
+    .expect("graveyard entry-copy replacement regex compiles");
+    if let Some(captures) = graveyard_entry_copy_re.captures(strip_short_oracle_label(text))
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "graveyardEntryCopy",
+                    "kind": "chooseGraveyardCard",
+                    "where": parse_permanent_criteria(captures.get(2)?.as_str(), face_name)?,
+                    "optional": true,
+                }],
+                "replacement": [{
+                    "kind": "copyEnteringGraveyardCard",
+                    "decisionId": "graveyardEntryCopy",
+                    "name": captures.get(3)?.as_str(),
+                    "basePower": integer(captures[4].parse::<i64>().ok()?),
+                    "baseToughness": integer(captures[5].parse::<i64>().ok()?),
+                    "addTypes": captures.get(6)?.as_str().split_whitespace().collect::<Vec<_>>(),
+                    "exileChosenCard": true,
+                }],
+            }),
+            &[
+                "Choose an optional matching card from any graveyard",
+                "Copy its copiable values while applying the named exceptions",
+                "Exile the copied graveyard card",
+            ],
+        ));
+    }
+
+    let conditional_unblockable_re = Regex::new(
+        r"(?i)^This creature can't be blocked if (?:a|an) (.+?) entered the battlefield under your control this turn\.$",
+    )
+    .expect("conditional unblockable entry regex compiles");
+    if let Some(captures) = conditional_unblockable_re.captures(text) {
+        return Some(static_rule(vec![json!({
+            "kind": "cantBeBlocked",
+            "object": self_ref(),
+            "condition": compare(
+                ">=",
+                json!({
+                    "kind": "countEventsThisTurn",
+                    "event": "permanentEnteredBattlefield",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                }),
+                integer(1),
+            ),
+        })]));
+    }
+
+    let opening_hand_reveal_mill_re = Regex::new(&format!(
+        r"(?i)^You may reveal this card from your opening hand\. If you do, at the beginning of the first upkeep, each opponent mills ({}) cards?\.$",
+        count_word_pattern(),
+    ))
+    .expect("opening-hand reveal mill regex compiles");
+    if let Some(captures) = opening_hand_reveal_mill_re.captures(text) {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "triggerZone": "hand",
+                "event": {
+                    "kind": "stepBegan",
+                    "step": "upkeep",
+                    "player": { "kind": "eachPlayer" },
+                    "firstOnly": true,
+                },
+                "effects": [{
+                    "kind": "optionalEffects",
+                    "player": controller(),
+                    "revealSource": true,
+                    "effects": [{
+                        "kind": "millEachPlayer",
+                        "players": { "kind": "opponentsOf", "player": controller() },
+                        "count": integer(parse_number_word(&captures[1])?),
+                    }],
+                }],
+            }),
+            &[
+                "Recognize an opening-hand reveal ability",
+                "Schedule it only for the first upkeep",
+                "Mill each opponent when the reveal is chosen",
+            ],
+        ));
+    }
+
     // Ability-word conditions such as Threshold must be handled before broad
     // subject/keyword grammars can mistake the tail ("can't block") for a
     // standalone restriction.
@@ -6437,16 +6543,13 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             ],
         ));
     }
-    let controlled_token_multiplier_re = Regex::new(
-        r"(?i)^If (?:an effect would create one or more tokens|one or more (?:creature )?tokens would be created) under your control, (?:it creates )?(twice|three times) that many of those tokens (?:are created )?instead\.$",
-    )
+    let controlled_token_multiplier_re = Regex::new(&format!(
+        r"(?i)^If (?:an effect would create one or more tokens|one or more (?:creature )?tokens would be created) under your control, (?:it creates )?({}) that many of those tokens (?:are created )?instead\.$",
+        multiplicative_word_pattern(),
+    ))
     .expect("controlled token multiplier regex compiles");
     if let Some(captures) = controlled_token_multiplier_re.captures(text) {
-        let factor = if captures[1].eq_ignore_ascii_case("twice") {
-            2
-        } else {
-            3
-        };
+        let factor = parse_multiplicative_word(&captures[1])?;
         return Some(draft(
             json!({
                 "kind": "staticAbility",
@@ -6460,7 +6563,7 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             }),
             &[
                 "Resolve token-creation replacement",
-                "Double created quantity",
+                "Multiply the created quantity",
             ],
         ));
     }

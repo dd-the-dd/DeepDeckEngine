@@ -841,8 +841,8 @@ pub(in crate::oracle::canonical) fn parse_generalized_zone_and_combat_ability(
             })
             .collect::<Option<Vec<_>>>()?;
         let instruction = captures.get(2)?.as_str().trim();
-        let (effects, decisions) = parse_general_effect_instruction(instruction, face_name)
-            .or_else(|| parse_general_effect_sequence(instruction, face_name))?;
+        let (effects, decisions) = parse_general_effect_sequence(instruction, face_name)
+            .or_else(|| parse_general_effect_instruction(instruction, face_name))?;
         let mut rule = json!({
             "kind": "triggeredAbility",
             "source": self_ref(),

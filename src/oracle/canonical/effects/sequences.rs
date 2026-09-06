@@ -4,6 +4,76 @@ pub(in crate::oracle::canonical) fn parse_top_card_partition_sequence(
     instruction: &str,
     face_name: &str,
 ) -> Option<(Vec<Value>, Vec<Value>)> {
+    let optional_matching_to_battlefield_re = Regex::new(&format!(
+        r"(?i)^Look at the top ({}) cards? of your library\. You may put (?:a|an) (.+?) card from among them onto the battlefield( tapped)?\. Put the rest on the bottom of your library in (a random order|any order)\.$",
+        count_word_pattern(),
+    ))
+    .expect("optional top-card creature deployment regex compiles");
+    if let Some(captures) = optional_matching_to_battlefield_re.captures(instruction) {
+        let selected = decision_result("cardForBattlefield");
+        let remainder = json!({
+            "kind": "setDifference",
+            "left": bound_objects("lookedCards"),
+            "right": selected,
+        });
+        let mut effects = vec![
+            json!({
+                "kind": "lookAtTopCards",
+                "zone": library(controller()),
+                "count": integer(parse_number_word(captures.get(1)?.as_str())?),
+                "bind": "lookedCards",
+            }),
+            json!({
+                "kind": "chooseCards",
+                "id": "cardForBattlefield",
+                "player": controller(),
+                "from": bound_objects("lookedCards"),
+                "where": parse_permanent_criteria(captures.get(2)?.as_str(), face_name)?,
+                "minimum": integer(0),
+                "maximum": integer(1),
+            }),
+            json!({
+                "kind": "moveCards",
+                "cards": decision_result("cardForBattlefield"),
+                "to": {
+                    "kind": "battlefield",
+                    "player": controller(),
+                    "tapped": captures.get(3).is_some(),
+                },
+            }),
+        ];
+        if captures[4].eq_ignore_ascii_case("any order") {
+            effects.push(json!({
+                "kind": "chooseOrder",
+                "id": "remainderOrder",
+                "player": controller(),
+                "objects": remainder,
+            }));
+            effects.push(json!({
+                "kind": "moveCards",
+                "cards": decision_result("remainderOrder"),
+                "to": {
+                    "kind": "library",
+                    "player": controller(),
+                    "position": "bottom",
+                },
+                "order": { "kind": "decisionOrder", "decisionId": "remainderOrder" },
+            }));
+        } else {
+            effects.push(json!({
+                "kind": "moveCards",
+                "cards": remainder,
+                "to": {
+                    "kind": "library",
+                    "player": controller(),
+                    "position": "bottom",
+                },
+                "order": { "kind": "random" },
+            }));
+        }
+        return Some((effects, Vec::new()));
+    }
+
     let any_matching_to_battlefield_re = Regex::new(&format!(
         r"(?i)^Look at the top ({}) cards? of your library, put any number of (.+?) cards? from among them onto the battlefield( tapped)?, then shuffle\.(?: (.+))?$",
         count_word_pattern(),
@@ -343,6 +413,58 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
     instruction: &str,
     face_name: &str,
 ) -> Option<(Vec<Value>, Vec<Value>)> {
+    let exile_graveyard_card_copy_cast_re = Regex::new(
+        r"(?i)^Exile target (.+?) card from your graveyard\. Copy it\. You may cast the copy\.$",
+    )
+    .expect("exile graveyard card, copy, and cast regex compiles");
+    if let Some(captures) = exile_graveyard_card_copy_cast_re.captures(instruction) {
+        return Some((
+            vec![
+                json!({
+                    "kind": "moveTargetCard",
+                    "card": chosen_target("graveyardCardToCopy"),
+                    "to": "exile",
+                    "tapped": false,
+                }),
+                json!({
+                    "kind": "createCardCopy",
+                    "card": chosen_target("graveyardCardToCopy"),
+                    "fromZone": "exile",
+                    "player": controller(),
+                    "to": "exile",
+                    "bind": "copiedExiledCard",
+                }),
+                json!({
+                    "kind": "castAnyNumber",
+                    "player": controller(),
+                    "cards": bound_objects("copiedExiledCard"),
+                    "where": { "kind": "canBeCastAsSpell" },
+                    "timing": { "kind": "duringResolution" },
+                    "withoutPayingManaCost": false,
+                    "alternativeCostsAllowed": true,
+                    "additionalCostsApply": true,
+                    "variableManaValue": integer(0),
+                    "sourceZone": "exile",
+                    "maximum": integer(1),
+                }),
+                json!({
+                    "kind": "ceaseToExist",
+                    "objects": bound_objects("copiedExiledCard"),
+                    "fromZone": "exile",
+                }),
+            ],
+            vec![target_decision(
+                "graveyardCardToCopy",
+                json!({
+                    "kind": "cards",
+                    "zone": graveyard(controller()),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
     let discard_then_draw_re = Regex::new(&format!(
         r"(?i)^Discard ({0}) cards?\. If you do, draw ({0}) cards?\.$",
         count_word_pattern(),
@@ -1514,6 +1636,38 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
                 "onPerformed": trailing_effects,
             })],
             trailing_decisions,
+        ));
+    }
+    let source_sacrifice_followup_re = Regex::new(
+        r"(?is)^Sacrifice (this (?:artifact|creature|enchantment|land|permanent)|it)\. If you do, (.+)$",
+    )
+    .expect("source sacrifice followed by effects regex compiles");
+    if let Some(captures) = source_sacrifice_followup_re.captures(instruction) {
+        let (trailing_effects, trailing_decisions) =
+            parse_general_effect_sequence(captures.get(2)?.as_str().trim(), face_name).or_else(
+                || parse_general_effect_instruction(captures.get(2)?.as_str().trim(), face_name),
+            )?;
+        if !trailing_decisions.is_empty() {
+            return None;
+        }
+        return Some((
+            vec![
+                json!({
+                    "kind": "sacrificePermanent",
+                    "permanent": self_ref(),
+                    "bind": "sacrificedSource",
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "bindingNotEmpty",
+                        "binding": "sacrificedSource",
+                    },
+                    "then": trailing_effects,
+                    "else": [],
+                }),
+            ],
+            Vec::new(),
         ));
     }
     let optional_target_followup_re = Regex::new(r"(?is)^(.+?)\. If you do, (.+)$")
