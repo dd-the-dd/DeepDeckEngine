@@ -4965,6 +4965,10 @@ pub(crate) fn effect_supported(effect: &Value) -> bool {
                     .is_none_or(|selection| value_kind(selection) == Some("random"))
                 && (bound_choice_supported || candidate_choice_supported)
         }
+        Some("recordLibrarySearch") => {
+            player_reference_supported(&effect["player"])
+                && object_expression_supported(&effect["cards"])
+        }
         Some("choosePermanents") => {
             effect["id"].is_string()
                 && player_reference_supported(&effect["player"])
@@ -38712,6 +38716,23 @@ impl GameEngine {
                     decisions,
                     provider,
                 )?;
+            }
+            Some("recordLibrarySearch") => {
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let card_ids = self
+                    .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
+                    .unwrap_or_default();
+                self.record_event(
+                    "librarySearched",
+                    Some(player_id.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({ "cardIds": card_ids }),
+                );
+                self.enqueue_library_searched_triggers(&player_id);
             }
             Some("chooseOrder") => {
                 let Some(decision_id) = effect["id"].as_str() else {

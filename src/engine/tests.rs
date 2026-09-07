@@ -28435,6 +28435,94 @@ fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
 }
 
 #[test]
+fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
+    let misty_rules = no_lands_rules(
+        "Misty Rainforest",
+        "Land",
+        None,
+        "{T}, Pay 1 life, Sacrifice this land: Search your library for a Forest or Island card, put it onto the battlefield, then shuffle.",
+    );
+    let mut misty_definition = test_definition("misty-rainforest", "Land");
+    misty_definition.name = "Misty Rainforest".to_string();
+    misty_definition.rules = misty_rules;
+
+    let archive_rules = no_lands_rules(
+        "Archive Trap",
+        "Instant - Trap",
+        Some("{3}{U}{U}"),
+        "If an opponent searched their library this turn, you may pay {0} rather than pay this spell's mana cost.\nTarget opponent mills thirteen cards.",
+    );
+    let mut archive_definition = test_definition("archive-trap", "Instant - Trap");
+    archive_definition.name = "Archive Trap".to_string();
+    archive_definition.mana_cost = "{3}{U}{U}".to_string();
+    archive_definition.rules = archive_rules;
+
+    let mut engine = test_engine(2);
+    engine.state.active_player = 1;
+    engine.state.priority_player = Some(1);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].hand = vec![test_instance(
+        "archive-trap",
+        archive_definition,
+        "player-0",
+    )];
+    engine.state.players[1].battlefield = vec![test_instance(
+        "misty-rainforest",
+        misty_definition,
+        "player-1",
+    )];
+    engine.state.players[1].library = vec![test_instance(
+        "searchable-forest",
+        test_definition("searchable-forest", "Basic Land - Forest"),
+        "player-1",
+    )];
+    let mut provider = RandomAi::seeded(1);
+
+    let fetch_action = engine
+        .legal_priority_actions(1)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("misty-rainforest")
+        })
+        .expect("the opponent can activate Misty Rainforest");
+    engine
+        .apply_priority_action(&fetch_action, &mut provider)
+        .expect("the opponent activates Misty Rainforest");
+    engine
+        .resolve_top_stack(&mut provider)
+        .expect("Misty Rainforest's search resolves");
+
+    assert!(engine.state.events.iter().any(|event| {
+        event.turn_number == engine.state.turn_number
+            && event.kind == "librarySearched"
+            && event.player_id.as_deref() == Some("player-1")
+    }));
+
+    engine.state.priority_player = Some(0);
+    let archive_actions = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("archive-trap")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(archive_actions.len(), 1, "actions: {archive_actions:#?}");
+    let free_cast = &archive_actions[0];
+    assert_eq!(
+        free_cast.decisions.get("useAlternativeCost"),
+        Some(&Value::Bool(true))
+    );
+    assert!(free_cast.payment_sources.is_empty());
+    engine
+        .apply_priority_action(free_cast, &mut provider)
+        .expect("Archive Trap can be cast without mana");
+    assert_eq!(engine.state.stack.len(), 1);
+    assert_eq!(engine.state.stack[0].card.instance_id, "archive-trap");
+}
+
+#[test]
 fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(
         positive_integer_compositions(3, 2, 1, MAX_DECLARATION_OPTIONS),

@@ -88,7 +88,12 @@ pub(in crate::oracle::canonical) fn search_library_effects_for(
         }),
         json!({
             "kind": "shuffleZone",
-            "zone": library(player),
+            "zone": library(player.clone()),
+        }),
+        json!({
+            "kind": "recordLibrarySearch",
+            "player": player,
+            "cards": decision_result("searchedCards"),
         }),
     ]
 }
@@ -128,6 +133,11 @@ pub(in crate::oracle::canonical) fn search_library_then_put_on_top_effects(
                 "player": controller(),
                 "position": "top",
             },
+        }),
+        json!({
+            "kind": "recordLibrarySearch",
+            "player": controller(),
+            "cards": decision_result("searchedCards"),
         }),
     ]);
     effects
@@ -190,6 +200,11 @@ pub(in crate::oracle::canonical) fn split_library_search_between_battlefield_and
             "to": hand(controller()),
         }),
         json!({ "kind": "shuffleZone", "zone": library(controller()) }),
+        json!({
+            "kind": "recordLibrarySearch",
+            "player": controller(),
+            "cards": decision_result("searchedCards"),
+        }),
     ])
 }
 
