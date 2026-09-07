@@ -342,6 +342,7 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
                 continue;
             }
             if decision_visible_card_ids.contains(card.instance_id.as_str()) {
+                card.flags.insert("knownToViewer".to_string(), true);
                 continue;
             }
             if top_library_index == Some(index)
@@ -377,7 +378,10 @@ fn project_session_view(mut view: GameSessionView, viewer_player_id: &str) -> Ga
             .collect::<BTreeSet<_>>();
         if player.id != viewer_player_id {
             for (index, card) in player.hand.iter_mut().enumerate() {
-                if hand_is_revealed || known_hand_card_ids.contains(card.instance_id.as_str()) {
+                if hand_is_revealed
+                    || known_hand_card_ids.contains(card.instance_id.as_str())
+                    || decision_visible_card_ids.contains(card.instance_id.as_str())
+                {
                     card.flags.insert("knownToViewer".to_string(), true);
                     continue;
                 }
@@ -2976,6 +2980,43 @@ mod tests {
                 .definition
                 .name,
             "Brainstorm"
+        );
+        assert_eq!(
+            visible_during_scry.state.players[0].library[0]
+                .flags
+                .get("knownToViewer"),
+            Some(&true)
+        );
+
+        let mut opponent_hand_decision_view = view.clone();
+        opponent_hand_decision_view.decision = Some(crate::engine::EngineDecisionRequest {
+            id: "surgical-extraction:1".to_string(),
+            kind: crate::engine::DecisionKind::ResolutionChoice,
+            player_id: "player-1".to_string(),
+            source_card: None,
+            source_card_instance_id: None,
+            choice: Some(crate::engine::DecisionChoice::CardSelection {
+                decision_id: "namedCardsToExile".to_string(),
+                candidate_card_instance_ids: vec!["player-2:hand:0".to_string()],
+                minimum: 0,
+                maximum: 1,
+                prompt: "Choose cards to exile.".to_string(),
+            }),
+            options: Vec::new(),
+        });
+        let visible_during_extraction =
+            project_session_view(opponent_hand_decision_view, "player-1");
+        assert_eq!(
+            visible_during_extraction.state.players[1].hand[0]
+                .definition
+                .name,
+            "Shock"
+        );
+        assert_eq!(
+            visible_during_extraction.state.players[1].hand[0]
+                .flags
+                .get("knownToViewer"),
+            Some(&true)
         );
 
         view.state.rule_modifiers.push(json!({

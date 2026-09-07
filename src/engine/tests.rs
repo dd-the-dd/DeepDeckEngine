@@ -76,6 +76,24 @@ fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     assert!(!exiled_ids.contains("putrid-battlefield"));
     assert!(
         engine.state.players[1]
+            .graveyard
+            .iter()
+            .all(|card| card.instance_id != "putrid-graveyard")
+    );
+    assert!(
+        engine.state.players[1]
+            .hand
+            .iter()
+            .all(|card| card.instance_id != "putrid-hand")
+    );
+    assert!(
+        engine.state.players[1]
+            .library
+            .iter()
+            .all(|card| card.instance_id != "putrid-library")
+    );
+    assert!(
+        engine.state.players[1]
             .battlefield
             .iter()
             .any(|card| card.instance_id == "putrid-battlefield")
@@ -13432,6 +13450,108 @@ fn transform_cards_switch_characteristics_and_active_rules() {
     assert_eq!(front.definition.name, "Sephiroth, Fabled SOLDIER");
     assert_eq!(current_power(&front), 3);
     assert!(!has_keyword(&front.definition, "flying"));
+}
+
+#[test]
+fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
+    let mut engine = test_engine(2);
+    let mut definition = test_definition(
+        "tamiyo-inquisitive-student",
+        "Legendary Creature - Moonfolk Wizard",
+    );
+    definition.name = "Tamiyo, Inquisitive Student".to_string();
+    definition.power = Some("0".to_string());
+    definition.toughness = Some("3".to_string());
+    definition.rules = vec![
+        json!({
+            "kind": "triggeredAbility",
+            "activeFaceIndex": 0,
+            "source": { "kind": "self" },
+            "event": {
+                "kind": "cardDrawn",
+                "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "self" },
+                },
+                "drawOrdinal": { "kind": "integer", "value": 3 },
+            },
+            "effects": [{
+                "kind": "exileThenReturnTransformed",
+                "object": { "kind": "self" },
+                "controller": {
+                    "kind": "ownerOf",
+                    "object": { "kind": "self" },
+                },
+            }],
+        }),
+        json!({
+            "kind": "rulesMarker",
+            "activeFaceIndex": 1,
+            "startingLoyalty": { "kind": "integer", "value": 2 },
+        }),
+        json!({
+            "kind": "rulesMarker",
+            "text": "Transformable card faces.",
+            "transformFaces": [
+                {
+                    "name": "Tamiyo, Inquisitive Student",
+                    "typeLine": "Legendary Creature - Moonfolk Wizard",
+                    "manaCost": "{U}",
+                    "power": "0",
+                    "toughness": "3",
+                },
+                {
+                    "name": "Tamiyo, Seasoned Scholar",
+                    "typeLine": "Legendary Planeswalker - Tamiyo",
+                    "manaCost": "",
+                    "power": null,
+                    "toughness": null,
+                },
+            ],
+        }),
+    ];
+    engine.state.players[0].battlefield = vec![test_instance("tamiyo", definition, "player-0")];
+    engine.state.players[0].library = (0..3)
+        .map(|index| {
+            test_instance(
+                &format!("tamiyo-draw-{index}"),
+                test_definition(&format!("tamiyo-draw-{index}"), "Instant"),
+                "player-0",
+            )
+        })
+        .collect();
+    let mut provider = EmeritusDecisionProvider;
+
+    for draw_number in 1..=3 {
+        engine
+            .draw_cards_with_replacements("player-0", 1, &mut provider)
+            .expect("Tamiyo's controller draws a card");
+        assert_eq!(engine.state.stack.len(), usize::from(draw_number == 3));
+    }
+
+    engine
+        .resolve_top_stack(&mut provider)
+        .expect("Tamiyo's third-card trigger resolves");
+
+    let tamiyo = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "tamiyo")
+        .expect("Tamiyo returns to the battlefield");
+    assert_eq!(tamiyo.definition.name, "Tamiyo, Seasoned Scholar");
+    assert_eq!(
+        tamiyo.definition.type_line,
+        "Legendary Planeswalker - Tamiyo"
+    );
+    assert_eq!(tamiyo.flags.get("transformed"), Some(&true));
+    assert_eq!(tamiyo.counters.get("loyalty"), Some(&2));
+    assert_eq!(tamiyo.controller, "player-0");
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .all(|card| card.instance_id != "tamiyo")
+    );
 }
 
 fn engine_with_targeted_ward_permanent() -> GameEngine {
