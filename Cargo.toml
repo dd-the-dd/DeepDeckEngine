@@ -21,13 +21,13 @@ path = "src/lib.rs"
 name = "mtg-engine-server"
 path = "src/main.rs"
 
-# The canonical parser and game engine are intentionally large. Debug symbols
-# and incremental archives can consume tens of GiB without improving the test
-# signal, especially on Windows contributors' machines.
+# Keep symbols small while retaining incremental artifacts for local iteration.
+# The repository test wrapper trims incremental caches when target exceeds its
+# configured disk budget.
 [profile.dev]
 debug = 0
-incremental = false
+incremental = true
 
 [profile.test]
 debug = 0
-incremental = false
+incremental = true

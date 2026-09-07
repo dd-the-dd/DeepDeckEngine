@@ -13554,6 +13554,55 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     );
 }
 
+#[test]
+fn tamiyo_investigates_when_she_attacks_without_an_external_card_catalog() {
+    let rules = no_lands_rules(
+        "Tamiyo, Inquisitive Student",
+        "Legendary Creature - Moonfolk Wizard",
+        Some("{U}"),
+        "Flying\nWhenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhen you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.",
+    );
+    let mut definition = test_definition(
+        "tamiyo-inquisitive-student",
+        "Legendary Creature - Moonfolk Wizard",
+    );
+    definition.name = "Tamiyo, Inquisitive Student".to_string();
+    definition.rules = rules;
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![test_instance("tamiyo", definition, "player-0")];
+    engine.enqueue_declared_attacker_triggers(&["tamiyo".to_string()]);
+    assert_eq!(engine.state.stack.len(), 1);
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Tamiyo's investigate trigger resolves");
+
+    let clue = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.definition.name == "Clue")
+        .expect("investigate creates a Clue token");
+    assert!(clue.definition.is_token);
+    assert!(clue.definition.is_game_piece);
+    assert!(clue.definition.type_line.contains("Artifact"));
+    let draw_ability = clue
+        .definition
+        .rules
+        .iter()
+        .find(|rule| value_kind(rule) == Some("activatedAbility"))
+        .expect("the Clue has its activated draw ability");
+    assert!(draw_ability["costs"].as_array().is_some_and(|costs| {
+        costs.iter().any(|cost| {
+            value_kind(cost) == Some("payMana") && cost["manaCost"].as_str() == Some("{2}")
+        }) && costs
+            .iter()
+            .any(|cost| value_kind(cost) == Some("sacrificePermanent"))
+    }));
+    assert_eq!(draw_ability["effects"][0]["kind"], "drawCards");
+    assert_eq!(draw_ability["effects"][0]["count"]["value"], 1);
+}
+
 fn engine_with_targeted_ward_permanent() -> GameEngine {
     let mut engine = test_engine(2);
     let mut ward_definition = test_definition("ward-permanent", "Creature - Avatar");
@@ -17321,6 +17370,71 @@ fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
             .iter()
             .any(|event| event.kind == "tokenCeasedToExist")
     );
+}
+
+#[test]
+fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
+    let mut lotus_definition = test_definition("lotus-petal", "Artifact");
+    lotus_definition.name = "Lotus Petal".to_string();
+    lotus_definition.rules = no_lands_rules(
+        "Lotus Petal",
+        "Artifact",
+        Some("{0}"),
+        "{T}, Sacrifice this artifact: Add one mana of any color.",
+    );
+    let mut spell_definition = test_definition("black-spell", "Sorcery");
+    spell_definition.name = "Black Spell".to_string();
+    spell_definition.mana_cost = "{B}".to_string();
+    spell_definition.rules = vec![json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    })];
+
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.players[0].battlefield =
+        vec![test_instance("lotus-petal", lotus_definition, "player-0")];
+    engine.state.players[0].hand = vec![test_instance("black-spell", spell_definition, "player-0")];
+
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("black-spell")
+                && action.payment_sources == ["lotus-petal"]
+        })
+        .expect("Lotus Petal should make the black spell immediately playable");
+    assert!(
+        cast.decisions["manaPayment"]
+            .as_array()
+            .is_some_and(|payments| {
+                payments.iter().any(|payment| {
+                    payment["sourceId"] == "lotus-petal"
+                        && payment["mana"] == json!(["B"])
+                        && payment["sacrificesSource"] == true
+                })
+            })
+    );
+
+    engine
+        .apply_priority_action(&cast, &mut RandomAi::seeded(1))
+        .expect("cast using Lotus Petal");
+
+    assert!(engine.state.players[0].battlefield.is_empty());
+    assert_eq!(
+        engine.state.players[0].graveyard[0].definition.name,
+        "Lotus Petal"
+    );
+    assert!(engine.state.players[0].mana_pool.is_empty());
+    assert_eq!(engine.state.stack[0].card.instance_id, "black-spell");
 }
 
 #[test]

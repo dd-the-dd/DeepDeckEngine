@@ -1042,6 +1042,7 @@ struct ManaActivation {
     symbols: Vec<String>,
     life_cost: i32,
     activation_requirement: ManaRequirement,
+    sacrifices_source: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -1052,6 +1053,7 @@ struct ManaChoice {
     life_cost: i32,
     spend_restriction: Option<Value>,
     activation_requirement: ManaRequirement,
+    sacrifices_source: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1086,6 +1088,7 @@ fn mana_payment_decision(payment: &ManaPayment) -> Value {
                 "lifePaid": activation.life_cost,
                 "mana": activation.symbols,
                 "ruleIndex": activation.rule_index,
+                "sacrificesSource": activation.sacrifices_source,
                 "sourceId": activation.source_id,
             })
         })
@@ -13341,6 +13344,7 @@ impl GameEngine {
                     life_cost: 0,
                     spend_restriction: modifier.get("spendRestriction").cloned(),
                     activation_requirement: ManaRequirement::default(),
+                    sacrifices_source: false,
                 })
                 .collect::<Vec<_>>()
             })
@@ -13466,6 +13470,8 @@ impl GameEngine {
                 && rule["costs"].as_array().is_some_and(|costs| {
                     costs.iter().any(|cost| {
                         !matches!(value_kind(cost), Some("tap" | "payLife" | "payMana"))
+                            && !(value_kind(cost) == Some("sacrificePermanent")
+                                && value_kind(&cost["permanent"]) == Some("self"))
                     })
                 })
             {
@@ -13519,6 +13525,12 @@ impl GameEngine {
             let Some(activation_requirement) = activation_requirement else {
                 continue;
             };
+            let sacrifices_source = rule["costs"].as_array().is_some_and(|costs| {
+                costs.iter().any(|cost| {
+                    value_kind(cost) == Some("sacrificePermanent")
+                        && value_kind(&cost["permanent"]) == Some("self")
+                })
+            });
             for effect in rule["effects"].as_array().into_iter().flatten() {
                 if value_kind(effect) == Some("addMana") {
                     let mut spend_restriction = effect
@@ -13590,6 +13602,7 @@ impl GameEngine {
                             life_cost,
                             spend_restriction: spend_restriction.clone(),
                             activation_requirement: activation_requirement.clone(),
+                            sacrifices_source,
                         }),
                     );
                 }
@@ -13630,6 +13643,7 @@ impl GameEngine {
                         life_cost: 0,
                         spend_restriction: None,
                         activation_requirement: ManaRequirement::default(),
+                        sacrifices_source: false,
                     });
                 }
             }
@@ -13653,6 +13667,7 @@ impl GameEngine {
                 life_cost: 0,
                 spend_restriction: None,
                 activation_requirement: ManaRequirement::default(),
+                sacrifices_source: false,
             });
         }
         let production_factor = self.mana_production_factor(&permanent.controller);
@@ -14387,6 +14402,7 @@ impl GameEngine {
                         symbols: choice.symbols.clone(),
                         life_cost: choice.life_cost,
                         activation_requirement: choice.activation_requirement.clone(),
+                        sacrifices_source: choice.sacrifices_source,
                     });
                     let mut branch_requirement = requirement.clone();
                     branch_requirement.add(&choice.activation_requirement);
@@ -21780,16 +21796,25 @@ impl GameEngine {
             }
             self.state.players[player_index].life -= life_paid;
             let source_id = activation["sourceId"].as_str().map(ToOwned::to_owned);
+            let source = source_id
+                .as_ref()
+                .and_then(|source_id| self.permanent_position(source_id))
+                .map(|(source_player, source_index)| {
+                    self.state.players[source_player].battlefield[source_index].clone()
+                });
             self.record_event(
                 "manaAbilityActivated",
                 Some(self.state.players[player_index].id.clone()),
                 source_id.clone(),
                 activation.clone(),
             );
-            if let Some(source_id) = source_id
-                && let Some((source_player, source_index)) = self.permanent_position(&source_id)
+            if activation["sacrificesSource"].as_bool() == Some(true)
+                && let Some(source_id) = &source_id
+                && self.permanent_position(source_id).is_some()
             {
-                let source = self.state.players[source_player].battlefield[source_index].clone();
+                self.move_permanent_to_graveyard(source_id, "sacrificed")?;
+            }
+            if let Some(source) = source {
                 let mana = activation["mana"]
                     .as_array()
                     .into_iter()
