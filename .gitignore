@@ -3,6 +3,7 @@
 /runs/
 /.local-app/
 /data/*.json
+!/data/builtin-game-pieces.json
 .env
 .env.*
 !.env.example

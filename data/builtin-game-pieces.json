@@ -1,0 +1,72 @@
+{
+  "cards": {
+    "blood": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "blood",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Blood",
+        "oracleText": "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "clue": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "clue",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Clue",
+        "oracleText": "{2}, Sacrifice this token: Draw a card.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "food": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "food",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Food",
+        "oracleText": "{2}, {T}, Sacrifice this token: You gain 3 life.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "map": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "map",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Map",
+        "oracleText": "{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "treasure": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "treasure",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Treasure",
+        "oracleText": "{T}, Sacrifice this token: Add one mana of any color.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ]
+  },
+  "sets": {
+    "builtin": "Built-in game pieces"
+  }
+}

@@ -115,6 +115,14 @@ fn catalog() -> Result<&'static StoredCardCatalog, String> {
         .map_err(Clone::clone)
 }
 
+fn builtin_game_pieces() -> &'static StoredCardCatalog {
+    static CATALOG: OnceLock<StoredCardCatalog> = OnceLock::new();
+    CATALOG.get_or_init(|| {
+        serde_json::from_str(include_str!("../data/builtin-game-pieces.json"))
+            .expect("built-in game-piece catalog must be valid")
+    })
+}
+
 fn select_named_token_printing<'a>(
     catalog: &'a StoredCardCatalog,
     name: &str,
@@ -136,7 +144,12 @@ fn select_named_token_printing<'a>(
 /// cards. The engine must not maintain a second, handwritten list of Clue,
 /// Treasure, Blood, Food, and other predefined token abilities.
 pub fn named_token_printing(name: &str) -> Result<Option<&'static CatalogPrinting>, String> {
-    Ok(select_named_token_printing(catalog()?, name))
+    match catalog() {
+        Ok(catalog) => Ok(select_named_token_printing(catalog, name)
+            .or_else(|| select_named_token_printing(builtin_game_pieces(), name))),
+        Err(error) if catalog_path().is_ok() => Err(error),
+        Err(_) => Ok(select_named_token_printing(builtin_game_pieces(), name)),
+    }
 }
 
 /// Returns a deterministic ordinary-card printing for effects such as conjure.
