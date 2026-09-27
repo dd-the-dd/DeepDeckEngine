@@ -583,8 +583,108 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
     let text = strip_short_oracle_label(text);
+    if text.starts_with(
+        "As an additional cost to cast this spell, blight X. X can't be greater than the greatest toughness among creatures you control.",
+    ) {
+        let x = json!({ "kind": "decisionResult", "decisionId": "xValue" });
+        let positive_x = compare(">", x.clone(), integer(0));
+        let mut choose_x = x_value();
+        choose_x["maximum"] = json!({
+            "kind": "greatestToughness",
+            "player": controller(),
+            "where": card_type("Creature"),
+        });
+        let mut blight_target = target_decision(
+            "blightCreature",
+            json!({
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+                "ignoreTargetingRestrictions": true,
+            }),
+            1,
+            1,
+        );
+        blight_target["condition"] = positive_x.clone();
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [choose_x, blight_target],
+                    "additionalCosts": [{
+                        "kind": "conditional",
+                        "condition": positive_x,
+                        "then": [{
+                            "kind": "putCounters",
+                            "permanent": chosen_target("blightCreature"),
+                            "controller": controller(),
+                            "counter": "-1/-1",
+                            "count": x,
+                        }],
+                        "else": [],
+                    }],
+                },
+                "effects": [],
+            }),
+            &[
+                "Choose X up to the greatest controlled creature toughness",
+                "Choose a creature when X is positive",
+                "Put X -1/-1 counters on it as an additional cost",
+            ],
+        ));
+    }
+    if text == "Put two -1/-1 counters on each creature." {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "where": card_type("Creature"),
+                    },
+                    "counter": "-1/-1",
+                    "count": integer(2),
+                }],
+            }),
+            &["Find every creature", "Put two -1/-1 counters on each one"],
+        ));
+    }
+    if text == "Soul Immolation deals X damage to each opponent and each creature they control." {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [x_value()],
+                },
+                "effects": [{
+                    "kind": "dealDamageToEachOpponentAndCreaturesTheyControl",
+                    "amount": { "kind": "sourceCastXValue" },
+                }],
+            }),
+            &[
+                "Choose X while casting",
+                "Deal X damage to each opponent",
+                "Deal X damage to each creature those opponents control",
+            ],
+        ));
+    }
+    let additional_cost_text;
+    let additional_cost_input = if let Some((instruction, reminder)) = text.rsplit_once(" (")
+        && reminder.ends_with(')')
+    {
+        additional_cost_text = instruction.to_string();
+        additional_cost_text.as_str()
+    } else {
+        text
+    };
     let alternative_additional_cost_re = Regex::new(
-        r"(?i)^As an additional cost to cast this spell, (sacrifice .+?) or pay ((?:\{[^}]+\})+)\.$",
+        r"(?i)^As an additional cost to cast this spell, ((?:sacrifice|blight) .+?) or pay ((?:\{[^}]+\})+)\.$",
     )
     .expect("sacrifice-or-mana additional cost regex compiles");
     let reversed_alternative_additional_cost_re = Regex::new(
@@ -592,7 +692,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     )
     .expect("mana-or-sacrifice additional cost regex compiles");
     let parsed_alternatives = alternative_additional_cost_re
-        .captures(text)
+        .captures(additional_cost_input)
         .map(|captures| {
             (
                 captures.get(1).map(|value| value.as_str().to_string()),
@@ -602,7 +702,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
         })
         .or_else(|| {
             reversed_alternative_additional_cost_re
-                .captures(text)
+                .captures(additional_cost_input)
                 .map(|captures| {
                     (
                         captures.get(2).map(|value| value.as_str().to_string()),
@@ -614,8 +714,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     if let Some((Some(sacrifice_text), Some(mana_text), mana_first)) = parsed_alternatives {
         let (sacrifice_costs, mut decisions) = parse_activation_costs(&sacrifice_text)?;
         let (mana_costs, mana_decisions) = parse_activation_costs(&mana_text)?;
-        if sacrifice_costs.len() != 1
-            || sacrifice_costs[0]["kind"].as_str() != Some("sacrificePermanent")
+        if sacrifice_costs.is_empty()
             || mana_costs.len() != 1
             || mana_costs[0]["kind"].as_str() != Some("payMana")
             || !mana_decisions.is_empty()
@@ -675,16 +774,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     let optional_additional_cost_re =
         Regex::new(r"(?i)^As an additional cost to cast this spell, you may (.+)\.$")
             .expect("optional additional casting-cost regex compiles");
-    let optional_additional_cost_text;
-    let optional_additional_cost_input = if let Some((instruction, reminder)) =
-        text.rsplit_once(" (")
-        && reminder.ends_with(')')
-    {
-        optional_additional_cost_text = instruction.to_string();
-        optional_additional_cost_text.as_str()
-    } else {
-        text
-    };
+    let optional_additional_cost_input = additional_cost_input;
     if let Some(captures) = optional_additional_cost_re.captures(optional_additional_cost_input)
         && let Some((costs, mut cost_decisions)) = parse_activation_costs(&captures[1])
     {
@@ -725,7 +815,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     }
     let additional_cost_re = Regex::new(r"^As an additional cost to cast this spell, (.+)\.$")
         .expect("generic additional casting-cost regex compiles");
-    if let Some(captures) = additional_cost_re.captures(text)
+    if let Some(captures) = additional_cost_re.captures(optional_additional_cost_input)
         && let Some((costs, decisions)) = parse_activation_costs(&captures[1])
     {
         return Some(draft(
@@ -832,6 +922,9 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
                 "Add every recognized mana symbol to the controller's pool",
             ],
         ));
+    }
+    if text == "Explosion deals X damage to any target. Target player draws X cards." {
+        return parse_avatar_deck_spell(text);
     }
     if let Some((effects, decisions)) = parse_general_effect_instruction(text, "") {
         let mut rule = json!({

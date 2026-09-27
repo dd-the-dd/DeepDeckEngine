@@ -240,6 +240,7 @@ pub fn playable_rules_for_face(
                 "oracleText": face.oracle_text,
                 "power": face.power,
                 "toughness": face.toughness,
+                "loyalty": face.loyalty,
                 "rules": parser_result.abilities.iter()
                     .filter(|ability| ability.source.face_id.as_deref() == Some(face.id.as_str()))
                     .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
@@ -341,6 +342,7 @@ pub fn playable_rules_for_face(
                 "oracleText": face.oracle_text,
                 "power": face.power,
                 "toughness": face.toughness,
+                "loyalty": face.loyalty,
             })).collect::<Vec<_>>(),
         }));
         return rules;

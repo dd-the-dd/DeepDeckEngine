@@ -2352,10 +2352,7 @@ fn static_grammar_parses_lords_and_enduring_story_without_card_names() {
         "",
     )
     .expect("enduring story wrapper parses");
-    assert_eq!(
-        story.rule["modifiers"][0]["condition"]["kind"],
-        "hasEnduringStory"
-    );
+    assert_eq!(story.rule["condition"]["kind"], "hasEnduringStory");
 
     for (text, amount) in [
         (
@@ -2438,7 +2435,7 @@ fn first_equip_ability_alternative_cost_composes_with_enduring_story() {
         assert_eq!(modifier["kind"], "firstActivatedAbilityAlternativeCost");
         assert_eq!(modifier["abilityKind"], "equip");
         assert_eq!(modifier["cost"]["manaCost"], mana_cost);
-        assert_eq!(modifier.get("condition").is_some(), conditioned);
+        assert_eq!(parsed.rule.get("condition").is_some(), conditioned);
         assert!(crate::engine::rule_is_executable(&parsed.rule));
     }
 
@@ -3682,7 +3679,7 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
         )
         .expect("a threshold of controlled but not owned permanents parses");
     assert_eq!(
-        agent_value.rule["effects"][0]["condition"]["left"]["ownership"],
+        agent_value.rule["condition"]["left"]["ownership"],
         "notOwned"
     );
 
@@ -3698,7 +3695,8 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
     )
     .expect("independent ordered sentences compose into one spell ability");
     assert_eq!(frantic.rule["effects"][0]["kind"], "drawThenDiscard");
-    assert_eq!(frantic.rule["effects"][1]["kind"], "untapPermanents");
+    assert_eq!(frantic.rule["effects"][1]["kind"], "choosePermanents");
+    assert_eq!(frantic.rule["effects"][2]["kind"], "untapPermanents");
 
     let shriekmaw = parse_expansion_triggered(
         "When this creature enters, destroy target nonartifact, nonblack creature.",
@@ -4119,7 +4117,7 @@ fn new_deck_common_families_parse_to_executable_rules() {
         )
         .expect("distinct controlled land names can gate a trigger");
     assert_eq!(
-        field.rule["effects"][0]["condition"]["left"]["kind"],
+        field.rule["condition"]["left"]["kind"],
         "countDistinctPermanentNames"
     );
 
@@ -6014,13 +6012,7 @@ fn abbreviated_source_name_composes_with_enduring_story_static_modifiers() {
     assert_eq!(parsed.rule["modifiers"][0]["power"], integer(1));
     assert_eq!(parsed.rule["modifiers"][1]["kind"], "grantKeyword");
     assert_eq!(parsed.rule["modifiers"][1]["keyword"], "vigilance");
-    assert!(
-        parsed.rule["modifiers"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .all(|modifier| modifier["condition"]["kind"] == "hasEnduringStory")
-    );
+    assert_eq!(parsed.rule["condition"]["kind"], "hasEnduringStory");
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
     assert!(
@@ -6545,7 +6537,10 @@ fn unqualified_counter_unless_paid_composes_inside_a_generic_modal_spell() {
         .expect("the unqualified counter and draw-discard modes compose");
 
     assert_eq!(parsed.rule["declaration"]["decisions"][0]["minimum"], 1);
-    assert_eq!(parsed.rule["declaration"]["decisions"][0]["maximum"], 1);
+    assert_eq!(
+        parsed.rule["declaration"]["decisions"][0]["maximum"],
+        integer(1)
+    );
     assert_eq!(
         parsed.rule["declaration"]["decisions"][1]["id"],
         "mode1:targetStackObject"
@@ -6558,10 +6553,8 @@ fn unqualified_counter_unless_paid_composes_inside_a_generic_modal_spell() {
         parsed.rule["effects"][0]["then"][0]["kind"],
         "counterStackObjectUnlessPays"
     );
-    assert_eq!(
-        parsed.rule["effects"][1]["then"][0]["kind"],
-        "drawThenDiscard"
-    );
+    assert_eq!(parsed.rule["effects"][1]["then"][0]["kind"], "drawCards");
+    assert_eq!(parsed.rule["effects"][1]["then"][1]["kind"], "discardCards");
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
     let qualified = parse_general_effect_instruction(
@@ -7579,7 +7572,10 @@ fn named_entry_or_attack_can_target_an_opponents_graveyard_optionally() {
     assert_eq!(parsed.rule["effects"][0]["kind"], "moveTargetCard");
     assert_eq!(parsed.rule["effects"][0]["to"], "exile");
     assert_eq!(parsed.rule["effects"][1]["kind"], "ifTargetWasChosen");
-    assert_eq!(parsed.rule["effects"][1]["then"][0]["kind"], "loseLife");
+    assert_eq!(
+        parsed.rule["effects"][1]["then"][0]["kind"],
+        "loseLifeEachOpponent"
+    );
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
     let static_rule = parse_common_static_ability("Gollum can't block.", "Gollum the Abandoned")
@@ -7636,7 +7632,7 @@ fn other_permanent_death_trigger_does_not_imply_a_controller_scope() {
         "Test Observer",
     )
     .expect("the narrower controlled event remains owned by its dedicated leaf");
-    assert_eq!(controlled.rule["event"]["player"]["kind"], "controller");
+    assert_eq!(controlled.rule["event"]["player"]["kind"], "controllerOf");
 }
 
 #[test]
@@ -7669,7 +7665,7 @@ fn stored_mana_value_parity_and_persistent_unused_modes_compose() {
     );
     assert_eq!(
         triggered.rule["effects"][0]["modes"][1]["effects"][0]["kind"],
-        "loseLife"
+        "loseLifeEachOpponent"
     );
     assert_eq!(
         triggered.rule["effects"][0]["modes"][2]["effects"][0]["kind"],
@@ -7916,10 +7912,7 @@ fn divided_damage_composes_target_count_and_positive_integer_distribution() {
         parsed.rule["declaration"]["decisions"][0]["kind"],
         "chooseTargets"
     );
-    assert_eq!(
-        parsed.rule["declaration"]["decisions"][0]["maximum"]["value"],
-        3
-    );
+    assert_eq!(parsed.rule["declaration"]["decisions"][0]["maximum"], 3);
     assert_eq!(
         parsed.rule["declaration"]["decisions"][1]["kind"],
         "divideQuantityAmongTargets"
@@ -7956,7 +7949,7 @@ fn controlled_attachment_composes_two_independent_target_leaves() {
     assert_eq!(decisions.len(), 2);
     assert_eq!(decisions[0]["candidates"]["where"]["value"], "Equipment");
     assert_eq!(decisions[1]["candidates"]["where"]["value"], "Creature");
-    assert_eq!(decisions[1]["minimum"]["value"], 0);
+    assert_eq!(decisions[1]["minimum"], 0);
     assert_eq!(parsed.rule["effects"][0]["kind"], "attachPermanent");
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
@@ -7965,10 +7958,7 @@ fn controlled_attachment_composes_two_independent_target_leaves() {
         "Test Binder",
     )
     .expect("different attachment types and a required recipient reuse the same leaves");
-    assert_eq!(
-        required.rule["declaration"]["decisions"][1]["minimum"]["value"],
-        1
-    );
+    assert_eq!(required.rule["declaration"]["decisions"][1]["minimum"], 1);
     assert!(crate::engine::rule_is_executable(&required.rule));
 }
 
@@ -7995,7 +7985,10 @@ fn targeted_effect_can_install_a_linked_death_exile_replacement() {
         "Choose one or both —\n• Test Strike deals 3 damage to target creature. If that creature would die this turn, exile it instead.\n• Destroy target artifact token.",
     )
     .expect("both generic modes compose into a modal spell");
-    assert_eq!(modal.rule["declaration"]["decisions"][0]["maximum"], 2);
+    assert_eq!(
+        modal.rule["declaration"]["decisions"][0]["maximum"],
+        integer(2)
+    );
     assert!(crate::engine::rule_is_executable(&modal.rule));
 }
 
@@ -8817,9 +8810,11 @@ fn filtered_block_prohibition_and_static_ward_bonus_compose() {
     assert_eq!(anthem.rule["modifiers"][1]["cost"]["manaCost"], "{1}");
     assert!(crate::engine::rule_is_executable(&anthem.rule));
 
-    assert!(
+    assert_eq!(
         parse_general_effect_instruction("Target creature can't block this turn.", "Test Fire")
-            .is_none()
+            .expect("a targeted blocking prohibition uses the shared keyword leaf")
+            .0[0]["kind"],
+        "grantKeyword"
     );
 }
 
@@ -9485,6 +9480,7 @@ fn hand_to_battlefield_haste_uses_a_real_delayed_sacrifice_trigger() {
     for text in [
         "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
         "{2}{R}: You may put an artifact creature card from your hand onto the battlefield. That permanent gains haste. Sacrifice it at the beginning of the next end step.",
+        "{1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature.",
     ] {
         let parsed = parse_simple_activated_ability(text)
             .expect("the shared hand-put and delayed-sacrifice grammar composes");

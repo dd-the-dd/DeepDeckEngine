@@ -1,9 +1,10 @@
 use mtg_engine::engine::rule_is_executable;
+use mtg_engine::model::{PlayableCardInput, compile_playable_card};
 use mtg_engine::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
 fn card_parse_error(request: OracleCardParseRequest) -> Option<String> {
     let name = request.card_name.clone();
-    let parsed = parse_oracle_card(request);
+    let parsed = parse_oracle_card(request.clone());
     let unsupported = parsed
         .abilities
         .iter()
@@ -24,6 +25,26 @@ fn card_parse_error(request: OracleCardParseRequest) -> Option<String> {
         return Some(format!(
             "{name} produced a rule the engine cannot execute: {:#?}",
             parsed.abilities
+        ));
+    }
+    let compilation = compile_playable_card(PlayableCardInput {
+        id: format!("test:{}", name.to_ascii_lowercase().replace(' ', "-")),
+        face_id: request.faces.first().map(|face| face.id.clone()),
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: request.faces.first().and_then(|face| face.power.clone()),
+        toughness: request
+            .faces
+            .first()
+            .and_then(|face| face.toughness.clone()),
+        oracle: request,
+    })
+    .unwrap_or_else(|error| panic!("{name} could not compile as a playable card: {error}"));
+    if compilation.parser_status != "canonical" || compilation.engine_status != "executable" {
+        return Some(format!(
+            "{name} did not compile as playable: parser={}, engine={}",
+            compilation.parser_status, compilation.engine_status
         ));
     }
     match name.as_str() {
@@ -65,8 +86,8 @@ fn card_parse_error(request: OracleCardParseRequest) -> Option<String> {
             assert_eq!(rule["effects"][0]["kind"], "exileLibrariesExceptBottom");
             assert_eq!(rule["effects"][0]["retainBottom"]["value"], 6);
         }
-        "Extirpate" => {
-            let rule = parsed.abilities[1].rule.as_ref().unwrap();
+        "Extirpate" | "Surgical Extraction" => {
+            let rule = parsed.abilities.last().unwrap().rule.as_ref().unwrap();
             assert_eq!(rule["effects"][0]["kind"], "exileNamedCardsFromZones");
             assert_eq!(rule["effects"][0]["all"], true);
         }
@@ -233,6 +254,12 @@ fn mill_deck_cards_are_canonical_and_executable() {
             "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nChoose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for all cards with the same name as that card and exile them. Then that player shuffles.",
         ),
         (
+            "Surgical Extraction",
+            "Instant",
+            Some("{B/P}"),
+            "Choose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for all cards with the same name as that card and exile them. Then that player shuffles.",
+        ),
+        (
             "Founding the Third Path",
             "Enchantment — Saga",
             Some("{1}{U}"),
@@ -394,6 +421,7 @@ fn jidoor_adventure_faces_are_canonical_and_executable() {
                 oracle_text: "This land enters tapped.\n{T}: Add {U}.".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
             OracleCardFace {
                 id: "overture".to_string(),
@@ -403,6 +431,7 @@ fn jidoor_adventure_faces_are_canonical_and_executable() {
                 oracle_text: "Target opponent mills half their library, rounded down. (Then exile this card. You may play the land later from exile.)".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
         ],
     });
@@ -425,6 +454,7 @@ fn sea_gate_restoration_faces_are_canonical_and_executable() {
                 oracle_text: "Draw cards equal to the number of cards in your hand plus one. You have no maximum hand size for the rest of the game.".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
             OracleCardFace {
                 id: "sea-gate-reborn".to_string(),
@@ -434,6 +464,7 @@ fn sea_gate_restoration_faces_are_canonical_and_executable() {
                 oracle_text: "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
         ],
     };

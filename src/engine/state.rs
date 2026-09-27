@@ -220,9 +220,15 @@ pub struct EnginePlayer {
     pub mana_pool: Vec<FloatingMana>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub counters: BTreeMap<String, i32>,
+    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    pub starting_deck_size: usize,
     pub land_plays_remaining: i32,
     #[serde(default = "default_max_hand_size")]
     pub max_hand_size: usize,
+}
+
+fn is_zero_usize(value: &usize) -> bool {
+    *value == 0
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

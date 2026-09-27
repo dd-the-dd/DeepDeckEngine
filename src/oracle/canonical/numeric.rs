@@ -161,6 +161,13 @@ pub(super) fn parse_signed_stat_expression(value: &str) -> Option<Value> {
 
 pub(super) fn parse_numeric_expression_text(value: &str) -> Option<Value> {
     let value = value.trim().trim_end_matches('.').trim();
+    if value.eq_ignore_ascii_case("the number of colors among permanents you control") {
+        return Some(json!({
+            "kind": "countDistinctColors",
+            "player": controller(),
+            "where": Value::Null,
+        }));
+    }
     if value.eq_ignore_ascii_case("x") {
         return Some(decision_result("xValue"));
     }

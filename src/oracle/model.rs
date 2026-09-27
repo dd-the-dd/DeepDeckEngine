@@ -13,6 +13,8 @@ pub struct OracleCardFace {
     pub power: Option<String>,
     #[serde(default)]
     pub toughness: Option<String>,
+    #[serde(default)]
+    pub loyalty: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

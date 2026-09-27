@@ -190,6 +190,7 @@ fn alternate_casting_keywords_are_canonical_and_executable() {
                 oracle_text: "Put three +1/+1 counters on target creature.\nFuse (You may cast one or both halves of this card from your hand.)".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
             OracleCardFace {
                 id: "take".to_string(),
@@ -199,6 +200,7 @@ fn alternate_casting_keywords_are_canonical_and_executable() {
                 oracle_text: "Remove all +1/+1 counters from target creature you control. Draw that many cards.\nFuse (You may cast one or both halves of this card from your hand.)".to_string(),
                 power: None,
                 toughness: None,
+                loyalty: None,
             },
         ],
     });
@@ -1349,6 +1351,7 @@ fn request_from_truth(truth: &Value) -> OracleCardParseRequest {
                         .to_string(),
                     power: optional_string(&face["power"]),
                     toughness: optional_string(&face["toughness"]),
+                    loyalty: optional_string(&face["loyalty"]),
                     type_line: face["typeLine"]
                         .as_str()
                         .expect("face type line")

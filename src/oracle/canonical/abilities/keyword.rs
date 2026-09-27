@@ -4,6 +4,68 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
     text: &str,
     face_name: &str,
 ) -> Option<CanonicalRuleDraft> {
+    let gift_named_token_re = Regex::new(r"(?i)^Gift (?:a|an) ([A-Z][A-Za-z -]+?)(?: \(.+\))?$")
+        .expect("named-token gift regex compiles");
+    if let Some(captures) = gift_named_token_re.captures(text) {
+        let token_name = captures.get(1)?.as_str().trim();
+        if token_name.eq_ignore_ascii_case("card") {
+            return None;
+        }
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "gift",
+                    "optional": true,
+                    "effects": [{
+                        "kind": "createTokens",
+                        "controller": { "kind": "boundValue", "id": "giftRecipient" },
+                        "quantity": integer(1),
+                        "token": { "kind": "namedToken", "name": token_name },
+                    }],
+                },
+            }),
+            &[
+                "Offer a named-token gift",
+                "Create it for the promised opponent",
+            ],
+        ));
+    }
+    if text.starts_with("Start your engines!") {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "enterBattlefield", "object": self_ref() },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "startYourEngines",
+                }],
+            }),
+            &["Start the controller's speed at one"],
+        ));
+    }
+    if text == "You and creatures you control have protection from the chosen card type." {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": active_while_battlefield(),
+                "modifiers": [{
+                    "kind": "grantProtectionChosenCardType",
+                    "objects": {
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": card_type("Creature"),
+                    },
+                    "player": controller(),
+                    "decisionId": "chosenCardType",
+                }],
+            }),
+            &["Apply protection from Serra's stored card-type choice"],
+        ));
+    }
     let ninjutsu_re = Regex::new(
         r"(?i)^Ninjutsu ((?:\{[^}]+\})+) \(((?:\{[^}]+\})+), Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking\.\)$",
     )
@@ -619,6 +681,7 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
         ("Lifelink", "lifelink"),
         ("Menace", "menace"),
         ("Myriad", "myriad"),
+        ("Persist", "persist"),
         ("Prowess", "prowess"),
         ("Plainswalk", "plainswalk"),
         ("Reach", "reach"),
@@ -872,6 +935,59 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
             &["Recognize ward keyword", "Resolve ward cost"],
         ));
     }
+    if text.contains("{1}{U/R}{U/R}, Discard a card.")
+        && text.to_ascii_lowercase().starts_with("flashback")
+    {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "flashback",
+                    "cost": {
+                        "kind": "compositeCost",
+                        "costs": [
+                            { "kind": "payMana", "manaCost": "{1}{U/R}{U/R}" },
+                            { "kind": "discardCard", "where": Value::Null },
+                        ],
+                    },
+                },
+            }),
+            &[
+                "Recognize flashback with combined mana and discard costs",
+                "Apply both costs when casting from the graveyard",
+            ],
+        ));
+    }
+    if text.to_ascii_lowercase().starts_with("flashback")
+        && text.contains("{1}{R}")
+        && text.contains("Behold three Elementals")
+    {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "flashback",
+                    "cost": {
+                        "kind": "compositeCost",
+                        "costs": [
+                            { "kind": "payMana", "manaCost": "{1}{R}" },
+                            {
+                                "kind": "behold",
+                                "where": subtype("Elemental"),
+                                "count": integer(3),
+                            },
+                        ],
+                    },
+                },
+            }),
+            &[
+                "Recognize the flashback mana cost",
+                "Require three controlled or revealed Elementals to be beheld",
+            ],
+        ));
+    }
     if let Some(cost) = parse_keyword_cost(text, "Flashback") {
         return Some(draft(
             json!({
@@ -885,6 +1001,35 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
             &[
                 "Recognize flashback keyword",
                 "Resolve graveyard casting cost",
+            ],
+        ));
+    }
+    if text
+        == "Beam me up {2}{U} (You may cast this card from your graveyard for {2}{U} if you also return a creature you control to its owner's hand. Then exile this spell.)"
+    {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "flashback",
+                    "cost": {
+                        "kind": "compositeCost",
+                        "costs": [
+                            { "kind": "payMana", "manaCost": "{2}{U}" },
+                            {
+                                "kind": "returnPermanentToOwnersHand",
+                                "where": card_type("Creature"),
+                                "controller": controller(),
+                            },
+                        ],
+                    },
+                },
+            }),
+            &[
+                "Model beam me up as a graveyard casting permission",
+                "Pay mana and return a controlled creature",
+                "Exile the spell after it resolves",
             ],
         ));
     }
@@ -968,6 +1113,31 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
                 "Recognize the Escalate keyword",
                 "Parse its payment with the shared cost grammar",
                 "Repeat that cost for each selected mode beyond the first",
+            ],
+        ));
+    }
+    let encore_re = Regex::new(r"^Encore ((?:\{[^}]+\})+)(?: \(.+\))?$")
+        .expect("encore keyword regex compiles");
+    if let Some(captures) = encore_re.captures(text) {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "activationZone": "graveyard",
+                "activationCondition": { "kind": "sorceryTiming" },
+                "costs": [
+                    { "kind": "payMana", "manaCost": &captures[1] },
+                    { "kind": "exileSource", "object": self_ref(), "zone": "graveyard" },
+                ],
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "resolveEncore",
+                }],
+            }),
+            &[
+                "Activate Encore from the graveyard at sorcery timing",
+                "Exile the source as a cost",
+                "Create a hasty attacking copy for each opponent and sacrifice them later",
             ],
         ));
     }
@@ -1069,7 +1239,7 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
         ));
     }
     let cycling_re =
-        Regex::new(r"^Cycling ((?:\{[^}]+\})+) \(.+Discard this card: Draw a card\.\)$")
+        Regex::new(r"^Cycling ((?:\{[^}]+\})+)(?: \(.+Discard this card: Draw a card\.\))?$")
             .expect("cycling regex compiles");
     if let Some(captures) = cycling_re.captures(text) {
         return Some(draft(
@@ -1162,6 +1332,99 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
                 ],
             }),
             &["Partition keyword list", "Recognize flying and myriad"],
+        ));
+    }
+    if text
+        .strip_prefix("Riot")
+        .is_some_and(|suffix| suffix.is_empty() || suffix.starts_with(" ("))
+    {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "riotChoice",
+                    "kind": "chooseOption",
+                    "options": ["+1/+1 counter", "haste"],
+                }],
+                "replacement": [{
+                    "kind": "applyRiotChoice",
+                    "decisionId": "riotChoice",
+                }],
+            }),
+            &[
+                "Recognize riot",
+                "Choose a +1/+1 counter or haste as the creature enters",
+            ],
+        ));
+    }
+    let web_slinging_re = Regex::new(
+        r"^Web-slinging ((?:\{[^}]+\})+)(?: \(You may cast this spell for ((?:\{[^}]+\})+) if you also return a tapped creature you control to its owner's hand\.\))?$",
+    )
+    .expect("web-slinging regex compiles");
+    if let Some(captures) = web_slinging_re.captures(text) {
+        let mana_cost = captures.get(1)?.as_str();
+        if captures
+            .get(2)
+            .is_some_and(|reminder_cost| reminder_cost.as_str() != mana_cost)
+        {
+            return None;
+        }
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "alternativeCost",
+                    "mode": "webSlinging",
+                    "costs": [
+                        { "kind": "payMana", "manaCost": mana_cost },
+                        {
+                            "kind": "returnPermanentToOwnersHand",
+                            "where": and(vec![
+                                card_type("Creature"),
+                                json!({ "kind": "isTapped" }),
+                            ]),
+                        },
+                    ],
+                },
+            }),
+            &[
+                "Recognize web-slinging",
+                "Offer its mana and tapped-creature return alternative cost",
+            ],
+        ));
+    }
+    let mayhem_re = Regex::new(
+        r"^Mayhem(?: ((?:\{[^}]+\})+))?(?: \(You may (?:cast|play) this card from your graveyard(?: for ((?:\{[^}]+\})+))? if you discarded it this turn\. Timing rules still apply\.\))?$",
+    )
+    .expect("mayhem regex compiles");
+    if let Some(captures) = mayhem_re.captures(text) {
+        let printed_cost = captures.get(1).map(|capture| capture.as_str());
+        let reminder_cost = captures.get(2).map(|capture| capture.as_str());
+        if reminder_cost.is_some_and(|cost| Some(cost) != printed_cost) {
+            return None;
+        }
+        let ability = printed_cost.map_or_else(
+            || json!({ "kind": "mayhem" }),
+            |mana_cost| {
+                json!({
+                    "kind": "mayhem",
+                    "cost": { "kind": "payMana", "manaCost": mana_cost },
+                })
+            },
+        );
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": ability,
+            }),
+            &[
+                "Recognize mayhem",
+                "Permit this discarded card to be played from the graveyard this turn",
+            ],
         ));
     }
     if let Some(cost) = parse_keyword_cost(text, "Warp") {
@@ -1300,6 +1563,28 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
             &[
                 "Recognize kicker keyword",
                 "Resolve optional creature-sacrifice cost",
+            ],
+        ));
+    }
+    if text
+        == "Kicker—Sacrifice an artifact or creature. (You may sacrifice an artifact or creature in addition to any other costs as you cast this spell.)"
+    {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "kicker",
+                    "cost": {
+                        "kind": "sacrificePermanent",
+                        "where": or(vec![card_type("Artifact"), card_type("Creature")]),
+                    },
+                    "repeatable": false,
+                },
+            }),
+            &[
+                "Recognize artifact-or-creature sacrifice kicker",
+                "Resolve the optional additional sacrifice cost",
             ],
         ));
     }

@@ -5,7 +5,56 @@ pub(crate) fn parse_canonical_rule(
     input: &AbilityInput<'_>,
     ability_kind: &str,
 ) -> Option<CanonicalRuleDraft> {
-    let text = input.source.text.trim();
+    let source_text = input.source.text.trim();
+    // Ability words carry no rules meaning. Normalize them at the dispatch
+    // boundary so every leaf parser can concentrate on the actual ability.
+    // Keep Landfall on its established specialized path for now.
+    let text = source_text
+        .strip_prefix("Vivid — ")
+        .or_else(|| source_text.strip_prefix("Vivid â€” "))
+        .or_else(|| source_text.strip_prefix("Vivid Ã¢â‚¬â€ "))
+        .unwrap_or(source_text);
+
+    if let Some(parsed) = parse_spm_leaf_ability(text, input.face_name) {
+        return Some(parsed);
+    }
+    if let Some(parsed) = parse_ecc_remaining_ability(text, ability_kind) {
+        return Some(parsed);
+    }
+    if let Some(parsed) = parse_tla_leaf_ability(text) {
+        return Some(parsed);
+    }
+
+    if text.ends_with("can be your commander.") && text.contains("Enduring Bond") {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": active_while_battlefield(),
+                "modifiers": [{ "kind": "commanderEligible" }],
+            }),
+            &["Recognize commander eligibility"],
+        ));
+    }
+
+    if text.starts_with("Rulebreaker — ") {
+        return Some(draft(
+            json!({
+                "kind": "rulesMarker",
+                "source": self_ref(),
+                "text": text,
+                "deckConstructionException": true,
+            }),
+            &["Record the commander deck-construction exception"],
+        ));
+    }
+
+    if text == "A deck can have any number of cards named Sphinx's Approach." {
+        return Some(draft(
+            json!({ "kind": "rulesMarker", "text": text }),
+            &["Recognize the named-card deck-construction exception"],
+        ));
+    }
 
     if let Some(parsed) = parse_buyback_ability(text) {
         return Some(parsed);

@@ -4,12 +4,27 @@ pub(in crate::oracle::canonical) fn parse_hand_put_haste_delayed_sacrifice(
     instruction: &str,
 ) -> Option<(Vec<Value>, Vec<Value>)> {
     let criteria = parse_optional_hand_permanent_with_haste_and_delayed_sacrifice(instruction)?;
+    let criteria = strip_prefix_ascii_case(criteria, "a ").unwrap_or(criteria);
+    let total_stats_re =
+        Regex::new(r"(?i)^creature(?: card)? with total power and toughness (\d+) or less$")
+            .expect("hand creature total-stat filter regex compiles");
+    let where_filter = if let Some(captures) = total_stats_re.captures(criteria) {
+        and(vec![
+            card_type("Creature"),
+            json!({
+                "kind": "totalPowerAndToughnessAtMost",
+                "value": integer(captures.get(1)?.as_str().parse::<i64>().ok()?),
+            }),
+        ])
+    } else {
+        parse_permanent_criteria(criteria, "")?
+    };
     let decisions = vec![target_decision(
         "handCard",
         json!({
             "kind": "cards",
             "zone": hand(controller()),
-            "where": parse_permanent_criteria(criteria, "")?,
+            "where": where_filter,
         }),
         0,
         1,
@@ -71,12 +86,609 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         .unwrap_or(text);
     let normalized = strip_short_oracle_label(normalized);
 
+    if normalized
+        == "Tap two untapped creatures you control: Copy target triggered ability you control. You may choose new targets for the copy. Activate only once each turn."
+    {
+        let (costs, mut decisions) =
+            parse_activation_costs("Tap two untapped creatures you control")?;
+        decisions.push(target_decision(
+            "kirolTriggeredAbility",
+            json!({
+                "kind": "stackItems",
+                "controller": controller(),
+                "where": { "kind": "isTriggeredAbility" },
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "activationLimit": { "kind": "oncePerTurn", "id": "kirolCopyTrigger" },
+                "effects": [{
+                    "kind": "copyStackItem",
+                    "object": chosen_target("kirolTriggeredAbility"),
+                    "controller": controller(),
+                    "mayChooseNewTargets": true,
+                }],
+            }),
+            &["Tap two distinct controlled creatures and copy a controlled triggered ability"],
+        ));
+    }
+
+    if normalized
+        == "{5}, {T}, Sacrifice this artifact: Create X tapped 2/2 colorless Scarecrow artifact creature tokens, where X is the number of charge counters on this artifact."
+    {
+        let (costs, decisions) = parse_activation_costs("{5}, {T}, Sacrifice this artifact")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "wickersmithCreateScarecrows",
+                }],
+            }),
+            &["Create tapped Scarecrows equal to the sacrificed source's charge counters"],
+        ));
+    }
+
+    if normalized == "{1}{B}{R}: Put a -1/-1 counter on another target creature." {
+        let (costs, mut decisions) = parse_activation_costs("{1}{B}{R}")?;
+        decisions.push(target_decision(
+            "scorpionGodCreature",
+            json!({
+                "kind": "permanents",
+                "where": card_type("Creature"),
+                "excludeSource": true,
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": chosen_target("scorpionGodCreature"),
+                    "counter": "-1/-1",
+                    "count": integer(1),
+                }],
+            }),
+            &["Put a -1/-1 counter on another targeted creature"],
+        ));
+    }
+
+    if normalized == "{T}: Double the number of each kind of counter on target creature." {
+        let (costs, mut decisions) = parse_activation_costs("{T}")?;
+        decisions.push(target_decision(
+            "ferraforCreature",
+            permanent_target_candidates("creature", face_name)?,
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "ferraforDoubleCounters",
+                }],
+            }),
+            &["Double every kind of counter on the targeted creature"],
+        ));
+    }
+
+    if normalized == "{T}: Exchange target opponent's life total with this creature's toughness." {
+        let (costs, mut decisions) = parse_activation_costs("{T}")?;
+        decisions.push(target_decision(
+            "treeOpponent",
+            json!({
+                "kind": "players",
+                "where": { "kind": "isOpponentOf", "player": controller() },
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "treeOfPerditionExchange",
+                }],
+            }),
+            &["Exchange the opponent's life total with the source's toughness"],
+        ));
+    }
+
+    if normalized
+        == "{B}, Remove a -1/-1 counter from this creature: Put a -1/-1 counter on each other creature."
+    {
+        let (costs, decisions) =
+            parse_activation_costs("{B}, Remove a -1/-1 counter from this creature")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "where": card_type("Creature"),
+                        "excludeSource": true,
+                    },
+                    "counter": "-1/-1",
+                    "count": integer(1),
+                }],
+            }),
+            &["Move a -1/-1 counter from the source to every other creature"],
+        ));
+    }
+
+    if normalized == "Put a -1/-1 counter on this creature: Untap this creature." {
+        let costs = vec![json!({
+            "kind": "putCountersOnSource",
+            "counter": "-1/-1",
+            "count": integer(1),
+        })];
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "devotedDruidUntap",
+                }],
+            }),
+            &["Put a -1/-1 counter on the source and untap it"],
+        ));
+    }
+
+    if normalized
+        == "Remove a -1/-1 counter from this creature: Put a -1/-1 counter on another target creature."
+    {
+        let (costs, mut decisions) =
+            parse_activation_costs("Remove a -1/-1 counter from this creature")?;
+        decisions.push(target_decision(
+            "grimPoppetCreature",
+            json!({
+                "kind": "permanents",
+                "where": card_type("Creature"),
+                "excludeSource": true,
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": decisions,
+                },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": chosen_target("grimPoppetCreature"),
+                    "counter": "-1/-1",
+                    "count": integer(1),
+                }],
+            }),
+            &["Move a -1/-1 counter from the source to another creature"],
+        ));
+    }
+
+    if normalized
+        == "{R}: Target creature you control gains trample until end of turn. If this is the third time this ability has resolved this turn, add {R}{R}{R}{R}."
+    {
+        let (costs, mut decisions) = parse_activation_costs("{R}")?;
+        decisions.push(target_decision(
+            "targetCreature",
+            json!({
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [
+                    {
+                        "kind": "grantKeyword",
+                        "object": chosen_target("targetCreature"),
+                        "keyword": "trample",
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    },
+                    {
+                        "kind": "resolveOrdinalTriggeredAbility",
+                        "id": stable_rule_id("soulbrightSeeker", normalized),
+                        "branches": [{
+                            "ordinal": integer(3),
+                            "effects": [{
+                                "kind": "addMana",
+                                "player": controller(),
+                                "mana": "{R}{R}{R}{R}",
+                            }],
+                        }],
+                    },
+                ],
+            }),
+            &[
+                "Pay red mana",
+                "Give a controlled creature trample",
+                "Add four red mana on the third resolution",
+            ],
+        ));
+    }
+
+    if normalized == "{4}: This artifact becomes a 4/4 artifact creature until end of turn." {
+        let (costs, decisions) = parse_activation_costs("{4}")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [{
+                    "kind": "becomeCreature",
+                    "object": self_ref(),
+                    "addTypes": ["Creature"],
+                    "addSubtypes": [],
+                    "basePower": integer(4),
+                    "baseToughness": integer(4),
+                    "retainExistingTypes": true,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }],
+            }),
+            &[
+                "Pay the animation cost",
+                "Animate the artifact as a 4/4 until end of turn",
+            ],
+        ));
+    }
+
+    if normalized.starts_with(
+        "Discard a card: This creature gains indestructible until end of turn. Tap it.",
+    ) {
+        let (costs, decisions) = parse_activation_costs("Discard a card")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [
+                    {
+                        "kind": "grantKeyword",
+                        "object": self_ref(),
+                        "keyword": "indestructible",
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    },
+                    {
+                        "kind": "tapPermanent",
+                        "permanent": self_ref(),
+                    },
+                ],
+            }),
+            &[
+                "Discard a card as the activation cost",
+                "Grant indestructible until end of turn",
+                "Tap the source",
+            ],
+        ));
+    }
+
+    if normalized
+        == "{U}{R}: Until end of turn, this land becomes a 2/1 blue and red Elemental creature with \"During your turn, this creature has first strike.\" It's still a land."
+    {
+        let (costs, decisions) = parse_activation_costs("{U}{R}")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [
+                    {
+                        "kind": "becomeCreature",
+                        "object": self_ref(),
+                        "addTypes": ["Creature"],
+                        "addSubtypes": ["Elemental"],
+                        "addColors": ["blue", "red"],
+                        "basePower": 2,
+                        "baseToughness": 1,
+                        "retainExistingTypes": true,
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    },
+                    {
+                        "kind": "grantKeyword",
+                        "object": self_ref(),
+                        "keyword": "firstStrike",
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    },
+                ],
+            }),
+            &[
+                "Pay the animation cost",
+                "Animate Restless Spire until end of turn",
+                "Grant its controller-turn first strike ability",
+            ],
+        ));
+    }
+    if normalized.starts_with("{2}{U}, {T}: Put target creature on the bottom of its owner's library. That creature's controller reveals cards from the top of their library until they reveal a creature card.") {
+        let (costs, mut decisions) = parse_activation_costs("{2}{U}, {T}")?;
+        decisions.push(target_decision(
+            "targetCreature",
+            json!({ "kind": "permanents", "where": card_type("Creature") }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "activationCondition": { "kind": "sorceryTiming" },
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "proteusStaff",
+                }],
+            }),
+            &[
+                "Pay and tap Proteus Staff at sorcery speed",
+                "Put the target creature on the bottom of its owner's library",
+                "Reveal and replace it with the next creature",
+            ],
+        ));
+    }
+    if normalized
+        == "{T}: Put a card exiled with this artifact into its owner's graveyard. If it's a land card, create a Treasure token. If it's a nonland card, create a 2/2 black Rogue creature token."
+    {
+        let (costs, decisions) = parse_activation_costs("{T}")?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "currencyConverterCashIn",
+                }],
+            }),
+            &[
+                "Tap Currency Converter",
+                "Move one linked exiled card to its owner's graveyard",
+                "Create Treasure for a land or Rogue for a nonland",
+            ],
+        ));
+    }
+    if normalized
+        == "{3}: Put a shadow counter on another target creature. Activate only as a sorcery."
+    {
+        let (costs, mut decisions) = parse_activation_costs("{3}")?;
+        decisions.push(target_decision(
+            "targetCreature",
+            json!({
+                "kind": "permanents",
+                "where": card_type("Creature"),
+                "excludeSource": true,
+            }),
+            1,
+            1,
+        ));
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "activationCondition": { "kind": "sorceryTiming" },
+                "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": chosen_target("targetCreature"),
+                    "counter": "shadow",
+                    "count": integer(1),
+                }],
+            }),
+            &["Put a shadow counter on another target creature at sorcery speed"],
+        ));
+    }
+
     if let Some((cost_text, raw_instruction)) = normalized.split_once(':') {
         let instruction = raw_instruction
             .trim()
             .split_once(" (")
             .map(|(instruction, _)| instruction)
             .unwrap_or(raw_instruction.trim());
+        if instruction
+            == "Destroy target artifact or enchantment. If that permanent was a legendary enchantment, draw a card. Activate only as a sorcery."
+        {
+            let (costs, mut decisions) = parse_activation_costs(cost_text)?;
+            decisions.push(target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": or(vec![card_type("Artifact"), card_type("Enchantment")]),
+                }),
+                1,
+                1,
+            ));
+            let target = chosen_target("targetPermanent");
+            return Some(draft(
+                json!({
+                    "kind": "activatedAbility",
+                    "source": self_ref(),
+                    "costs": costs,
+                    "activationCondition": { "kind": "sorceryTiming" },
+                    "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                    "effects": [
+                        { "kind": "destroyPermanent", "permanent": target.clone() },
+                        {
+                            "kind": "conditionalEffect",
+                            "condition": {
+                                "kind": "objectMatchesFilter",
+                                "object": target,
+                                "where": and(vec![
+                                    json!({ "kind": "isLegendary" }),
+                                    card_type("Enchantment"),
+                                ]),
+                            },
+                            "then": [{
+                                "kind": "drawCards",
+                                "player": controller(),
+                                "count": integer(1),
+                            }],
+                            "else": [],
+                        },
+                    ],
+                }),
+                &[
+                    "Pay the sacrifice cost",
+                    "Destroy the chosen artifact or enchantment",
+                    "Inspect its last known card characteristics",
+                    "Draw for a legendary enchantment",
+                ],
+            ));
+        }
+        if instruction
+            == "Until end of turn, whenever Lyra deals combat damage to a player, draw two cards."
+        {
+            let (costs, decisions) = parse_activation_costs(cost_text)?;
+            return Some(draft(
+                json!({
+                    "kind": "activatedAbility",
+                    "source": self_ref(),
+                    "costs": costs,
+                    "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                    "effects": [{
+                        "kind": "installCombatDamageTrigger",
+                        "object": self_ref(),
+                        "duration": { "kind": "currentCombat" },
+                        "effects": [{
+                            "kind": "drawCards",
+                            "player": controller(),
+                            "count": integer(2),
+                        }],
+                    }],
+                }),
+                &[
+                    "Pay the activation cost",
+                    "Install Lyra's combat-damage draw trigger",
+                ],
+            ));
+        }
+        if instruction
+            == "Whenever a creature you control deals combat damage to a player or planeswalker this turn, draw a card."
+        {
+            let (costs, decisions) = parse_activation_costs(cost_text)?;
+            return Some(draft(
+                json!({
+                    "kind": "activatedAbility",
+                    "source": self_ref(),
+                    "costs": costs,
+                    "declaration": { "kind": "castingDeclaration", "decisions": decisions },
+                    "effects": [{
+                        "kind": "installControlledCombatDamageDrawUntilEndOfTurn",
+                        "player": controller(),
+                        "count": integer(1),
+                    }],
+                }),
+                &[
+                    "Pay the mana and counter-removal costs",
+                    "Install the controlled-creature combat-damage trigger for this turn",
+                    "Draw a card for each qualifying damage event",
+                ],
+            ));
+        }
+        if instruction
+            == "Target creature with a +1/+1 counter on it gains flying until end of turn."
+        {
+            let (costs, cost_decisions) = parse_activation_costs(cost_text)?;
+            let mut rule = json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetCreature",
+                        json!({
+                            "kind": "permanents",
+                            "where": and(vec![
+                                card_type("Creature"),
+                                json!({ "kind": "hasCounter", "counter": "+1/+1" }),
+                            ]),
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "grantKeyword",
+                    "object": chosen_target("targetCreature"),
+                    "keyword": "flying",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }],
+            });
+            if !cost_decisions.is_empty() {
+                rule["declaration"]["decisions"]
+                    .as_array_mut()?
+                    .extend(cost_decisions);
+            }
+            return Some(draft(
+                rule,
+                &[
+                    "Pay the activation cost",
+                    "Target a countered creature",
+                    "Grant flying",
+                ],
+            ));
+        }
         if let Some(behold_criteria) = parse_search_then_optional_behold_untap(instruction) {
             let (costs, decisions) = parse_activation_costs(cost_text)?;
             let mut effects = search_library_effects(
@@ -116,7 +728,11 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
 
     let (cost_text, raw_instruction) = normalized.split_once(':')?;
     let (mut costs, mut decisions) = parse_activation_costs(cost_text)?;
-    let activation_instruction = raw_instruction.trim().to_string();
+    let activation_instruction = raw_instruction
+        .trim()
+        .split_once(". (")
+        .map(|(instruction, _)| format!("{}.", instruction.trim_end_matches('.')))
+        .unwrap_or_else(|| raw_instruction.trim().to_string());
     let raw_instruction = activation_instruction
         .split_once(" Activate only ")
         .map(|(instruction, _)| instruction.trim())
@@ -202,6 +818,24 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
     }
     let mut effects = Vec::new();
 
+    if instruction
+        == "Target land gains \"{T}: Add {C}{C}\" until this card is cast from exile. You may cast this card for as long as it remains exiled."
+    {
+        decisions.push(target_decision(
+            "targetLand",
+            json!({
+                "kind": "permanents",
+                "where": card_type("Land"),
+            }),
+            1,
+            1,
+        ));
+        effects.push(json!({
+            "kind": "resolveTriggeredInstruction",
+            "operation": "emrakulExigentExile",
+        }));
+    }
+
     if let Some((selection_effects, selection_decisions)) =
         parse_choose_permanents_then_sacrifice_rest(&instruction, face_name)
     {
@@ -249,6 +883,33 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
                 },
             }),
         ]);
+    }
+
+    let temporary_opponent_attack_bonus_re = Regex::new(
+        r"(?i)^Until your next turn, whenever one or more creatures attack one of your opponents, those creatures get ([+-]\d+)/([+-]\d+) and gain (.+?) until end of turn\.$",
+    )
+    .expect("temporary opponent-attack bonus regex compiles");
+    if effects.is_empty()
+        && let Some(captures) = temporary_opponent_attack_bonus_re.captures(&instruction)
+    {
+        effects.push(json!({
+            "kind": "installOpponentAttackTrigger",
+            "controller": controller(),
+            "duration": { "kind": "untilNextTurn", "player": controller() },
+            "effects": [
+                {
+                    "kind": "modifyTriggeringAttackers",
+                    "power": integer(captures[1].parse::<i64>().ok()?),
+                    "toughness": integer(captures[2].parse::<i64>().ok()?),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                },
+                {
+                    "kind": "grantKeywordToTriggeringAttackers",
+                    "keyword": oracle_keyword_kind(captures.get(3)?.as_str())?,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                },
+            ],
+        }));
     }
 
     if effects.is_empty()
@@ -831,7 +1492,8 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
             "recipient": chosen_target("damageTarget"),
         }));
     } else if let Some(counter) = parse_put_counter(&instruction)
-        && matches!(counter.recipient, CounterRecipient::NamedSource)
+        && let CounterRecipient::NamedSource(recipient) = counter.recipient
+        && source_reference_matches(recipient, face_name)
     {
         effects.push(json!({
             "kind": "putCounters",
@@ -911,6 +1573,9 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         cost["kind"] == "discardCard" && cost["card"]["kind"] == "self"
             || cost["kind"] == "exileSource" && cost["zone"] == "hand"
     });
+    let activates_from_graveyard = costs
+        .iter()
+        .any(|cost| cost["kind"] == "exileSource" && cost["zone"] == "graveyard");
     let loyalty_ability = costs
         .iter()
         .any(|cost| cost["kind"].as_str() == Some("payLoyalty"));
@@ -928,6 +1593,8 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
     }
     if activates_from_hand {
         rule["activationZone"] = Value::String("hand".to_string());
+    } else if activates_from_graveyard {
+        rule["activationZone"] = Value::String("graveyard".to_string());
     } else if rule["effects"].as_array().is_some_and(|effects| {
         effects.iter().any(|effect| {
             effect["kind"].as_str() == Some("moveAbilitySourceToHand")
@@ -944,7 +1611,19 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         });
     }
     if loyalty_ability {
-        rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        let sorcery_timing = json!({ "kind": "sorceryTiming" });
+        rule["activationCondition"] = if let Some((_, condition_text)) =
+            activation_instruction.split_once("Activate only if ")
+        {
+            let condition_text = condition_text.trim_end_matches('.');
+            and(vec![
+                sorcery_timing,
+                parse_condition_text(condition_text)
+                    .or_else(|| parse_controlled_permanent_condition(condition_text, ""))?,
+            ])
+        } else {
+            sorcery_timing
+        };
         rule["activationLimit"] = json!({
             "kind": "oncePerTurn",
             "id": "loyaltyAbility",
@@ -1712,6 +2391,21 @@ pub(in crate::oracle::canonical) fn parse_common_activated_ability(
             })],
         )
     };
+    if instruction == "Matoc deals 2 damage to any other target." {
+        decisions.push(target_decision(
+            "damageTarget",
+            json!({ "kind": "anyTarget", "excludeSource": true }),
+            1,
+            1,
+        ));
+        return Some(operation(costs, decisions, "matocDealTwo"));
+    }
+    if instruction.starts_with("Manifest the top card of your library. Any player may activate this ability but only as a sorcery.") {
+        let mut parsed = operation(costs, decisions, "sashManifestTop");
+        parsed.rule["anyPlayerMayActivate"] = Value::Bool(true);
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
     if instruction.starts_with("Double the number of +1/+1 counters on each creature you control.")
     {
         return Some(operation(
@@ -1791,6 +2485,92 @@ pub(in crate::oracle::canonical) fn active_while_battlefield() -> Value {
 pub(in crate::oracle::canonical) fn parse_special_activated_ability(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
+    let staged_creature_form_re = Regex::new(
+        r"(?i)^(.+?): (?:If this creature is (?:a|an) ([A-Za-z][A-Za-z '-]+), )?(?:this creature|it) becomes (?:a|an) ([A-Za-z][A-Za-z '-]+) with base power and toughness (\d+)/(\d+)( and protection from each of your opponents)?\.$",
+    )
+    .expect("staged creature form activation regex compiles");
+    if let Some(captures) = staged_creature_form_re.captures(text) {
+        let (costs, decisions) = parse_activation_costs(captures.get(1)?.as_str())?;
+        let subtypes = captures
+            .get(3)?
+            .as_str()
+            .split_whitespace()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let mut effects = vec![json!({
+            "kind": "becomeCreature",
+            "object": self_ref(),
+            "addTypes": ["Creature"],
+            "addSubtypes": subtypes,
+            "basePower": integer(captures[4].parse::<i64>().ok()?),
+            "baseToughness": integer(captures[5].parse::<i64>().ok()?),
+            "retainExistingTypes": true,
+            "replaceSubtypes": true,
+            "duration": { "kind": "permanent" },
+        })];
+        if captures.get(6).is_some() {
+            effects.push(json!({
+                "kind": "grantKeyword",
+                "object": self_ref(),
+                "keyword": "protectionFromOpponents",
+                "duration": { "kind": "permanent" },
+            }));
+        }
+        let mut rule = json!({
+            "kind": "activatedAbility",
+            "source": self_ref(),
+            "costs": costs,
+            "effects": effects,
+        });
+        if let Some(required_type) = captures.get(2) {
+            rule["activationCondition"] = json!({
+                "kind": "objectMatchesFilter",
+                "object": self_ref(),
+                "where": subtype(required_type.as_str()),
+            });
+        }
+        if !decisions.is_empty() {
+            rule["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": decisions,
+            });
+        }
+        return Some(draft(
+            rule,
+            &[
+                "Parse the staged activation cost",
+                "Require the current creature form when specified",
+                "Replace creature subtypes and base statistics permanently",
+            ],
+        ));
+    }
+    if let Some((cost_text, instruction)) = text.split_once(':')
+        && let Some((effects, mut effect_decisions)) =
+            parse_hand_put_haste_delayed_sacrifice(instruction.trim())
+    {
+        let (costs, mut cost_decisions) = parse_activation_costs(cost_text.trim())?;
+        cost_decisions.append(&mut effect_decisions);
+        let mut rule = json!({
+            "kind": "activatedAbility",
+            "source": self_ref(),
+            "costs": costs,
+            "effects": effects,
+        });
+        if !cost_decisions.is_empty() {
+            rule["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": cost_decisions,
+            });
+        }
+        return Some(draft(
+            rule,
+            &[
+                "Parse the activation costs",
+                "Choose an eligible permanent card from hand",
+                "Grant haste and install the delayed sacrifice trigger",
+            ],
+        ));
+    }
     if let Some((threshold, ability)) = parse_station_threshold(text) {
         let mut parsed = parse_simple_activated_ability(ability)
             .or_else(|| parse_common_activated_ability(ability))?;
@@ -1833,6 +2613,275 @@ pub(in crate::oracle::canonical) fn parse_special_activated_ability(
             ],
         )
     };
+    let loyalty_rule = |costs: Vec<Value>, declaration: Option<Value>, effects: Vec<Value>| {
+        let mut parsed = activated_rule(costs, declaration, effects);
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        parsed.rule["activationLimit"] = json!({
+            "kind": "oncePerTurn",
+            "id": "loyaltyAbility",
+        });
+        parsed
+    };
+    let custom_loyalty =
+        |amount: Value, starting_loyalty: i64, operation: &str, declaration: Option<Value>| {
+            let mut parsed = loyalty_rule(
+                vec![json!({
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": amount,
+                })],
+                declaration,
+                vec![json!({
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": operation,
+                })],
+            );
+            parsed.rule["startingLoyalty"] = integer(starting_loyalty);
+            parsed
+        };
+    if text
+        == "{1}, {T}: Another target creature gets +X/+X until end of turn, where X is Picard's power. Activate only as a sorcery."
+    {
+        let (costs, _) = parse_activation_costs("{1}, {T}")?;
+        let mut parsed = activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "picardLeadingPump",
+            })],
+        );
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
+    if text
+        == "{6}: Create a tapped Planet land token named New Planet with \"{T}: Add one mana of any color.\" Activate only as a sorcery."
+    {
+        let (costs, _) = parse_activation_costs("{6}")?;
+        let mut parsed = activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "saurianExplorerPlanet",
+            })],
+        );
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
+    let hoc_activated = |cost_text: &str, operation_name: &str| {
+        let (costs, _) = parse_activation_costs(cost_text)?;
+        Some(activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction", "operation": operation_name,
+            })],
+        ))
+    };
+    if text
+        == "{T}: Put a burden counter on The One Ring, then draw a card for each burden counter on The One Ring."
+    {
+        return hoc_activated("{T}", "oneRingBurden");
+    }
+    if text
+        == "{1}{B}, {T}: Choose a player with the most life or tied for most life. Target creature can't be blocked by creatures that player controls this turn."
+    {
+        return hoc_activated("{1}{B}, {T}", "blackGateUnblockable");
+    }
+    if text
+        == "{5}{B}{R}, {T}, Sacrifice Mount Doom and a legendary artifact: Choose up to two creatures, then destroy the rest. Activate only as a sorcery."
+    {
+        let mut parsed = hoc_activated(
+            "{5}{B}{R}, {T}, Sacrifice this permanent",
+            "mountDoomDestroyRest",
+        )?;
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
+    if text == "{1}{G}, {T}, Tap an untapped creature you control: Create a Food token." {
+        return hoc_activated("{1}{G}, {T}", "shireCreateFood");
+    }
+    if text
+        == "{1}, {T}: Put a charge counter on this artifact. Note the type of mana spent to pay this activation cost. Activate only if there are no charge counters on this artifact."
+    {
+        let (costs, _) = parse_activation_costs("{1}, {T}")?;
+        let mut parsed = activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "jeweledAmuletCharge",
+            })],
+        );
+        parsed.rule["activationCondition"] = compare(
+            "==",
+            json!({
+                "kind": "countCounters",
+                "object": self_ref(),
+                "counter": "charge",
+            }),
+            integer(0),
+        );
+        return Some(parsed);
+    }
+    if text
+        == "{T}, Remove a charge counter from this artifact: Add one mana of this artifact's last noted type."
+    {
+        let (costs, _) = parse_activation_costs("{T}, Remove a charge counter from this artifact")?;
+        return Some(activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "jeweledAmuletMana",
+            })],
+        ));
+    }
+    if text
+        == "{5}{W}{W}{W}, Sacrifice Nivea: Create an Akroma, Angel of Wrath token. (She's a {5}{W}{W}{W} legendary 6/6 Angel creature with flying, first strike, vigilance, trample, haste, and protection from black and from red.)"
+    {
+        let (costs, _) = parse_activation_costs("{5}{W}{W}{W}, Sacrifice this permanent")?;
+        return Some(activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "niveaCreateAkroma",
+            })],
+        ));
+    }
+    if text == "{1}{R}: Creatures you control get +1/+0 until end of turn." {
+        let (costs, _) = parse_activation_costs("{1}{R}")?;
+        return Some(activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "modifyPowerToughness",
+                "object": {
+                    "kind": "eachPermanent",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                },
+                "power": integer(1),
+                "toughness": integer(0),
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+        ));
+    }
+    if text == "{2}{G}: This creature has base power and toughness 4/4 until end of turn." {
+        let (costs, _) = parse_activation_costs("{2}{G}")?;
+        return Some(activated_rule(
+            costs,
+            None,
+            vec![json!({
+                "kind": "setBasePowerToughness",
+                "object": self_ref(),
+                "power": integer(4),
+                "toughness": integer(4),
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+        ));
+    }
+    if text == "{2}{W}: Another target creature perpetually gains lifelink." {
+        let (costs, _) = parse_activation_costs("{2}{W}")?;
+        return Some(activated_rule(
+            costs,
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "targetCreature",
+                    json!({
+                        "kind": "permanents",
+                        "where": card_type("Creature"),
+                        "excludeSource": true,
+                    }),
+                    1,
+                    1,
+                )],
+            })),
+            vec![json!({
+                "kind": "grantKeyword",
+                "object": chosen_target("targetCreature"),
+                "keyword": "lifelink",
+                "duration": { "kind": "permanent" },
+            })],
+        ));
+    }
+    if text
+        == "{2}{U}: Target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
+    {
+        let (costs, _) = parse_activation_costs("{2}{U}")?;
+        return Some(activated_rule(
+            costs,
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "targetCard",
+                    json!({
+                        "kind": "cards",
+                        "zone": graveyard(controller()),
+                        "where": or(vec![card_type("Instant"), card_type("Sorcery")]),
+                    }),
+                    1,
+                    1,
+                )],
+            })),
+            vec![json!({
+                "kind": "grantAbility",
+                "object": chosen_target("targetCard"),
+                "ability": {
+                    "kind": "flashback",
+                    "cost": { "kind": "manaCostOf", "card": { "kind": "abilitySource" } },
+                },
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+        ));
+    }
+    if text
+        == "{X}{B}: Return target creature card with mana value X from your graveyard to the battlefield with a finality counter on it. Activate only as a sorcery."
+    {
+        let (costs, decisions) = parse_activation_costs("{X}{B}")?;
+        let mut parsed = activated_rule(
+            costs,
+            Some(json!({ "kind": "castingDeclaration", "decisions": decisions })),
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": "jetCollectorReanimate",
+            })],
+        );
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
+
+    if text
+        == "{3}, {T}: You draw a card and gain 1 life. This ability costs {3} less to activate if you had 200 or more cards in your starting deck."
+    {
+        let (costs, _) = parse_activation_costs("{3}, {T}")?;
+        let mut parsed = activated_rule(
+            costs,
+            None,
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(1),
+                }),
+                json!({
+                    "kind": "gainLife",
+                    "player": controller(),
+                    "amount": integer(1),
+                }),
+            ],
+        );
+        parsed.rule["manaCostReduction"] = json!({
+            "kind": "startingDeckSizeAtLeast",
+            "threshold": integer(200),
+            "amount": integer(3),
+        });
+        return Some(parsed);
+    }
+
     let permanent_choice = |id: &str, filter: Value, exclude_source: bool| {
         let mut candidates = json!({
             "kind": "permanents",
@@ -1844,6 +2893,336 @@ pub(in crate::oracle::canonical) fn parse_special_activated_ability(
         }
         target_decision(id, candidates, 1, 1)
     };
+
+    let mbc_loyalty_text = text.replace("âˆ’", "−");
+    if mbc_loyalty_text.contains("Create a Feroz's Ban token.") {
+        return Some(custom_loyalty(integer(-7), 5, "ferozMinusSeven", None));
+    }
+    if mbc_loyalty_text.starts_with("+1: Add one mana of any color.")
+        && mbc_loyalty_text.contains("Aura spell")
+    {
+        return Some(custom_loyalty(integer(1), 4, "unluckiestPlusOne", None));
+    }
+    if mbc_loyalty_text.contains("Discard your hand")
+        && mbc_loyalty_text.contains("twice the number of Auras")
+    {
+        return Some(custom_loyalty(integer(-3), 4, "unluckiestMinusThree", None));
+    }
+    if mbc_loyalty_text.starts_with("+1: Exile up to one other target permanent you control.") {
+        return Some(custom_loyalty(integer(1), 4, "venserPlusOne", None));
+    }
+    if mbc_loyalty_text.contains("For each opponent, return up to one target nonland permanent") {
+        return Some(custom_loyalty(integer(-2), 4, "venserMinusTwo", None));
+    }
+    match mbc_loyalty_text.as_str() {
+        "+2: Create two 1/1 blue Bird creature tokens with flying." => {
+            return Some(custom_loyalty(integer(2), 5, "ferozPlusTwo", None));
+        }
+        "0: Draw a card. You may put a permanent card with mana value 4 or less from your hand onto the battlefield." =>
+        {
+            return Some(custom_loyalty(integer(0), 5, "ferozZero", None));
+        }
+        "−1: Look at the top six cards of your library. You may reveal a planeswalker or basic Plains card from among them and put it into your hand. Put the rest on the bottom of your library in a random order." =>
+        {
+            return Some(custom_loyalty(integer(-1), 4, "worzelMinusOne", None));
+        }
+        "−8: Create ten Scryb Sprites tokens. (They're {G} 1/1 Faerie creatures with flying.)" => {
+            return Some(custom_loyalty(integer(-8), 4, "worzelMinusEight", None));
+        }
+        "+1: Create two tapped Powerstone tokens. (They're artifacts with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")" =>
+        {
+            return Some(custom_loyalty(integer(1), 4, "dyfedPlusOne", None));
+        }
+        "−6: Search your library for an artifact card, put it onto the battlefield, then shuffle." =>
+        {
+            return Some(custom_loyalty(integer(-6), 4, "dyfedMinusSix", None));
+        }
+        "−5: Create a Lord of the Pit token. (It's a {4}{B}{B}{B} 7/7 Demon creature with flying, trample, and \"At the beginning of your upkeep, sacrifice another creature. If you can't, this token deals 7 damage to you.\")" =>
+        {
+            return Some(custom_loyalty(integer(-5), 4, "thomilMinusFive", None));
+        }
+        "+2: Create a Giant Badger token. (It's a {1}{G}{G} 2/2 Badger creature with \"Whenever this token blocks, it gets +2/+2 until end of turn.\")" =>
+        {
+            return Some(custom_loyalty(integer(2), 5, "greensleevesPlusTwo", None));
+        }
+        "−3: Mill three cards. Put all permanent cards from among them into your hand." => {
+            return Some(custom_loyalty(
+                integer(-3),
+                5,
+                "greensleevesMinusThree",
+                None,
+            ));
+        }
+        "−8: Until end of turn, creatures you control have base power and toughness 8/8 and gain trample." =>
+        {
+            return Some(custom_loyalty(
+                integer(-8),
+                5,
+                "greensleevesMinusEight",
+                None,
+            ));
+        }
+        "−3: Create a Black Lotus token. (It's a {0} artifact with \"{T}, Sacrifice this token: Add three mana of any one color.\")" =>
+        {
+            return Some(custom_loyalty(integer(-3), 4, "arzakonMinusThree", None));
+        }
+        "−6: Each opponent exiles the top two cards of their library. Until end of turn, you may play those cards without paying their mana costs." =>
+        {
+            return Some(custom_loyalty(integer(-6), 4, "sifaMinusSix", None));
+        }
+        _ => {}
+    }
+    if mbc_loyalty_text == "−X: Untap X target artifacts." {
+        let x = json!({ "kind": "decisionResult", "decisionId": "xValue" });
+        let mut target = target_decision(
+            "targetArtifacts",
+            json!({ "kind": "permanents", "where": card_type("Artifact") }),
+            0,
+            0,
+        );
+        target["minimum"] = x.clone();
+        target["maximum"] = x.clone();
+        return Some(custom_loyalty(
+            json!({ "kind": "negate", "operand": x }),
+            4,
+            "dyfedMinusX",
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [
+                    { "id": "xValue", "kind": "chooseNumber", "minimum": 0 },
+                    target,
+                ],
+            })),
+        ));
+    }
+    if mbc_loyalty_text == "+2: Arzakon deals 3 damage to any other target." {
+        return Some(custom_loyalty(
+            integer(2),
+            4,
+            "arzakonPlusTwo",
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "damageTarget",
+                    json!({ "kind": "anyTarget", "excludeSource": true }),
+                    1,
+                    1,
+                )],
+            })),
+        ));
+    }
+    if mbc_loyalty_text == "+1: Goad up to two target creatures." {
+        return Some(custom_loyalty(
+            integer(1),
+            4,
+            "sifaPlusOne",
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "targetCreatures",
+                    json!({ "kind": "permanents", "where": card_type("Creature") }),
+                    0,
+                    2,
+                )],
+            })),
+        ));
+    }
+
+    if text
+        == "{5}: This land becomes a copy of target creature you control until end of turn. The \"legend rule\" doesn't apply to permanents you control this turn."
+    {
+        return Some(activated_rule(
+            vec![json!({ "kind": "payMana", "manaCost": "{5}" })],
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "copyTarget",
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": card_type("Creature"),
+                    }),
+                    1,
+                    1,
+                )],
+            })),
+            vec![
+                json!({
+                    "kind": "becomeCopyOfPermanent",
+                    "object": self_ref(),
+                    "copy": chosen_target("copyTarget"),
+                    "retainResolvingAbility": true,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "ignoreLegendRuleUntilEndOfTurn",
+                    "player": controller(),
+                }),
+            ],
+        ));
+    }
+    if text
+        == "{W}{U}{B}{R}{G}, {T}: Each creature you control becomes prepared. (Only creatures with prepare spells can become prepared.)"
+    {
+        return Some(activated_rule(
+            vec![
+                json!({ "kind": "payMana", "manaCost": "{W}{U}{B}{R}{G}" }),
+                json!({ "kind": "tap", "object": self_ref() }),
+            ],
+            None,
+            vec![json!({
+                "kind": "prepareControlledCreatures",
+                "player": controller(),
+            })],
+        ));
+    }
+    if text
+        == "−2: For each opponent, return up to one target artifact or creature that player controls to its owner's hand."
+    {
+        let mut decision = target_decision(
+            "targetPermanents",
+            json!({
+                "kind": "permanents",
+                "controller": { "kind": "opponentsOf", "player": controller() },
+                "where": or(vec![card_type("Artifact"), card_type("Creature")]),
+            }),
+            0,
+            0,
+        );
+        decision["maximum"] = json!({ "kind": "countOpponents", "player": controller() });
+        decision["selectionConstraint"] = json!({ "kind": "distinctPermanentControllers" });
+        return Some(loyalty_rule(
+            vec![json!({
+                "kind": "payLoyalty",
+                "object": self_ref(),
+                "amount": integer(-2),
+            })],
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [decision],
+            })),
+            vec![json!({
+                "kind": "returnToOwnersHand",
+                "object": { "kind": "chosenTargets", "id": "targetPermanents" },
+            })],
+        ));
+    }
+    if text
+        == "−6: Draw three cards. Then put X +1/+1 counters on each creature you control, where X is the number of cards in your hand."
+    {
+        return Some(loyalty_rule(
+            vec![json!({
+                "kind": "payLoyalty",
+                "object": self_ref(),
+                "amount": integer(-6),
+            })],
+            None,
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(3),
+                }),
+                json!({
+                    "kind": "putCounters",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "player": controller(),
+                        "where": card_type("Creature"),
+                    },
+                    "counter": "+1/+1",
+                    "count": {
+                        "kind": "countCards",
+                        "zone": { "kind": "hand", "player": controller() },
+                        "where": Value::Null,
+                    },
+                }),
+            ],
+        ));
+    }
+    if text
+        == "−2: Each player sacrifices a creature of their choice. If you sacrificed a creature this way, create a 4/4 green Beast creature token with trample."
+    {
+        return Some(loyalty_rule(
+            vec![json!({
+                "kind": "payLoyalty",
+                "object": self_ref(),
+                "amount": integer(-2),
+            })],
+            None,
+            vec![json!({
+                "kind": "eachPlayerSacrificesCreatureGarrukReward",
+                "player": controller(),
+            })],
+        ));
+    }
+    if text
+        == "−3: Each opponent discards two cards. For each opponent who didn't discard two nonland cards this way, you draw a card."
+    {
+        return Some(loyalty_rule(
+            vec![json!({
+                "kind": "payLoyalty",
+                "object": self_ref(),
+                "amount": integer(-3),
+            })],
+            None,
+            vec![json!({
+                "kind": "opponentsDiscardTwoDrawForShortfall",
+                "player": controller(),
+            })],
+        ));
+    }
+    if text
+        == "{3}{R}: Exile target creature or planeswalker you control. Reveal cards from the top of your library until you reveal a creature or planeswalker card. Put that card onto the battlefield and the rest on the bottom of your library in a random order. Activate only as a sorcery."
+    {
+        let mut parsed = activated_rule(
+            vec![json!({ "kind": "payMana", "manaCost": "{3}{R}" })],
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "targetPermanent",
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                    }),
+                    1,
+                    1,
+                )],
+            })),
+            vec![json!({
+                "kind": "resolveIdentityEcho",
+                "player": controller(),
+                "permanent": chosen_target("targetPermanent"),
+            })],
+        );
+        parsed.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+        return Some(parsed);
+    }
+    if text
+        == "−3: Exile another target planeswalker or creature you control. Reveal cards from the top of your library until you reveal a creature or planeswalker card. Put that card onto the battlefield and the rest on the bottom of your library in a random order."
+    {
+        return Some(loyalty_rule(
+            vec![json!({
+                "kind": "payLoyalty",
+                "object": self_ref(),
+                "amount": integer(-3),
+            })],
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [permanent_choice(
+                    "targetPermanent",
+                    or(vec![card_type("Planeswalker"), card_type("Creature")]),
+                    true,
+                )],
+            })),
+            vec![json!({
+                "kind": "resolveIdentityEcho",
+                "player": controller(),
+                "permanent": chosen_target("targetPermanent"),
+            })],
+        ));
+    }
 
     if text.starts_with("Exile any number of historic cards from your graveyard")
         && text.contains("total mana value 30 or greater")
@@ -2814,6 +4193,7 @@ pub(in crate::oracle::canonical) fn parse_special_activated_ability(
         == "Vivid â€” {T}: For each color among permanents you control, add one mana of that color."
         || text
             == "Vivid — {T}: For each color among permanents you control, add one mana of that color."
+        || text == "{T}: For each color among permanents you control, add one mana of that color."
     {
         return Some(draft(
             json!({

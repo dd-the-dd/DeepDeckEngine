@@ -30,10 +30,15 @@ pub(in crate::oracle::canonical) fn parse_source_entry_trigger<'a>(
     let (event_text, instruction) = text.split_once(", ")?;
     let subject_and_event = strip_prefix_ascii_case(event_text, "When ")
         .or_else(|| strip_prefix_ascii_case(event_text, "Whenever "))?;
-    let subject = [" enters the battlefield", " comes into play", " enters"]
-        .into_iter()
-        .find_map(|suffix| strip_suffix_ascii_case(subject_and_event, suffix))?
-        .trim();
+    let subject = [
+        " enters the battlefield",
+        " comes into play",
+        " enters",
+        " enter",
+    ]
+    .into_iter()
+    .find_map(|suffix| strip_suffix_ascii_case(subject_and_event, suffix))?
+    .trim();
     let source_kind = strip_prefix_ascii_case(subject, "this ");
     let is_source = source_kind.is_some_and(|kind| {
         [

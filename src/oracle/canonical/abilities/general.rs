@@ -930,6 +930,49 @@ pub(in crate::oracle::canonical) fn parse_generalized_zone_and_combat_ability(
         ));
     }
 
+    let chosen_type_emblem_bonus_re = Regex::new(
+        r#"(?i)^([^:]+): Choose a creature type\. You get an emblem with \"Creatures you control of the chosen type get ([+\-]\d+)/([+\-]\d+) and have ([A-Za-z ,]+)\.\"$"#,
+    )
+    .expect("chosen creature-type emblem bonus regex compiles");
+    if matches!(ability_kind, "activatedAbility" | "staticAbility")
+        && let Some(captures) = chosen_type_emblem_bonus_re.captures(text)
+    {
+        let loyalty = captures[1]
+            .replace("Ã¢Ë†â€™", "-")
+            .replace("ÃƒÂ¢Ã‹â€ Ã¢â‚¬â„¢", "-");
+        let (costs, _) = parse_activation_costs(&loyalty)?;
+        let keywords = oracle_keyword_list(captures.get(4)?.as_str())?;
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": costs,
+                "activationCondition": { "kind": "sorceryTiming" },
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "effects": [
+                    {
+                        "kind": "chooseCreatureType",
+                        "id": "chosenCreatureType",
+                        "player": controller(),
+                    },
+                    {
+                        "kind": "createEmblemPermanentModifier",
+                        "player": controller(),
+                        "where": chosen_creature_type(),
+                        "power": integer(captures[2].parse::<i64>().ok()?),
+                        "toughness": integer(captures[3].parse::<i64>().ok()?),
+                        "keywords": keywords,
+                    },
+                ],
+            }),
+            &[
+                "Pay the loyalty cost",
+                "Choose a creature type",
+                "Create a persistent emblem modifier for that type",
+            ],
+        ));
+    }
+
     let emblem_bonus_re = Regex::new(
         r#"(?i)^([^:]+): You get an emblem with \"(.+?) you control get ([+\-]\d+)/([+\-]\d+)(?: and have ([A-Za-z ,]+))?\.\"$"#,
     )
