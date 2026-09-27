@@ -141,7 +141,7 @@ mod tests {
                 .iter()
                 .map(|effect| effect["kind"].as_str().unwrap())
                 .collect::<Vec<_>>(),
-            ["revealHand", "chooseCards", "moveCards"]
+            ["revealHand", "chooseCards", "discardCards"]
         );
         assert!(
             result

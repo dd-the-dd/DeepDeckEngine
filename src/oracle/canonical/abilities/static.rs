@@ -35,6 +35,1394 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         )
     };
 
+    if text == "Other Spiders you control have riot." {
+        return Some(static_rule(vec![json!({
+            "kind": "grantRiot",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![card_type("Creature"), subtype("Spider")]),
+                "excludeSource": true,
+            },
+        })]));
+    }
+    if text == "Spells and abilities can't be countered." {
+        return Some(static_rule(vec![json!({
+            "kind": "allStackObjectsCantBeCountered",
+        })]));
+    }
+    if text == "Equipped creature gets +2/+0 and has flying and haste." {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "modifyPowerToughness", "objects": attached.clone(), "power": integer(2), "toughness": integer(0) }),
+            json!({ "kind": "grantKeyword", "objects": attached.clone(), "keyword": "flying" }),
+            json!({ "kind": "grantKeyword", "objects": attached, "keyword": "haste" }),
+        ]));
+    }
+    if text.starts_with("Goblin Formula — Each nonland card in your graveyard has mayhem.") {
+        return Some(static_rule(vec![json!({
+            "kind": "grantMayhem",
+            "player": controller(),
+            "where": not(card_type("Land")),
+            "useManaCost": true,
+        })]));
+    }
+    let granted_web_slinging_re = Regex::new(
+        r"^Each legendary spell you cast that's one or more colors has web-slinging ((?:\{[^}]+\})+)\. \(You may cast a spell for its web-slinging cost if you also return a tapped creature you control to its owner's hand\.\)$",
+    )
+    .expect("granted web-slinging regex compiles");
+    if let Some(captures) = granted_web_slinging_re.captures(text) {
+        return Some(static_rule(vec![json!({
+            "kind": "grantWebSlinging",
+            "player": controller(),
+            "manaCost": captures.get(1)?.as_str(),
+        })]));
+    }
+
+    if text
+        == "As long as this Equipment is attached to a creature, the first time you would create one or more tokens each turn, you may instead create that many tokens that are copies of equipped creature."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "mirrormindCrownTokenReplacement",
+        })]));
+    }
+
+    if text
+        == "Creatures you control have wither. (They deal damage to creatures in the form of -1/-1 counters.)"
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            },
+            "keyword": "wither",
+        })]));
+    }
+
+    if text
+        == "If a permanent entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyTriggeredAbility",
+            "sources": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": Value::Null,
+            },
+            "eventWhere": { "kind": "permanentEntered" },
+            "additionalTriggers": integer(1),
+        })]));
+    }
+
+    if text == "This creature gets +1/+1 for each color among permanents you control." {
+        let amount = json!({
+            "kind": "eachColorAmongPermanents",
+            "player": controller(),
+        });
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": amount.clone(),
+            "toughness": amount,
+        })]));
+    }
+
+    if text == "Enchanted land has \"{T}: Add one mana of any color.\"" {
+        return Some(static_rule(vec![json!({
+            "kind": "grantManaAbility",
+            "objects": {
+                "kind": "attachedPermanent",
+                "attachment": self_ref(),
+            },
+            "mana": { "kind": "chooseColor", "amount": integer(1) },
+        })]));
+    }
+
+    if text
+        == "During your turn, you may cast creature spells from among cards you own exiled with this creature by removing three counters from among creatures you control in addition to paying their other costs."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "castingPermission",
+            "players": controller(),
+            "sourceZone": "exile",
+            "where": card_type("Creature"),
+            "withoutPayingManaCost": false,
+            "asThoughFlash": false,
+            "duringControllerTurnOnly": true,
+            "linkedToSource": true,
+            "additionalCost": {
+                "kind": "removeCountersFromControlledCreatures",
+                "count": integer(3),
+            },
+        })]));
+    }
+
+    if text.contains("Look at the top X cards of your library, where X is your life total.")
+        && text.contains("nonland permanent cards with mana value 3 or less")
+    {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(-8),
+                }],
+                "timing": { "kind": "sorcerySpeed" },
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "effects": [
+                    {
+                        "kind": "lookAtTopCards",
+                        "zone": library(controller()),
+                        "count": { "kind": "lifeTotal", "player": controller() },
+                        "bind": "ajaniLookedCards",
+                    },
+                    {
+                        "kind": "chooseCards",
+                        "id": "ajaniPermanents",
+                        "player": controller(),
+                        "from": bound_objects("ajaniLookedCards"),
+                        "where": and(vec![
+                            not(card_type("Land")),
+                            not(or(vec![card_type("Instant"), card_type("Sorcery")])),
+                            compare(
+                                "<=",
+                                json!({ "kind": "manaValueOf", "object": { "kind": "candidate" } }),
+                                integer(3),
+                            ),
+                        ]),
+                        "minimum": integer(0),
+                        "maximum": { "kind": "countBoundObjects", "binding": "ajaniLookedCards" },
+                    },
+                    {
+                        "kind": "moveCards",
+                        "cards": decision_result("ajaniPermanents"),
+                        "to": {
+                            "kind": "battlefield",
+                            "player": controller(),
+                            "tapped": false,
+                        },
+                    },
+                    { "kind": "shuffleZone", "zone": library(controller()) },
+                ],
+            }),
+            &[
+                "Pay eight loyalty and inspect cards equal to the controller's life total",
+                "Choose any eligible cheap nonland permanents",
+                "Put the chosen cards onto the battlefield and shuffle the rest",
+            ],
+        ));
+    }
+
+    if text
+        == "Once each turn, you may cast a spell with mana value less than or equal to the number of Elves and Faeries you control from among cards exiled with Maralen this turn without paying its mana cost."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "maralenLinkedPermission",
+            "player": controller(),
+        })]));
+    }
+
+    if text
+        == "You may have this creature enter as a copy of any creature on the battlefield, except it has changeling."
+    {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "entryCopy",
+                    "kind": "chooseBattlefieldPermanent",
+                    "where": card_type("Creature"),
+                    "optional": true,
+                }],
+                "replacement": [{
+                    "kind": "copyEnteringPermanent",
+                    "decisionId": "entryCopy",
+                    "tapped": false,
+                    "grantKeywords": ["changeling"],
+                }],
+            }),
+            &[
+                "Choose an optional creature to copy",
+                "Retain changeling on the copied form",
+            ],
+        ));
+    }
+
+    if text.starts_with(
+        "Enchanted creature loses all abilities and is a colorless Noggle with base power and toughness 1/1.",
+    ) {
+        let enchanted = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "loseAllAbilities", "objects": enchanted.clone() }),
+            json!({ "kind": "setColor", "objects": enchanted.clone(), "colors": [] }),
+            json!({ "kind": "setSubtypes", "objects": enchanted.clone(), "subtypes": ["Noggle"] }),
+            json!({
+                "kind": "setBasePowerToughness",
+                "objects": enchanted,
+                "power": integer(1),
+                "toughness": integer(1),
+            }),
+        ]));
+    }
+
+    if text.starts_with("This creature has hexproof as long as it's untapped.") {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": self_ref(),
+            "keyword": "hexproof",
+            "condition": not(json!({ "kind": "isTapped", "object": self_ref() })),
+        })]));
+    }
+    if text
+        == "This creature gets +1/+1 for each creature you control and each creature card in your graveyard."
+    {
+        let count = json!({
+            "kind": "add",
+            "left": {
+                "kind": "countPermanents",
+                "player": controller(),
+                "where": card_type("Creature"),
+            },
+            "right": {
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": card_type("Creature"),
+            },
+        });
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": count.clone(),
+            "toughness": count,
+        })]));
+    }
+    if text
+        == "Each creature spell you cast with toughness greater than its power costs {1} less to cast."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "reduceCastingCost",
+            "player": controller(),
+            "where": and(vec![
+                card_type("Creature"),
+                compare(
+                    ">",
+                    json!({ "kind": "toughnessOf", "object": { "kind": "candidate" } }),
+                    json!({ "kind": "powerOf", "object": { "kind": "candidate" } }),
+                ),
+            ]),
+            "amount": integer(1),
+        })]));
+    }
+    if text
+        == "This spell costs {X} less to cast, where X is the greatest mana value among Elementals you control."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "reduceCastingCost",
+            "player": controller(),
+            "where": Value::Null,
+            "amount": {
+                "kind": "greatestManaValue",
+                "player": controller(),
+                "where": subtype("Elemental"),
+            },
+        })]));
+    }
+    if text
+        == "As long as another creature entered the battlefield under your control this turn, this creature gets +2/+0."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": integer(2),
+            "toughness": integer(0),
+            "condition": {
+                "kind": "controlsPermanent",
+                "player": controller(),
+                "where": and(vec![card_type("Creature"), json!({ "kind": "enteredThisTurn" })]),
+                "excludeSource": true,
+            },
+        })]));
+    }
+    if text == "Equipped creature gets +1/+1 and is all creature types." {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "modifyPowerToughness",
+                "objects": attached.clone(),
+                "power": integer(1),
+                "toughness": integer(1),
+            }),
+            json!({
+                "kind": "grantKeyword",
+                "objects": attached,
+                "keyword": "changeling",
+            }),
+        ]));
+    }
+    if text == "Enchanted creature can't become untapped and can't have counters put on it." {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "doesNotUntap", "objects": attached.clone() }),
+            json!({ "kind": "preventCounters", "objects": attached }),
+        ]));
+    }
+    if text == "Each other creature you control has hexproof from each of its colors." {
+        return Some(static_rule(vec![json!({
+            "kind": "hexproofFromOwnColors",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+                "excludeSource": true,
+            },
+        })]));
+    }
+    if text
+        == "As long as you attacked with three or more Merfolk this turn, Merfolk you control get +1/+0."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": subtype("Merfolk"),
+            },
+            "power": integer(1),
+            "toughness": integer(0),
+            "condition": {
+                "kind": "attackedWithSubtypeThisTurn",
+                "player": controller(),
+                "subtype": "Merfolk",
+                "minimum": integer(3),
+            },
+        })]));
+    }
+
+    if text
+        == "If you gaining life causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyTriggeredAbility",
+            "sources": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": Value::Null,
+            },
+            "eventWhere": {
+                "kind": "lifeGained",
+                "player": controller(),
+            },
+            "additionalTriggers": integer(1),
+        })]));
+    }
+    if text
+        == "Artifact creatures you control have \"Whenever this creature deals combat damage to a player, you may pay 1 life. If you do, draw a card.\""
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantTriggeredAbility",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![card_type("Artifact"), card_type("Creature")]),
+            },
+            "ability": {
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "combatDamageToPlayer",
+                    "source": self_ref(),
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "hiveMindCoprocessorDraw",
+                }],
+            },
+        })]));
+    }
+    if text
+        == "Artifact creatures you control have \"Whenever this creature attacks, each opponent loses 1 life and you gain 1 life.\""
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantTriggeredAbility",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![card_type("Artifact"), card_type("Creature")]),
+            },
+            "ability": {
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "declaredAttacker", "object": self_ref() },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "bioAssetAllocatorAttack",
+                }],
+            },
+        })]));
+    }
+    if text == "Creatures you control with counters on them have trample." {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![
+                    card_type("Creature"),
+                    json!({ "kind": "hasCounter" }),
+                ]),
+            },
+            "keyword": "trample",
+        })]));
+    }
+    if text
+        == "Enchanted permanent doesn't untap during its controller's untap step and can't be beamed up."
+    {
+        let objects = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "doesNotUntap", "objects": objects.clone() }),
+            json!({ "kind": "cantBeBeamedUp", "objects": objects }),
+        ]));
+    }
+    if text
+        == "Equipped creature has first strike and gets +1/+0 for each instant and sorcery card in your graveyard."
+    {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "grantKeyword", "objects": attached.clone(), "keyword": "firstStrike" }),
+            json!({
+                "kind": "modifyPowerToughness", "objects": attached,
+                "power": { "kind": "countCards", "zone": graveyard(controller()),
+                    "where": or(vec![card_type("Instant"), card_type("Sorcery")]) },
+                "toughness": integer(0),
+            }),
+        ]));
+    }
+    if text
+        == "If a triggered ability of another Wolf or battle you control triggers, that ability triggers an additional time."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyTriggeredAbility",
+            "sources": { "kind": "permanents", "controller": controller(), "excludeSource": true,
+                "where": or(vec![subtype("Wolf"), card_type("Battle")]) },
+            "additionalTriggers": integer(1),
+        })]));
+    }
+    if text
+        == "Enchanted creature is a Spirit and can't attack or block. (It loses all other creature types.)"
+    {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({ "kind": "addSubtype", "objects": attached.clone(), "subtype": "Spirit" }),
+            json!({ "kind": "grantKeyword", "objects": attached.clone(), "keyword": "cantAttack" }),
+            json!({ "kind": "grantKeyword", "objects": attached, "keyword": "cantBlock" }),
+        ]));
+    }
+    if text == "This creature can't be blocked except by three or more creatures." {
+        return Some(static_rule(vec![json!({
+            "kind": "minimumBlockers", "objects": self_ref(), "count": integer(3),
+        })]));
+    }
+    if text
+        == "This spell costs {3} less to cast if it targets a creature that was dealt damage this turn."
+    {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility", "source": self_ref(),
+                "activeWhile": { "kind": "inZone", "object": self_ref(), "zone": { "kind": "stackOrCast" } },
+                "modifiers": [{ "kind": "reduceOwnGenericCastingCost", "amount": integer(3),
+                    "targetWhere": and(vec![card_type("Creature"), json!({ "kind": "wasDealtDamageThisTurn" })]) }],
+            }),
+            &[
+                "Match a damaged creature target",
+                "Reduce the generic casting cost by three",
+            ],
+        ));
+    }
+    if text
+        == "You may have this creature enter as a copy of any artifact or creature on the battlefield, except it isn't legendary. If you do, it enters with additional counters on it equal to the same number and kinds of counters the copied permanent has on it."
+    {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "entryCopy",
+                    "kind": "chooseBattlefieldPermanent",
+                    "where": or(vec![card_type("Artifact"), card_type("Creature")]),
+                    "optional": true,
+                }],
+                "replacement": [{
+                    "kind": "copyEnteringPermanent",
+                    "decisionId": "entryCopy",
+                    "tapped": false,
+                    "removeLegendary": true,
+                    "copyCounters": true,
+                }],
+            }),
+            &[
+                "Choose an artifact or creature to copy",
+                "Remove legendary from the copied characteristics",
+                "Copy the chosen permanent's counters as additional counters",
+            ],
+        ));
+    }
+
+    if text
+        == "Each Beast, Camel, Horse, Elephant, and Wolf creature you control is a Mount in addition to its other types and has saddle 2. (Tap any number of other creatures you control with total power 2 or more: That Mount becomes saddled until end of turn. Saddle only as a sorcery.)"
+    {
+        let objects = json!({
+            "kind": "permanents",
+            "controller": controller(),
+            "where": and(vec![
+                card_type("Creature"),
+                or(vec![
+                    subtype("Beast"),
+                    subtype("Camel"),
+                    subtype("Horse"),
+                    subtype("Elephant"),
+                    subtype("Wolf"),
+                ]),
+            ]),
+        });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "addSubtype",
+                "objects": objects.clone(),
+                "subtype": "Mount",
+            }),
+            json!({
+                "kind": "grantActivatedAbility",
+                "objects": objects,
+                "ability": {
+                    "kind": "activatedAbility",
+                    "source": self_ref(),
+                    "costs": [{ "kind": "payMana", "manaCost": "{0}" }],
+                    "activationCondition": { "kind": "sorceryTiming" },
+                    "effects": [{
+                        "kind": "resolveTriggeredInstruction",
+                        "operation": "saddleMount",
+                        "minimumPower": integer(2),
+                    }],
+                },
+            }),
+        ]));
+    }
+    if text
+        == "Once during each of your turns, you may pay {0} rather than pay the mana cost for a spell you cast from exile."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "dragonSmileZeroFromExile",
+            "player": controller(),
+        })]));
+    }
+    if text
+        == "If you would create one or more tokens, you may create that many Clue tokens instead. (They're artifacts with \"{2}, Sacrifice this token: Draw a card.\")"
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "replaceCreatedTokensWithClues",
+            "player": controller(),
+            "optional": true,
+        })]));
+    }
+
+    let commander_eligibility_re = Regex::new(r"(?i)^(.+?) can be your commander\.$")
+        .expect("commander eligibility regex compiles");
+    if let Some(captures) = commander_eligibility_re.captures(text)
+        && source_reference_matches(&captures[1], face_name)
+    {
+        return Some(static_rule(vec![json!({ "kind": "commanderEligible" })]));
+    }
+
+    if text
+        == "Threshold — As long as there are seven or more cards in your graveyard, you may cast the exiled card, and mana of any type can be spent to cast that spell."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "nullSummonerLinkedPermission",
+            "player": controller(),
+        })]));
+    }
+    if text == "Your opponents can't gain life." {
+        return Some(static_rule(vec![json!({
+            "kind": "preventOpponentsGainLife",
+            "player": controller(),
+        })]));
+    }
+    if text == "Players can't draw cards or gain life." {
+        return Some(static_rule(vec![
+            json!({ "kind": "preventPlayersDrawCards" }),
+            json!({ "kind": "preventPlayersGainLife" }),
+        ]));
+    }
+    if text == "Players can't gain life." {
+        return Some(static_rule(vec![
+            json!({ "kind": "preventPlayersGainLife" }),
+        ]));
+    }
+    if text == "Grakk can't attack or block." {
+        return Some(static_rule(vec![
+            json!({ "kind": "grantKeyword", "objects": self_ref(), "keyword": "cantAttack" }),
+            json!({ "kind": "grantKeyword", "objects": self_ref(), "keyword": "cantBlock" }),
+        ]));
+    }
+    if text
+        == "Each Equipment you control has living weapon. (Whenever an Equipment you control enters, create a 0/0 black Phyrexian Germ creature token, then attach that Equipment to it.)"
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantLivingWeapon",
+            "player": controller(),
+        })]));
+    }
+    if text == "Prevent all damage that would be dealt to Istvan by creatures." {
+        return Some(static_rule(vec![json!({
+            "kind": "preventCreatureDamageToSelf",
+            "object": self_ref(),
+        })]));
+    }
+    if text == "If you would gain life, you gain twice that much life instead." {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyLifeGain",
+            "player": controller(),
+            "factor": integer(2),
+        })]));
+    }
+    if text
+        == "If a triggered ability of a permanent you control but don't own triggers, that ability triggers an additional time."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "multiplyUnownedControlledTriggeredAbility",
+            "player": controller(),
+            "additionalTriggers": integer(1),
+        })]));
+    }
+    if text == "For every seven Foods you control, Squirrels you control get +3/+3." {
+        let bonus = json!({
+            "kind": "multiply",
+            "value": {
+                "kind": "divide",
+                "left": {
+                    "kind": "countPermanents",
+                    "player": controller(),
+                    "where": subtype("Food"),
+                },
+                "right": integer(7),
+                "round": "down",
+            },
+            "factor": integer(3),
+        });
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": subtype("Squirrel"),
+            },
+            "power": bonus.clone(),
+            "toughness": bonus,
+        })]));
+    }
+    if text == "Creatures you control get +1/+0 for each tide counter on Rikala." {
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            },
+            "power": {
+                "kind": "countCounters",
+                "object": self_ref(),
+                "counter": "tide",
+            },
+            "toughness": integer(0),
+        })]));
+    }
+    if text.starts_with("Solved")
+        && text.contains("look at the top card of your library")
+        && text.contains("cast spells from the top of your library")
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "playCardsFromTopLibraryIfSourceSolved",
+            "player": controller(),
+            "where": Value::Null,
+        })]));
+    }
+    if text
+        == "Nephilim you control get +1/+1 for each other Nephilim you control and can't be blocked by monocolored creatures."
+    {
+        let bonus = json!({
+            "kind": "subtract",
+            "left": {
+                "kind": "countPermanents",
+                "player": controller(),
+                "where": subtype("Nephilim"),
+            },
+            "right": integer(1),
+        });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "modifyPowerToughness",
+                "objects": {
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": subtype("Nephilim"),
+                },
+                "power": bonus.clone(),
+                "toughness": bonus,
+            }),
+            json!({
+                "kind": "cantBeBlockedByMonocolored",
+                "player": controller(),
+                "where": subtype("Nephilim"),
+            }),
+        ]));
+    }
+    if text == "Ashaya's Enduring Bond can be your commander." {
+        return Some(static_rule(vec![json!({ "kind": "commanderEligible" })]));
+    }
+    if text
+        == "Each other creature you control gets +3/+3 as long as it's not attacking or blocking."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "muckslingerRestingCreatureBonus",
+            "player": controller(),
+            "amount": integer(3),
+        })]));
+    }
+    if text
+        == "Creature spells you control and creature cards you own in any zone other than the battlefield or the stack get +3/+3."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "muckslingerOffBattlefieldCreatureBonus",
+            "player": controller(),
+            "amount": integer(3),
+        })]));
+    }
+    if text
+        == "Each nontoken creature you control that wasn't cast from your hand enters with two additional +1/+1 counters on it."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "venserAdditionalEnteringCounters",
+            "player": controller(),
+            "counter": "+1/+1",
+            "count": integer(2),
+        })]));
+    }
+    if text
+        == "Max speed â€” Tsagan has deathtouch and other creatures you control have first strike."
+        || text.starts_with("Max speed")
+            && text.contains("Tsagan has deathtouch")
+            && text.contains("other creatures you control have first strike")
+    {
+        let at_max_speed = compare(
+            ">=",
+            json!({
+                "kind": "countPlayerCounters",
+                "player": controller(),
+                "counter": "speed",
+            }),
+            integer(4),
+        );
+        return Some(static_rule(vec![
+            json!({
+                "kind": "grantKeyword",
+                "objects": self_ref(),
+                "keyword": "deathtouch",
+                "condition": at_max_speed.clone(),
+            }),
+            json!({
+                "kind": "grantKeyword",
+                "objects": {
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
+                    "excludeSource": true,
+                },
+                "keyword": "firstStrike",
+                "condition": at_max_speed,
+            }),
+        ]));
+    }
+    if text == "You can't lose the game and your opponents can't win the game." {
+        return Some(static_rule(vec![json!({
+            "kind": "cantLoseGame",
+            "player": controller(),
+        })]));
+    }
+    if text == "Creatures you control can't have -1/-1 counters put on them." {
+        return Some(static_rule(vec![json!({
+            "kind": "preventMinusOneCounters",
+            "player": controller(),
+            "where": card_type("Creature"),
+        })]));
+    }
+    if text
+        == "Corrupted — As long as an opponent has three or more poison counters, creatures you control with toxic have lifelink."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantLifelinkToToxicIfCorrupted",
+            "player": controller(),
+        })]));
+    }
+    if text
+        == "Eminence — As long as The Ur-Sphinx is in the command zone or on the battlefield, other Sphinx spells you cast cost {1} less to cast."
+    {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": {
+                    "kind": "inZone",
+                    "object": self_ref(),
+                    "zone": { "kind": "commandZoneOrBattlefield" },
+                },
+                "modifiers": [{
+                    "kind": "reduceCastingCost",
+                    "player": controller(),
+                    "where": subtype("Sphinx"),
+                    "amount": integer(1),
+                    "excludeSource": true,
+                    "duringOtherPlayersTurns": false,
+                }],
+            }),
+            &[
+                "Activate Eminence from the command zone or battlefield",
+                "Reduce other Sphinx spells by one generic mana",
+            ],
+        ));
+    }
+
+    if text
+        == "Domain — Fblthp's power is equal to the number of basic land types among lands you control."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "setPower",
+            "objects": self_ref(),
+            "power": { "kind": "domainCount", "player": controller() },
+        })]));
+    }
+
+    if text
+        == "You may cast spells with mana value less than or equal to the number of creatures you control from your hand without paying their mana costs."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "castingPermission",
+            "players": controller(),
+            "sourceZone": "hand",
+            "where": and(vec![
+                not(card_type("Land")),
+                compare(
+                    "<=",
+                    json!({ "kind": "manaValueOf", "object": { "kind": "candidate" } }),
+                    json!({
+                        "kind": "countPermanents",
+                        "player": controller(),
+                        "where": card_type("Creature"),
+                    }),
+                ),
+            ]),
+            "withoutPayingManaCost": true,
+            "asThoughFlash": false,
+        })]));
+    }
+
+    if text
+        == "If one or more artifact tokens would be created under your control, that many 5/5 red Dragon creature tokens with flying are created instead."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "replaceArtifactTokensWithDragons",
+            "player": controller(),
+        })]));
+    }
+
+    if text == "A deck can have any number of cards named Sphinx's Approach." {
+        return Some(draft(
+            json!({ "kind": "rulesMarker", "text": text }),
+            &["Recognize the named-card deck-construction exception"],
+        ));
+    }
+
+    if text
+        == "As this land enters, you may behold a Jace. If you don't, this land enters tapped. (To behold a Jace, choose a Jace you control or reveal a Jace card from your hand.)"
+    {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "kind": "chooseBehold",
+                    "id": "beheldJace",
+                    "where": subtype("Jace"),
+                }],
+                "replacement": [{
+                    "kind": "conditional",
+                    "condition": {
+                        "kind": "selectionNotEmpty",
+                        "selection": decision_result("beheldJace"),
+                    },
+                    "then": [],
+                    "else": [{ "kind": "setEnteringState", "tapped": true }],
+                }],
+            }),
+            &[
+                "Offer a controlled or hand Jace to behold",
+                "Enter tapped when no Jace is beheld",
+            ],
+        ));
+    }
+
+    if text
+        == "Equipped creature gets +1/+0 and has flying and \"Whenever this creature attacks, you gain 1 life.\""
+    {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "modifyPowerToughness",
+                "objects": attached.clone(),
+                "power": integer(1),
+                "toughness": integer(0),
+            }),
+            json!({
+                "kind": "grantKeyword",
+                "objects": attached.clone(),
+                "keyword": "flying",
+            }),
+            json!({
+                "kind": "grantTriggeredAbility",
+                "objects": attached,
+                "ability": {
+                    "kind": "triggeredAbility",
+                    "source": self_ref(),
+                    "event": { "kind": "declaredAttacker", "object": self_ref() },
+                    "effects": [{
+                        "kind": "gainLife",
+                        "player": controller(),
+                        "amount": integer(1),
+                    }],
+                },
+            }),
+        ]));
+    }
+    if text == "Enchant artifact or non-Aura enchantment" {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "enchant",
+                    "where": or(vec![
+                        card_type("Artifact"),
+                        and(vec![card_type("Enchantment"), not(subtype("Aura"))]),
+                    ]),
+                },
+            }),
+            &["Restrict the Aura to an artifact or non-Aura enchantment"],
+        ));
+    }
+    if text
+        == "Enchanted permanent is a Construct creature with base power and toughness 5/5 in addition to its other types."
+    {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "addCardType",
+                "objects": attached.clone(),
+                "cardType": "Creature",
+            }),
+            json!({
+                "kind": "addSubtype",
+                "objects": attached.clone(),
+                "subtype": "Construct",
+            }),
+            json!({
+                "kind": "setBasePowerToughness",
+                "objects": attached,
+                "power": integer(5),
+                "toughness": integer(5),
+            }),
+        ]));
+    }
+    if text
+        == "Equipped creature gets +2/+0 and has \"Whenever this creature attacks, it gains your choice of trample or deathtouch until end of turn.\""
+    {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(static_rule(vec![
+            json!({
+                "kind": "modifyPowerToughness",
+                "objects": attached.clone(),
+                "power": integer(2),
+                "toughness": integer(0),
+            }),
+            json!({
+                "kind": "grantTriggeredAbility",
+                "objects": attached,
+                "ability": {
+                    "kind": "triggeredAbility",
+                    "source": self_ref(),
+                    "event": { "kind": "declaredAttacker", "object": self_ref() },
+                    "effects": [{
+                        "kind": "chooseKeywordUntilEndOfTurn",
+                        "player": controller(),
+                        "object": self_ref(),
+                        "options": ["trample", "deathtouch"],
+                    }],
+                },
+            }),
+        ]));
+    }
+    if text
+        == "Planeswalkers you control have \"No more than one creature can attack this planeswalker each combat.\""
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "limitAttackersAtControlledPlaneswalkers",
+            "player": controller(),
+            "maximum": integer(1),
+        })]));
+    }
+    if text
+        == "If Loot's power is negative, he assigns combat damage as though his power were positive."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "assignCombatDamageUsingAbsolutePower",
+            "objects": self_ref(),
+        })]));
+    }
+    if text
+        == "Threshold — You can't cast this spell unless there are seven or more cards in your graveyard."
+    {
+        return Some(draft(
+            json!({
+                "kind": "rulesMarker",
+                "source": self_ref(),
+                "text": text,
+                "minimumGraveyardCardsToCast": integer(7),
+            }),
+            &[
+                "Recognize the threshold casting restriction",
+                "Require seven graveyard cards",
+            ],
+        ));
+    }
+    if text
+        == "Planeswalkers you control aren't put into their owners' graveyards for having 0 loyalty."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "ignoreZeroLoyaltyStateAction",
+            "player": controller(),
+        })]));
+    }
+    if text
+        == "If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 1 instead."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "increaseControlledNoncombatDamage",
+            "player": controller(),
+            "amount": integer(1),
+        })]));
+    }
+    if text
+        == "Planeswalkers you control have \"[−4]: This planeswalker deals 2 damage to up to one target creature or planeswalker and 2 damage to target player.\""
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantActivatedAbility",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Planeswalker"),
+            },
+            "ability": {
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(-4),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        target_decision(
+                            "targetPermanent",
+                            json!({
+                                "kind": "permanents",
+                                "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                            }),
+                            0,
+                            1,
+                        ),
+                        target_decision("targetPlayer", json!({ "kind": "players" }), 1, 1),
+                    ],
+                },
+                "effects": [
+                    {
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "recipient": chosen_target("targetPermanent"),
+                        "amount": integer(2),
+                    },
+                    {
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "recipient": chosen_target("targetPlayer"),
+                        "amount": integer(2),
+                    },
+                ],
+            },
+        })]));
+    }
+    if text
+        == "+1: Surveil 1. If you put a noncreature, nonland card into your graveyard this way, put that card into your hand."
+    {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(1),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [
+                    {
+                        "kind": "surveil",
+                        "player": controller(),
+                        "count": integer(1),
+                        "bindMovedAs": "surveilledToGraveyard",
+                    },
+                    {
+                        "kind": "moveCards",
+                        "cards": {
+                            "kind": "filterObjects",
+                            "objects": bound_objects("surveilledToGraveyard"),
+                            "where": and(vec![
+                                not(card_type("Creature")),
+                                not(card_type("Land")),
+                            ]),
+                        },
+                        "to": { "kind": "hand", "player": controller() },
+                    },
+                ],
+            }),
+            &[
+                "Pay one positive loyalty",
+                "Surveil one and retain the moved-card identity",
+                "Return a moved noncreature nonland card",
+            ],
+        ));
+    }
+    if text == "−X: Tap target artifact or creature. Put X stun counters on it." {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": {
+                        "kind": "negate",
+                        "operand": decision_result("xValue"),
+                    },
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPermanent",
+                        json!({
+                            "kind": "permanents",
+                            "where": or(vec![card_type("Artifact"), card_type("Creature")]),
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [
+                    { "kind": "tapPermanent", "permanent": chosen_target("targetPermanent") },
+                    {
+                        "kind": "putCounters",
+                        "permanent": chosen_target("targetPermanent"),
+                        "counter": "stun",
+                        "count": decision_result("xValue"),
+                    },
+                ],
+            }),
+            &[
+                "Choose X up to the available loyalty",
+                "Tap the artifact or creature",
+                "Put X stun counters on it",
+            ],
+        ));
+    }
+    if text == "−6: You get an emblem with \"Whenever you cast a spell, draw a card.\"" {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(-6),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [{
+                    "kind": "createEmblem",
+                    "player": controller(),
+                    "modifiers": [],
+                    "triggeredAbilities": [{
+                        "kind": "triggeredAbility",
+                        "source": self_ref(),
+                        "event": {
+                            "kind": "spellCast",
+                            "player": controller(),
+                            "where": Value::Null,
+                        },
+                        "effects": [{
+                            "kind": "drawCards",
+                            "player": controller(),
+                            "count": integer(1),
+                        }],
+                    }],
+                }],
+            }),
+            &[
+                "Pay six loyalty",
+                "Create a persistent spell-cast draw emblem",
+            ],
+        ));
+    }
+    if text
+        == "+1: Exile the top card of your library. You may cast that card. If you don't, Chandra deals 2 damage to each opponent."
+    {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "startingLoyalty": integer(4),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(1),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "chandraTorchExile",
+                }],
+            }),
+            &[
+                "Pay one positive loyalty",
+                "Exile the top card and offer its normal-cost cast during resolution",
+                "Deal two damage to each opponent if it is not cast",
+            ],
+        ));
+    }
+    if text == "+1: Draw two cards, then put a card from your hand on the bottom of your library." {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "startingLoyalty": integer(5),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(1),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "jaceMultiversePlusOne",
+                }],
+            }),
+            &[
+                "Pay one positive loyalty",
+                "Draw two cards",
+                "Choose a hand card for the bottom of the library",
+            ],
+        ));
+    }
+    if text
+        == "−7: You get an emblem with \"Whenever you cast a spell, this emblem deals 5 damage to any target.\""
+    {
+        return Some(draft(
+            json!({
+                "kind": "activatedAbility",
+                "source": self_ref(),
+                "startingLoyalty": integer(4),
+                "costs": [{
+                    "kind": "payLoyalty",
+                    "object": self_ref(),
+                    "amount": integer(-7),
+                }],
+                "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [{
+                    "kind": "createEmblem",
+                    "player": controller(),
+                    "modifiers": [],
+                    "triggeredAbilities": [{
+                        "kind": "triggeredAbility",
+                        "source": self_ref(),
+                        "event": {
+                            "kind": "spellCast",
+                            "player": controller(),
+                            "where": Value::Null,
+                        },
+                        "declaration": {
+                            "kind": "castingDeclaration",
+                            "decisions": [target_decision(
+                                "damageTarget",
+                                json!({ "kind": "anyTarget" }),
+                                1,
+                                1,
+                            )],
+                        },
+                        "effects": [{
+                            "kind": "dealDamage",
+                            "source": self_ref(),
+                            "recipient": chosen_target("damageTarget"),
+                            "amount": integer(5),
+                        }],
+                    }],
+                }],
+            }),
+            &[
+                "Pay seven loyalty",
+                "Create a persistent spell-cast damage emblem",
+            ],
+        ));
+    }
+    if text.starts_with("Ruric Thar has hexproof as long as they haven't dealt combat damage yet.")
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": self_ref(),
+            "keyword": "hexproof",
+            "condition": { "kind": "sourceHasNotDealtCombatDamage" },
+        })]));
+    }
+    if text
+        == "During combat, players can't cast spells or activate abilities that aren't mana abilities."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "combatNonmanaActionsProhibited",
+        })]));
+    }
+
     let mill_multiplier_re = Regex::new(&format!(
         r"(?i)^If an opponent would mill one or more cards, they mill ({}) that many cards instead\.(?: \(.+\))?$",
         multiplicative_word_pattern(),
@@ -144,6 +1532,170 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     // Ability-word conditions such as Threshold must be handled before broad
     // subject/keyword grammars can mistake the tail ("can't block") for a
     // standalone restriction.
+    let graveyard_per_cards_bonus_re = Regex::new(&format!(
+        r"(?i)^This (?:creature|permanent) gets ([+-]\d+)/([+-]\d+) for every ({}) cards? in your graveyard\.$",
+        count_word_pattern(),
+    ))
+    .expect("graveyard per-card self bonus regex compiles");
+    if let Some(captures) = graveyard_per_cards_bonus_re.captures(text) {
+        let divisor = parse_number_word(captures.get(3)?.as_str())?;
+        let groups = json!({
+            "kind": "divide",
+            "left": {
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": Value::Null,
+            },
+            "right": integer(divisor),
+            "round": "down",
+        });
+        let power_per_group = captures[1].parse::<i64>().ok()?;
+        let toughness_per_group = captures[2].parse::<i64>().ok()?;
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": if power_per_group == 1 {
+                groups.clone()
+            } else {
+                json!({ "kind": "multiply", "left": groups.clone(), "right": integer(power_per_group) })
+            },
+            "toughness": if toughness_per_group == 1 {
+                groups
+            } else {
+                json!({ "kind": "multiply", "left": groups, "right": integer(toughness_per_group) })
+            },
+        })]));
+    }
+    let graveyard_per_card_bonus_re =
+        Regex::new(r"(?i)^(.+?) gets ([+-]\d+)/([+-]\d+) for each (.+?) card in your graveyard\.$")
+            .expect("graveyard per matching card self bonus regex compiles");
+    if let Some(captures) = graveyard_per_card_bonus_re.captures(text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        let count = json!({
+            "kind": "countCards",
+            "zone": graveyard(controller()),
+            "where": parse_permanent_criteria(captures.get(4)?.as_str(), face_name)?,
+        });
+        let power = captures[2].parse::<i64>().ok()?;
+        let toughness = captures[3].parse::<i64>().ok()?;
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": json!({ "kind": "multiply", "left": count.clone(), "right": integer(power) }),
+            "toughness": json!({ "kind": "multiply", "left": count, "right": integer(toughness) }),
+        })]));
+    }
+
+    if text
+        == "As long as you've scried or surveilled this turn, this creature can attack as though it didn't have defender."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "allowAttackWithDefender",
+            "objects": self_ref(),
+            "condition": { "kind": "scriedOrSurveilledThisTurn", "player": controller() },
+        })]));
+    }
+    if text == "Creatures you control can attack as though they didn't have defender." {
+        return Some(static_rule(vec![json!({
+            "kind": "allowAttackWithDefender",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            },
+        })]));
+    }
+    if text == "Creatures you control with power or toughness 1 or less can't be blocked." {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![
+                    card_type("Creature"),
+                    or(vec![
+                        compare(
+                            "<=",
+                            json!({ "kind": "powerOf", "object": { "kind": "candidate" } }),
+                            integer(1),
+                        ),
+                        compare(
+                            "<=",
+                            json!({ "kind": "toughnessOf", "object": { "kind": "candidate" } }),
+                            integer(1),
+                        ),
+                    ]),
+                ]),
+            },
+            "keyword": "cantBeBlocked",
+        })]));
+    }
+    if text == "Each other creature you control with a +1/+1 counter on it has haste." {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": and(vec![
+                    card_type("Creature"),
+                    json!({ "kind": "hasCounter", "counter": "+1/+1" }),
+                ]),
+                "excludeSource": true,
+            },
+            "keyword": "haste",
+        })]));
+    }
+    if text.starts_with("Instant and sorcery spells you control have split second.") {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeywordToSpells",
+            "player": controller(),
+            "where": or(vec![card_type("Instant"), card_type("Sorcery")]),
+            "keyword": "splitSecond",
+        })]));
+    }
+    let reverse_graveyard_threshold_bonus_re = Regex::new(&format!(
+        r"(?i)^This (?:creature|permanent) gets ([+-]\d+)/([+-]\d+) and (?:has )?(.+?) as long as there are ({}) or more (.+?) in your graveyard\.$",
+        count_word_pattern(),
+    ))
+    .expect("reverse graveyard-threshold self bonus regex compiles");
+    if let Some(captures) =
+        reverse_graveyard_threshold_bonus_re.captures(strip_short_oracle_label(text))
+    {
+        let condition = compare(
+            ">=",
+            json!({
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": if matches!(captures[5].to_ascii_lowercase().as_str(), "card" | "cards") {
+                    Value::Null
+                } else {
+                    parse_permanent_criteria(&captures[5], face_name)?
+                },
+            }),
+            integer(parse_number_word(&captures[4])?),
+        );
+        let mut modifiers = vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": integer(captures[1].parse::<i64>().ok()?),
+            "toughness": integer(captures[2].parse::<i64>().ok()?),
+            "condition": condition.clone(),
+        })];
+        modifiers.extend(
+            oracle_keyword_list(&captures[3])?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "grantKeyword",
+                        "objects": self_ref(),
+                        "keyword": keyword,
+                        "condition": condition.clone(),
+                    })
+                }),
+        );
+        return Some(static_rule(modifiers));
+    }
     let graveyard_threshold_bonus_re = Regex::new(&format!(
         r"(?i)^As long as there are ({}) or more (.+?) in your graveyard, this (?:creature|permanent) gets ([+-]\d+)/([+-]\d+) and (?:has )?(.+)\.$",
         count_word_pattern(),
@@ -481,6 +2033,41 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             "ability": granted.rule,
         })]));
     }
+    let controlled_granted_activated_re = Regex::new(r#"(?i)^(.+?) you control have "(.+)"\.?$"#)
+        .expect("controlled permanents granted activated ability regex compiles");
+    if let Some(captures) = controlled_granted_activated_re.captures(text)
+        && !captures.get(2)?.as_str().contains("Add ")
+    {
+        let raw_ability = captures.get(2)?.as_str();
+        let loyalty_re = Regex::new(r"^\[([+\-\x{2212}]?\d+|[\-\x{2212}]X)\]:\s*(.+)$")
+            .expect("bracketed granted loyalty ability regex compiles");
+        let normalized_ability;
+        let ability_text = if let Some(loyalty) = loyalty_re.captures(raw_ability) {
+            normalized_ability = format!("{}: {}", &loyalty[1], &loyalty[2]);
+            normalized_ability.as_str()
+        } else {
+            raw_ability
+        };
+        let granted = parse_mana_ability(ability_text)
+            .map(promote_activated_mana_ability)
+            .or_else(|| parse_simple_activated_ability(ability_text))
+            .or_else(|| parse_common_activated_ability(ability_text))?;
+        if !matches!(
+            granted.rule["kind"].as_str(),
+            Some("activatedAbility" | "manaAbility")
+        ) {
+            return None;
+        }
+        return Some(static_rule(vec![json!({
+            "kind": "grantActivatedAbility",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            },
+            "ability": granted.rule,
+        })]));
+    }
 
     let conditional_draw_replacement_re = Regex::new(&format!(
         r"(?i)^As long as (.+?), if you would draw one or more cards, you draw that many cards plus ({}) instead\.$",
@@ -715,6 +2302,27 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             "where": {
                 "kind": "nameEquals",
                 "value": stored_card_name("chosenCardName"),
+            },
+            "cost": costs[0].clone(),
+        })]));
+    }
+
+    let opposing_spell_tax_re = Regex::new(
+        r"(?i)^(Noncreature spells|Spells) your opponents cast cost ((?:\{[^}]+\})+) more to cast\.$",
+    )
+    .expect("opposing spell casting tax regex compiles");
+    if let Some(captures) = opposing_spell_tax_re.captures(text) {
+        let (costs, decisions) = parse_activation_costs(&captures[2])?;
+        if !decisions.is_empty() || costs.len() != 1 {
+            return None;
+        }
+        return Some(static_rule(vec![json!({
+            "kind": "additionalCastingCost",
+            "players": { "kind": "opponentsOf", "player": controller() },
+            "where": if captures[1].eq_ignore_ascii_case("noncreature spells") {
+                not(card_type("Creature"))
+            } else {
+                Value::Null
             },
             "cost": costs[0].clone(),
         })]));
@@ -1415,6 +3023,25 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         let condition = parse_condition_text(captures.get(1)?.as_str()).or_else(|| {
             parse_controlled_permanent_condition(captures.get(1)?.as_str(), face_name)
         })?;
+        let self_keywords_re = Regex::new(
+            r"(?i)^this (?:artifact|creature|enchantment|permanent) (?:has|gains) (.+?)\.$",
+        )
+        .expect("conditional source keywords regex compiles");
+        if let Some(keyword_captures) = self_keywords_re.captures(captures.get(2)?.as_str()) {
+            return Some(static_rule(
+                oracle_keyword_list(keyword_captures.get(1)?.as_str())?
+                    .into_iter()
+                    .map(|keyword| {
+                        json!({
+                            "kind": "grantKeyword",
+                            "objects": self_ref(),
+                            "keyword": keyword,
+                            "condition": condition.clone(),
+                        })
+                    })
+                    .collect(),
+            ));
+        }
         let mut parsed = parse_common_static_ability(captures.get(2)?.as_str(), face_name)?;
         if parsed.rule["kind"].as_str() != Some("staticAbility") {
             return None;
@@ -1564,8 +3191,9 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         })]));
     }
 
-    let controlled_keywords_re = Regex::new(r"^(Other )?(.+?) you control (?:has|have) (.+)\.$")
-        .expect("controlled permanent static keywords regex compiles");
+    let controlled_keywords_re =
+        Regex::new(r"(?i)^(?:Each )?(other )?(.+?) you control (?:has|have) (.+?)\.(?: \(.+\))?$")
+            .expect("controlled permanent static keywords regex compiles");
     if let Some(captures) = controlled_keywords_re.captures(text) {
         let objects = controlled_selector(&captures[2], captures.get(1).is_some())?;
         let modifiers = oracle_keyword_list(&captures[3])?
@@ -1679,7 +3307,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let conditional_source_keyword_re = Regex::new(&format!(
-        r"{} (?:has|have) ([a-z ]+) as long as you control another (.+)\.$",
+        r"{} (?:has|have) ([a-z ]+) as long as you control (another )?(.+)\.$",
         source_re,
     ))
     .expect("conditional source keyword regex compiles");
@@ -1691,14 +3319,14 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             "condition": {
                 "kind": "controlsPermanent",
                 "player": controller(),
-                "where": parse_permanent_criteria(&captures[2], face_name)?,
-                "excludeSource": true,
+                "where": parse_permanent_criteria(&captures[3], face_name)?,
+                "excludeSource": captures.get(2).is_some(),
             },
         })]));
     }
 
     let source_count_bonus_re = Regex::new(&format!(
-        r"{} gets ([+-]\d+)/([+-]\d+) for each (.+) you control\.$",
+        r"{} gets ([+-]\d+)/([+-]\d+) for each (?:(other) )?(.+) you control\.$",
         source_re,
     ))
     .expect("source counted static bonus regex compiles");
@@ -1706,7 +3334,8 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         let count = json!({
             "kind": "countPermanents",
             "player": controller(),
-            "where": parse_permanent_criteria(&captures[3], face_name)?,
+            "where": parse_permanent_criteria(&captures[4], face_name)?,
+            "excludeSource": captures.get(3).is_some(),
         });
         let scaled = |amount: i64| {
             if amount == 0 {
@@ -1823,6 +3452,13 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             "kind": "convertUnspentMana",
             "player": controller(),
             "to": "R",
+        })]));
+    }
+    if text == "If you would lose unspent mana, that mana becomes colorless instead." {
+        return Some(static_rule(vec![json!({
+            "kind": "convertUnspentMana",
+            "player": controller(),
+            "to": "C",
         })]));
     }
     if text == "Ozai has flying and indestructible as long as you have six or more unspent mana." {
@@ -2450,6 +4086,10 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     let enchant_target = match enchant_text {
         "Enchant creature" => Some((card_type("Creature"), None)),
         "Enchant creature you control" => Some((card_type("Creature"), Some(controller()))),
+        "Enchant creature an opponent controls" => Some((
+            card_type("Creature"),
+            Some(json!({ "kind": "opponentsOf", "player": controller() })),
+        )),
         "Enchant artifact you control" => Some((card_type("Artifact"), Some(controller()))),
         "Enchant artifact" => Some((card_type("Artifact"), None)),
         "Enchant enchantment" => Some((card_type("Enchantment"), None)),
@@ -2684,15 +4324,18 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let aura_keyword = |value: &str| match value.trim() {
+        "deathtouch" => Some("deathtouch"),
         "double strike" => Some("doubleStrike"),
         "first strike" => Some("firstStrike"),
         "flying" => Some("flying"),
         "hexproof" => Some("hexproof"),
         "indestructible" => Some("indestructible"),
         "lifelink" => Some("lifelink"),
+        "menace" => Some("menace"),
         "reach" => Some("reach"),
         "trample" => Some("trample"),
         "vigilance" => Some("vigilance"),
+        "haste" => Some("haste"),
         _ => None,
     };
     let aura_keyword_modifier = |value: &str| {
@@ -3235,14 +4878,60 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         ));
     }
 
-    if matches!(
-        text,
-        "As this creature enters, choose a creature type."
-            | "As this artifact enters, choose a creature type."
-            | "As this enchantment enters, choose a creature type."
-            | "As this land enters, choose a creature type."
-            | "As Three Tree City enters, choose a creature type."
-    ) {
+    let restricted_creature_type_choice_re = Regex::new(
+        r"(?i)^As (this (?:artifact|creature|enchantment|land|permanent)|[A-Z][A-Za-z0-9 ',.-]+) enters, choose (.+)\.$",
+    )
+    .expect("restricted as-enters creature-type choice regex compiles");
+    if let Some(captures) = restricted_creature_type_choice_re.captures(text)
+        && (captures[1].to_ascii_lowercase().starts_with("this ")
+            || source_reference_matches(&captures[1], face_name))
+    {
+        let choices = captures[2]
+            .replace(", or ", ", ")
+            .replace(" or ", ", ")
+            .split(',')
+            .map(str::trim)
+            .filter(|choice| !choice.is_empty())
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        if choices.len() >= 2 {
+            return Some(draft(
+                json!({
+                    "kind": "replacementEffect",
+                    "source": self_ref(),
+                    "event": {
+                        "kind": "wouldEnterBattlefield",
+                        "object": self_ref(),
+                    },
+                    "decisions": [{
+                        "id": "chosenCreatureType",
+                        "kind": "chooseCreatureType",
+                        "options": choices,
+                    }],
+                    "replacement": [{
+                        "kind": "storeDecision",
+                        "decisionId": "chosenCreatureType",
+                    }],
+                }),
+                &[
+                    "Recognize a restricted as-enters creature-type choice",
+                    "Persist the chosen type on the permanent",
+                ],
+            ));
+        }
+    }
+
+    let choose_creature_type_as_enters_re = Regex::new(
+        r"(?i)^As (this (?:artifact|creature|enchantment|land|permanent)|[A-Z][A-Za-z0-9 ',.-]+) enters, choose a creature type\.$",
+    )
+    .expect("as-enters creature-type choice regex compiles");
+    if choose_creature_type_as_enters_re
+        .captures(text)
+        .is_some_and(|captures| {
+            captures[1].to_ascii_lowercase().starts_with("this ")
+                || source_reference_matches(&captures[1], face_name)
+        })
+    {
         return Some(draft(
             json!({
                 "kind": "replacementEffect",
@@ -3266,6 +4955,43 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
                 "Persist the chosen type on the permanent",
             ],
         ));
+    }
+    if text == "As this creature enters, choose a card type." {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "chosenCardType",
+                    "kind": "chooseCardType",
+                    "options": [
+                        "Artifact", "Battle", "Creature", "Enchantment", "Instant",
+                        "Kindred", "Land", "Planeswalker", "Sorcery"
+                    ],
+                }],
+                "replacement": [{
+                    "kind": "storeDecision",
+                    "decisionId": "chosenCardType",
+                }],
+            }),
+            &[
+                "Choose a card type as the creature enters",
+                "Persist that choice on the permanent",
+            ],
+        ));
+    }
+    if text == "You and creatures you control have protection from the chosen card type." {
+        return Some(static_rule(vec![json!({
+            "kind": "grantProtectionChosenCardType",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            },
+            "player": controller(),
+            "decisionId": "chosenCardType",
+        })]));
     }
 
     if text == "This creature is the chosen type in addition to its other types." {
@@ -3447,6 +5173,22 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         r"(?i)^(.+?)'s (power|toughness) is equal to the number of (.+?) you control\.$",
     )
     .expect("single source characteristic from controlled permanent count regex compiles");
+    let source_color_count_power_re = Regex::new(
+        r"(?i)^(.+?)'s power is equal to the number of colors among permanents you control\.$",
+    )
+    .expect("source power from controlled permanent colors regex compiles");
+    if let Some(captures) = source_color_count_power_re.captures(text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some(self_stat_modifier(
+            json!({
+                "kind": "countDistinctColors",
+                "player": controller(),
+                "where": Value::Null,
+            }),
+            integer(0),
+        ));
+    }
     if let Some(captures) = source_single_count_stat_re.captures(text)
         && source_reference_matches(&captures[1], face_name)
     {
@@ -3461,6 +5203,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             Some(self_stat_modifier(integer(0), count))
         };
     }
+
     let source_hand_count_power_re =
         Regex::new(r"(?i)^(.+?)'s power is equal to the number of cards in your hand\.$")
             .expect("source power from controller hand count regex compiles");
@@ -3538,6 +5281,66 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             },
             "power": fellowship.clone(),
             "toughness": fellowship,
+        })]));
+    }
+
+    if text
+        == "Creatures you control get +X/+X, where X is the number of creatures that entered the battlefield under your control this turn."
+    {
+        let entered_creatures = json!({
+            "kind": "countPermanents",
+            "player": controller(),
+            "where": and(vec![
+                card_type("Creature"),
+                json!({ "kind": "enteredThisTurn" }),
+            ]),
+        });
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": controlled_creatures,
+            "power": entered_creatures.clone(),
+            "toughness": entered_creatures,
+        })]));
+    }
+
+    let chosen_type_bonus_keywords_re = Regex::new(
+        r"(?i)^(.+?) you control of the chosen type get ([+-]\d+)/([+-]\d+) and have (.+)\.$",
+    )
+    .expect("chosen creature-type bonus and keywords regex compiles");
+    if let Some(captures) = chosen_type_bonus_keywords_re.captures(text) {
+        let objects = json!({
+            "kind": "permanents",
+            "controller": controller(),
+            "where": and(vec![
+                parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                chosen_creature_type(),
+            ]),
+        });
+        let mut modifiers = vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": objects.clone(),
+            "power": integer(captures[2].parse::<i64>().ok()?),
+            "toughness": integer(captures[3].parse::<i64>().ok()?),
+        })];
+        modifiers.extend(
+            oracle_keyword_list(captures.get(4)?.as_str())?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "grantKeyword",
+                        "objects": objects.clone(),
+                        "keyword": keyword,
+                    })
+                }),
+        );
+        return Some(static_rule(modifiers));
+    }
+
+    if text == "Double all damage that sources you control of the chosen type would deal." {
+        return Some(static_rule(vec![json!({
+            "kind": "doubleDamageFromChosenType",
+            "player": controller(),
+            "decisionId": "chosenCreatureType",
         })]));
     }
 
@@ -3634,7 +5437,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let repeated_trigger_re = Regex::new(
-        r"(?i)^If a triggered ability of (.+?) triggers, that ability triggers an additional time\.$",
+        r"(?i)^If a triggered ability of (.+?) triggers, (?:that ability|it) triggers an additional time\.$",
     )
     .expect("repeated trigger scope regex compiles");
     if let Some(captures) = repeated_trigger_re.captures(text) {
@@ -3646,6 +5449,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             })
         } else {
             let criteria = subject.strip_suffix(" you control")?;
+            let criteria = criteria.strip_prefix("another ").unwrap_or(criteria);
             json!({
                 "kind": "permanents",
                 "controller": controller(),
@@ -3720,26 +5524,34 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let unspent_mana_stats_re = Regex::new(
-        r"(?i)^(.+?) gets \+(\d+)/\+(\d+) for each unspent (white|blue|black|red|green|colorless) mana you have\.$",
+        r"(?i)^(.+?) gets \+(\d+)/\+(\d+) for each unspent (?:(white|blue|black|red|green|colorless) )?mana you have\.$",
     )
     .expect("unspent mana stats regex compiles");
     if let Some(captures) = unspent_mana_stats_re.captures(text)
         && source_reference_matches(&captures[1], face_name)
     {
-        let symbol = match &captures[4] {
-            "white" => "W",
-            "blue" => "U",
-            "black" => "B",
-            "red" => "R",
-            "green" => "G",
-            "colorless" => "C",
+        let mana_count = match captures.get(4).map(|capture| capture.as_str()) {
+            Some("white") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "W" })
+            }
+            Some("blue") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "U" })
+            }
+            Some("black") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "B" })
+            }
+            Some("red") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "R" })
+            }
+            Some("green") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "G" })
+            }
+            Some("colorless") => {
+                json!({ "kind": "manaPoolSymbolCount", "player": controller(), "symbol": "C" })
+            }
+            None => json!({ "kind": "manaPoolSize", "player": controller() }),
             _ => return None,
         };
-        let mana_count = json!({
-            "kind": "manaPoolSymbolCount",
-            "player": controller(),
-            "symbol": symbol,
-        });
         let scaled = |amount: i64| {
             json!({
                 "kind": "multiply",
@@ -3852,15 +5664,22 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let own_cost_by_power_re = Regex::new(
-        r"(?i)^This spell costs \{X\} less to cast, where X is the (greatest|total) power (?:among|of) (.+?) you control((?: with .+)?)\.$",
+        r"(?i)^This spell costs \{X\} less to cast, where X is the (greatest|total) (power|toughness) (?:among|of) (.+?) you control((?: with .+)?)\.$",
     )
     .expect("own casting reduction by controlled power regex compiles");
     if let Some(captures) = own_cost_by_power_re.captures(text) {
-        let criteria = format!("{}{}", &captures[2], &captures[3]);
+        let criteria = format!("{}{}", &captures[3], &captures[4]);
         let where_filter = parse_permanent_criteria(criteria.trim(), face_name)?;
         let amount_kind = if captures[1].eq_ignore_ascii_case("greatest") {
-            "greatestPower"
+            if captures[2].eq_ignore_ascii_case("toughness") {
+                "greatestToughness"
+            } else {
+                "greatestPower"
+            }
         } else {
+            if captures[2].eq_ignore_ascii_case("toughness") {
+                return None;
+            }
             "sumPowers"
         };
         return Some(draft(
@@ -3885,6 +5704,55 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
                 "Parse the controlled permanent criteria",
                 "Aggregate their power",
                 "Reduce only this spell's generic casting cost",
+            ],
+        ));
+    }
+
+    if text
+        == "Each creature you control with toughness greater than its power assigns combat damage equal to its toughness rather than its power."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "assignCombatDamageUsingToughness",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": card_type("Creature"),
+            },
+            "onlyIfToughnessGreater": true,
+        })]));
+    }
+
+    if text
+        == "As long as equipped creature's toughness is greater than its power, it assigns combat damage equal to its toughness rather than its power."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "assignCombatDamageUsingToughness",
+            "objects": {
+                "kind": "attachedPermanent",
+                "attachment": self_ref(),
+            },
+            "onlyIfToughnessGreater": true,
+        })]));
+    }
+    if text == "This spell costs {2} less to cast if a creature is attacking you." {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": {
+                    "kind": "inZone",
+                    "object": self_ref(),
+                    "zone": { "kind": "stackOrCast" },
+                },
+                "modifiers": [{
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": integer(2),
+                    "condition": { "kind": "controllerIsBeingAttacked" },
+                }],
+            }),
+            &[
+                "Check whether the controller is being attacked",
+                "Reduce this spell's generic cost by two",
             ],
         ));
     }
@@ -5095,6 +6963,54 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             &["Apply battlefield static modifiers"],
         )
     };
+    if text
+        == "As long as equipped creature's toughness is greater than its power, it assigns combat damage equal to its toughness rather than its power."
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "assignCombatDamageUsingToughness",
+            "objects": {
+                "kind": "attachedPermanent",
+                "attachment": self_ref(),
+            },
+            "onlyIfToughnessGreater": true,
+        })]));
+    }
+    if text
+        == "As this artifact enters, you may have it become a copy of any creature on the battlefield until end of turn, except it has haste."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "enterBattlefield", "object": self_ref() },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "cursedMirrorEnter",
+                }],
+            }),
+            &[
+                "Offer any battlefield creature as Cursed Mirror enters",
+                "Copy it with haste until cleanup",
+            ],
+        ));
+    }
+    if text.starts_with("As this enchantment enters, choose Mardu or Jeskai.") {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "enterBattlefield", "object": self_ref() },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "windcragSiegeEnter",
+                }],
+            }),
+            &[
+                "Choose the Windcrag Siege mode as it enters",
+                "Install the selected Mardu or Jeskai continuous behavior",
+            ],
+        ));
+    }
     if text.starts_with("I ") && text.ends_with("Destroy all creatures.") {
         return Some(draft(
             json!({
@@ -5761,6 +7677,34 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
                 "Recognize the transform event",
                 "Create the persistent emblem",
                 "Install the emblem death trigger",
+            ],
+        ));
+    }
+    let counter_reduced_equip_re = Regex::new(
+        r"(?i)^Equip ((?:\{[^}]+\})+)\. This ability costs \{(\d+)\} less to activate for each ([^ ]+) counter on the creature it targets\.$",
+    )
+    .expect("counter-reduced equip regex compiles");
+    if let Some(captures) = counter_reduced_equip_re.captures(text) {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": {
+                    "kind": "equip",
+                    "costs": [{
+                        "kind": "payMana",
+                        "manaCost": captures.get(1)?.as_str(),
+                    }],
+                    "targetCounterCostReduction": {
+                        "counter": captures.get(3)?.as_str(),
+                        "amountPerCounter": integer(captures.get(2)?.as_str().parse::<i64>().ok()?),
+                    },
+                },
+            }),
+            &[
+                "Recognize equip",
+                "Count counters on the target",
+                "Reduce the generic activation cost",
             ],
         ));
     }
@@ -6791,6 +8735,42 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             ],
         ));
     }
+    if text.starts_with("Each noncreature spell you cast has conspire.") {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": active_while_battlefield(),
+                "modifiers": [{
+                    "kind": "grantConspire",
+                    "spells": {
+                        "kind": "spells",
+                        "controller": controller(),
+                        "where": not(card_type("Creature")),
+                    },
+                }],
+            }),
+            &["Grant conspire to controlled noncreature spells"],
+        ));
+    }
+    if text.starts_with("Creature spells you cast have convoke.") {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": active_while_battlefield(),
+                "modifiers": [{
+                    "kind": "grantConvoke",
+                    "spells": {
+                        "kind": "spells",
+                        "controller": controller(),
+                        "where": card_type("Creature"),
+                    },
+                }],
+            }),
+            &["Grant convoke to controlled creature spells"],
+        ));
+    }
     if text.starts_with("Survival â€” At the beginning of your second main phase")
         || text.starts_with("Survival — At the beginning of your second main phase")
     {
@@ -7141,7 +9121,16 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
         ));
     }
 
-    if text == "Creatures entering don't cause abilities to trigger." {
+    if matches!(
+        text,
+        "Creatures entering don't cause abilities to trigger."
+            | "Artifacts and creatures entering the battlefield don't cause abilities to trigger."
+    ) {
+        let where_filter = if text.starts_with("Artifacts and creatures") {
+            or(vec![card_type("Artifact"), card_type("Creature")])
+        } else {
+            card_type("Creature")
+        };
         return Some(draft(
             json!({
                 "kind": "staticAbility",
@@ -7153,7 +9142,7 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
                         "kind": "enterBattlefield",
                         "object": {
                             "kind": "eventObject",
-                            "where": card_type("Creature"),
+                            "where": where_filter,
                         },
                     },
                 }],

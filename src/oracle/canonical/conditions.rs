@@ -3,6 +3,52 @@ use super::*;
 pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
     let original_condition = text.trim().trim_end_matches('.');
     let condition = original_condition.to_ascii_lowercase();
+    if condition == "another creature entered the battlefield under your control this turn" {
+        return Some(json!({
+            "kind": "controlsPermanent",
+            "player": controller(),
+            "where": and(vec![
+                card_type("Creature"),
+                json!({ "kind": "enteredThisTurn" }),
+            ]),
+            "excludeSource": true,
+        }));
+    }
+    if condition == "a creature entered the battlefield under your control this turn" {
+        return Some(json!({
+            "kind": "controlsPermanent",
+            "player": controller(),
+            "where": and(vec![
+                card_type("Creature"),
+                json!({ "kind": "enteredThisTurn" }),
+            ]),
+        }));
+    }
+    if condition == "you put a counter on a creature this turn" {
+        return Some(json!({
+            "kind": "putCounterOnCreatureThisTurn",
+            "player": controller(),
+        }));
+    }
+    if condition == "this spell's additional cost was paid" {
+        return Some(json!({
+            "kind": "selectionContains",
+            "selection": {
+                "kind": "decisionResult",
+                "decisionId": "additionalCostMode",
+            },
+            "value": "pay",
+        }));
+    }
+    if condition == "it isn't your main phase" {
+        return Some(json!({
+            "kind": "not",
+            "operand": {
+                "kind": "duringControllerMainPhase",
+                "player": controller(),
+            },
+        }));
+    }
     let player_zone_threshold_re = Regex::new(&format!(
         r"(?i)^a (graveyard|hand|library) has ({}) or (more|fewer) cards in it$",
         count_word_pattern(),
@@ -28,6 +74,22 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             "kind": "triggeringSpellManaSourceMatches",
             "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
         }));
+    }
+    let source_mana_symbols_spent_re = Regex::new(r"(?i)^((?:\{[WUBRG]\})+) was spent to cast it$")
+        .expect("source mana-symbols-spent condition regex compiles");
+    if let Some(captures) = source_mana_symbols_spent_re.captures(original_condition) {
+        let symbols = Regex::new(r"\{([WUBRG])\}")
+            .expect("colored mana symbol regex compiles")
+            .captures_iter(captures.get(1)?.as_str())
+            .filter_map(|capture| capture.get(1))
+            .map(|symbol| symbol.as_str().to_ascii_uppercase())
+            .collect::<Vec<_>>();
+        if !symbols.is_empty() {
+            return Some(json!({
+                "kind": "manaSymbolsSpentToCastSource",
+                "symbols": symbols,
+            }));
+        }
     }
     if condition == "you have an enduring story" {
         return Some(json!({
@@ -113,6 +175,26 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             integer(parse_number_word(&captures[1])?),
         ));
     }
+    let loyalty_among_named_planeswalkers_re = Regex::new(&format!(
+        r"(?i)^there are ({}) or more loyalty counters among (.+?)s you control$",
+        count_word_pattern(),
+    ))
+    .expect("loyalty among named planeswalkers condition regex compiles");
+    if let Some(captures) = loyalty_among_named_planeswalkers_re.captures(original_condition) {
+        return Some(compare(
+            ">=",
+            json!({
+                "kind": "countCountersOnPermanents",
+                "player": controller(),
+                "where": and(vec![
+                    card_type("Planeswalker"),
+                    subtype(captures.get(2)?.as_str()),
+                ]),
+                "counter": "loyalty",
+            }),
+            integer(parse_number_word(captures.get(1)?.as_str())?),
+        ));
+    }
     let graveyard_pair_re =
         Regex::new(r"(?i)^there is (?:a|an) (.+?) card and (?:a|an) (.+?) card in your graveyard$")
             .expect("paired graveyard-card condition regex compiles");
@@ -138,6 +220,33 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             ),
         ]));
     }
+    let graveyard_card_re = Regex::new(r"(?i)^there is (?:a|an) (.+?) card in your graveyard$")
+        .expect("graveyard-card condition regex compiles");
+    if let Some(captures) = graveyard_card_re.captures(original_condition) {
+        return Some(compare(
+            ">=",
+            json!({
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": parse_permanent_criteria(&captures[1], "")?,
+            }),
+            integer(1),
+        ));
+    }
+    let source_has_counter_re =
+        Regex::new(r"(?i)^this (?:creature|permanent) has (?:a|an) (.+?) counter on it$")
+            .expect("source has counter condition regex compiles");
+    if let Some(captures) = source_has_counter_re.captures(original_condition) {
+        return Some(compare(
+            ">",
+            json!({
+                "kind": "countCounters",
+                "object": self_ref(),
+                "counter": captures.get(1)?.as_str().to_ascii_lowercase(),
+            }),
+            integer(0),
+        ));
+    }
     if let Some((left, right)) = original_condition.split_once(" and ") {
         return Some(and(vec![
             parse_condition_text(left)?,
@@ -154,6 +263,9 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             }),
             integer(0),
         ));
+    }
+    if condition == "an opponent controls more lands than you" {
+        return parse_controlled_permanent_condition(original_condition, "");
     }
     let opponent_controls_re = Regex::new(r"(?i)^an opponent controls (?:a|an) (.+)$")
         .expect("opponent controls permanent condition regex compiles");
@@ -183,6 +295,64 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
             integer(0),
         ));
+    }
+    if matches!(
+        condition.as_str(),
+        "you've scried or surveilled this turn" | "you have scried or surveilled this turn"
+    ) {
+        return Some(json!({
+            "kind": "scriedOrSurveilledThisTurn",
+            "player": controller(),
+        }));
+    }
+    if matches!(
+        condition.as_str(),
+        "you've activated a loyalty ability this turn"
+            | "you have activated a loyalty ability this turn"
+    ) {
+        return Some(json!({
+            "kind": "activatedLoyaltyAbilityThisTurn",
+            "player": controller(),
+        }));
+    }
+    if matches!(
+        condition.as_str(),
+        "an opponent has been dealt noncombat damage this turn"
+            | "an opponent was dealt noncombat damage this turn"
+    ) {
+        return Some(json!({
+            "kind": "opponentDealtNoncombatDamage",
+            "player": controller(),
+            "turn": "current",
+        }));
+    }
+    if condition == "an opponent was dealt noncombat damage last turn" {
+        return Some(json!({
+            "kind": "opponentDealtNoncombatDamage",
+            "player": controller(),
+            "turn": "previous",
+        }));
+    }
+    if condition == "you didn't cast a spell this turn" {
+        return Some(compare(
+            "==",
+            json!({
+                "kind": "countEventsThisTurn",
+                "event": "spellCast",
+                "player": controller(),
+            }),
+            integer(0),
+        ));
+    }
+    if matches!(
+        condition.as_str(),
+        "you've cast a noncreature spell this turn" | "you have cast a noncreature spell this turn"
+    ) {
+        return Some(json!({
+            "kind": "hasCastSpellThisTurn",
+            "player": controller(),
+            "where": not(card_type("Creature")),
+        }));
     }
     let life_gained_threshold_re = Regex::new(&format!(
         r"(?i)^you(?:'ve| have)? gained ({}) or more life this turn$",

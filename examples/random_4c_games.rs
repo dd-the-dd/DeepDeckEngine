@@ -63,6 +63,7 @@ fn request_from_truth(truth: &Value) -> OracleCardParseRequest {
                             .to_string(),
                         power: optional_string(&face["power"]),
                         toughness: optional_string(&face["toughness"]),
+                        loyalty: optional_string(&face["loyalty"]),
                         type_line: face["typeLine"]
                             .as_str()
                             .expect("face type line")

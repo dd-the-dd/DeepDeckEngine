@@ -4,6 +4,28 @@ pub(in crate::oracle::canonical) fn parse_composed_entry_replacement(
     text: &str,
     face_name: &str,
 ) -> Option<CanonicalRuleDraft> {
+    if text.eq_ignore_ascii_case("This land enters tapped. As it enters, choose a color.") {
+        return Some(draft(
+            json!({
+                "kind": "replacementEffect",
+                "source": self_ref(),
+                "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+                "decisions": [{
+                    "id": "chosenColor",
+                    "kind": "chooseColor",
+                    "options": ["W", "U", "B", "R", "G"],
+                }],
+                "replacement": [
+                    { "kind": "setEnteringState", "tapped": true },
+                    { "kind": "storeDecision", "decisionId": "chosenColor" },
+                ],
+            }),
+            &[
+                "Enter the battlefield tapped",
+                "Choose and persist a color while entering",
+            ],
+        ));
+    }
     let parity_choice_re =
         Regex::new(r"(?i)^As (.+?) enters, choose odd or even\.(?: \(Zero is even\.\))?$")
             .expect("as-enters mana-value parity choice regex compiles");

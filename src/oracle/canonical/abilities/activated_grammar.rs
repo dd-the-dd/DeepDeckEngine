@@ -30,7 +30,7 @@ pub(in crate::oracle::canonical) struct LinkedPermanentExchange<'a> {
 pub(in crate::oracle::canonical) enum CounterRecipient<'a> {
     Source,
     EachControlled(&'a str),
-    NamedSource,
+    NamedSource(&'a str),
 }
 
 pub(in crate::oracle::canonical) struct PutCounter<'a> {
@@ -123,8 +123,7 @@ pub(in crate::oracle::canonical) fn parse_optional_hand_permanent_with_haste_and
     instruction: &str,
 ) -> Option<&str> {
     let rest = strip_prefix_ascii_case(instruction, "You may put ")?;
-    let (criteria, rest) =
-        split_once_ascii_case(rest, " card from your hand onto the battlefield. ")?;
+    let (criteria, rest) = split_once_ascii_case(rest, " from your hand onto the battlefield. ")?;
     let (haste, sacrifice) = rest.split_once(". ")?;
     let haste_subject = strip_suffix_ascii_case(haste, " gains haste")?;
     if !matches!(
@@ -134,14 +133,26 @@ pub(in crate::oracle::canonical) fn parse_optional_hand_permanent_with_haste_and
         return None;
     }
     let sacrifice = strip_suffix_ascii_case(sacrifice, ".").unwrap_or(sacrifice);
-    let sacrifice = strip_prefix_ascii_case(sacrifice, "Sacrifice ")?;
-    let (subject, timing) = split_once_ascii_case(sacrifice, " at ")?;
-    if !matches!(
-        subject.to_ascii_lowercase().as_str(),
-        "the creature" | "that creature" | "it"
-    ) || !timing.eq_ignore_ascii_case("the beginning of the next end step")
-    {
-        return None;
+    if let Some(subject) = strip_prefix_ascii_case(
+        sacrifice,
+        "At the beginning of the next end step, sacrifice ",
+    ) {
+        if !matches!(
+            subject.to_ascii_lowercase().as_str(),
+            "the creature" | "that creature" | "it"
+        ) {
+            return None;
+        }
+    } else {
+        let sacrifice = strip_prefix_ascii_case(sacrifice, "Sacrifice ")?;
+        let (subject, timing) = split_once_ascii_case(sacrifice, " at ")?;
+        if !matches!(
+            subject.to_ascii_lowercase().as_str(),
+            "the creature" | "that creature" | "it"
+        ) || !timing.eq_ignore_ascii_case("the beginning of the next end step")
+        {
+            return None;
+        }
     }
     Some(strip_leading_article(criteria))
 }
@@ -218,7 +229,7 @@ pub(in crate::oracle::canonical) fn parse_put_counter(instruction: &str) -> Opti
     {
         CounterRecipient::EachControlled(criteria)
     } else {
-        CounterRecipient::NamedSource
+        CounterRecipient::NamedSource(recipient)
     };
     Some(PutCounter {
         count,

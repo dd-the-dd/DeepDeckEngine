@@ -45,6 +45,7 @@ pub(super) fn variable_clause_pattern() -> String {
             r"|the number of experience counters you have",
             r"|the number of cards in your hand",
             r"|the number of cards in your library",
+            r"|the number of [A-Za-z0-9+/' -]+ cards in your graveyard",
             r"|the number of {} your opponents control",
             r"|the number of {} you control(?: with power \d+ or greater)?",
             r"|the amount of mana spent to cast her",
@@ -82,6 +83,19 @@ pub(super) fn x_variable_expression(clause: &str) -> Option<Value> {
             "zone": { "kind": "library", "player": controller() },
             "where": Value::Null,
         })),
+        "the number of cards in your graveyard" => Some(json!({
+            "kind": "countCards",
+            "zone": graveyard(controller()),
+            "where": Value::Null,
+        })),
+        "that creature's power" | "that permanent's power" => Some(json!({
+            "kind": "powerOf",
+            "object": { "kind": "triggeringPermanent" },
+        })),
+        "the number of planeswalker types among planeswalkers you control" => Some(json!({
+            "kind": "countPlaneswalkerTypes",
+            "player": controller(),
+        })),
         "the amount of mana spent to cast her" => Some(json!({ "kind": "manaSpentToCastSource" })),
         "the amount of mana spent to cast that spell" => {
             Some(json!({ "kind": "triggeringSpellManaSpent" }))
@@ -96,6 +110,16 @@ pub(super) fn x_variable_expression(clause: &str) -> Option<Value> {
             "object": self_ref(),
         })),
         _ => {
+            if let Some(captures) = Regex::new(r"(?i)^the number of (.+?) cards in your graveyard$")
+                .expect("generic graveyard card-count variable regex compiles")
+                .captures(clause)
+            {
+                return Some(json!({
+                    "kind": "countCards",
+                    "zone": graveyard(controller()),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
+                }));
+            }
             if let Some(captures) = Regex::new(r"(?i)^the number of (.+?) your opponents control$")
                 .expect("generic opponent permanent count regex compiles")
                 .captures(clause)
@@ -163,7 +187,13 @@ pub(super) fn avatar_quantity(value: &str) -> Option<Value> {
     if let Some(quantity) = parse_number_word(value.trim()) {
         return Some(integer(quantity));
     }
-    x_variable_text_expression(value)
+    x_variable_text_expression(value).or_else(|| {
+        value
+            .trim()
+            .strip_prefix("X, where X is ")
+            .filter(|clause| clause.ends_with("'s power"))
+            .map(|_| json!({ "kind": "powerOf", "object": self_ref() }))
+    })
 }
 
 pub(super) fn parse_consecutive_number_choices(value: &str) -> Option<Vec<i64>> {

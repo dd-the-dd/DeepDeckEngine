@@ -177,26 +177,41 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             }));
             continue;
         }
-        if lower == "tap two untapped creatures you control" {
+        let tap_untapped_group_re = Regex::new(&format!(
+            r"^tap ({}) untapped (.+?) you control$",
+            count_word_pattern(),
+        ))
+        .expect("tap untapped permanents activation cost regex compiles");
+        if let Some(captures) = tap_untapped_group_re.captures(&lower) {
+            let count = parse_number_word(captures.get(1)?.as_str())?;
+            if !(1..=20).contains(&count) {
+                return None;
+            }
+            let criteria = singular_card_term(captures.get(2)?.as_str());
             let candidates = json!({
                 "kind": "permanents",
                 "controller": controller(),
-                "where": card_type("Creature"),
+                "where": and(vec![
+                    parse_permanent_criteria(&criteria, "")?,
+                    not(json!({ "kind": "isTapped" })),
+                ]),
                 "ignoreTargetingRestrictions": true,
             });
-            for decision_id in ["tapCreatureCostOne", "tapCreatureCostTwo"] {
-                decisions.push(target_decision(decision_id, candidates.clone(), 1, 1));
+            for index in 0..count {
+                let decision_id = format!("tapPermanentCost{}", index + 1);
+                decisions.push(target_decision(&decision_id, candidates.clone(), 1, 1));
                 costs.push(json!({
                     "kind": "tap",
-                    "object": chosen_target(decision_id),
+                    "object": chosen_target(&decision_id),
                 }));
             }
             continue;
         }
-        let tap_one_permanent_re = Regex::new(r"^tap an untapped ([a-z][a-z '-]*) you control$")
-            .expect("tap permanent activation cost regex compiles");
+        let tap_one_permanent_re =
+            Regex::new(r"^tap (an|another) untapped ([a-z][a-z '-]*) you control$")
+                .expect("tap permanent activation cost regex compiles");
         if let Some(captures) = tap_one_permanent_re.captures(&lower) {
-            let criteria = captures[1]
+            let criteria = captures[2]
                 .split_whitespace()
                 .map(|word| {
                     let mut chars = word.chars();
@@ -217,6 +232,7 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
                         parse_permanent_criteria(&criteria, "")?,
                         not(json!({ "kind": "isTapped" })),
                     ]),
+                    "excludeSource": captures[1].eq_ignore_ascii_case("another"),
                     "ignoreTargetingRestrictions": true,
                 }),
                 1,
@@ -378,7 +394,7 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             continue;
         }
         let exile_source_re = Regex::new(
-            r"^exile this (card from your hand|artifact|creature|enchantment|permanent)$",
+            r"^exile this (card from your hand|card from your graveyard|artifact|creature|enchantment|permanent)$",
         )
         .expect("source-exile activation cost regex compiles");
         if let Some(captures) = exile_source_re.captures(&lower) {
@@ -387,9 +403,25 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
                 "object": self_ref(),
                 "zone": if captures[1].eq_ignore_ascii_case("card from your hand") {
                     "hand"
+                } else if captures[1].eq_ignore_ascii_case("card from your graveyard") {
+                    "graveyard"
                 } else {
                     "battlefield"
                 },
+            }));
+            continue;
+        }
+        if cost.starts_with("Exile ")
+            && !lower.contains(" from ")
+            && !lower.starts_with("exile a ")
+            && !lower.starts_with("exile an ")
+            && !lower.starts_with("exile one ")
+            && !lower.starts_with("exile the top ")
+        {
+            costs.push(json!({
+                "kind": "exileSource",
+                "object": self_ref(),
+                "zone": "battlefield",
             }));
             continue;
         }
@@ -404,10 +436,18 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             continue;
         }
         let decision_id = format!("exileGraveyardCost{}", decisions.len() + 1);
-        if let Some((operation, decision)) =
-            parse_exile_cards_from_zone_operation(cost, "", &decision_id)
-            && operation["from"]["kind"].as_str() == Some("graveyard")
+        let exile_another = lower.starts_with("exile another ");
+        let normalized_exile_cost =
+            exile_another.then(|| format!("Exile a {}", &cost["Exile another ".len()..]));
+        if let Some((operation, mut decision)) = parse_exile_cards_from_zone_operation(
+            normalized_exile_cost.as_deref().unwrap_or(cost),
+            "",
+            &decision_id,
+        ) && operation["from"]["kind"].as_str() == Some("graveyard")
         {
+            if exile_another {
+                decision["candidates"]["excludeSource"] = Value::Bool(true);
+            }
             decisions.push(decision);
             costs.push(operation);
             continue;
@@ -569,6 +609,36 @@ pub(super) fn parse_resolution_cost_text(cost_text: &str) -> Option<Value> {
         .trim_end_matches('.')
         .trim_end_matches(" of their choice")
         .trim();
+    let blight_re = Regex::new(&format!(r"(?i)^blight ({})$", count_word_pattern(),))
+        .expect("resolution blight cost regex compiles");
+    if let Some(captures) = blight_re.captures(normalized) {
+        return Some(json!({
+            "kind": "putCounters",
+            "controller": controller(),
+            "where": card_type("Creature"),
+            "counter": "-1/-1",
+            "count": integer(parse_number_word(captures.get(1)?.as_str())?),
+        }));
+    }
+    if normalized.eq_ignore_ascii_case("remove a counter from this creature")
+        || normalized.eq_ignore_ascii_case("remove a counter from this permanent")
+    {
+        return Some(json!({
+            "kind": "removeCounters",
+            "permanent": self_ref(),
+            "counter": "any",
+            "count": integer(1),
+        }));
+    }
+    let tap_another_re = Regex::new(r"(?i)^tap another untapped (.+?) you control$")
+        .expect("tap another controlled permanent resolution cost regex compiles");
+    if let Some(captures) = tap_another_re.captures(normalized) {
+        return Some(json!({
+            "kind": "tap",
+            "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
+            "excludeSource": true,
+        }));
+    }
     if let Some(cost) = parse_keyword_cost(&format!("Cost\u{2014}{normalized}"), "Cost") {
         return Some(cost);
     }

@@ -131,6 +131,7 @@ pub(in crate::oracle::canonical) fn parse_mana_ability(text: &str) -> Option<Can
         Regex::new(r"(?i)^Add one mana of any of the exiled card's colors\.?$")
             .expect("linked exiled-card mana color regex compiles")
             .is_match(effect_text);
+    let stored_chosen_color = effect_text.eq_ignore_ascii_case("Add one mana of the chosen color.");
     let variable_fixed_mana_re = Regex::new(&format!(
         r"^Add an amount of \{{(W|U|B|R|G|C)\}} equal to ({})",
         variable_clause_pattern(),
@@ -160,23 +161,32 @@ pub(in crate::oracle::canonical) fn parse_mana_ability(text: &str) -> Option<Can
     let chosen_type_amount = chosen_type_mana_re
         .captures(effect_text)
         .and_then(|captures| x_variable_expression(&captures[1]));
+    let distinct_controlled_creature_powers = effect_text.eq_ignore_ascii_case(
+        "Choose a color. Add one mana of that color for each different power among creatures you control.",
+    );
     if !any_color
         && variable_any_color.is_none()
         && chosen_type_amount.is_none()
         && variable_fixed_mana.is_none()
+        && !distinct_controlled_creature_powers
         && controlled_land_mana_type_amount.is_none()
         && sacrificed_permanent_mana.is_none()
         && opponents_land_mana_color_amount.is_none()
         && !linked_exiled_card_colors
+        && !stored_chosen_color
         && mana_symbols.is_empty()
     {
         return None;
     }
 
     let restricted = effect_text.contains("Spend this mana only to cast");
-    let restriction = if effect_text.contains("creature spell of the chosen type") {
+    let restriction = if effect_text.contains("spell of the chosen type") {
         Some(json!({
-            "kind": "castSpell",
+            "kind": if effect_text.contains("activate an ability of a source of the chosen type") {
+                "castSpellOrActivateAbility"
+            } else {
+                "castSpell"
+            },
             "where": card_type("Creature"),
             "chosenCreatureTypeFromSource": true,
             "cantBeCountered": effect_text.contains("that spell can't be countered"),
@@ -212,6 +222,21 @@ pub(in crate::oracle::canonical) fn parse_mana_ability(text: &str) -> Option<Can
     }
     let mana = if linked_exiled_card_colors {
         json!({ "kind": "linkedExiledCardColors", "amount": integer(1) })
+    } else if stored_chosen_color {
+        json!({
+            "kind": "storedColor",
+            "decisionId": "chosenColor",
+            "amount": integer(1),
+        })
+    } else if distinct_controlled_creature_powers {
+        json!({
+            "kind": "chooseColor",
+            "amount": {
+                "kind": "countDistinctPowers",
+                "player": controller(),
+                "where": card_type("Creature"),
+            },
+        })
     } else if let Some((symbol, amount)) = variable_fixed_mana {
         json!({
             "kind": "fixedMana",

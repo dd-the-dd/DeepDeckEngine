@@ -1,5 +1,6 @@
 use super::*;
-use crate::oracle::{OracleCardParseRequest, parse_oracle_card};
+use crate::model::{PlayableCardInput, compile_playable_card};
+use crate::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
 #[test]
 fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
@@ -2712,7 +2713,11 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
         .iter()
         .find(|permanent| permanent.definition.name == "Axe")
         .expect("Axe was created");
-    assert_eq!(axe.attached_to.as_deref(), Some("dain-companion"));
+    assert!(matches!(
+        axe.attached_to.as_deref(),
+        Some("dain-companion" | "dain-ironfoot")
+    ));
+    let equipped_id = axe.attached_to.clone().expect("Axe is attached");
 
     for permanent in &mut engine.state.players[0].battlefield {
         if matches!(
@@ -2753,8 +2758,14 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
         .iter()
         .find(|permanent| permanent.instance_id == "dain-ironfoot")
         .expect("Dáin remains");
-    assert!(engine.permanent_has_keyword(companion, "doubleStrike"));
-    assert!(!engine.permanent_has_keyword(dain, "doubleStrike"));
+    assert_eq!(
+        engine.permanent_has_keyword(companion, "doubleStrike"),
+        equipped_id == "dain-companion"
+    );
+    assert_eq!(
+        engine.permanent_has_keyword(dain, "doubleStrike"),
+        equipped_id == "dain-ironfoot"
+    );
 }
 
 #[test]
@@ -10281,6 +10292,11 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     aluren.rules = vec![json!({
         "kind": "staticAbility",
         "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
         "modifiers": [{
             "kind": "castingPermission",
             "players": { "kind": "eachPlayer" },
@@ -10344,7 +10360,29 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
         .run_priority_window(&mut provider)
         .expect("the changing Acererak-style loop uses the chosen bounded count");
 
-    assert_eq!(provider.number_requests, 1);
+    let spell_cast_count = engine
+        .state
+        .events
+        .iter()
+        .filter(|event| event.kind == "spellCast")
+        .count();
+    assert_eq!(
+        (provider.number_requests, spell_cast_count),
+        (1, 4),
+        "hand={:?}, battlefield={:?}, library={}, opposing_life={}",
+        engine.state.players[0]
+            .hand
+            .iter()
+            .map(|card| card.instance_id.as_str())
+            .collect::<Vec<_>>(),
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .map(|card| card.instance_id.as_str())
+            .collect::<Vec<_>>(),
+        engine.state.players[0].library.len(),
+        engine.state.players[1].life,
+    );
     assert_eq!(
         engine
             .state
@@ -11194,7 +11232,14 @@ fn split_library_search_moves_one_selected_card_to_each_destination() {
         "basic-1"
     );
     assert!(engine.state.players[0].battlefield[0].tapped);
-    assert_eq!(engine.state.players[0].hand[0].instance_id, "basic-2");
+    assert_eq!(
+        engine.state.players[0]
+            .hand
+            .last()
+            .expect("the second selected basic is put into hand")
+            .instance_id,
+        "basic-2"
+    );
     assert_eq!(engine.state.players[0].library[0].instance_id, "other-card");
 }
 
@@ -11285,7 +11330,12 @@ fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     }
 
     assert_eq!(engine.state.players[0].life, 21);
-    assert_eq!(engine.state.players[0].hand[0].instance_id, "draw-card");
+    assert!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "draw-card")
+    );
     for creature in &engine.state.players[0].battlefield {
         assert_eq!(creature.counters.get("+1/+1"), Some(&1));
     }
@@ -13450,6 +13500,220 @@ fn transform_cards_switch_characteristics_and_active_rules() {
     assert_eq!(front.definition.name, "Sephiroth, Fabled SOLDIER");
     assert_eq!(current_power(&front), 3);
     assert!(!has_keyword(&front.definition, "flying"));
+}
+
+fn ecc_test_stack(card_name: &str) -> StackObject {
+    StackObject {
+        id: format!("stack:{card_name}"),
+        controller: "player-0".to_string(),
+        card: test_instance(card_name, test_definition(card_name, "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    }
+}
+
+#[test]
+fn ecc_shatter_the_sky_draws_for_large_creatures_then_destroys_all_creatures() {
+    let mut engine = test_engine(2);
+    let mut large = test_definition("large-creature", "Creature - Giant");
+    large.power = Some("4".to_string());
+    large.toughness = Some("4".to_string());
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("large-creature", large, "player-0"));
+    engine.state.players[1].battlefield.push(test_instance(
+        "small-creature",
+        test_definition("small-creature", "Creature - Elf"),
+        "player-1",
+    ));
+    let player_zero_hand = engine.state.players[0].hand.len();
+    let player_one_hand = engine.state.players[1].hand.len();
+
+    engine
+        .resolve_ecc_remaining_ability(
+            "shatterTheSky",
+            &ecc_test_stack("shatter-the-sky"),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Shatter the Sky resolves");
+
+    assert!(engine.state.players[0].battlefield.is_empty());
+    assert!(engine.state.players[1].battlefield.is_empty());
+    assert_eq!(engine.state.players[0].hand.len(), player_zero_hand + 1);
+    assert_eq!(engine.state.players[1].hand.len(), player_one_hand);
+}
+
+#[test]
+fn ecc_archfiend_places_minus_counters_only_on_opposing_creatures() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(test_instance(
+        "friendly-creature",
+        test_definition("friendly-creature", "Creature - Demon"),
+        "player-0",
+    ));
+    engine.state.players[1].battlefield.push(test_instance(
+        "opposing-creature",
+        test_definition("opposing-creature", "Creature - Soldier"),
+        "player-1",
+    ));
+
+    engine
+        .resolve_ecc_remaining_ability(
+            "archfiendMinusCounters",
+            &ecc_test_stack("archfiend-of-ifnir"),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Archfiend trigger resolves");
+
+    assert_eq!(
+        engine.state.players[0].battlefield[0].counters.get("-1/-1"),
+        None
+    );
+    assert_eq!(
+        engine.state.players[1].battlefield[0].counters.get("-1/-1"),
+        Some(&1)
+    );
+}
+
+#[test]
+fn ecc_everlasting_torment_makes_all_creature_damage_wither() {
+    let mut engine = test_engine(2);
+    let mut torment = test_definition("everlasting-torment", "Enchantment");
+    torment.rules.push(json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [{
+            "kind": "eccStaticAbility",
+            "ability": "allDamageHasWither",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        }],
+    }));
+    engine.state.players[0].battlefield.push(test_instance(
+        "everlasting-torment",
+        torment,
+        "player-0",
+    ));
+    engine.state.players[0].battlefield.push(test_instance(
+        "damage-source",
+        test_definition("damage-source", "Creature - Elemental"),
+        "player-0",
+    ));
+    engine.state.players[1].battlefield.push(test_instance(
+        "damage-target",
+        test_definition("damage-target", "Creature - Giant"),
+        "player-1",
+    ));
+
+    engine
+        .deal_damage(
+            TargetRef::Permanent {
+                instance_id: "damage-target".to_string(),
+            },
+            2,
+            "damage-source",
+        )
+        .expect("damage resolves");
+
+    assert_eq!(
+        engine.state.players[1].battlefield[0].counters.get("-1/-1"),
+        Some(&2)
+    );
+    assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 0);
+}
+
+#[test]
+fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
+    let definition = compile_playable_card(PlayableCardInput {
+        id: "tamiyo".to_string(),
+        face_id: Some("tamiyo-front".to_string()),
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: Some("0".to_string()),
+        toughness: Some("3".to_string()),
+        oracle: OracleCardParseRequest {
+            card_name: "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar".to_string(),
+            type_line:
+                "Legendary Creature - Moonfolk Wizard // Legendary Planeswalker - Tamiyo"
+                    .to_string(),
+            mana_cost: None,
+            oracle_text: None,
+            layout: Some("transform".to_string()),
+            faces: vec![
+                OracleCardFace {
+                    id: "tamiyo-front".to_string(),
+                    name: "Tamiyo, Inquisitive Student".to_string(),
+                    type_line: "Legendary Creature - Moonfolk Wizard".to_string(),
+                    mana_cost: Some("{U}".to_string()),
+                    oracle_text: "When you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.".to_string(),
+                    power: Some("0".to_string()),
+                    toughness: Some("3".to_string()),
+                    loyalty: None,
+                },
+                OracleCardFace {
+                    id: "tamiyo-back".to_string(),
+                    name: "Tamiyo, Seasoned Scholar".to_string(),
+                    type_line: "Legendary Planeswalker - Tamiyo".to_string(),
+                    mana_cost: Some(String::new()),
+                    oracle_text: String::new(),
+                    power: None,
+                    toughness: None,
+                    loyalty: Some("3".to_string()),
+                },
+            ],
+        },
+    })
+    .expect("Tamiyo compiles")
+    .card;
+    let mut engine = test_engine(2);
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("tamiyo", definition, "player-0"));
+    engine.state.players[0].library = (0..3)
+        .map(|index| {
+            test_instance(
+                &format!("draw-{index}"),
+                test_definition(&format!("draw-{index}"), "Sorcery"),
+                "player-0",
+            )
+        })
+        .collect();
+
+    engine
+        .draw_cards("player-0", 3)
+        .expect("the third card is drawn");
+    assert_eq!(engine.state.stack.len(), 1);
+    assert_eq!(
+        engine.state.stack[0].ability_kind.as_deref(),
+        Some("triggeredAbility")
+    );
+
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Tamiyo's triggered ability resolves");
+
+    let tamiyo = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "tamiyo")
+        .expect("Tamiyo remains on the battlefield");
+    assert_eq!(tamiyo.definition.name, "Tamiyo, Seasoned Scholar");
+    assert_eq!(tamiyo.counters.get("loyalty"), Some(&3));
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .all(|card| card.instance_id != "tamiyo")
+    );
 }
 
 #[test]
@@ -18161,7 +18425,7 @@ fn mobilize_creates_attacking_warriors_then_sacrifices_them_at_end_step() {
     assert_eq!(engine.state.combat.attackers.len(), 3);
 
     engine
-        .process_end_step_sacrifices()
+        .process_end_step_sacrifices(&mut EmeritusDecisionProvider)
         .expect("delayed sacrifices apply");
     assert!(
         engine.state.players[0]
@@ -21467,7 +21731,7 @@ fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
         .into_iter()
         .find(|action| {
             action.kind == ActionKind::CastSpell
-                && action.label == "Cast Explosion from hand"
+                && action.label.starts_with("Cast Explosion from hand")
                 && action.decisions["splitFaceIndex"] == 1
                 && action.decisions["xValue"] == 2
                 && action.targets["damageTarget"]

@@ -124,6 +124,7 @@ pub(super) fn oracle_keyword_kind(value: &str) -> Option<&'static str> {
         "intimidate" => Some("intimidate"),
         "menace" => Some("menace"),
         "prowess" => Some("prowess"),
+        "persist" => Some("persist"),
         "reach" => Some("reach"),
         "shadow" => Some("shadow"),
         "plainswalk" => Some("plainswalk"),
@@ -479,6 +480,37 @@ pub(super) fn parse_permanent_criteria(value: &str, face_name: &str) -> Option<V
     if let Some(color) = color_filter(description) {
         return Some(color);
     }
+    let planeswalker_subtype_re = Regex::new(r"(?i)^([A-Za-z][A-Za-z '-]+) planeswalkers?$")
+        .expect("planeswalker subtype criteria regex compiles");
+    if let Some(captures) = planeswalker_subtype_re.captures(description)
+        && !captures[1]
+            .split_whitespace()
+            .any(|word| matches!(word.to_ascii_lowercase().as_str(), "or" | "and" | "and/or"))
+        && !matches!(
+            captures[1].to_ascii_lowercase().as_str(),
+            "legendary" | "nonlegendary" | "white" | "blue" | "black" | "red" | "green"
+        )
+    {
+        return Some(and(vec![
+            card_type("Planeswalker"),
+            subtype(&singular_card_term(captures.get(1)?.as_str())),
+        ]));
+    }
+    let qualified_color_list_re = Regex::new(
+        r"(?i)^(.+?) that(?:'|\x{2019})s ((?:white|blue|black|red|green)(?:\s+(?:or|and/or)\s+(?:white|blue|black|red|green))+)s?$",
+    )
+    .expect("qualified color-list criteria regex compiles");
+    if let Some(captures) = qualified_color_list_re.captures(description) {
+        let colors = Regex::new(r"(?i)white|blue|black|red|green")
+            .expect("qualified color matcher compiles")
+            .find_iter(&captures[2])
+            .map(|matched| color_filter(matched.as_str()))
+            .collect::<Option<Vec<_>>>()?;
+        return Some(and(vec![
+            parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            or(colors),
+        ]));
+    }
     let shared_color_type_re = Regex::new(
         r"(?i)^((?:white|blue|black|red|green)(?:\s+(?:or|and/or)\s+(?:white|blue|black|red|green))+)[ ]+(permanent|creature|artifact|enchantment|planeswalker|land)s?$",
     )
@@ -525,6 +557,12 @@ pub(super) fn parse_permanent_criteria(value: &str, face_name: &str) -> Option<V
     }
 
     let lower_description = description.to_ascii_lowercase();
+    if lower_description == "creature that entered this turn" {
+        return Some(and(vec![
+            card_type("Creature"),
+            json!({ "kind": "enteredThisTurn" }),
+        ]));
+    }
     if let Some(rest) = lower_description
         .strip_suffix(" tokens")
         .or_else(|| lower_description.strip_suffix(" token"))
@@ -865,17 +903,31 @@ pub(super) fn parse_controlled_permanent_condition(value: &str, face_name: &str)
     ))
     .expect("controlled permanent count condition regex compiles");
     if let Some(captures) = controlled_count_re.captures(value) {
+        let mut criteria = captures[3].trim();
+        let ownership = if let Some(stripped) = criteria.strip_suffix(" you don't own") {
+            criteria = stripped.trim();
+            Some("notOwned")
+        } else if let Some(stripped) = criteria.strip_suffix(" you own") {
+            criteria = stripped.trim();
+            Some("owned")
+        } else {
+            None
+        };
+        let mut count = json!({
+            "kind": "countPermanents",
+            "player": controller(),
+            "where": parse_permanent_criteria(criteria, face_name)?,
+        });
+        if let Some(ownership) = ownership {
+            count["ownership"] = Value::String(ownership.to_string());
+        }
         return Some(compare(
             if captures[2].eq_ignore_ascii_case("more") {
                 ">="
             } else {
                 "<="
             },
-            json!({
-                "kind": "countPermanents",
-                "player": controller(),
-                "where": parse_permanent_criteria(&captures[3], face_name)?,
-            }),
+            count,
             integer(parse_number_word(&captures[1])?),
         ));
     }

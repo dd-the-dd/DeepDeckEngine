@@ -3,6 +3,56 @@ use super::super::*;
 pub(in crate::oracle::canonical) fn parse_own_casting_reduction(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
+    if text == "This spell costs {1} less to cast for each color among permanents you control." {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": {
+                    "kind": "inZone",
+                    "object": self_ref(),
+                    "zone": { "kind": "stackOrCast" },
+                },
+                "modifiers": [{
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": {
+                        "kind": "countDistinctColors",
+                        "player": controller(),
+                        "where": Value::Null,
+                    },
+                }],
+            }),
+            &[
+                "Count distinct colors among controlled permanents",
+                "Reduce this spell's generic casting cost by that count",
+            ],
+        ));
+    }
+    if text
+        == "This spell costs {3} less to cast if it targets a creature that was dealt damage this turn."
+    {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": {
+                    "kind": "inZone", "object": self_ref(), "zone": { "kind": "stackOrCast" },
+                },
+                "modifiers": [{
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": integer(3),
+                    "targetWhere": and(vec![
+                        card_type("Creature"),
+                        json!({ "kind": "wasDealtDamageThisTurn" }),
+                    ]),
+                }],
+            }),
+            &[
+                "Match a creature dealt damage this turn",
+                "Reduce the generic cost by three",
+            ],
+        ));
+    }
     if text == "This spell costs {1} less to cast for each creature on the battlefield." {
         return Some(draft(
             json!({
@@ -84,6 +134,19 @@ pub(in crate::oracle::canonical) fn parse_own_casting_reduction(
 pub(in crate::oracle::canonical) fn parse_common_spell_ability(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
+    if text.starts_with("Discover X, where X is the amount of mana spent to cast this spell.") {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "ashayaDiscoverSpentMana",
+                }],
+            }),
+            &["Count mana spent to cast the spell", "Resolve Discover X"],
+        ));
+    }
     if let Some(parsed) = parse_own_casting_reduction(text) {
         return Some(parsed);
     }
@@ -143,6 +206,67 @@ pub(in crate::oracle::canonical) fn parse_common_spell_ability(
             ],
         )
     };
+
+    let custom_spell = |operation: &str| {
+        spell(
+            None,
+            vec![json!({
+                "kind": "resolveTriggeredInstruction",
+                "operation": operation,
+            })],
+        )
+    };
+    match text {
+        "Exile target creature or Spacecraft. Its controller may search their library for a basic land card, reveal it, put it into their hand, then shuffle." =>
+        {
+            return Some(custom_spell("seventyThousandLightYears"));
+        }
+        "Target artifact or creature you control gains hexproof and indestructible until end of turn. If it's a creature, put a +1/+1 counter on it. (It can't be the target of spells or abilities your opponents control. Damage and effects that say \"destroy\" don't destroy it.)" =>
+        {
+            return Some(custom_spell("shieldsUp"));
+        }
+        "Counter target spell with mana value 2 or less. If this spell was kicked, instead counter target spell." =>
+        {
+            return Some(custom_spell("highlyIllogical"));
+        }
+        "Target creature gets -2/-2 until end of turn. If this spell was kicked, that creature gets -6/-6 until end of turn instead." =>
+        {
+            return Some(custom_spell("ejectWarpCore"));
+        }
+        "Target creature gets +2/+0 until end of turn. When that creature dies this turn, you draw a card." =>
+        {
+            return Some(custom_spell("goodDayToDie"));
+        }
+        "Khaaaaaaaaaaaannn! deals twice X damage to target creature. If that creature would die this turn, exile it instead." =>
+        {
+            return Some(custom_spell("khanDoubleX"));
+        }
+        "Plasma Cascade deals 3 damage to any target. You may discard a card. If you do, draw a card." =>
+        {
+            return Some(custom_spell("plasmaCascade"));
+        }
+        "One or two target creatures you control each deal damage equal to their power to target creature an opponent controls." =>
+        {
+            return Some(custom_spell("commonGoal"));
+        }
+        "Mill four cards. You may put a permanent card from among them into your hand. If this spell is the first spell you've cast this game, you gain 2 life. (To mill four cards, put the top four cards of your library into your graveyard.)" =>
+        {
+            return Some(custom_spell("firstContact"));
+        }
+        "Put a +1/+1 counter on target creature you control. Untap it. Until end of turn, it gets +1/+1 and becomes a Doctor. (It loses all other creature types.)" =>
+        {
+            return Some(custom_spell("doctorNotA"));
+        }
+        "Exile all creature cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them." =>
+        {
+            return Some(custom_spell("shadowEnemyExile"));
+        }
+        "Smite the Deathless deals 3 damage to target creature. That creature loses indestructible until end of turn. If that creature would die this turn, exile it instead." =>
+        {
+            return Some(custom_spell("smiteDeathless"));
+        }
+        _ => {}
+    }
 
     let variable_creature_search_re = Regex::new(
         r"(?i)^Search your library for (?:a|one) (white|blue|black|red|green) creature card with mana value X or less, put it onto the battlefield, then shuffle\. Shuffle .+? into its owner's library\.$",
@@ -1325,6 +1449,152 @@ pub(in crate::oracle::canonical) fn parse_common_zone_and_value_spell(
     text: &str,
     face_name: &str,
 ) -> Option<CanonicalRuleDraft> {
+    let behold_and_exile_re = Regex::new(
+        r"(?i)^As an additional cost to cast this spell, behold (?:a|an) ([A-Za-z][A-Za-z '-]+) and exile it\. \(Exile .+\)$",
+    )
+    .expect("behold-and-exile additional cost regex compiles");
+    if let Some(captures) = behold_and_exile_re.captures(text) {
+        let behold_type = captures.get(1)?.as_str();
+        let selected_mode = |mode: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("additionalCostMode"),
+                "value": mode,
+            })
+        };
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        {
+                            "kind": "chooseModes",
+                            "id": "additionalCostMode",
+                            "minimum": 1,
+                            "maximum": 1,
+                            "options": ["beholdBattlefield", "beholdHand"],
+                        },
+                        {
+                            "kind": "chooseObjects",
+                            "id": "beheldBattlefieldCard",
+                            "condition": selected_mode("beholdBattlefield"),
+                            "quantity": { "kind": "exactly", "value": 1 },
+                            "candidates": {
+                                "kind": "permanents",
+                                "controller": controller(),
+                                "where": subtype(behold_type),
+                            },
+                        },
+                        {
+                            "kind": "chooseObjects",
+                            "id": "beheldHandCard",
+                            "condition": selected_mode("beholdHand"),
+                            "quantity": { "kind": "exactly", "value": 1 },
+                            "candidates": {
+                                "kind": "cards",
+                                "zone": hand(controller()),
+                                "where": subtype(behold_type),
+                            },
+                        },
+                    ],
+                    "additionalCosts": [
+                        {
+                            "kind": "conditional",
+                            "condition": selected_mode("beholdBattlefield"),
+                            "then": [{
+                                "kind": "exileObject",
+                                "object": chosen_target("beheldBattlefieldCard"),
+                            }],
+                            "else": [],
+                        },
+                        {
+                            "kind": "conditional",
+                            "condition": selected_mode("beholdHand"),
+                            "then": [{
+                                "kind": "exileObject",
+                                "object": chosen_target("beheldHandCard"),
+                            }],
+                            "else": [],
+                        },
+                    ],
+                },
+                "effects": [],
+            }),
+            &[
+                "Choose a controlled or hand card of the beheld type",
+                "Exile the selected object as an additional casting cost",
+            ],
+        ));
+    }
+    let behold_or_pay_re = Regex::new(
+        r"(?i)^As an additional cost to cast this spell, behold (?:a|an) ([A-Za-z][A-Za-z '-]+) or pay ((?:\{[^}]+\})+)\. \(To behold .+\)$",
+    )
+    .expect("behold-or-pay additional cost regex compiles");
+    if let Some(captures) = behold_or_pay_re.captures(text) {
+        let behold_type = captures.get(1)?.as_str();
+        let mana_cost = captures.get(2)?.as_str();
+        let selected_mode = |mode: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("additionalCostMode"),
+                "value": mode,
+            })
+        };
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        {
+                            "kind": "chooseModes",
+                            "id": "additionalCostMode",
+                            "minimum": 1,
+                            "maximum": 1,
+                            "options": ["beholdBattlefield", "beholdHand", "payMana"],
+                        },
+                        {
+                            "kind": "chooseObjects",
+                            "id": "beheldBattlefieldJace",
+                            "condition": selected_mode("beholdBattlefield"),
+                            "quantity": { "kind": "exactly", "value": 1 },
+                            "candidates": {
+                                "kind": "permanents",
+                                "controller": controller(),
+                                "where": subtype(behold_type),
+                            },
+                        },
+                        {
+                            "kind": "chooseObjects",
+                            "id": "beheldHandJace",
+                            "condition": selected_mode("beholdHand"),
+                            "quantity": { "kind": "exactly", "value": 1 },
+                            "candidates": {
+                                "kind": "cards",
+                                "zone": hand(controller()),
+                                "where": subtype(behold_type),
+                            },
+                        },
+                    ],
+                    "additionalCosts": [{
+                        "kind": "conditional",
+                        "condition": selected_mode("payMana"),
+                        "then": [{ "kind": "payMana", "manaCost": mana_cost }],
+                        "else": [],
+                    }],
+                },
+                "effects": [],
+            }),
+            &[
+                "Choose to behold a controlled or revealed Jace, or pay one mana",
+                "Require the selected Jace in its appropriate zone",
+                "Add mana only for the payment branch",
+            ],
+        ));
+    }
     let graveyard_return_and_self_exile_re = Regex::new(
         r"(?i)^Return target (.+?) card from your graveyard to your hand\. Exile (.+?)\.$",
     )
@@ -3328,6 +3598,1982 @@ pub(in crate::oracle::canonical) fn expansion_spell_rule(
 pub(in crate::oracle::canonical) fn parse_expansion_spell(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
+    if text
+        == "Put one, two, or three target creature cards from graveyards onto the battlefield under your control. Each of them enters with an additional -1/-1 counter on it."
+    {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "aberrantCreatures",
+                        json!({
+                            "kind": "cards",
+                            "zone": { "kind": "anyGraveyard" },
+                            "where": card_type("Creature"),
+                        }),
+                        1,
+                        3,
+                    )],
+                },
+                "effects": [{
+                    "kind": "moveCards",
+                    "cards": { "kind": "chosenTargets", "id": "aberrantCreatures" },
+                    "to": {
+                        "kind": "battlefield",
+                        "player": controller(),
+                        "tapped": false,
+                        "enterWithCounters": [{
+                            "counter": "-1/-1",
+                            "count": integer(1),
+                        }],
+                    },
+                }],
+            }),
+            &["Reanimate one to three targeted creatures with an additional -1/-1 counter"],
+        ));
+    }
+
+    if text
+        == "Remove any number of counters from among permanents on the battlefield. You draw cards and lose life equal to the number of counters removed this way."
+    {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "eventidesShadowRemoveCounters",
+                }],
+            }),
+            &["Remove any selected battlefield counters, then draw and lose that much life"],
+        ));
+    }
+
+    if text
+        == "Create a number of 5/5 red and green Elemental creature tokens equal to the number of colors among permanents you control. Then you gain life equal to the number of creatures you control."
+    {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "elementalSpectacle",
+                }],
+            }),
+            &["Create vivid Elementals, then gain life for controlled creatures"],
+        ));
+    }
+
+    if text
+        == "Put X -1/-1 counters on each creature. Shuffle Black Sun's Zenith into its owner's library."
+    {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "destinationAfterResolution": "library",
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [{
+                        "id": "xValue",
+                        "kind": "chooseNumber",
+                        "minimum": 0,
+                    }],
+                },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "where": card_type("Creature"),
+                    },
+                    "counter": "-1/-1",
+                    "count": { "kind": "sourceCastXValue" },
+                }],
+            }),
+            &["Put X -1/-1 counters on every creature and shuffle the spell into its library"],
+        ));
+    }
+
+    if text
+        == "Put a -1/-1 counter on target creature, two -1/-1 counters on another target creature, and three -1/-1 counters on a third target creature."
+    {
+        let candidates = json!({
+            "kind": "permanents",
+            "where": card_type("Creature"),
+        });
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        target_decision("incrementalOne", candidates.clone(), 1, 1),
+                        target_decision("incrementalTwo", candidates.clone(), 1, 1),
+                        target_decision("incrementalThree", candidates, 1, 1),
+                    ],
+                },
+                "effects": [
+                    {
+                        "kind": "putCounters",
+                        "permanent": chosen_target("incrementalOne"),
+                        "counter": "-1/-1",
+                        "count": integer(1),
+                    },
+                    {
+                        "kind": "putCounters",
+                        "permanent": chosen_target("incrementalTwo"),
+                        "counter": "-1/-1",
+                        "count": integer(2),
+                    },
+                    {
+                        "kind": "putCounters",
+                        "permanent": chosen_target("incrementalThree"),
+                        "counter": "-1/-1",
+                        "count": integer(3),
+                    },
+                ],
+            }),
+            &["Put one, two, and three counters on three distinct targeted creatures"],
+        ));
+    }
+
+    if text
+        == "As an additional cost to cast this spell, you may choose a creature type and behold two creatures of that type."
+    {
+        let paid = json!({
+            "kind": "selectionContains",
+            "selection": decision_result("additionalCostMode"),
+            "value": "pay",
+        });
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        {
+                            "id": "additionalCostMode",
+                            "kind": "chooseModes",
+                            "minimum": 1,
+                            "maximum": 1,
+                            "options": ["decline", "pay"],
+                        },
+                        {
+                            "id": "celestialCreatureType",
+                            "kind": "chooseCreatureType",
+                            "condition": paid.clone(),
+                        },
+                    ],
+                    "additionalCosts": [{
+                        "kind": "conditional",
+                        "condition": paid,
+                        "then": [{
+                            "kind": "behold",
+                            "where": {
+                                "kind": "chosenCreatureType",
+                                "decisionId": "celestialCreatureType",
+                            },
+                            "count": integer(2),
+                        }],
+                        "else": [],
+                    }],
+                },
+                "effects": [],
+            }),
+            &[
+                "Offer the optional additional cost",
+                "Choose its creature type",
+                "Behold exactly two creatures of that type",
+            ],
+        ));
+    }
+    if text
+        == "Search your library for a creature card with mana value X or less, reveal it, put it into your hand, then shuffle. If this spell's additional cost was paid and the revealed card is the chosen type, put that card onto the battlefield instead of putting it into your hand."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "searchLibrary",
+                "player": controller(),
+                "where": and(vec![
+                    card_type("Creature"),
+                    compare(
+                        "<=",
+                        json!({ "kind": "manaValueOf", "object": { "kind": "candidate" } }),
+                        json!({ "kind": "sourceCastXValue" }),
+                    ),
+                ]),
+                "maximum": integer(1),
+                "destination": "hand",
+                "tapped": false,
+                "revealSelected": true,
+                "battlefieldIfAdditionalCostPaidAndChosenType": {
+                    "modeDecisionId": "additionalCostMode",
+                    "modeValue": "pay",
+                    "creatureTypeDecisionId": "celestialCreatureType",
+                },
+            })],
+            vec![x_value()],
+        ));
+    }
+    if text
+        == "Counter all spells your opponents control and all abilities your opponents control. Create a 1/1 blue and black Faerie creature token with flying for each spell and ability countered this way."
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "counterOpponentStackObjects",
+                    "bindCountAs": "glenElendraCounteredCount",
+                }),
+                json!({
+                    "kind": "createTokens",
+                    "controller": controller(),
+                    "quantity": { "kind": "boundValue", "id": "glenElendraCounteredCount" },
+                    "token": {
+                        "name": "Faerie Token",
+                        "colors": ["blue", "black"],
+                        "types": ["Creature"],
+                        "subtypes": ["Faerie"],
+                        "power": 1,
+                        "toughness": 1,
+                        "abilities": [{ "kind": "flying" }],
+                    },
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    let each_opponent_exile_to_total_re = Regex::new(
+        r"(?i)^Each opponent exiles cards from the top of their library until they have exiled cards with total mana value (\d+) or greater this way\. Until end of turn, you may cast cards exiled this way without paying their mana costs\.$",
+    )
+    .expect("each-opponent cumulative exile regex compiles");
+    if let Some(captures) = each_opponent_exile_to_total_re.captures(text) {
+        let threshold = captures.get(1)?.as_str().parse::<i64>().ok()?;
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "exileFromTopUntil",
+                    "zone": library(json!({
+                        "kind": "opponentsOf",
+                        "player": controller(),
+                    })),
+                    "bind": "opponentCardsExiledToManaValue",
+                    "faceDown": false,
+                    "stopWhen": {
+                        "kind": "compare",
+                        "operator": ">=",
+                        "left": {
+                            "kind": "sumManaValues",
+                            "objects": bound_objects("opponentCardsExiledToManaValue"),
+                            "variableManaSymbolsEqual": 0,
+                        },
+                        "right": integer(threshold),
+                    },
+                    "alsoStopsWhen": { "kind": "sourceZoneEmpty" },
+                }),
+                json!({
+                    "kind": "grantPermission",
+                    "player": controller(),
+                    "action": {
+                        "kind": "cast",
+                        "card": {
+                            "kind": "boundObject",
+                            "binding": "opponentCardsExiledToManaValue",
+                        },
+                        "normalTimingApplies": true,
+                        "normalCostsApply": false,
+                    },
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "End-Blaze Epiphany deals X damage to target creature. When that creature dies this turn, exile a number of cards from the top of your library equal to its power, then choose a card exiled this way. Until the end of your next turn, you may play that card."
+    {
+        let target = chosen_target("targetCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "dealDamage",
+                    "source": self_ref(),
+                    "recipient": target.clone(),
+                    "amount": decision_result("xValue"),
+                }),
+                json!({
+                    "kind": "installDelayedDeathTrigger",
+                    "object": target,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                    "effects": [
+                        {
+                            "kind": "exileTopCards",
+                            "zone": library(controller()),
+                            "count": { "kind": "deadPermanentPower" },
+                            "faceDown": false,
+                            "bind": "endBlazeExiledCards",
+                        },
+                        {
+                            "kind": "chooseCards",
+                            "id": "endBlazeChosenCard",
+                            "player": controller(),
+                            "from": bound_objects("endBlazeExiledCards"),
+                            "count": integer(1),
+                        },
+                        {
+                            "kind": "grantPermission",
+                            "player": controller(),
+                            "action": {
+                                "kind": "play",
+                                "card": {
+                                    "kind": "decisionResult",
+                                    "decisionId": "endBlazeChosenCard",
+                                },
+                                "normalTimingApplies": true,
+                                "normalCostsApply": true,
+                            },
+                            "duration": { "kind": "untilEndOfNextTurn" },
+                        },
+                    ],
+                }),
+            ],
+            vec![
+                x_value(),
+                target_decision("targetCreature", creature_candidates(), 1, 1),
+            ],
+        ));
+    }
+    if text
+        == "Target creature you control gains deathtouch and lifelink until end of turn. When that creature dies this turn, create a 2/2 black and green Elf creature token."
+    {
+        let target = chosen_target("targetCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target.clone(),
+                    "keyword": "deathtouch",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target.clone(),
+                    "keyword": "lifelink",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "installDelayedDeathTrigger",
+                    "object": target,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                    "effects": [{
+                        "kind": "createTokens",
+                        "controller": controller(),
+                        "quantity": integer(1),
+                        "token": {
+                            "colors": ["black", "green"],
+                            "types": ["Creature"],
+                            "subtypes": ["Elf"],
+                            "power": integer(2),
+                            "toughness": integer(2),
+                            "abilities": [],
+                        },
+                    }],
+                }),
+            ],
+            vec![target_decision(
+                "targetCreature",
+                json!({
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Create a token that's a copy of target creature you control, except it has haste and \"At the beginning of the end step, sacrifice this token.\""
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "createModifiedTokenCopy",
+                "object": chosen_target("copyTarget"),
+                "grantKeywords": ["haste"],
+                "sacrificeAtNextEndStep": true,
+            })],
+            vec![target_decision(
+                "copyTarget",
+                json!({
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text.starts_with("Choose two")
+        && text.contains("Create a token that's a copy of target Goblin you control.")
+        && text.contains(
+            "Creatures target player controls get +1/+1 and gain haste until end of turn.",
+        )
+        && text.contains("Target player mills five cards")
+    {
+        let selected = |mode_name: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("spellMode"),
+                "value": mode_name,
+            })
+        };
+        let conditional_target = |mut decision: Value, mode_name: &str| {
+            decision["condition"] = selected(mode_name);
+            decision
+        };
+        let boosted = json!({
+            "kind": "eachPermanent",
+            "player": chosen_target("boostPlayer"),
+            "where": card_type("Creature"),
+        });
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("copyGoblin"),
+                    "then": [{
+                        "kind": "createTokenCopyOfPermanent",
+                        "object": chosen_target("copyGoblinTarget"),
+                        "grantKeywords": [],
+                        "exileAtNextEndStep": false,
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("boostCreatures"),
+                    "then": [
+                        {
+                            "kind": "modifyPowerToughness",
+                            "object": boosted.clone(),
+                            "power": integer(1),
+                            "toughness": integer(1),
+                            "duration": { "kind": "untilEndOfCurrentTurn" },
+                        },
+                        {
+                            "kind": "grantKeyword",
+                            "object": boosted,
+                            "keyword": "haste",
+                            "duration": { "kind": "untilEndOfCurrentTurn" },
+                        },
+                    ],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("destroyPermanent"),
+                    "then": [{
+                        "kind": "destroyPermanent",
+                        "permanent": chosen_target("destroyTarget"),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("millGoblinCards"),
+                    "then": [
+                        {
+                            "kind": "mill",
+                            "player": chosen_target("millPlayer"),
+                            "count": integer(5),
+                            "bind": "grubMilledCards",
+                        },
+                        {
+                            "kind": "moveCards",
+                            "cards": {
+                                "kind": "filterObjects",
+                                "objects": { "kind": "boundObjects", "binding": "grubMilledCards" },
+                                "where": subtype("Goblin"),
+                            },
+                            "to": hand(chosen_target("millPlayer")),
+                        },
+                    ],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(2),
+                    "maximum": integer(2),
+                    "options": ["copyGoblin", "boostCreatures", "destroyPermanent", "millGoblinCards"],
+                }),
+                conditional_target(
+                    target_decision(
+                        "copyGoblinTarget",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": subtype("Goblin"),
+                        }),
+                        1,
+                        1,
+                    ),
+                    "copyGoblin",
+                ),
+                conditional_target(
+                    target_decision("boostPlayer", json!({ "kind": "players" }), 1, 1),
+                    "boostCreatures",
+                ),
+                conditional_target(
+                    target_decision(
+                        "destroyTarget",
+                        json!({
+                            "kind": "permanents",
+                            "where": or(vec![card_type("Artifact"), card_type("Creature")]),
+                        }),
+                        1,
+                        1,
+                    ),
+                    "destroyPermanent",
+                ),
+                conditional_target(
+                    target_decision("millPlayer", json!({ "kind": "players" }), 1, 1),
+                    "millGoblinCards",
+                ),
+            ],
+        ));
+    }
+    if text.starts_with("Choose one or both")
+        && text.contains("Target opponent exiles two cards from their hand.")
+        && text.contains("Remove all counters from target creature.")
+    {
+        let selected = |mode_name: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("spellMode"),
+                "value": mode_name,
+            })
+        };
+        let mut opponent = target_decision(
+            "targetOpponent",
+            json!({
+                "kind": "players",
+                "where": { "kind": "isOpponentOf", "player": controller() },
+            }),
+            1,
+            1,
+        );
+        opponent["condition"] = selected("exileHand");
+        let mut creature = target_decision(
+            "targetCreature",
+            json!({ "kind": "permanents", "where": card_type("Creature") }),
+            1,
+            1,
+        );
+        creature["condition"] = selected("removeCounters");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("exileHand"),
+                    "then": [{
+                        "kind": "exileCardsFromHand",
+                        "player": chosen_target("targetOpponent"),
+                        "count": integer(2),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("removeCounters"),
+                    "then": [{
+                        "kind": "removeAllCounters",
+                        "permanent": chosen_target("targetCreature"),
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(1),
+                    "maximum": integer(2),
+                    "options": ["exileHand", "removeCounters"],
+                }),
+                opponent,
+                creature,
+            ],
+        ));
+    }
+    if text.starts_with("Choose two")
+        && text.contains("Create a token that's a copy of target Elf you control.")
+        && text
+            .contains("Return one or two target permanent cards from your graveyard to your hand.")
+        && text
+            .contains("Creatures target player controls get +3/+3 until end of turn. Untap them.")
+    {
+        let selected = |mode_name: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("spellMode"),
+                "value": mode_name,
+            })
+        };
+        let conditional_target = |mut decision: Value, mode_name: &str| {
+            decision["condition"] = selected(mode_name);
+            decision
+        };
+        let boosted = json!({
+            "kind": "eachPermanent",
+            "player": chosen_target("boostPlayer"),
+            "where": card_type("Creature"),
+        });
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("copyElf"),
+                    "then": [{
+                        "kind": "createTokenCopyOfPermanent",
+                        "object": chosen_target("copyElfTarget"),
+                        "grantKeywords": [],
+                        "exileAtNextEndStep": false,
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("returnCards"),
+                    "then": [{
+                        "kind": "moveCards",
+                        "cards": { "kind": "chosenTargets", "id": "graveyardCards" },
+                        "to": hand(controller()),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("destroyPermanent"),
+                    "then": [{
+                        "kind": "destroyPermanent",
+                        "permanent": chosen_target("destroyTarget"),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("boostCreatures"),
+                    "then": [
+                        {
+                            "kind": "modifyPowerToughness",
+                            "object": boosted.clone(),
+                            "power": integer(3),
+                            "toughness": integer(3),
+                            "duration": { "kind": "untilEndOfCurrentTurn" },
+                        },
+                        { "kind": "untapPermanents", "objects": boosted },
+                    ],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(2),
+                    "maximum": integer(2),
+                    "options": ["copyElf", "returnCards", "destroyPermanent", "boostCreatures"],
+                }),
+                conditional_target(
+                    target_decision(
+                        "copyElfTarget",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": subtype("Elf"),
+                        }),
+                        1,
+                        1,
+                    ),
+                    "copyElf",
+                ),
+                conditional_target(
+                    target_decision(
+                        "graveyardCards",
+                        json!({
+                            "kind": "cards",
+                            "zone": graveyard(controller()),
+                            "where": not(or(vec![card_type("Instant"), card_type("Sorcery")])),
+                        }),
+                        1,
+                        2,
+                    ),
+                    "returnCards",
+                ),
+                conditional_target(
+                    target_decision(
+                        "destroyTarget",
+                        json!({
+                            "kind": "permanents",
+                            "where": or(vec![card_type("Creature"), card_type("Enchantment")]),
+                        }),
+                        1,
+                        1,
+                    ),
+                    "destroyPermanent",
+                ),
+                conditional_target(
+                    target_decision("boostPlayer", json!({ "kind": "players" }), 1, 1),
+                    "boostCreatures",
+                ),
+            ],
+        ));
+    }
+    if text.starts_with("Choose two")
+        && text.contains("Create a token that's a copy of target Elemental you control.")
+        && text
+            .contains("Ashling's Command deals 2 damage to each creature target player controls.")
+        && text.contains("Target player creates two Treasure tokens.")
+    {
+        let selected = |mode_name: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("spellMode"),
+                "value": mode_name,
+            })
+        };
+        let conditional_target = |mut decision: Value, mode_name: &str| {
+            decision["condition"] = selected(mode_name);
+            decision
+        };
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("copyElemental"),
+                    "then": [{
+                        "kind": "createTokenCopyOfPermanent",
+                        "object": chosen_target("copyElementalTarget"),
+                        "grantKeywords": [],
+                        "exileAtNextEndStep": false,
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("drawTwo"),
+                    "then": [{
+                        "kind": "drawCards",
+                        "player": chosen_target("drawPlayer"),
+                        "count": integer(2),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("damageCreatures"),
+                    "then": [{
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "amount": integer(2),
+                        "recipient": {
+                            "kind": "eachPermanent",
+                            "player": chosen_target("damagePlayer"),
+                            "where": card_type("Creature"),
+                        },
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("treasures"),
+                    "then": [{
+                        "kind": "createTokens",
+                        "controller": chosen_target("treasurePlayer"),
+                        "quantity": integer(2),
+                        "token": { "kind": "namedToken", "name": "Treasure" },
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(2),
+                    "maximum": integer(2),
+                    "options": ["copyElemental", "drawTwo", "damageCreatures", "treasures"],
+                }),
+                conditional_target(
+                    target_decision(
+                        "copyElementalTarget",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": subtype("Elemental"),
+                        }),
+                        1,
+                        1,
+                    ),
+                    "copyElemental",
+                ),
+                conditional_target(
+                    target_decision("drawPlayer", json!({ "kind": "players" }), 1, 1),
+                    "drawTwo",
+                ),
+                conditional_target(
+                    target_decision("damagePlayer", json!({ "kind": "players" }), 1, 1),
+                    "damageCreatures",
+                ),
+                conditional_target(
+                    target_decision("treasurePlayer", json!({ "kind": "players" }), 1, 1),
+                    "treasures",
+                ),
+            ],
+        ));
+    }
+    if text == "Each nonland permanent you control becomes a copy of target non-Aura permanent." {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "makeControlledNonlandsCopiesOfTarget",
+                "player": controller(),
+                "copy": chosen_target("copyTarget"),
+            })],
+            vec![target_decision(
+                "copyTarget",
+                json!({
+                    "kind": "permanents",
+                    "where": not(subtype("Aura")),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text.starts_with("Choose one")
+        && text.contains("Return target creature card from your graveyard to your hand.")
+        && text.contains(
+            "Return two target creature cards that share a creature type from your graveyard to your hand.",
+        )
+    {
+        let selected = |mode_name: &str| json!({
+            "kind": "selectionContains",
+            "selection": decision_result("spellMode"),
+            "value": mode_name,
+        });
+        let graveyard_creatures = json!({
+            "kind": "cards",
+            "zone": graveyard(controller()),
+            "where": card_type("Creature"),
+        });
+        let mut one_creature = target_decision(
+            "oneCreature",
+            graveyard_creatures.clone(),
+            1,
+            1,
+        );
+        one_creature["condition"] = selected("oneCreature");
+        let mut shared_creatures = target_decision(
+            "sharedCreatures",
+            graveyard_creatures,
+            2,
+            2,
+        );
+        shared_creatures["condition"] = selected("sharedCreatures");
+        shared_creatures["selectionConstraint"] = json!({ "kind": "shareCardType" });
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("oneCreature"),
+                    "then": [{
+                        "kind": "moveCards",
+                        "cards": { "kind": "chosenTargets", "id": "oneCreature" },
+                        "to": hand(controller()),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("sharedCreatures"),
+                    "then": [{
+                        "kind": "moveCards",
+                        "cards": { "kind": "chosenTargets", "id": "sharedCreatures" },
+                        "to": hand(controller()),
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(1),
+                    "maximum": integer(1),
+                    "options": ["oneCreature", "sharedCreatures"],
+                }),
+                one_creature,
+                shared_creatures,
+            ],
+        ));
+    }
+    if text
+        .starts_with("Choose one. If this spell's additional cost was paid, choose both instead.")
+        && text.contains("Destroy target artifact or enchantment.")
+        && text.contains("Destroy target creature with mana value 3 or greater.")
+    {
+        let selected = |mode_name: &str| {
+            json!({
+                "kind": "selectionContains",
+                "selection": decision_result("spellMode"),
+                "value": mode_name,
+            })
+        };
+        let paid = json!({
+            "kind": "selectionContains",
+            "selection": decision_result("additionalCostMode"),
+            "value": "pay",
+        });
+        let mut artifact_or_enchantment = target_decision(
+            "artifactOrEnchantment",
+            json!({
+                "kind": "permanents",
+                "where": or(vec![card_type("Artifact"), card_type("Enchantment")]),
+            }),
+            1,
+            1,
+        );
+        artifact_or_enchantment["condition"] = selected("artifactOrEnchantment");
+        let mut large_creature = target_decision(
+            "largeCreature",
+            json!({
+                "kind": "permanents",
+                "where": parse_permanent_criteria(
+                    "creature with mana value 3 or greater",
+                    "",
+                )?,
+            }),
+            1,
+            1,
+        );
+        large_creature["condition"] = selected("largeCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("artifactOrEnchantment"),
+                    "then": [{
+                        "kind": "destroyPermanent",
+                        "permanent": chosen_target("artifactOrEnchantment"),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selected("largeCreature"),
+                    "then": [{
+                        "kind": "destroyPermanent",
+                        "permanent": chosen_target("largeCreature"),
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": integer(1),
+                    "maximum": {
+                        "kind": "conditionalValue",
+                        "condition": paid,
+                        "ifTrue": integer(2),
+                        "ifFalse": integer(1),
+                    },
+                    "options": ["artifactOrEnchantment", "largeCreature"],
+                }),
+                artifact_or_enchantment,
+                large_creature,
+            ],
+        ));
+    }
+    if text
+        == "Choose exactly two creatures you control. You draw X cards and the chosen creatures get +X/+X and gain trample until end of turn, where X is the difference between the chosen creatures' powers."
+    {
+        let x = json!({
+            "kind": "powerDifferenceOfChosenObjects",
+            "decisionId": "chosenCreatures",
+        });
+        let chosen = json!({ "kind": "chosenObjects", "id": "chosenCreatures" });
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": x.clone(),
+                }),
+                json!({
+                    "kind": "modifyPowerToughness",
+                    "object": chosen.clone(),
+                    "power": x.clone(),
+                    "toughness": x,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "grantKeyword",
+                    "object": chosen,
+                    "keyword": "trample",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+            ],
+            vec![json!({
+                "id": "chosenCreatures",
+                "kind": "chooseObjects",
+                "quantity": { "kind": "exactly", "value": 2 },
+                "candidates": {
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
+                },
+            })],
+        ));
+    }
+    if text == "Boulder Dash deals 2 damage to any target and 1 damage to any other target." {
+        return Some(draft(
+            json!({
+                "kind": "spellAbility",
+                "source": self_ref(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [
+                        target_decision("primaryTarget", json!({ "kind": "anyTarget" }), 1, 1),
+                        target_decision("secondaryTarget", json!({ "kind": "anyTarget" }), 1, 1),
+                    ],
+                },
+                "effects": [
+                    {
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "amount": integer(2),
+                        "recipient": chosen_target("primaryTarget"),
+                    },
+                    {
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "amount": integer(1),
+                        "recipient": chosen_target("secondaryTarget"),
+                    },
+                ],
+            }),
+            &[
+                "Choose two different damage recipients",
+                "Deal two damage to the first",
+                "Deal one damage to the second",
+            ],
+        ));
+    }
+    let reality_fracture_spell = |operation: &str, choose_x: bool| {
+        expansion_spell_rule(
+            vec![json!({
+                "kind": "resolveSpellInstruction",
+                "operation": operation,
+            })],
+            choose_x
+                .then(|| {
+                    vec![json!({
+                        "id": "xValue",
+                        "kind": "chooseNumber",
+                        "minimum": 0,
+                    })]
+                })
+                .unwrap_or_default(),
+        )
+    };
+    if text == "This spell costs {2} less to cast if a creature is attacking you." {
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": {
+                    "kind": "inZone",
+                    "object": self_ref(),
+                    "zone": { "kind": "stackOrCast" },
+                },
+                "modifiers": [{
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": integer(2),
+                    "condition": { "kind": "controllerIsBeingAttacked" },
+                }],
+            }),
+            &[
+                "Check whether the controller is being attacked",
+                "Reduce this spell's generic cost by two",
+            ],
+        ));
+    }
+    if text
+        == "Cinder Strike deals 2 damage to target creature. It deals 4 damage to that creature instead if this spell's additional cost was paid."
+    {
+        let target = chosen_target("targetCreature");
+        let damage_effect = |amount: i64| {
+            json!({
+                "kind": "dealDamage",
+                "source": self_ref(),
+                "recipient": target.clone(),
+                "amount": integer(amount),
+            })
+        };
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "conditionalEffect",
+                "condition": {
+                    "kind": "selectionContains",
+                    "selection": {
+                        "kind": "decisionResult",
+                        "decisionId": "additionalCostMode",
+                    },
+                    "value": "pay",
+                },
+                "then": [damage_effect(4)],
+                "else": [damage_effect(2)],
+            })],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Exile the top two cards of your library. If this spell's additional cost was paid, exile the top three cards instead. Until the end of your next turn, you may play those cards."
+    {
+        let exile = |count: i64| {
+            json!({
+                "kind": "exileTopCards",
+                "zone": library(controller()),
+                "count": integer(count),
+                "faceDown": false,
+                "bind": "exiledTopCards",
+            })
+        };
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                            "kind": "decisionResult",
+                            "decisionId": "additionalCostMode",
+                        },
+                        "value": "pay",
+                    },
+                    "then": [exile(3)],
+                    "else": [exile(2)],
+                }),
+                json!({
+                    "kind": "grantPermission",
+                    "player": controller(),
+                    "action": {
+                        "kind": "play",
+                        "card": {
+                            "kind": "boundObject",
+                            "binding": "exiledTopCards",
+                        },
+                        "normalTimingApplies": true,
+                        "normalCostsApply": true,
+                    },
+                    "duration": {
+                        "kind": "untilEndOfNextTurn",
+                        "player": controller(),
+                    },
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn. If that creature is a Goat, it also gets +3/+0 until end of turn."
+    {
+        let target = chosen_target("targetCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "gainControlPermanent",
+                    "permanent": target.clone(),
+                    "controller": controller(),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({ "kind": "untapPermanent", "permanent": target.clone() }),
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target.clone(),
+                    "keyword": "haste",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "objectMatchesFilter",
+                        "object": target.clone(),
+                        "where": subtype("Goat"),
+                    },
+                    "then": [{
+                        "kind": "modifyPowerToughness",
+                        "object": target,
+                        "power": integer(3),
+                        "toughness": integer(0),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text.starts_with("Target creature gets +3/+2 until end of turn. Create a Treasure token.") {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "modifyPowerToughness",
+                    "object": chosen_target("targetCreature"),
+                    "power": integer(3),
+                    "toughness": integer(2),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "createTokens",
+                    "controller": controller(),
+                    "quantity": integer(1),
+                    "token": { "kind": "namedToken", "name": "Treasure" },
+                }),
+            ],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text == "Target creature gets +3/-3 and loses all creature types until end of turn." {
+        let target = chosen_target("targetCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "modifyPowerToughness",
+                    "object": target.clone(),
+                    "power": integer(3),
+                    "toughness": integer(-3),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "removeAllSubtypesUntilEndOfTurn",
+                    "object": target,
+                }),
+            ],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Exile target creature. Its controller creates a 1/1 colorless Shapeshifter creature token with changeling."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "exileCreatureThenControllerCreatesChangeling",
+                "creature": chosen_target("targetCreature"),
+            })],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "The owner of target spell or creature puts it on their choice of the top or bottom of their library."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "ownerChoosesLibraryEndForSpellOrPermanent",
+                "object": chosen_target("targetSpellOrCreature"),
+            })],
+            vec![target_decision(
+                "targetSpellOrCreature",
+                json!({
+                    "kind": "union",
+                    "sets": [
+                        { "kind": "spells" },
+                        { "kind": "permanents", "where": card_type("Creature") },
+                    ],
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "The owner of target nonland permanent puts it into their library second from the top or on the bottom."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "ownerChoosesSecondFromTopOrBottom",
+                "permanent": chosen_target("targetPermanent"),
+            })],
+            vec![target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": not(card_type("Land")),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Return one or two target nonland permanents to their owners' hands. Then if you control a Merfolk, create a 1/1 white and blue Merfolk creature token for each permanent returned to its owner's hand this way."
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "returnToOwnersHand",
+                    "object": { "kind": "chosenTargets", "id": "targetPermanents" },
+                    "bind": "returnedPermanents",
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "controlsPermanent",
+                        "player": controller(),
+                        "where": subtype("Merfolk"),
+                    },
+                    "then": [{
+                        "kind": "createTokens",
+                        "controller": controller(),
+                        "quantity": {
+                            "kind": "countBoundObjects",
+                            "binding": "returnedPermanents",
+                        },
+                        "token": {
+                            "colors": ["white", "blue"],
+                            "types": ["Creature"],
+                            "subtypes": ["Merfolk"],
+                            "power": 1,
+                            "toughness": 1,
+                            "abilities": [],
+                        },
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanents",
+                json!({
+                    "kind": "permanents",
+                    "where": not(card_type("Land")),
+                }),
+                1,
+                2,
+            )],
+        ));
+    }
+    if text
+        == "Choose two target creatures controlled by different players. Return those creatures to their owners' hands."
+    {
+        let mut decision = target_decision(
+            "targetCreatures",
+            json!({ "kind": "permanents", "where": card_type("Creature") }),
+            2,
+            2,
+        );
+        decision["selectionConstraint"] = json!({ "kind": "distinctPermanentControllers" });
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "returnToOwnersHand",
+                "object": { "kind": "chosenTargets", "id": "targetCreatures" },
+            })],
+            vec![decision],
+        ));
+    }
+    if text == "Draw three cards. Then discard two cards unless you discard a creature card." {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(3),
+                }),
+                json!({
+                    "kind": "discardTwoUnlessDiscardCreature",
+                    "player": controller(),
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text.starts_with(
+        "Exile all creatures. Incubate X, where X is the number of creatures exiled this way.",
+    ) {
+        return Some(reality_fracture_spell("sunfall", false));
+    }
+    if text.starts_with("You gain X life. Create X 1/1 colorless Phyrexian Mite artifact creature tokens with toxic 1") {
+        return Some(reality_fracture_spell("whiteSunsTwilight", true));
+    }
+    if text
+        == "Draw X cards, then discard X cards. Create a 1/1 white Spirit creature token with flying for each card type among cards discarded this way."
+    {
+        return Some(reality_fracture_spell("occultEpiphany", true));
+    }
+    if text
+        == "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."
+    {
+        return Some(reality_fracture_spell("factOrFiction", false));
+    }
+    if text.starts_with("Exile all creatures you control, then reveal cards from the top of your library until you reveal that many creature cards.") {
+        return Some(reality_fracture_spell("massPolymorph", false));
+    }
+    if text.starts_with("Exile all creatures you control. At the beginning of the next end step, reveal cards from the top of your library until you reveal that many creature cards,") {
+        return Some(reality_fracture_spell("syntheticDestiny", false));
+    }
+    if text.starts_with("Choose target opponent. Until that player's next turn, they gain protection from everything and their life total can't change.") {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "resolveSpellInstruction",
+                "operation": "teferisReproach",
+            })],
+            vec![target_decision(
+                "targetOpponent",
+                json!({
+                    "kind": "players",
+                    "where": { "kind": "isOpponentOf", "player": controller() },
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text == "Exile two target artifacts." {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "exilePermanent",
+                "permanent": { "kind": "chosenTargets", "id": "targetArtifacts" },
+            })],
+            vec![target_decision(
+                "targetArtifacts",
+                json!({ "kind": "permanents", "where": card_type("Artifact") }),
+                2,
+                2,
+            )],
+        ));
+    }
+    if text
+        == "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "resolveSpellInstruction",
+                "operation": "chaosWarp",
+            })],
+            vec![target_decision(
+                "targetPermanent",
+                json!({ "kind": "permanents", "where": Value::Null }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Until end of turn, you may activate loyalty abilities of Jace planeswalkers you control on any player's turn any time you could cast an instant."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "allowJaceLoyaltyAtInstantSpeed",
+                "player": controller(),
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "Choose target nonland permanent. Its owner may put it on top of their library. If they do, Clash of Elements deals 2 damage to them. If they didn't put the card on top of their library, they put it on the bottom."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "ownerChoosesLibraryEndOrTakesDamage",
+                "permanent": chosen_target("targetPermanent"),
+                "damage": integer(2),
+            })],
+            vec![target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": not(card_type("Land")),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "For each creature target player controls, create a token that's a copy of that creature, except it has haste and \"At the beginning of the end step, if you don't control a planeswalker, sacrifice this creature.\""
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "copyTargetPlayersCreaturesWithConditionalSacrifice",
+                "player": chosen_target("targetPlayer"),
+                "controller": controller(),
+            })],
+            vec![target_decision(
+                "targetPlayer",
+                json!({ "kind": "players" }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Draw two cards. Then you may exile this spell and four cards named Sphinx's Approach from your graveyard. If you do, search your library for a Sphinx creature card, put it onto the battlefield, then shuffle."
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(2),
+                }),
+                json!({
+                    "kind": "resolveSphinxApproach",
+                    "player": controller(),
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "You may reveal exactly two cards you own with different names from outside the game. An opponent chooses one of them. You put that card into your hand."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "resolveExtrapolateImpossible",
+                "player": controller(),
+            })],
+            Vec::new(),
+        ));
+    }
+    if text.starts_with("Choose one")
+        && text.contains("Draw a card. Empower Jace 2.")
+        && text.contains("Return target spell or creature to its owner's hand.")
+        && text.contains("Creatures you control get +1/+2 until end of turn.")
+    {
+        let mode = |name: &str| selection("spellMode", name);
+        let mut target = target_decision(
+            "targetSpellOrCreature",
+            json!({
+                "kind": "union",
+                "sets": [
+                    { "kind": "spells", "where": Value::Null },
+                    { "kind": "permanents", "where": card_type("Creature") },
+                ],
+            }),
+            1,
+            1,
+        );
+        target["condition"] = mode("return");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": mode("draw"),
+                    "then": [
+                        { "kind": "drawCards", "player": controller(), "count": integer(1) },
+                        { "kind": "empowerJace", "player": controller(), "count": integer(2) },
+                    ],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": mode("return"),
+                    "then": [{
+                        "kind": "returnToOwnersHand",
+                        "object": chosen_target("targetSpellOrCreature"),
+                    }],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": mode("boost"),
+                    "then": [{
+                        "kind": "modifyPowerToughness",
+                        "object": {
+                            "kind": "eachPermanent",
+                            "player": controller(),
+                            "where": card_type("Creature"),
+                        },
+                        "power": integer(1),
+                        "toughness": integer(2),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![
+                json!({
+                    "id": "spellMode",
+                    "kind": "chooseModes",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "options": ["draw", "return", "boost"],
+                }),
+                target,
+            ],
+        ));
+    }
+    if text
+        == "Create two 2/2 colorless Wizard Soldier creature tokens named Cadet. If this spell was cast from a graveyard, put a +1/+1 counter on each of them for every three cards in your graveyard."
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "createTokens",
+                    "controller": controller(),
+                    "quantity": integer(2),
+                    "bind": "cadets",
+                    "token": {
+                        "name": "Cadet",
+                        "colors": [],
+                        "types": ["Creature"],
+                        "subtypes": ["Wizard", "Soldier"],
+                        "power": 2,
+                        "toughness": 2,
+                    },
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "wasCastFromZone",
+                        "object": self_ref(),
+                        "zone": "graveyard",
+                    },
+                    "then": [{
+                        "kind": "putCounters",
+                        "permanent": bound_objects("cadets"),
+                        "counter": "+1/+1",
+                        "count": {
+                            "kind": "divide",
+                            "left": {
+                                "kind": "countCards",
+                                "zone": graveyard(controller()),
+                                "where": Value::Null,
+                            },
+                            "right": integer(3),
+                            "round": "down",
+                        },
+                    }],
+                    "else": [],
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "Target creature or planeswalker an opponent controls that's red or white loses all abilities until end of turn. Target creature you control deals damage equal to its power to that permanent."
+    {
+        let opposing = chosen_target("targetOpposingPermanent");
+        let creature = chosen_target("targetControlledCreature");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "installLoseAllAbilities",
+                    "object": opposing.clone(),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "dealDamage",
+                    "source": creature.clone(),
+                    "recipient": opposing,
+                    "amount": { "kind": "powerOf", "object": creature },
+                }),
+            ],
+            vec![
+                target_decision(
+                    "targetOpposingPermanent",
+                    json!({
+                        "kind": "permanents",
+                        "controller": { "kind": "opponentsOf", "player": controller() },
+                        "where": and(vec![
+                            or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                            or(vec![color_filter("red")?, color_filter("white")?]),
+                        ]),
+                    }),
+                    1,
+                    1,
+                ),
+                target_decision(
+                    "targetControlledCreature",
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": card_type("Creature"),
+                    }),
+                    1,
+                    1,
+                ),
+            ],
+        ));
+    }
+    if text.starts_with(
+        "Exile all creatures. Empower Jace X, where X is the number of creatures exiled this way.",
+    ) {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "exilePermanent",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "where": card_type("Creature"),
+                    },
+                    "bindCountAs": "exiledCreatureCount",
+                }),
+                json!({
+                    "kind": "empowerJace",
+                    "player": controller(),
+                    "count": { "kind": "boundValue", "id": "exiledCreatureCount" },
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    if text
+        == "Exile target creature or planeswalker. If that permanent's mana value was 3 or less, return it to the battlefield tapped under your control. Exile it at the beginning of the next end step."
+    {
+        let target = chosen_target("targetPermanent");
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "bind",
+                    "id": "targetManaValue",
+                    "value": { "kind": "manaValueOf", "object": target.clone() },
+                }),
+                json!({ "kind": "exilePermanent", "permanent": target.clone() }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": compare(
+                        "<=",
+                        json!({ "kind": "boundValue", "id": "targetManaValue" }),
+                        integer(3),
+                    ),
+                    "then": [{
+                        "kind": "moveTargetCard",
+                        "card": target,
+                        "to": "battlefield",
+                        "controller": controller(),
+                        "tapped": true,
+                        "exileAtNextEndStep": true,
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Essence Burn deals 5 damage to target black or green creature or planeswalker. If that permanent would die this turn, exile it instead."
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "dealDamage",
+                    "source": self_ref(),
+                    "recipient": chosen_target("targetPermanent"),
+                    "amount": integer(5),
+                }),
+                json!({
+                    "kind": "installDeathExileReplacement",
+                    "object": chosen_target("targetPermanent"),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": and(vec![
+                        or(vec![color_filter("black")?, color_filter("green")?]),
+                        or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                    ]),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text.starts_with(
+        "Violent Echoes deals 6 damage to target creature or planeswalker. If excess damage was dealt to that permanent this way, empower Jace X",
+    ) {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "dealDamage",
+                    "source": self_ref(),
+                    "recipient": chosen_target("targetPermanent"),
+                    "amount": integer(6),
+                    "bindExcessAs": "excessDamage",
+                }),
+                json!({
+                    "kind": "empowerJace",
+                    "player": controller(),
+                    "count": { "kind": "boundValue", "id": "excessDamage" },
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                json!({
+                    "kind": "permanents",
+                    "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text == "Destroy target creature. If it wasn't attacking, its controller draws a card." {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "resolveSpellInstruction",
+                "operation": "destroyCreatureThenDrawIfNotAttacking",
+            })],
+            vec![target_decision(
+                "targetCreature",
+                json!({ "kind": "permanents", "where": card_type("Creature") }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text
+        == "Draw X cards, where X is the number of cards that were put into target player's graveyard from their library this turn."
+    {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": {
+                    "kind": "countEventsThisTurn",
+                    "event": "cardMilled",
+                    "player": chosen_target("targetPlayer"),
+                },
+            })],
+            vec![target_decision(
+                "targetPlayer",
+                json!({ "kind": "players" }),
+                1,
+                1,
+            )],
+        ));
+    }
+    if text == "Draw a card. If this spell wasn't cast from your hand, draw two cards instead." {
+        return Some(expansion_spell_rule(
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": {
+                    "kind": "conditionalValue",
+                    "condition": {
+                        "kind": "not",
+                        "operand": { "kind": "wasCastFromHand", "object": self_ref() },
+                    },
+                    "ifTrue": integer(2),
+                    "ifFalse": integer(1),
+                },
+            })],
+            Vec::new(),
+        ));
+    }
+    if text.starts_with("Choose one")
+        && text.contains("Draw cards equal to the greatest power among creatures you control.")
+        && text.contains("All creatures get -3/-3 until end of turn.")
+    {
+        return Some(expansion_spell_rule(
+            vec![
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selection("spellMode", "draw"),
+                    "then": [
+                        {
+                            "kind": "drawCards",
+                            "player": controller(),
+                            "count": {
+                                "kind": "greatestPower",
+                                "player": controller(),
+                                "where": card_type("Creature"),
+                            },
+                            "bind": "drawnCards",
+                        },
+                        {
+                            "kind": "loseLife",
+                            "player": controller(),
+                            "amount": {
+                                "kind": "countObjects",
+                                "objects": bound_objects("drawnCards"),
+                            },
+                        },
+                    ],
+                    "else": [],
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": selection("spellMode", "weaken"),
+                    "then": [{
+                        "kind": "modifyPowerToughness",
+                        "object": {
+                            "kind": "eachPermanent",
+                            "where": card_type("Creature"),
+                        },
+                        "power": integer(-3),
+                        "toughness": integer(-3),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                    "else": [],
+                }),
+            ],
+            vec![json!({
+                "id": "spellMode",
+                "kind": "chooseModes",
+                "minimum": 1,
+                "maximum": 1,
+                "options": ["draw", "weaken"],
+            })],
+        ));
+    }
     if text
         == "The next creature spell you cast this turn can be cast as though it had flash. That spell can't be countered. That creature enters with an additional +1/+1 counter on it."
     {

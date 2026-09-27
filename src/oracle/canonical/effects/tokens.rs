@@ -44,6 +44,99 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
     } else {
         text
     };
+    let basic_named_token_re = Regex::new(&format!(
+        r"(?i)^create ({}) (Treasure|Clue|Food) tokens?\.?$",
+        quantity_word_pattern(),
+    ))
+    .expect("basic named artifact token regex compiles");
+    if let Some(captures) = basic_named_token_re.captures(text) {
+        return Some(with_token_entry_state(
+            json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": parse_quantity_expression(captures.get(1)?.as_str())?,
+                "token": {
+                    "kind": "namedToken",
+                    "name": captures.get(2)?.as_str(),
+                },
+            }),
+            tapped,
+        ));
+    }
+    let token_for_each_graveyard_card_re =
+        Regex::new(r"(?i)^Create (?:a|one) (.+? token) for each (.+?) card in your graveyard\.$")
+            .expect("token for each matching graveyard card regex compiles");
+    if let Some(captures) = token_for_each_graveyard_card_re.captures(text) {
+        let base_instruction = format!("Create a {}.", captures.get(1)?.as_str());
+        let mut effect = create_token_effect(&base_instruction)?;
+        effect["quantity"] = json!({
+            "kind": "countCards",
+            "zone": graveyard(controller()),
+            "where": parse_permanent_criteria(captures.get(2)?.as_str(), "")?,
+        });
+        return Some(effect);
+    }
+    let heartwood_re = Regex::new(&format!(
+        r"(?i)^create ({}) Heartwood tokens?\.?$",
+        quantity_word_pattern(),
+    ))
+    .expect("Heartwood token regex compiles");
+    if let Some(captures) = heartwood_re.captures(text) {
+        return Some(with_token_entry_state(
+            json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": parse_quantity_expression(&captures[1])?,
+                "token": {
+                    "name": "Heartwood",
+                    "colors": ["red", "green"],
+                    "types": ["Artifact"],
+                    "subtypes": [],
+                    "power": 0,
+                    "toughness": 0,
+                    "abilities": [{
+                        "kind": "manaAbility",
+                        "source": self_ref(),
+                        "costs": [{ "kind": "tap", "object": self_ref() }],
+                        "effects": [{
+                            "kind": "addMana",
+                            "player": controller(),
+                            "mana": {
+                                "kind": "chooseOne",
+                                "options": ["{R}", "{G}"],
+                            },
+                        }],
+                    }],
+                },
+            }),
+            tapped,
+        ));
+    }
+    let named_artifact_re = Regex::new(&format!(
+        r#"(?i)^create ({}) (colorless|white|blue|black|red|green) artifact tokens? named ([A-Za-z0-9 ',.-]+) with \"([^\"]+)\"\.?$"#,
+        quantity_word_pattern(),
+    ))
+    .expect("named artifact token with embedded ability regex compiles");
+    if let Some(captures) = named_artifact_re.captures(text) {
+        let color = captures[2].to_ascii_lowercase();
+        return Some(with_token_entry_state(
+            json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": parse_quantity_expression(&captures[1])?,
+                "token": {
+                    "name": captures[3].trim(),
+                    "colors": if color == "colorless" { Vec::<String>::new() } else { vec![color] },
+                    "types": ["Artifact"],
+                    "subtypes": [],
+                    "power": 0,
+                    "toughness": 0,
+                    "abilities": [parse_embedded_token_rule(captures.get(4)?.as_str())?],
+                },
+            }),
+            tapped,
+        ));
+    }
     let named_artifact_with_equip_re = Regex::new(&format!(
         r#"(?i)^create ({}) (colorless|white|blue|black|red|green) ([A-Za-z -]+?) artifact tokens? named ([A-Za-z0-9 ',.-]+) with \"([^\"]+)\" and equip ((?:\{{[^}}]+\}})+)\.$"#,
         quantity_word_pattern(),
@@ -74,6 +167,44 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
     let legendary_named_token_re =
         Regex::new(r#"(?i)^create ([A-Za-z0-9 ',-]+), a legendary .+ creature token with .+\.$"#)
             .expect("legendary named token regex compiles");
+    let described_legendary_token_re = Regex::new(
+        r"(?i)^create ([A-Za-z0-9 ',-]+), a legendary (\d+)/(\d+) (white|blue|black|red|green|colorless) ([A-Za-z][A-Za-z '-]+) creature token(?: with (.+?))?\.?$",
+    )
+    .expect("described legendary creature token regex compiles");
+    if let Some(captures) = described_legendary_token_re.captures(text) {
+        let color = captures[4].to_ascii_lowercase();
+        let abilities = if let Some(keywords) = captures.get(6) {
+            oracle_keyword_list(keywords.as_str())?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "keywordAbility",
+                        "source": self_ref(),
+                        "ability": { "kind": keyword },
+                    })
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        return Some(with_token_entry_state(
+            json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": integer(1),
+                "token": {
+                    "name": captures[1].trim(),
+                    "colors": if color == "colorless" { Vec::<String>::new() } else { vec![color] },
+                    "types": ["Legendary", "Creature"],
+                    "subtypes": captures[5].split_whitespace().collect::<Vec<_>>(),
+                    "power": captures[2].parse::<i64>().ok()?,
+                    "toughness": captures[3].parse::<i64>().ok()?,
+                    "abilities": abilities,
+                },
+            }),
+            tapped,
+        ));
+    }
     if let Some(captures) = legendary_named_token_re.captures(text)
         && let Some(name) = captures.get(1).map(|value| value.as_str().trim())
         && named_token_printing(name).ok().flatten().is_some()
@@ -224,7 +355,7 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
         "abilities": abilities,
     });
     if let Some(name) = captures.get(6) {
-        token["name"] = Value::String(name.as_str().to_string());
+        token["name"] = Value::String(name.as_str().trim_end_matches('.').to_string());
     }
     let effect = json!({
         "kind": "createTokens",

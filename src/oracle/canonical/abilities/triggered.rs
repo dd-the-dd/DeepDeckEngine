@@ -31,6 +31,1756 @@ pub(in crate::oracle::canonical) fn parse_azula_triggered_ability(
     let end_step =
         |player: Value| json!({ "kind": "stepBegan", "step": "endStep", "player": player });
 
+    let attack_with_power = |minimum: i64| {
+        json!({
+            "kind": "controlledCreaturesAttacked",
+            "player": controller(),
+            "totalPowerAtLeast": integer(minimum),
+        })
+    };
+    let single_line_text = text.replace('\n', " ");
+    match single_line_text.as_str() {
+        "Whenever Thorin or another Dwarf you control enters, create a Treasure token." => {
+            return Some(operation(
+                json!({ "kind": "permanentEntered", "player": controller(), "where": subtype("Dwarf") }),
+                "createTreasure",
+            ));
+        }
+        "When this artifact enters, create three Food tokens." => {
+            return Some(operation(enter_self(), "bagEndBanquetEnter"));
+        }
+        "Whenever Smaug is dealt noncombat damage, create that many Treasure tokens." => {
+            return Some(operation(
+                json!({ "kind": "permanentDealtDamage", "object": self_ref(), "noncombatOnly": true }),
+                "smaugImpenetrableDamage",
+            ));
+        }
+        "Whenever this creature deals combat damage to a player, you create a Treasure token for each artifact that player controls." =>
+        {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "cavernHoardDragonDamage",
+            ));
+        }
+        "Alliance — Whenever another creature you control enters, choose one that hasn't been chosen this turn — • Add {G}{G}{G}. • Put a +1/+1 counter on each creature you control. • Scry 2, then draw a card." =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentEntered", "player": controller(), "where": card_type("Creature"), "excludeSource": true }),
+                "galadrielAlliance",
+            ));
+        }
+        "Whenever a player casts their second spell each turn, you lose 1 life and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(
+                json!({ "kind": "spellCast", "anyPlayer": true, "spellCastOrdinal": integer(2), "where": Value::Null }),
+                "lothoSecondSpell",
+            ));
+        }
+        "Whenever equipped creature deals combat damage to a player, you may cast an instant or sorcery spell from your hand with mana value less than or equal to that damage without paying its mana cost." =>
+        {
+            return Some(operation(
+                json!({ "kind": "attachedPermanentCombatDamageToPlayer" }),
+                "glamdringCombatDamage",
+            ));
+        }
+        "At the beginning of your end step, put an influence counter on Palantír of Orthanc and scry 2. Then target opponent may have you draw a card. If that player doesn't, you mill X cards, where X is the number of influence counters on Palantír of Orthanc, and that player loses life equal to the total mana value of those cards." =>
+        {
+            return Some(operation(end_step(controller()), "palantirEndStep"));
+        }
+        "Whenever Bilbo deals combat damage to a player or battle, put up to one target nonland permanent card with mana value 3 or less from a graveyard onto the battlefield under its owner's control." =>
+        {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "bilboUnexpectedDamage",
+            ));
+        }
+        "When Gandalf enters, exile up to three target lands you control, then return them to the battlefield tapped under their owner's control." =>
+        {
+            return Some(operation(enter_self(), "gandalfShadowEnter"));
+        }
+        "Whenever a Dwarf you control deals combat damage to a player or battle, create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(
+                json!({ "kind": "combatDamageReceived", "player": { "kind": "opponentsOf", "player": controller() }, "where": subtype("Dwarf") }),
+                "thorinCompanyDamage",
+            ));
+        }
+        "When this creature enters, draw a card. Then if you don't control a legendary creature, put a card from your hand on the bottom of your library." =>
+        {
+            return Some(operation(enter_self(), "errandRiderEnter"));
+        }
+        "When this creature enters, you may exile another target creature." => {
+            return Some(operation(enter_self(), "fiendHunterEnter"));
+        }
+        "When this creature leaves the battlefield, return the exiled card to the battlefield under its owner's control." =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentLeftBattlefield", "object": self_ref() }),
+                "fiendHunterLeave",
+            ));
+        }
+        "Whenever two or more creatures you control attack a player, target attacking creature without flying gains flying until end of turn." =>
+        {
+            return Some(operation(
+                json!({ "kind": "controlledCreaturesAttacked", "player": controller() }),
+                "landrovalAttack",
+            ));
+        }
+        "Whenever another creature you control with power 2 or less enters, you may pay {1}. If you do, draw a card." =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentEntered", "player": controller(), "where": and(vec![card_type("Creature"), compare("<=", json!({ "kind": "powerOf", "object": { "kind": "candidate" } }), integer(2))]), "excludeSource": true }),
+                "mentorMeekEnter",
+            ));
+        }
+        "Whenever this creature attacks, you may exile target creature defending player controls until this creature leaves the battlefield. (That creature returns under its owner's control.)" =>
+        {
+            return Some(operation(attacks(), "colossalWhaleAttack"));
+        }
+        "Whenever this creature attacks, you may tap any number of untapped Humans you control. Draw a card for each Human tapped this way." =>
+        {
+            return Some(operation(attacks(), "minasTirithGarrisonAttack"));
+        }
+        "Whenever you scry, this creature gets +1/+0 until end of turn and can't be blocked this turn. This ability triggers only once each turn." =>
+        {
+            return Some(operation(
+                json!({ "kind": "scried", "player": controller() }),
+                "nimrodelWatcherScry",
+            ));
+        }
+        "Whenever this creature becomes blocked, it deals 1 damage to each creature blocking it." =>
+        {
+            return Some(operation(
+                json!({ "kind": "controlledCreatureBecameBlocked", "player": controller() }),
+                "battleScarredGoblinBlocked",
+            ));
+        }
+        "Whenever you scry, Celeborn gets +1/+1 until end of turn for each card looked at while scrying this way." =>
+        {
+            return Some(operation(
+                json!({ "kind": "scried", "player": controller() }),
+                "celebornScry",
+            ));
+        }
+        "Whenever this creature enters or attacks, return target Elf card from your graveyard to your hand. You gain life equal to that card's power." =>
+        {
+            return Some(operation(
+                json!({ "kind": "oneOf", "events": [enter_self(), attacks()] }),
+                "mirkwoodElkEnterAttack",
+            ));
+        }
+        "When this creature enters, create a tapped Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(enter_self(), "createTappedTreasure"));
+        }
+        "Whenever an opponent draws their second card each turn, you create a Treasure token." => {
+            return Some(operation(
+                json!({
+                    "kind": "cardDrawn", "opponentOfSourceController": true, "drawOrdinal": integer(2),
+                }),
+                "createTreasure",
+            ));
+        }
+        "When The Sackville-Bagginses enter, you may sacrifice another creature or artifact. If you do, draw a card and create a Treasure token." =>
+        {
+            return Some(operation(enter_self(), "sackvilleBagginsesEnter"));
+        }
+        "When Dori enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(enter_self(), "createTreasure"));
+        }
+        "I, II, III, IV — Create a Treasure token. Then if you control four or more Treasures, sacrifice this Saga. If you do, create a 6/6 red Dragon creature token with flying. (A Treasure token is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(
+                json!({
+                    "kind": "sagaChapterReached", "object": self_ref(),
+                    "chapters": [integer(1), integer(2), integer(3), integer(4)],
+                }),
+                "mistyMountainsColdChapter",
+            ));
+        }
+        "At the beginning of your upkeep, create a Treasure token." => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+                "createTreasure",
+            ));
+        }
+        "Whenever this creature deals combat damage to a player, choose one — • Put a +1/+1 counter on target Wolf you control. • Create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" =>
+        {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "bejeweledWargDamage",
+            ));
+        }
+        "Whenever you put one or more counters on a Goblin, Orc, or Army you control, The Great Goblin deals 2 damage to target opponent." =>
+        {
+            return Some(operation(
+                json!({
+                    "kind": "countersPlaced", "player": controller(),
+                    "where": { "kind": "or", "operands": [subtype("Goblin"), subtype("Orc"), subtype("Army")] },
+                }),
+                "greatGoblinCounters",
+            ));
+        }
+        "When Smaug enters, create X tapped Treasure tokens, where X is the number of artifacts your opponents control." =>
+        {
+            return Some(operation(enter_self(), "smaugWickedEnter"));
+        }
+        "Whenever equipped creature deals combat damage to a player, choose a creature type. Create a Treasure token for each creature you control of that type." =>
+        {
+            return Some(operation(
+                json!({ "kind": "attachedPermanentCombatDamageToPlayer" }),
+                "orcristCombatDamage",
+            ));
+        }
+        "Strange new worlds — When Christine Chapel enters, you gain life equal to the number of differently named lands you control." =>
+        {
+            return Some(operation(enter_self(), "christineChapelEnter"));
+        }
+        "Whenever Captain Kirk enters or attacks, search your library and/or graveyard for a basic land card or a card named Starship Enterprise, reveal it, and put it into your hand. If you search your library this way, shuffle." =>
+        {
+            return Some(operation(
+                json!({ "kind": "oneOf", "events": [enter_self(), attacks()] }),
+                "captainKirkBoldSearch",
+            ));
+        }
+        "When Will Riker enters, put a +1/+1 counter on another target creature you control." => {
+            return Some(operation(enter_self(), "willRikerEnter"));
+        }
+        "When Pelia enters, return target creature an opponent controls to its owner's hand." => {
+            return Some(operation(enter_self(), "peliaEnter"));
+        }
+        "Whenever Picard enters or attacks, put two +1/+1 counters on another target creature you control." =>
+        {
+            return Some(operation(
+                json!({ "kind": "oneOf", "events": [enter_self(), attacks()] }),
+                "picardSteadfastCounters",
+            ));
+        }
+        "When Borg Queen enters, assimilate target creature card from an opponent's graveyard. (Put it onto the battlefield under your control with a +1/+1 counter. It's a Borg artifact creature and loses all other creature types.)" =>
+        {
+            return Some(operation(enter_self(), "borgQueenAssimilate"));
+        }
+        "Whenever Kirk attacks while creatures you control have total power 8 or greater, exile the top card of your library. You may play that card this turn." =>
+        {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreaturesAttacked",
+                    "player": controller(),
+                    "sourceMustAttack": true,
+                    "totalPowerAtLeast": integer(8),
+                }),
+                "kirkEnterprisingAttack",
+            ));
+        }
+        "Whenever Brad Boimler becomes tapped, until end of turn, if one or more counters would be put on a permanent you control, that many plus one of each of those kinds of counters are put on that permanent instead." =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentTapped", "object": self_ref() }),
+                "bradBoimlerTapped",
+            ));
+        }
+        "Whenever you gain life, put a +1/+1 counter on Dr. Crusher." => {
+            return Some(operation(
+                json!({ "kind": "lifeGained", "player": controller() }),
+                "beverlyCrusherLife",
+            ));
+        }
+        "When this creature enters, choose one — • Put a +1/+1 counter on target creature. It gains vigilance until end of turn. • Draw a card if you control a permanent with a counter on it." =>
+        {
+            return Some(operation(enter_self(), "federationFieldMedicEnter"));
+        }
+        "Federation — When Saavik enters, she deals X damage to target attacking or blocking creature an opponent controls, where X is the number of creature types among non-Borg creatures you control." =>
+        {
+            return Some(operation(enter_self(), "saavikFederationEnter"));
+        }
+        "Whenever you attack while creatures you control have total power 8 or greater, put a +1/+1 counter on this creature. Untap it." =>
+        {
+            return Some(operation(attack_with_power(8), "tacticalOfficerAttack"));
+        }
+        "Federation — When Hoshi Sato enters, look at the top X cards of your library, where X is the number of creature types among non-Borg creatures you control. Put one of them into your hand and the rest on the bottom of your library in a random order." =>
+        {
+            return Some(operation(enter_self(), "hoshiSatoFederationEnter"));
+        }
+        "Whenever V'Ger enters or attacks, choose one — • Look at target opponent's hand, then draw a card. • Creatures your opponents control get -1/-0 until your next turn." =>
+        {
+            return Some(operation(
+                json!({ "kind": "oneOf", "events": [enter_self(), attacks()] }),
+                "vgerEnterOrAttack",
+            ));
+        }
+        "Reckless Behavior — Whenever Beckett Mariner becomes tapped, put a promotion counter on her. Then if there are three or more promotion counters on her, remove those counters and she deals 2 damage to each opponent." =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentTapped", "object": self_ref() }),
+                "beckettMarinerTapped",
+            ));
+        }
+        "At the beginning of combat on your turn, target creature you control gets +1/+0 until end of turn. Then that creature gains menace until end of turn if creatures you control have total power 8 or greater. (It can't be blocked except by two or more creatures.)" =>
+        {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "beginCombat", "player": controller() }),
+                "cantankerousCaptainCombat",
+            ));
+        }
+        "Whenever Captain Kirk enters or attacks, choose one. If you have no cards in hand, choose one or more instead. • Discard a card, then draw a card. • Create a 1/1 red Officer creature token. • Creatures you control get +1/+0 until end of turn." =>
+        {
+            return Some(operation(
+                json!({ "kind": "oneOf", "events": [enter_self(), attacks()] }),
+                "captainKirkEnterOrAttack",
+            ));
+        }
+        "Whenever you attack while creatures you control have total power 8 or greater, target creature can't block this turn." =>
+        {
+            return Some(operation(attack_with_power(8), "laanNoonienSinghAttack"));
+        }
+        "Whenever Captain Janeway or another creature you control enters, that creature explores. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on the creature, then put the card back or put it into your graveyard.)" =>
+        {
+            return Some(operation(
+                json!({ "kind": "permanentEntered", "player": controller(), "where": card_type("Creature") }),
+                "janewayExplore",
+            ));
+        }
+        "When this creature enters, look at target opponent's hand. You may choose a nonland card from it. If you do, that player exiles that card, then draws a card." =>
+        {
+            return Some(operation(enter_self(), "saltVampireEnter"));
+        }
+        "Whenever you face a dilemma, draw a card. (You face a dilemma as you choose one or more modes for a spell or ability.)" =>
+        {
+            return Some(operation(
+                json!({ "kind": "dilemmaFaced", "player": controller() }),
+                "sevenOfNineDilemma",
+            ));
+        }
+        "Whenever one or more charge counters are put on U.S.S. Enterprise-D for the first time each turn, exile the top card of your library. You may play that card this turn." =>
+        {
+            return Some(draft(
+                json!({
+                    "kind": "triggeredAbility",
+                    "source": self_ref(),
+                    "event": {
+                        "kind": "countersPlaced",
+                        "player": controller(),
+                        "counter": "charge",
+                        "where": { "kind": "nameEquals", "value": "U.S.S. Enterprise-D, Galaxy-Class" },
+                    },
+                    "triggerLimit": { "kind": "onceEachTurn", "id": "enterpriseDCharge" },
+                    "effects": [{ "kind": "resolveTriggeredInstruction", "operation": "enterpriseDCharge" }],
+                }),
+                &[
+                    "Watch charge counters placed on U.S.S. Enterprise-D",
+                    "Trigger only once each turn",
+                    "Exile the top card and grant a turn-limited play permission",
+                ],
+            ));
+        }
+        "II — Investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")" =>
+        {
+            return Some(operation(
+                json!({ "kind": "sagaChapterReached", "object": self_ref(), "chapters": [integer(2)] }),
+                "inPaleMoonlightInvestigate",
+            ));
+        }
+        "I — All artifacts and creatures phase out. Create a 0/1 white Human creature token with \"Permanents can't phase in.\" (Treat phased-out permanents and anything attached to them as though they don't exist.)" =>
+        {
+            return Some(operation(
+                json!({ "kind": "sagaChapterReached", "object": self_ref(), "chapters": [integer(1)] }),
+                "cityEdgeChapterOne",
+            ));
+        }
+        "III — Sacrifice a creature token. If you do, you gain 5 life." => {
+            return Some(operation(
+                json!({ "kind": "sagaChapterReached", "object": self_ref(), "chapters": [integer(3)] }),
+                "cityEdgeChapterThree",
+            ));
+        }
+        _ => {}
+    }
+
+    if text
+        == "When this creature enters, draw two cards, then discard two cards. When you discard one or more nonland cards this way, tap up to that many target creatures and put a stun counter on each of them."
+    {
+        return Some(operation(enter_self(), "seasonedCryomancerEnter"));
+    }
+    if text
+        == "When this creature enters, if you cast it, target opponent reveals their hand. You choose a nonland card from it. Exile that card."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "condition": { "kind": "wasCast", "object": self_ref() },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetOpponent",
+                        json!({
+                            "kind": "players",
+                            "where": {
+                                "kind": "isOpponentOf",
+                                "player": controller(),
+                            },
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "nullSummonerExile",
+                }],
+            }),
+            &[
+                "Trigger only when Null Summoner was cast",
+                "Choose a nonland card from the target opponent's revealed hand",
+                "Exile it and link its threshold casting permission to Null Summoner",
+            ],
+        ));
+    }
+    if text
+        == "When one or more of your opponents are dealt combat damage during your turn, draw two cards. If your library has no cards in it, you win the game. Fblthp's owner shuffles him into their library. (If you draw from an empty library this way, you still win the game.)"
+    {
+        return Some(operation(
+            json!({ "kind": "opponentCombatDamageDuringControllerTurn" }),
+            "fblthpImpossiblyLost",
+        ));
+    }
+    if text
+        == "When Uldaros Theorix enters, if you cast him, exile up to one target nonland card of each card type from your graveyard. Copy those cards. You may cast any number of spells with total mana value 6 or less from among the copies without paying their mana costs. (Permanent spells cast this way become tokens.)"
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "condition": { "kind": "wasCast", "object": self_ref() },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "uldarosTheorixEnter",
+                }],
+            }),
+            &[
+                "Trigger only when Uldaros was cast",
+                "Choose nonland graveyard cards across card types and exile them",
+                "Copy and cast the copies for total mana value six or less",
+            ],
+        ));
+    }
+    if text
+        == "When Ob Nixilis enters, destroy all tapped creatures your opponents control. You gain 1 life for each creature destroyed this way."
+    {
+        return Some(operation(enter_self(), "obNixilisAscendedEnter"));
+    }
+    if text == "Whenever Memnarch attacks, draw a card for each artifact you control." {
+        return Some(operation(attacks(), "memnarchWardenAttack"));
+    }
+    if text == "Whenever this land attacks, create a Map token." {
+        return Some(operation(attacks(), "createMapToken"));
+    }
+    if text
+        == "Whenever you gain life, you may pay that much life. If you do, draw that many cards."
+    {
+        return Some(operation(
+            json!({ "kind": "lifeGained", "player": controller() }),
+            "nivMizzetGhostCounsel",
+        ));
+    }
+    if text
+        == "At the beginning of each end step, each opponent loses life equal to the life that player lost this turn. (Damage causes loss of life.)"
+    {
+        return Some(operation(
+            end_step(json!({ "kind": "eachPlayer" })),
+            "archfiendDespairEndStep",
+        ));
+    }
+    if text.starts_with("Landfall — Whenever a land you control enters, draw a card. Then if this is the first time this ability has resolved this turn,") {
+        return Some(operation(
+            json!({
+                "kind": "permanentEntered",
+                "player": controller(),
+                "where": card_type("Land"),
+            }),
+            "nissaLeylineTamerLandfall",
+        ));
+    }
+    if text
+        == "Whenever Avacyn or another nontoken creature you control dies, return that card to the battlefield under your control at the beginning of the next end step."
+    {
+        return Some(operation(
+            json!({
+                "kind": "permanentDied",
+                "player": controller(),
+                "where": card_type("Creature"),
+                "nontoken": true,
+            }),
+            "avacynAngelOfHorrorDeath",
+        ));
+    }
+    if text.starts_with("Whenever Jhoira enters or attacks, target opponent reveals cards from the top of their library until they reveal a historic permanent card.") {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "oneOf",
+                    "events": [enter_self(), attacks()],
+                },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetOpponent",
+                        json!({
+                            "kind": "players",
+                            "where": { "kind": "isOpponentOf", "player": controller() },
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "resolveTriggeredInstruction",
+                    "operation": "jhoiraWeatherlightCorsair",
+                }],
+            }),
+            &[
+                "Trigger when Jhoira enters or attacks",
+                "Reveal through the target opponent's library to a historic permanent",
+                "Put it under your control and bottom the other revealed cards",
+            ],
+        ));
+    }
+    if text.starts_with("When ") && text.ends_with(" enters, you become the monarch.") {
+        return Some(operation(enter_self(), "becomeMonarch"));
+    }
+    if text
+        == "Whenever one or more creatures deal combat damage to you while you're the monarch, tap those creatures and put a stun counter on each of them."
+    {
+        return Some(operation(
+            json!({ "kind": "combatDamageReceived", "player": controller() }),
+            "tamiyoMonarchDamage",
+        ));
+    }
+    if text.starts_with(
+        "At the beginning of each upkeep, if you're the monarch, create a Gingerbrute token.",
+    ) {
+        return Some(operation(
+            json!({ "kind": "stepBegan", "step": "upkeep", "player": { "kind": "eachPlayer" } }),
+            "gingerMonarchUpkeep",
+        ));
+    }
+    if text
+        == "Whenever you cast a noncreature spell, create an X/X blue Shark creature token with flying, where X is that spell's mana value."
+    {
+        return Some(operation(
+            json!({
+                "kind": "spellCast",
+                "player": controller(),
+                "where": not(card_type("Creature")),
+            }),
+            "sharkTyphoonSpell",
+        ));
+    }
+    if text == "When you cycle this card, create an X/X blue Shark creature token with flying." {
+        return Some(operation(
+            json!({ "kind": "sourceCycled", "object": self_ref() }),
+            "sharkTyphoonCycled",
+        ));
+    }
+    if text
+        == "At the beginning of combat on each opponent's turn, they may pay {2}. If they don't, creatures they control can't attack Jaces you control this turn."
+    {
+        return Some(operation(
+            json!({
+                "kind": "stepBegan",
+                "step": "beginCombat",
+                "player": { "kind": "opponentsOf", "player": controller() },
+            }),
+            "jaceMultiverseCombatTax",
+        ));
+    }
+    if text.starts_with("At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1") {
+        return Some(operation(
+            json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+            "skrelvsHiveUpkeep",
+        ));
+    }
+    if text.starts_with("Whenever one or more Sphinxes you control attack, each player mills that many cards. For each player, you may cast a card that player milled this way") {
+        return Some(operation(
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "where": subtype("Sphinx"),
+            }),
+            "urSphinxAttack",
+        ));
+    }
+    if text == "Whenever you discard a card, you may exile that card from your graveyard." {
+        return Some(operation(
+            json!({ "kind": "playerDiscardedCard", "player": controller() }),
+            "currencyConverterDiscard",
+        ));
+    }
+    if text.starts_with("When Dack Fayden enters, reveal cards from the top of your library until you reveal X creature cards, where X is the number of opponents you have.") {
+        return Some(operation(enter_self(), "dackFaydenHelpingHand"));
+    }
+    if text.starts_with("When Venser enters, choose one —") {
+        return Some(operation(enter_self(), "venserFerventForger"));
+    }
+    if text
+        == "Whenever a creature you control with shadow deals combat damage to a player, draw a card."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "controlledCreaturesCombatDamageToPlayer",
+                "player": controller(),
+                "where": { "kind": "hasKeyword", "value": "shadow" },
+            }),
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": integer(1),
+            })],
+        ));
+    }
+    if text
+        == "Whenever you cast a noncreature spell, counter that spell. Create a number of 1/1 blue Merfolk creature tokens equal to the amount of mana spent to cast that spell."
+    {
+        return Some(operation(
+            json!({ "kind": "spellCast", "player": controller(), "where": not(card_type("Creature")) }),
+            "grandmotherGobySpell",
+        ));
+    }
+    if text
+        == "Whenever you cast your first spell during each opponent's turn, draw three cards, then put two cards from your hand on top of your library in any order."
+    {
+        return Some(operation(
+            json!({
+                "kind": "spellCast",
+                "player": controller(),
+                "where": Value::Null,
+                "duringOpponentTurn": true,
+                "spellCastOrdinal": integer(1),
+            }),
+            "gusthaFirstOpponentTurnSpell",
+        ));
+    }
+    if text
+        == "Whenever an artifact is put into a graveyard from the battlefield, put a number of +1/+1 counters equal to that artifact's mana value on Joven and Chandler."
+    {
+        return Some(operation(
+            json!({ "kind": "permanentDied", "where": card_type("Artifact") }),
+            "jovenChandlerArtifactDied",
+        ));
+    }
+    if text
+        == "At the beginning of your upkeep, create a 2/1 red Goblin creature token with haste. Then if you're the monarch, for each creature token you control, create a token that's a copy of it."
+    {
+        return Some(operation(
+            json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+            "chiefMagistrateUpkeep",
+        ));
+    }
+    if text
+        == "At the beginning of your end step, each opponent loses life equal to the number of tapped Cats and/or Zombies you control."
+    {
+        return Some(operation(
+            json!({ "kind": "stepBegan", "step": "endStep", "player": controller() }),
+            "olagMiauEndStep",
+        ));
+    }
+
+    if text
+        == "When Fblthp enters, search your library for up to X basic land cards with different names, reveal them, put them into your hand, then shuffle."
+    {
+        return Some(triggered(
+            enter_self(),
+            vec![json!({
+                "kind": "searchLibrary",
+                "player": controller(),
+                "where": and(vec![
+                    json!({ "kind": "typeLineContains", "value": "Basic" }),
+                    card_type("Land"),
+                ]),
+                "maximum": { "kind": "sourceCastXValue" },
+                "destination": "hand",
+                "tapped": false,
+                "differentNames": true,
+            })],
+        ));
+    }
+    if text
+        == "When Hapatra enters, for each opponent, tap up to one target creature that player controls. Put a stun counter on each of those creatures. (If a permanent with a stun counter would become untapped, remove one from it instead.)"
+    {
+        let mut decision = target_decision(
+            "targetCreatures",
+            json!({
+                "kind": "permanents",
+                "controller": { "kind": "opponentsOf", "player": controller() },
+                "where": card_type("Creature"),
+            }),
+            0,
+            0,
+        );
+        decision["maximum"] = json!({ "kind": "countOpponents", "player": controller() });
+        decision["selectionConstraint"] = json!({ "kind": "distinctPermanentControllers" });
+        let targets = json!({ "kind": "chosenTargets", "id": "targetCreatures" });
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [decision],
+                },
+                "effects": [
+                    { "kind": "tapPermanent", "permanent": targets.clone() },
+                    {
+                        "kind": "putCounters",
+                        "permanent": targets,
+                        "counter": "stun",
+                        "count": integer(1),
+                    },
+                ],
+            }),
+            &[
+                "Choose at most one creature controlled by each opponent",
+                "Tap the chosen creatures",
+                "Put a stun counter on each chosen creature",
+            ],
+        ));
+    }
+    if text
+        == "When Hapatra enters, for each opponent, put X -1/-1 counters on up to one target creature that player controls, where X is the greatest mana value among cards in your graveyard."
+    {
+        let mut decision = target_decision(
+            "targetCreatures",
+            json!({
+                "kind": "permanents",
+                "controller": { "kind": "opponentsOf", "player": controller() },
+                "where": card_type("Creature"),
+            }),
+            0,
+            0,
+        );
+        decision["maximum"] = json!({ "kind": "countOpponents", "player": controller() });
+        decision["selectionConstraint"] = json!({ "kind": "distinctPermanentControllers" });
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [decision],
+                },
+                "effects": [{
+                    "kind": "putCounters",
+                    "permanent": { "kind": "chosenTargets", "id": "targetCreatures" },
+                    "counter": "-1/-1",
+                    "count": {
+                        "kind": "greatestManaValue",
+                        "zone": graveyard(controller()),
+                        "where": Value::Null,
+                    },
+                }],
+            }),
+            &[
+                "Choose at most one creature controlled by each opponent",
+                "Find the greatest mana value in the controller's graveyard",
+                "Put that many -1/-1 counters on each chosen creature",
+            ],
+        ));
+    }
+    if text
+        == "Whenever you cast a prepared spell, copy it. You may choose new targets for the copy."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "spellCast",
+                "player": controller(),
+                "where": Value::Null,
+                "preparedOnly": true,
+            }),
+            vec![json!({
+                "kind": "copyStackItem",
+                "object": { "kind": "triggeringStackObject" },
+                "controller": controller(),
+                "mayChooseNewTargets": true,
+            })],
+        ));
+    }
+    if text
+        == "When this enchantment enters, the owner of up to one other target nonland permanent puts it on their choice of the top or bottom of their library."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPermanent",
+                        json!({
+                            "kind": "permanents",
+                            "where": not(card_type("Land")),
+                            "excludeSource": true,
+                        }),
+                        0,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "putPermanentOnOwnerLibrary",
+                    "permanent": chosen_target("targetPermanent"),
+                    "position": "ownerChoiceTopOrBottom",
+                }],
+            }),
+            &[
+                "Optionally target another nonland permanent",
+                "Let its owner choose the top or bottom of their library",
+            ],
+        ));
+    }
+    if text
+        == "At the beginning of your end step, if you gained life this turn, surveil 1. If you put a card with mana value less than or equal to the amount of life you gained this turn into your graveyard this way, put that card into your hand."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "stepBegan",
+                    "step": "endStep",
+                    "player": controller(),
+                },
+                "condition": compare(
+                    ">=",
+                    json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
+                    integer(1),
+                ),
+                "effects": [
+                    {
+                        "kind": "surveil",
+                        "player": controller(),
+                        "count": integer(1),
+                        "bindMovedAs": "surveilledCards",
+                    },
+                    {
+                        "kind": "returnBoundCardsWithinLifeGained",
+                        "player": controller(),
+                        "binding": "surveilledCards",
+                    },
+                ],
+            }),
+            &[
+                "Require life gained during the current turn",
+                "Surveil one and retain the card moved to the graveyard",
+                "Return it when its mana value does not exceed life gained",
+            ],
+        ));
+    }
+    if text
+        == "Whenever a creature an opponent controls with power or toughness 1 or less blocks, Tetsuko Umezawa deals 1 damage to that creature's controller."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "opponentSmallCreatureBlocks",
+                "player": controller(),
+            }),
+            vec![json!({
+                "kind": "dealDamage",
+                "source": self_ref(),
+                "recipient": { "kind": "triggeringPlayer" },
+                "amount": integer(1),
+            })],
+        ));
+    }
+    if text
+        == "Whenever this creature is dealt damage, you may search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle."
+    {
+        return Some(triggered(
+            json!({ "kind": "selfDealtDamage", "object": self_ref() }),
+            vec![json!({
+                "kind": "invigoratorMaySearchLands",
+                "player": controller(),
+            })],
+        ));
+    }
+
+    if text
+        == "Whenever you cast a creature spell, exile up to one other target creature you control, then return that card to the battlefield under its owner's control."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetCreature",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": card_type("Creature"),
+                            "excludeSource": true,
+                        }),
+                        0,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "blinkPermanent",
+                    "permanent": chosen_target("targetCreature"),
+                    "controller": { "kind": "ownerOf", "object": chosen_target("targetCreature") },
+                }],
+            }),
+            &[
+                "Trigger when the controller casts a creature spell",
+                "Optionally target another controlled creature",
+                "Exile it and return it under its owner's control",
+            ],
+        ));
+    }
+
+    if text
+        == "At the beginning of combat on your turn, you may remove a +1/+1 counter from this creature. If you do, put a +1/+1 counter on each other creature you control."
+    {
+        return Some(triggered(
+            json!({ "kind": "stepBegan", "step": "beginCombat", "player": controller() }),
+            vec![json!({
+                "kind": "optionalAction",
+                "player": controller(),
+                "action": {
+                    "kind": "removeCounters",
+                    "permanent": self_ref(),
+                    "counter": "+1/+1",
+                    "count": integer(1),
+                },
+                "onPerformed": [{
+                    "kind": "putCounters",
+                    "permanent": {
+                        "kind": "eachPermanent",
+                        "player": controller(),
+                        "where": card_type("Creature"),
+                        "excludeSource": true,
+                    },
+                    "counter": "+1/+1",
+                    "count": integer(1),
+                }],
+            })],
+        ));
+    }
+    if text.starts_with(
+        "When Vraska enters, if you control six or more lands, destroy target permanent an opponent controls. They create a Treasure token.",
+    ) {
+        let target = chosen_target("targetPermanent");
+        let treasure = json!({
+            "kind": "createTokens",
+            "controller": { "kind": "boundValue", "id": "targetController" },
+            "quantity": integer(1),
+            "token": {
+                "name": "Treasure",
+                "colors": [],
+                "types": ["Artifact"],
+                "subtypes": ["Treasure"],
+                "power": 0,
+                "toughness": 0,
+                "abilities": [{
+                    "kind": "manaAbility",
+                    "source": self_ref(),
+                    "costs": [
+                        { "kind": "tap", "object": self_ref() },
+                        { "kind": "sacrificePermanent", "permanent": self_ref() },
+                    ],
+                    "effects": [{
+                        "kind": "addMana",
+                        "player": controller(),
+                        "mana": { "kind": "chooseColor", "amount": 1 },
+                    }],
+                }],
+            },
+        });
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "condition": compare(
+                    ">=",
+                    json!({
+                        "kind": "countPermanents",
+                        "player": controller(),
+                        "where": card_type("Land"),
+                    }),
+                    integer(6),
+                ),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPermanent",
+                        json!({
+                            "kind": "permanents",
+                            "controller": { "kind": "opponentsOf", "player": controller() },
+                            "where": Value::Null,
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [
+                    {
+                        "kind": "bind",
+                        "id": "targetController",
+                        "value": { "kind": "controllerOf", "object": target.clone() },
+                    },
+                    { "kind": "destroyPermanent", "permanent": target },
+                    treasure,
+                ],
+            }),
+            &[
+                "Require six controlled lands",
+                "Target an opponent's permanent",
+                "Preserve its controller before destruction",
+                "Create the Treasure for that player",
+            ],
+        ));
+    }
+
+    if text
+        == "When this creature enters, creatures you control gain trample and get +X/+0 until end of turn, where X is the number of artifacts you control."
+    {
+        let creatures = json!({
+            "kind": "eachPermanent",
+            "player": controller(),
+            "where": card_type("Creature"),
+        });
+        return Some(triggered(
+            enter_self(),
+            vec![
+                json!({
+                    "kind": "grantKeyword",
+                    "object": creatures.clone(),
+                    "keyword": "trample",
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "modifyPowerToughness",
+                    "object": creatures,
+                    "power": {
+                        "kind": "countPermanents",
+                        "player": controller(),
+                        "where": card_type("Artifact"),
+                    },
+                    "toughness": integer(0),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+            ],
+        ));
+    }
+    if text
+        == "When this creature enters, search your library for a card, put it into your hand, shuffle, then discard a card at random."
+    {
+        return Some(operation(enter_self(), "searchAnyThenDiscardRandom"));
+    }
+    if text == "When you discard this card, you gain 3 life." {
+        let mut parsed = triggered(
+            json!({ "kind": "selfDiscarded", "object": self_ref() }),
+            vec![json!({
+                "kind": "gainLife",
+                "player": controller(),
+                "amount": integer(3),
+            })],
+        );
+        parsed.rule["triggerZone"] = Value::String("hand".to_string());
+        return Some(parsed);
+    }
+    if text.starts_with("At the beginning of each player's upkeep, you create a 3/3 green Forest Tentacle land creature token.") {
+        return Some(triggered(
+            json!({ "kind": "stepBegan", "step": "upkeep", "player": { "kind": "eachPlayer" } }),
+            vec![json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": integer(1),
+                "token": {
+                    "name": "Forest Tentacle Token",
+                    "colors": ["green"],
+                    "types": ["Land", "Creature"],
+                    "subtypes": ["Forest", "Tentacle"],
+                    "power": 3,
+                    "toughness": 3,
+                    "abilities": [{
+                        "kind": "manaAbility",
+                        "source": self_ref(),
+                        "costs": [{ "kind": "tap", "object": self_ref() }],
+                        "effects": [{
+                            "kind": "addMana",
+                            "player": controller(),
+                            "mana": "{G}",
+                        }],
+                    }],
+                },
+            })],
+        ));
+    }
+    if text.starts_with("At the beginning of your upkeep, surveil 1. Then if there are seven or more cards in your graveyard, sacrifice this artifact") {
+        return Some(triggered(
+            json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+            vec![
+                json!({ "kind": "surveil", "player": controller(), "count": integer(1) }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": compare(
+                        ">=",
+                        json!({
+                            "kind": "countCards",
+                            "zone": graveyard(controller()),
+                            "where": Value::Null,
+                        }),
+                        integer(7),
+                    ),
+                    "then": [
+                        { "kind": "sacrificePermanent", "permanent": self_ref() },
+                        { "kind": "dealDamageToEachOpponent", "amount": integer(2) },
+                        { "kind": "gainLife", "player": controller(), "amount": integer(2) },
+                    ],
+                    "else": [],
+                }),
+            ],
+        ));
+    }
+    if text.starts_with("Landfall")
+        && text
+            .contains("Whenever a land you control enters, Koth deals 1 damage to each opponent.")
+        && text.contains("If that land is a Mountain, add {R}.")
+    {
+        return Some(triggered(
+            json!({
+                "kind": "permanentEntered",
+                "player": controller(),
+                "where": card_type("Land"),
+            }),
+            vec![
+                json!({
+                    "kind": "dealDamageToEachOpponent",
+                    "amount": integer(1),
+                }),
+                json!({
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "objectMatchesFilter",
+                        "object": { "kind": "triggeringPermanent" },
+                        "where": subtype("Mountain"),
+                    },
+                    "then": [{
+                        "kind": "addMana",
+                        "player": controller(),
+                        "mana": "{R}",
+                    }],
+                    "else": [],
+                }),
+            ],
+        ));
+    }
+    if text == "When this Aura enters, tap enchanted creature. It becomes unprepared." {
+        let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        return Some(triggered(
+            enter_self(),
+            vec![
+                json!({ "kind": "tapPermanent", "permanent": attached.clone() }),
+                json!({ "kind": "setPrepared", "object": attached, "value": false }),
+            ],
+        ));
+    }
+    if text == "When this creature dies, if it isn't a token, create a token that's a copy of it." {
+        return Some(triggered(
+            json!({
+                "kind": "permanentDied",
+                "object": self_ref(),
+                "nontoken": true,
+            }),
+            vec![json!({
+                "kind": "createTokenCopyOfPermanent",
+                "object": self_ref(),
+                "grantKeywords": [],
+                "exileAtNextEndStep": false,
+            })],
+        ));
+    }
+    if text
+        == "At the beginning of combat on your turn, another target creature you control gets +1/+1 until end of turn. If you've scried or surveilled this turn, put a +1/+1 counter on that creature instead."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "stepBegan", "step": "beginCombat", "player": controller() },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetCreature",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": card_type("Creature"),
+                            "excludeSource": true,
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "conditionalEffect",
+                    "condition": {
+                        "kind": "scriedOrSurveilledThisTurn",
+                        "player": controller(),
+                    },
+                    "then": [{
+                        "kind": "putCounters",
+                        "permanent": chosen_target("targetCreature"),
+                        "counter": "+1/+1",
+                        "count": integer(1),
+                    }],
+                    "else": [{
+                        "kind": "modifyPowerToughness",
+                        "object": chosen_target("targetCreature"),
+                        "power": integer(1),
+                        "toughness": integer(1),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                }],
+            }),
+            &[
+                "Resolve beginning-of-combat trigger",
+                "Choose the replacement branch",
+            ],
+        ));
+    }
+    if text
+        == "Whenever a Forest you control enters, if you control at least five other Forests, target creature you control gets +3/+3 until end of turn."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "permanentEntered",
+                    "player": controller(),
+                    "where": subtype("Forest"),
+                },
+                "condition": compare(
+                    ">=",
+                    json!({
+                        "kind": "countPermanents",
+                        "player": controller(),
+                        "where": subtype("Forest"),
+                        "excludeSource": true,
+                    }),
+                    integer(5),
+                ),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetCreature",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": card_type("Creature"),
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "modifyPowerToughness",
+                    "object": chosen_target("targetCreature"),
+                    "power": integer(3),
+                    "toughness": integer(3),
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }],
+            }),
+            &[
+                "Observe a Forest entering",
+                "Require five other Forests",
+                "Apply the bonus",
+            ],
+        ));
+    }
+    let entry_type_counter_re = Regex::new(
+        r"(?i)^When (.+?) enters, target permanent you control gains (hexproof|deathtouch) until end of turn\. Put a \+1/\+1 counter on it if it's a creature\. Put a loyalty counter on it if it's a planeswalker\.(?: \(.+\))?$",
+    )
+    .expect("entry keyword with type-appropriate counter regex compiles");
+    if let Some(captures) = entry_type_counter_re.captures(text) {
+        let target = chosen_target("targetPermanent");
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "enterBattlefield", "object": self_ref() },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPermanent",
+                        json!({ "kind": "permanents", "controller": controller(), "where": Value::Null }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [
+                    {
+                        "kind": "grantKeyword",
+                        "object": target.clone(),
+                        "keyword": captures.get(2)?.as_str().to_ascii_lowercase(),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    },
+                    {
+                        "kind": "conditionalEffect",
+                        "condition": {
+                            "kind": "objectMatchesFilter",
+                            "object": target.clone(),
+                            "where": card_type("Creature"),
+                        },
+                        "then": [{
+                            "kind": "putCounters",
+                            "permanent": target.clone(),
+                            "counter": "+1/+1",
+                            "count": integer(1),
+                        }],
+                        "else": [],
+                    },
+                    {
+                        "kind": "conditionalEffect",
+                        "condition": {
+                            "kind": "objectMatchesFilter",
+                            "object": target.clone(),
+                            "where": card_type("Planeswalker"),
+                        },
+                        "then": [{
+                            "kind": "putCounters",
+                            "permanent": target,
+                            "counter": "loyalty",
+                            "count": integer(1),
+                        }],
+                        "else": [],
+                    },
+                ],
+            }),
+            &[
+                "Target a controlled permanent",
+                "Grant the keyword",
+                "Add counters by card type",
+            ],
+        ));
+    }
+    if text == "When Karn enters, draw a card for each color among other artifacts you control." {
+        return Some(triggered(
+            enter_self(),
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": {
+                    "kind": "countDistinctColors",
+                    "player": controller(),
+                    "where": card_type("Artifact"),
+                    "excludeSource": true,
+                },
+            })],
+        ));
+    }
+    if text
+        == "When Mabel enters, remove up to three counters from another target creature or planeswalker."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "enterBattlefield", "object": self_ref() },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetPermanent",
+                        json!({
+                            "kind": "permanents",
+                            "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                            "excludeSource": true,
+                        }),
+                        1,
+                        1,
+                    )],
+                },
+                "effects": [{
+                    "kind": "removeUpToCounters",
+                    "permanent": chosen_target("targetPermanent"),
+                    "player": controller(),
+                    "maximum": integer(3),
+                }],
+            }),
+            &[
+                "Target another creature or planeswalker",
+                "Choose and remove up to three counters",
+            ],
+        ));
+    }
+    if text.starts_with("When this creature enters, mill four cards. When you do, return target land card from your graveyard to the battlefield tapped.") {
+        return Some(triggered(
+            enter_self(),
+            vec![
+                json!({
+                    "kind": "mill",
+                    "player": controller(),
+                    "count": integer(4),
+                    "bind": "milledCards",
+                }),
+                json!({
+                    "kind": "createReflexiveTrigger",
+                    "source": self_ref(),
+                    "controller": controller(),
+                    "ability": {
+                        "kind": "triggeredAbility",
+                        "source": self_ref(),
+                        "event": { "kind": "reflexiveTriggerCreated", "object": self_ref() },
+                        "declaration": {
+                            "kind": "castingDeclaration",
+                            "decisions": [target_decision(
+                                "targetLandCard",
+                                json!({
+                                    "kind": "cards",
+                                    "zone": graveyard(controller()),
+                                    "where": card_type("Land"),
+                                }),
+                                1,
+                                1,
+                            )],
+                        },
+                        "effects": [{
+                            "kind": "moveTargetCard",
+                            "card": chosen_target("targetLandCard"),
+                            "to": "battlefield",
+                            "tapped": true,
+                        }],
+                    },
+                }),
+            ],
+        ));
+    }
+    if text
+        == "Whenever a player discards one or more cards, Tinybones deals 1 damage to each opponent."
+    {
+        return Some(triggered(
+            json!({ "kind": "playerDiscardedCard" }),
+            vec![json!({ "kind": "dealDamageToEachOpponent", "amount": integer(1) })],
+        ));
+    }
+    if text
+        == "At the beginning of each end step, if you've drawn three or more cards this turn, create a 3/3 blue Angel creature token with flying."
+    {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": { "kind": "stepBegan", "step": "endStep", "player": { "kind": "eachPlayer" } },
+                "condition": compare(
+                    ">=",
+                    json!({
+                        "kind": "countEventsThisTurn",
+                        "event": "cardDrawn",
+                        "player": controller(),
+                    }),
+                    integer(3),
+                ),
+                "effects": [{
+                    "kind": "createTokens",
+                    "controller": controller(),
+                    "quantity": integer(1),
+                    "token": {
+                        "name": "Angel Token",
+                        "colors": ["blue"],
+                        "types": ["Creature"],
+                        "subtypes": ["Angel"],
+                        "power": 3,
+                        "toughness": 3,
+                        "abilities": [{
+                            "kind": "keywordAbility",
+                            "source": self_ref(),
+                            "ability": { "kind": "flying" },
+                        }],
+                    },
+                }],
+            }),
+            &[
+                "Check cards drawn at each end step",
+                "Create the flying Angel token",
+            ],
+        ));
+    }
+    if text.starts_with("When Yuriko enters, choose one —") {
+        let target = chosen_target("targetCreature");
+        let mut target_choice = target_decision(
+            "targetCreature",
+            json!({ "kind": "permanents", "where": card_type("Creature") }),
+            1,
+            1,
+        );
+        target_choice["condition"] = selection("spellMode", "weaken");
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": enter_self(),
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [{
+                        "id": "spellMode",
+                        "kind": "chooseModes",
+                        "minimum": 1,
+                        "maximum": 1,
+                        "options": ["weaken", "surveil"],
+                    }, target_choice],
+                },
+                "effects": [{
+                    "kind": "conditionalEffect",
+                    "condition": selection("spellMode", "weaken"),
+                    "then": [{
+                        "kind": "modifyPowerToughness",
+                        "object": target,
+                        "power": {
+                            "kind": "negate",
+                            "operand": {
+                                "kind": "countCards",
+                                "zone": graveyard(controller()),
+                                "where": Value::Null,
+                            },
+                        },
+                        "toughness": integer(0),
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                    "else": [{
+                        "kind": "surveil",
+                        "player": controller(),
+                        "count": integer(2),
+                    }],
+                }],
+            }),
+            &["Choose the entry mode", "Resolve the selected branch"],
+        ));
+    }
+    if text
+        == "Whenever a creature you control attacks a player alone, it gains double strike until end of turn."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "minimum": 1,
+                "maximum": 1,
+            }),
+            vec![json!({
+                "kind": "grantKeyword",
+                "object": { "kind": "triggeringPermanent" },
+                "keyword": "doubleStrike",
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+        ));
+    }
+    if text
+        == "Whenever a creature you control attacks a player alone, discard a card, then draw a card. Then put a +1/+1 counter on that creature for each card you've discarded this turn."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "minimum": 1,
+                "maximum": 1,
+            }),
+            vec![
+                json!({ "kind": "discardCards", "player": controller(), "count": integer(1) }),
+                json!({ "kind": "drawCards", "player": controller(), "count": integer(1) }),
+                json!({
+                    "kind": "putCounters",
+                    "permanent": { "kind": "triggeringPermanent" },
+                    "counter": "+1/+1",
+                    "count": {
+                        "kind": "countEventsThisTurn",
+                        "event": "cardDiscarded",
+                        "player": controller(),
+                    },
+                }),
+            ],
+        ));
+    }
+    if text
+        == "Whenever you activate a loyalty ability, if you removed two or more loyalty counters to activate it, draw a card."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "nonManaAbilityActivated",
+                "player": controller(),
+                "loyaltyOnly": true,
+                "minimumLoyaltyRemoved": integer(2),
+            }),
+            vec![json!({ "kind": "drawCards", "player": controller(), "count": integer(1) })],
+        ));
+    }
+    if text
+        == "Whenever you cast an Equipment spell or a spell that targets a creature you control, draw a card. This ability triggers only once each turn."
+    {
+        let mut result = triggered(
+            json!({
+                "kind": "oneOf",
+                "events": [
+                    {
+                        "kind": "spellCast",
+                        "player": controller(),
+                        "where": card_type("Equipment"),
+                    },
+                    {
+                        "kind": "spellCastTargetingControlledCreature",
+                        "player": controller(),
+                    },
+                ],
+            }),
+            vec![json!({ "kind": "drawCards", "player": controller(), "count": integer(1) })],
+        );
+        result.rule["triggerLimit"] = json!({ "kind": "onceEachTurn", "id": "danithaSwordOfHope" });
+        return Some(result);
+    }
+    if text
+        == "Whenever you cast a spell that targets an opponent or a creature an opponent controls, put a +1/+1 counter on Danitha."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "spellCastTargetingOpponentOrCreature",
+                "player": controller(),
+            }),
+            vec![json!({
+                "kind": "putCounters",
+                "permanent": self_ref(),
+                "counter": "+1/+1",
+                "count": integer(1),
+            })],
+        ));
+    }
+
+    if text
+        == "Whenever an opponent is dealt noncombat damage, put a +1/+1 counter on Massacre Girl."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "opponentDealtDamage",
+                "player": controller(),
+                "noncombatOnly": true,
+            }),
+            vec![json!({
+                "kind": "putCounters",
+                "permanent": self_ref(),
+                "counter": "+1/+1",
+                "count": integer(1),
+            })],
+        ));
+    }
+    if text
+        == "Whenever another creature you control enters, Arni gets +X/+0 until end of turn, where X is that creature's power."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "permanentEntered",
+                "player": controller(),
+                "where": card_type("Creature"),
+                "excludeSource": true,
+            }),
+            vec![json!({
+                "kind": "modifyPowerToughness",
+                "object": self_ref(),
+                "power": { "kind": "powerOf", "object": { "kind": "triggeringPermanent" } },
+                "toughness": integer(0),
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+        ));
+    }
+    if text
+        == "When Winter enters, you may sacrifice a creature or planeswalker. When you do, each opponent sacrifices a creature of their choice."
+    {
+        return Some(triggered(
+            enter_self(),
+            vec![json!({
+                "kind": "optionalAction",
+                "player": controller(),
+                "action": {
+                    "kind": "sacrificePermanents",
+                    "player": controller(),
+                    "where": or(vec![card_type("Creature"), card_type("Planeswalker")]),
+                    "count": integer(1),
+                },
+                "onPerformed": [{
+                    "kind": "createReflexiveTrigger",
+                    "source": self_ref(),
+                    "controller": controller(),
+                    "ability": {
+                        "kind": "triggeredAbility",
+                        "source": self_ref(),
+                        "event": { "kind": "reflexiveTriggerCreated", "object": self_ref() },
+                        "effects": [{
+                            "kind": "sacrificePermanentsEachPlayer",
+                            "controller": controller(),
+                            "scope": "opponents",
+                            "where": card_type("Creature"),
+                            "count": integer(1),
+                        }],
+                    },
+                }],
+            })],
+        ));
+    }
+
+    if text
+        == "When this creature enters, you may discard a card. When you do, this creature deals 2 damage to any target."
+    {
+        return Some(triggered(
+            enter_self(),
+            vec![json!({
+                "kind": "optionalAction",
+                "player": controller(),
+                "action": {
+                    "kind": "discardCards",
+                    "player": controller(),
+                    "count": integer(1),
+                },
+                "onPerformed": [{
+                    "kind": "createReflexiveTrigger",
+                    "source": self_ref(),
+                    "controller": controller(),
+                    "ability": {
+                        "kind": "triggeredAbility",
+                        "source": self_ref(),
+                        "event": { "kind": "reflexiveTriggerCreated", "object": self_ref() },
+                        "declaration": {
+                            "kind": "castingDeclaration",
+                            "decisions": [target_decision(
+                                "targetDamageable",
+                                json!({ "kind": "anyTarget" }),
+                                1,
+                                1,
+                            )],
+                        },
+                        "effects": [{
+                            "kind": "dealDamage",
+                            "source": self_ref(),
+                            "amount": integer(2),
+                            "recipient": chosen_target("targetDamageable"),
+                        }],
+                    },
+                }],
+            })],
+        ));
+    }
+
     if text.starts_with("Magecraft")
         && text.contains("Whenever you cast or copy an instant or sorcery spell")
         && text.contains("discard a card, then draw a card")
@@ -727,7 +2477,402 @@ pub(in crate::oracle::canonical) fn parse_special_triggered_ability(
             ],
         )
     };
+    let once_operation = |event: Value, operation_name: &str| {
+        let mut parsed = operation(event, operation_name);
+        parsed.rule["triggerLimit"] = json!({
+            "kind": "oncePerGameObject",
+            "id": operation_name,
+        });
+        parsed
+    };
+    let enter_self = || json!({ "kind": "enterBattlefield", "object": self_ref() });
     match text {
+        "At the beginning of your end step, target opponent may draw four cards. If they do, look at that player's hand and you may cast a spell from their hand without paying its mana cost. If they don't, put two +1/+1 counters on Kuroki." => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "endStep", "player": controller() }),
+                "kurokiEndStep",
+            ));
+        }
+        "At the beginning of your upkeep, exile the top three cards of your library. Each opponent secretly chooses a number 0 or greater. Then those numbers are revealed. Choose an opponent with the highest number. Itazura deals that much damage to them, then they may cast a spell from among those cards without paying its mana cost. You put a card from among them that wasn't cast this way into your hand." => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+                "itazuraUpkeep",
+            ));
+        }
+        "Whenever a source you control deals damage, if at least one permanent or player was dealt exactly 2 of that damage, exile the top card of your library. You may play it until the end of your next turn." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledSourceDealtExactDamage",
+                    "player": controller(),
+                    "amount": 2,
+                }),
+                "matocExileTop",
+            ));
+        }
+        "Whenever you cast a permanent spell with {X} in its mana cost or activate an ability with {X} in its activation cost that isn't a mana ability, you may have the value of X become 5. Do this only once each turn." => {
+            let mut parsed = operation(
+                json!({
+                    "kind": "oneOf",
+                    "events": [
+                        {
+                            "kind": "spellCast",
+                            "player": controller(),
+                            "where": and(vec![
+                                json!({ "kind": "manaCostContainsX" }),
+                                or(vec![
+                                    card_type("Artifact"),
+                                    card_type("Creature"),
+                                    card_type("Enchantment"),
+                                    card_type("Planeswalker"),
+                                    card_type("Battle"),
+                                ]),
+                            ]),
+                        },
+                        {
+                            "kind": "nonManaAbilityActivatedWithX",
+                            "player": controller(),
+                        },
+                    ],
+                }),
+                "glavaSetXFive",
+            );
+            parsed.rule["triggerLimit"] = json!({
+                "kind": "onceEachTurn",
+                "id": "glavaSetXFive",
+            });
+            return Some(parsed);
+        }
+        "Whenever Massimo or another creature you control enters, exile up to one target instant or sorcery card with mana value 1 from your graveyard. If a card is exiled this way, that creature gains \"Whenever this creature deals combat damage to a player, copy the exiled card. You may cast the copy without paying its mana cost.\"" => {
+            return Some(operation(
+                json!({
+                    "kind": "permanentEntered",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                }),
+                "massimoGrantMagicTrick",
+            ));
+        }
+        "Whenever Miss Highwater deals combat damage to a player who doesn't have a contract counter, they may discard their hand. If they do, they draw seven cards and get a contract counter. For as long as they have a contract counter, when they lose the game, for each artifact and creature they controlled, create a token that's a copy of it." => {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "missHighwaterContract",
+            ));
+        }
+        "Whenever The Madcap Jester attacks, each opponent exiles the top card of their library." => {
+            return Some(operation(
+                json!({ "kind": "declaredAttacker", "object": self_ref() }),
+                "madcapJesterAttack",
+            ));
+        }
+        "Whenever a spell or ability you control causes one or more cards to be exiled from an opponent's library, you may play those cards until the end of your next turn. Mana of any type can be spent to cast spells this way." => {
+            return Some(operation(
+                json!({
+                    "kind": "opponentLibraryCardsExiledByControlledEffect",
+                    "player": controller(),
+                }),
+                "madcapJesterPermission",
+            ));
+        }
+        "Whenever a saddled creature you control attacks, it gets +2/+2 until end of turn. Draw a card. Create a Food token." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreatureDeclaredAttacker",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                    "saddledOnly": true,
+                }),
+                "jandorSaddledAttack",
+            ));
+        }
+        "Whenever Dragon's Smile deals combat damage to a player, that player exiles that many cards from the top of their library. You may play those cards this turn." => {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "dragonSmileCombatExile",
+            ));
+        }
+        "Eminence — At the beginning of your upkeep, Sahir deals 1 damage to you. This ability triggers only if Sahir is in the command zone or on the battlefield." => {
+            let mut parsed = operation(
+                json!({ "kind": "stepBegan", "step": "upkeep", "player": controller() }),
+                "sahirEminenceDamage",
+            );
+            parsed.rule["triggerZone"] = Value::String("commandZoneOrBattlefield".to_string());
+            return Some(parsed);
+        }
+        "Whenever a source you control deals exactly 1 damage to you and whenever a spell or ability you control causes you to lose exactly 1 life, put a +1/+1 counter on Sahir. If this is the second time this ability has resolved this turn, draw a card." => {
+            return Some(operation(
+                json!({
+                    "kind": "oneOf",
+                    "events": [
+                        {
+                            "kind": "controlledSourceDealtExactDamageToController",
+                            "player": controller(),
+                            "amount": 1,
+                        },
+                        {
+                            "kind": "controlledEffectCausedExactLifeLossToController",
+                            "player": controller(),
+                            "amount": 1,
+                        },
+                    ],
+                }),
+                "sahirDarknessCounter",
+            ));
+        }
+        "Whenever you discard one or more cards at random, select one or more targets at random, choose one or more modes at random, flip one or more coins, or roll one or more dice, put a +1/+1 counter on Chira and create a tapped Treasure token." => {
+            return Some(operation(
+                json!({ "kind": "randomChoicePerformed", "player": controller() }),
+                "chiraRandomReward",
+            ));
+        }
+        "Whenever a face-down creature attacks one of your opponents, it can't be blocked this combat." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreatureDeclaredAttacker",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                    "faceDownOnly": true,
+                }),
+                "sashFaceDownUnblockable",
+            ));
+        }
+        "The first spell you cast during each of your turns has assist. When you cast that spell, if another player spent mana to cast it, you and that player each draw a card. (As you cast a spell with assist, you may choose another player. They may pay some or all of the generic mana in the spell's cost.)" => {
+            return Some(operation(
+                json!({
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "spellCastOrdinal": 1,
+                    "duringControllerTurn": true,
+                }),
+                "yumeAssistDraw",
+            ));
+        }
+        "The first nonlegendary creature spell you cast each turn has demonstrate. (When you cast that spell, you may copy it. If you do, choose an opponent to also copy it. Each copy becomes a token.)" => {
+            return Some(operation(
+                json!({
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "where": and(vec![
+                        card_type("Creature"),
+                        not(json!({ "kind": "typeLineContains", "value": "Legendary" })),
+                    ]),
+                    "spellCastOrdinal": 1,
+                }),
+                "eldaDemonstrate",
+            ));
+        }
+        "Whenever you cast an artifact creature or Equipment spell, you may copy that spell. Do this only once each turn. (The copy becomes a token.)" => {
+            let mut parsed = operation(
+                json!({
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "where": or(vec![
+                        and(vec![card_type("Artifact"), card_type("Creature")]),
+                        subtype("Equipment"),
+                    ]),
+                }),
+                "everforgerCopySpell",
+            );
+            parsed.rule["triggerLimit"] = json!({
+                "kind": "onceEachTurn",
+                "id": "everforgerCopySpell",
+            });
+            return Some(parsed);
+        }
+        "Whenever Tsagan attacks, creatures you control get +1/+0 until end of turn for each creature you control with first strike or double strike." => {
+            return Some(operation(
+                json!({ "kind": "declaredAttacker", "object": self_ref() }),
+                "tsaganAttack",
+            ));
+        }
+        "Whenever The Weaver King deals combat damage to a player, they mill that many cards. Then for each opponent, put a creature card from that player's graveyard that was put there from their library this turn onto the battlefield under your control." => {
+            return Some(operation(
+                json!({ "kind": "combatDamageToPlayer", "source": self_ref() }),
+                "weaverKingCombatDamage",
+            ));
+        }
+        "At the beginning of your end step, each player may create a tapped land token named Sanctum with \"{T}: Add one mana of any color.\" Each opponent who does can't attack you during their next turn." => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "endStep", "player": controller() }),
+                "zagorkaSanctums",
+            ));
+        }
+        "Whenever another nontoken Ooze creature you control dies, create two tokens that are copies of that creature, except they're 2/2 and they aren't legendary." => {
+            return Some(operation(
+                json!({
+                    "kind": "permanentDied",
+                    "player": controller(),
+                    "where": subtype("Ooze"),
+                    "excludeSource": true,
+                    "nontoken": true,
+                }),
+                "uugguuCopyOoze",
+            ));
+        }
+        "When Tresserhorn's Lord enters, sacrifice him unless you sacrifice three creatures, pay 3 life, and have target opponent draw three cards." => {
+            return Some(operation(enter_self(), "tresserhornEntryPayment"));
+        }
+        "Whenever you sacrifice a creature, draw a card." => {
+            return Some(operation(
+                json!({
+                    "kind": "permanentDied",
+                    "player": controller(),
+                    "where": card_type("Creature"),
+                    "reason": "sacrificed",
+                }),
+                "tresserhornSacrificeDraw",
+            ));
+        }
+        "Whenever a creature you control with mana value 7 or greater attacks, double its power and toughness until end of turn." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreatureDeclaredAttacker",
+                    "player": controller(),
+                    "where": {
+                        "kind": "compare",
+                        "operator": ">=",
+                        "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                        "right": integer(7),
+                    },
+                }),
+                "maularDoubleAttacker",
+            ));
+        }
+        "When Nephilim Epochal enters, search your library for a Nephilim card, reveal it, put it into your hand, then shuffle." => {
+            return Some(operation(enter_self(), "nephilimEpochalSearch"));
+        }
+        value if value.starts_with("Landfall")
+            && value.contains("twice the number of Crabs")
+            && value.contains("Trilobites") =>
+        {
+            return Some(operation(
+                json!({
+                    "kind": "permanentEntered",
+                    "player": controller(),
+                    "where": card_type("Land"),
+                }),
+                "homerLandfall",
+            ));
+        }
+        "Whenever Grizzlegom attacks, create a 1/1 white Soldier creature token for each Plains you control. Draw a card for each Island you control. Each opponent loses 1 life for each Swamp you control. Put a +1/+1 counter on Grizzlegom for each Mountain you control. You gain 1 life for each Forest you control." => {
+            return Some(operation(
+                json!({ "kind": "declaredAttacker", "object": self_ref() }),
+                "grizzlegomAttack",
+            ));
+        }
+        "When Selenia dies, create a legendary black Aura Curse enchantment token named Selenia's Curse attached to target opponent. The token has enchant player and \"If enchanted player would lose life, they lose twice that much life instead.\"" => {
+            return Some(operation(
+                json!({ "kind": "permanentDied", "object": self_ref() }),
+                "seleniaCurse",
+            ));
+        }
+        "When Balefang enters, target opponent creates a tapped Baneslayer Angel token. The token is goaded for the rest of the game. (It's a {3}{W}{W} 5/5 Angel creature with flying, first strike, lifelink, and protection from Demons and from Dragons.)" => {
+            return Some(operation(enter_self(), "balefangBaneslayer"));
+        }
+        "Whenever a creature you control becomes blocked, you may untap it and remove it from combat." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreatureBecameBlocked",
+                    "player": controller(),
+                }),
+                "niveaUnblockCreature",
+            ));
+        }
+        "Whenever you cast an Aura spell that targets a creature an opponent controls, draw a card. This ability triggers only once each turn." => {
+            let mut parsed = operation(
+                json!({
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "where": subtype("Aura"),
+                }),
+                "grakkAuraDraw",
+            );
+            parsed.rule["triggerLimit"] = json!({
+                "kind": "onceEachTurn",
+                "id": "grakkAuraDraw",
+            });
+            return Some(parsed);
+        }
+        "Whenever Olinda enters or attacks, for each opponent, put an odor counter on up to one target creature that player controls without an odor counter on it. Each of those creatures has \"At the beginning of your upkeep, you lose 2 life\" for as long as it has an odor counter on it. (They continue to smell after Olinda has left the battlefield.)" => {
+            return Some(operation(
+                json!({
+                    "kind": "oneOf",
+                    "events": [
+                        { "kind": "enterBattlefield", "object": self_ref() },
+                        { "kind": "declaredAttacker", "object": self_ref() },
+                    ],
+                }),
+                "olindaOdor",
+            ));
+        }
+        "When this Case enters, conjure four cards named Fblthp, the Lost into your library, then shuffle. Draw a card." => {
+            return Some(operation(enter_self(), "lostWitnessEnter"));
+        }
+        value if value.starts_with("To solve") && value.contains("legendary Homunculus") => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "endStep", "player": controller() }),
+                "solveLostWitness",
+            ));
+        }
+        "When Perforator Crocodile enters, for each creature your opponents control, conjure a card named Stab Wound onto the battlefield attached to that creature." => {
+            return Some(operation(enter_self(), "perforatorStabWounds"));
+        }
+        "When Euru enters, you may forage. When you do, conjure a card named Chitterspitter onto the battlefield. (To forage, exile three cards from your graveyard or sacrifice a Food.)" => {
+            return Some(operation(enter_self(), "euruForageEnter"));
+        }
+        "Whenever one or more Squirrels you control deal combat damage to a player, you may sacrifice a token. If you do, put an acorn counter on each permanent you control named Chitterspitter." => {
+            return Some(operation(
+                json!({
+                    "kind": "controlledCreaturesCombatDamageToPlayer",
+                    "player": controller(),
+                    "where": subtype("Squirrel"),
+                }),
+                "euruSquirrelDamage",
+            ));
+        }
+        "When you attack with three or more creatures, conjure a card named Mox Ruby into your hand. This ability triggers only once." => {
+            return Some(once_operation(
+                json!({ "kind": "controlledCreaturesAttacked", "player": controller() }),
+                "rubyCollectorConjure",
+            ))
+        }
+        "When you draw your third card in a turn, conjure a card named Mox Emerald into your hand. This ability triggers only once." => {
+            return Some(once_operation(
+                json!({ "kind": "cardDrawn", "player": controller(), "drawOrdinal": 3 }),
+                "emeraldCollectorConjure",
+            ))
+        }
+        "When Oracle of the Alpha enters the battlefield, conjure the Power Nine into your library, then shuffle." => {
+            return Some(operation(enter_self(), "oracleAlphaConjurePowerNine"));
+        }
+        "At the beginning of your second main phase, if you gained 4 or more life this turn, conjure a card named Mox Pearl into your hand. This ability triggers only once." => {
+            return Some(once_operation(
+                json!({ "kind": "stepBegan", "step": "postcombatMain", "player": controller() }),
+                "pearlCollectorConjure",
+            ))
+        }
+        value if value.starts_with("Celebration") && value.contains("Food Fight") => {
+            return Some(operation(
+                json!({ "kind": "stepBegan", "step": "endStep", "player": controller() }),
+                "overcookedCelebration",
+            ))
+        }
+        "When you cast your second noncreature spell in a turn, conjure a card named Mox Sapphire into your hand. This ability triggers only once." => {
+            return Some(once_operation(
+                json!({
+                    "kind": "spellCast",
+                    "player": controller(),
+                    "where": not(card_type("Creature")),
+                    "spellCastOrdinal": 2,
+                }),
+                "sapphireCollectorConjure",
+            ))
+        }
+        "At the beginning of your second main phase, if there are four or more cards in your graveyard, conjure a card named Mox Jet into your hand. This ability triggers only once." => {
+            return Some(once_operation(
+                json!({ "kind": "stepBegan", "step": "postcombatMain", "player": controller() }),
+                "jetCollectorConjure",
+            ))
+        }
         "When this creature enters, if you control a creature with power 4 or greater, draw a card." =>
         {
             return Some(operation(
@@ -2250,6 +4395,27 @@ pub(in crate::oracle::canonical) fn parse_avatar_deck_trigger(
             }),
             "badgermoleAdditionalGreen",
         )),
+        "Whenever you tap a land creature for mana, add an additional {G}." => Some(operation(
+            json!({
+                "kind": "controlledPermanentManaAbilityActivated",
+                "player": controller(),
+                "where": and(vec![card_type("Land"), card_type("Creature")]),
+            }),
+            "badgermoleAdditionalGreen",
+        )),
+        "At the beginning of your upkeep, put a tide counter on Rikala. Then if there are four or more tide counters on Rikala, remove them." => {
+            Some(operation(upkeep(controller()), "rikalaTideUpkeep"))
+        }
+        "Whenever you tap an Island for mana, if there are three or more tide counters on Rikala, add an additional {U}." => {
+            Some(operation(
+                json!({
+                    "kind": "controlledPermanentManaAbilityActivated",
+                    "player": controller(),
+                    "where": subtype("Island"),
+                }),
+                "rikalaAdditionalBlue",
+            ))
+        }
         "Whenever you attack a player with one or more creatures with power 4 or greater, draw a card." => {
             Some(operation(
                 json!({
@@ -2322,6 +4488,22 @@ pub(in crate::oracle::canonical) fn parse_avatar_deck_trigger(
                     "kind": "controlledPermanentManaAbilityActivated",
                     "player": controller(),
                     "where": card_type("Land"),
+                }),
+                "mirarisWakeAdditionalMana",
+            ))
+        }
+        "Whenever a player taps a basic land for mana, that player adds one mana of any type that land produced." => {
+            Some(operation(
+                json!({
+                    "kind": "controlledPermanentManaAbilityActivated",
+                    "anyPlayer": true,
+                    "where": {
+                        "kind": "and",
+                        "operands": [
+                            card_type("Land"),
+                            { "kind": "typeLineContains", "value": "Basic" },
+                        ],
+                    },
                 }),
                 "mirarisWakeAdditionalMana",
             ))
@@ -3999,6 +6181,46 @@ pub(in crate::oracle::canonical) fn parse_common_triggered_ability(
         ));
     }
     if text
+        == "When enchanted creature dies, return that card to the battlefield tapped under its owner's control."
+    {
+        return Some(triggered(
+            json!({ "kind": "attachedPermanentDied", "attachment": self_ref() }),
+            None,
+            vec![json!({
+                "kind": "moveTriggeringCardFromGraveyard",
+                "to": "battlefield",
+                "tapped": true,
+            })],
+        ));
+    }
+    if text == "When this creature dies, put its counters on up to one target creature you control."
+    {
+        return Some(triggered(
+            json!({
+                "kind": "permanentDied",
+                "object": self_ref(),
+            }),
+            Some(json!({
+                "kind": "castingDeclaration",
+                "decisions": [target_decision(
+                    "targetCreature",
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": card_type("Creature"),
+                    }),
+                    0,
+                    1,
+                )],
+            })),
+            vec![json!({
+                "kind": "putSameCountersAs",
+                "permanent": chosen_target("targetCreature"),
+                "source": { "kind": "abilitySource" },
+            })],
+        ));
+    }
+    if text
         == "When this creature dies, you may exile it. When you do, return target creature card with mana value less than or equal to this creature's power from your graveyard to the battlefield."
     {
         return Some(triggered(
@@ -4917,6 +7139,18 @@ pub(in crate::oracle::canonical) fn parse_remaining_deck_trigger(
                     "kind": "permanentDied",
                     "player": controller(),
                     "where": card_type("Creature"),
+                }),
+                "createFoodForCreatureDeath",
+                None,
+            ))
+        }
+        "Whenever another creature dies, create a Food token. This ability triggers only once each turn. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")" => {
+            Some(limited_operation(
+                json!({
+                    "kind": "permanentDied",
+                    "anyPlayer": true,
+                    "where": card_type("Creature"),
+                    "excludeSource": true,
                 }),
                 "createFoodForCreatureDeath",
                 None,

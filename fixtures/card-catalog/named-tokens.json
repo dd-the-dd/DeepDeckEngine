@@ -38,6 +38,33 @@
         "manaValue": 0,
         "urlFront": "https://example.invalid/blood.jpg"
       }
+    ],
+    "map": [
+      {
+        "setCode": "fixture",
+        "collectorNumber": "4",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact \u2014 Map",
+        "oracleText": "{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery.",
+        "manaValue": 0,
+        "urlFront": "https://example.invalid/map.jpg"
+      }
+    ],
+    "griselbrand": [
+      {
+        "setCode": "fixture",
+        "collectorNumber": "5",
+        "layout": "normal",
+        "typeLine": "Legendary Creature \u2014 Demon",
+        "oracleText": "Flying, lifelink\nPay 7 life: Draw seven cards.",
+        "manaCost": "{4}{B}{B}{B}{B}",
+        "manaValue": 8,
+        "power": "7",
+        "toughness": "7",
+        "urlFront": "https://example.invalid/griselbrand.jpg"
+      }
     ]
   },
   "sets": {
