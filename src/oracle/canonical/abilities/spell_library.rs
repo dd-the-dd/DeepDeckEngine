@@ -923,6 +923,9 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
             ],
         ));
     }
+    if text == "Explosion deals X damage to any target. Target player draws X cards." {
+        return parse_avatar_deck_spell(text);
+    }
     if let Some((effects, decisions)) = parse_general_effect_instruction(text, "") {
         let mut rule = json!({
             "kind": "spellAbility",
