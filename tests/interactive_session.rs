@@ -262,7 +262,9 @@ fn human_request(setup: GameSetup, seed: u64) -> CreateGameSessionRequest {
         analytics_pilot_by_player_id: Default::default(),
         punching_bag_player_ids: Vec::new(),
         opening_hand_selection_pool_size_by_player_id: Default::default(),
+        fixed_opening_hand_definition_ids_by_player_id: Default::default(),
         training_anchor_deadline_round_by_player_id: Default::default(),
+        start_with_sideboarding: false,
         free_mulligans: 0,
         human_decision_timeout_ms: None,
         max_mulligans: None,
@@ -694,6 +696,54 @@ fn session_runs_london_mulligan_and_bottom_choices_before_the_first_turn() {
     assert_eq!(view.state.players[0].hand.len(), 6);
     assert_eq!(view.state.players[0].library.len(), 2);
     assert_ne!(decision(&view).kind, DecisionKind::MulliganBottom);
+}
+
+#[test]
+fn legacy_training_session_can_begin_with_a_sideboard_decision() {
+    let manager = GameSessionManager::new();
+    let player = |id: &str, land: &str| {
+        let mut cards = (0..60)
+            .map(|index| {
+                card(
+                    &format!("{id}-main-{index}"),
+                    land,
+                    &format!("Basic Land - {land}"),
+                    "",
+                )
+            })
+            .collect::<Vec<_>>();
+        let mut sideboard = card(
+            &format!("{id}-sideboard"),
+            "Sideboard Tool",
+            "Instant",
+            "{1}",
+        );
+        sideboard.is_sideboard = true;
+        cards.push(sideboard);
+        PlayerDeck {
+            cards,
+            id: id.to_string(),
+            name: id.to_string(),
+            starting_life: 20,
+        }
+    };
+    let mut request = human_request(
+        setup(vec![player("one", "Mountain"), player("two", "Forest")], 7),
+        29,
+    );
+    request.game_mode = mtg_engine::engine::GameMode::Legacy;
+    request.start_with_sideboarding = true;
+
+    let view = manager
+        .create(request)
+        .expect("sideboard-first session starts");
+
+    assert_eq!(decision(&view).kind, DecisionKind::Sideboarding);
+    assert_eq!(
+        view.match_state.as_ref().map(|state| state.phase.as_str()),
+        Some("sideboarding")
+    );
+    manager.remove(&view.session_id).expect("session removed");
 }
 
 /// Feature: Hold priority exposes deliberate mana actions alongside an explicit pass.

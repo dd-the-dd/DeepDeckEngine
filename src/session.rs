@@ -195,7 +195,11 @@ pub struct CreateGameSessionRequest {
     #[serde(default)]
     pub opening_hand_selection_pool_size_by_player_id: BTreeMap<String, usize>,
     #[serde(default)]
+    pub fixed_opening_hand_definition_ids_by_player_id: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
     pub training_anchor_deadline_round_by_player_id: BTreeMap<String, u32>,
+    #[serde(default)]
+    pub start_with_sideboarding: bool,
     #[serde(default)]
     pub hold_priority_player_ids: Vec<String>,
     #[serde(default)]
@@ -1110,6 +1114,11 @@ impl GameSessionManager {
         for player_id in request
             .opening_hand_selection_pool_size_by_player_id
             .keys()
+            .chain(
+                request
+                    .fixed_opening_hand_definition_ids_by_player_id
+                    .keys(),
+            )
             .chain(request.training_anchor_deadline_round_by_player_id.keys())
         {
             if !player_ids.contains(player_id.as_str()) {
@@ -1117,6 +1126,19 @@ impl GameSessionManager {
                     "unknown training configuration player: {player_id}"
                 )));
             }
+        }
+        if let Some(player_id) = request
+            .fixed_opening_hand_definition_ids_by_player_id
+            .keys()
+            .find(|player_id| {
+                request
+                    .opening_hand_selection_pool_size_by_player_id
+                    .contains_key(*player_id)
+            })
+        {
+            return Err(GameSessionError::new(format!(
+                "player {player_id} cannot use both fixed and selectable opening hands"
+            )));
         }
         if let Some(unknown) = request
             .hold_priority_player_ids
@@ -1178,6 +1200,11 @@ impl GameSessionManager {
         let analytics_deck_session_by_player_id =
             request.analytics_deck_session_by_player_id.clone();
         let game_mode = request.game_mode;
+        if request.start_with_sideboarding && game_mode != GameMode::Legacy {
+            return Err(GameSessionError::new(
+                "startWithSideboarding requires legacy game mode",
+            ));
+        }
         let wait_timeout = Duration::from_millis(request.wait_timeout_ms.clamp(1_000, 600_000));
         let human_decision_timeout = request
             .human_decision_timeout_ms
@@ -1192,6 +1219,11 @@ impl GameSessionManager {
         for (player_id, deadline_round) in &request.training_anchor_deadline_round_by_player_id {
             engine
                 .configure_training_anchor(player_id, *deadline_round)
+                .map_err(|error| GameSessionError::new(error.to_string()))?;
+        }
+        for (player_id, definition_ids) in &request.fixed_opening_hand_definition_ids_by_player_id {
+            engine
+                .configure_fixed_opening_hand(player_id, definition_ids)
                 .map_err(|error| GameSessionError::new(error.to_string()))?;
         }
         let session_id = format!(
@@ -1346,6 +1378,7 @@ impl GameSessionManager {
         };
         let ai_seed = request.seed ^ 0xD1B5_4A32_D192_ED03;
         let opening_hand_selections = request.opening_hand_selection_pool_size_by_player_id;
+        let start_with_sideboarding = request.start_with_sideboarding;
         let wait_shared = Arc::clone(&shared);
         thread::Builder::new()
             .name("mtg-game-session".to_string())
@@ -1373,6 +1406,28 @@ impl GameSessionManager {
                     .iter()
                     .map(|player| (player.id.clone(), 0_u32))
                     .collect::<BTreeMap<_, _>>();
+                if start_with_sideboarding {
+                    shared.publish_match_state(GameMatchState {
+                        game_number,
+                        games_to_win,
+                        phase: "sideboarding".to_string(),
+                        wins_by_player_id: wins_by_player_id.clone(),
+                        winner_player_id: None,
+                    });
+                    if let Err(error) =
+                        apply_sideboarding(&mut match_setup, engine.state(), &mut provider, 0)
+                    {
+                        shared.publish_completion(engine.state(), Some(error.to_string()));
+                        return;
+                    }
+                    match GameEngine::new_with_mode(match_setup.clone(), request.seed, game_mode) {
+                        Ok(sideboarded_engine) => engine = sideboarded_engine,
+                        Err(error) => {
+                            shared.publish_completion(engine.state(), Some(error.to_string()));
+                            return;
+                        }
+                    }
+                }
                 loop {
                     if game_mode == GameMode::Legacy {
                         shared.publish_match_state(GameMatchState {
@@ -1901,7 +1956,9 @@ mod tests {
                 analytics_deck_session_by_player_id: Default::default(),
                 punching_bag_player_ids: Vec::new(),
                 opening_hand_selection_pool_size_by_player_id: Default::default(),
+                fixed_opening_hand_definition_ids_by_player_id: Default::default(),
                 training_anchor_deadline_round_by_player_id: Default::default(),
+                start_with_sideboarding: false,
                 hold_priority_player_ids: Vec::new(),
                 mulligan_enabled: false,
                 free_mulligans: 0,

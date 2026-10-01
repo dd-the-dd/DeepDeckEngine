@@ -295,7 +295,7 @@ impl<'a, P> LoopShortcutDecisionProvider<'a, P> {
                     })
                     .map(|(index, _)| index)
                     .collect::<Vec<_>>();
-                (matches.len() == 1).then_some(matches[0])
+                (matches.len() == 1).then(|| matches[0])
             })
     }
 
@@ -1456,6 +1456,16 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
             .filter(|rule| !printed.rules.contains(rule))
             .cloned(),
     );
+    if let Some(starting_loyalty) = face["loyalty"]
+        .as_str()
+        .and_then(|value| value.parse::<i32>().ok())
+    {
+        definition.rules.push(json!({
+            "kind": "rulesMarker",
+            "activeFaceIndex": face_index,
+            "startingLoyalty": { "kind": "integer", "value": starting_loyalty },
+        }));
+    }
     card.definition = definition;
     if face_index == 0 {
         card.flags.remove("transformed");
@@ -9223,6 +9233,52 @@ impl GameEngine {
                 "handSize": hand_size,
                 "poolSize": requested_pool_size,
                 "availablePoolSize": pool_size,
+            }),
+        );
+        Ok(())
+    }
+
+    /// Replaces the shuffled opening hand with an exact, ordered list of card
+    /// definitions. This is reserved for deterministic training puzzles; each
+    /// requested copy must exist in the player's submitted deck.
+    pub fn configure_fixed_opening_hand(
+        &mut self,
+        player_id: &str,
+        definition_ids: &[String],
+    ) -> Result<(), EngineError> {
+        if definition_ids.is_empty() {
+            return Err(EngineError::new("fixed opening hand cannot be empty"));
+        }
+        let player_index = self.player_index(player_id)?;
+        let mut available = {
+            let player = &mut self.state.players[player_index];
+            std::mem::take(&mut player.library)
+                .into_iter()
+                .chain(std::mem::take(&mut player.hand))
+                .collect::<Vec<_>>()
+        };
+        let mut fixed_hand = Vec::with_capacity(definition_ids.len());
+        for definition_id in definition_ids {
+            let Some(index) = available
+                .iter()
+                .position(|card| card.definition.id == *definition_id)
+            else {
+                return Err(EngineError::new(format!(
+                    "fixed opening hand for {player_id} is missing card definition {definition_id}"
+                )));
+            };
+            fixed_hand.push(available.remove(index));
+        }
+        available.shuffle(&mut self.rng);
+        self.state.players[player_index].hand = fixed_hand;
+        self.state.players[player_index].library = available;
+        self.record_event(
+            "fixedOpeningHandConfigured",
+            Some(player_id.to_string()),
+            None,
+            json!({
+                "cardCount": definition_ids.len(),
+                "definitionIds": definition_ids,
             }),
         );
         Ok(())
@@ -24151,6 +24207,10 @@ impl GameEngine {
                 .collect::<Vec<_>>();
             for (rule_index, rule, granted) in ability_rules {
                 if !activated_rule_supported(&rule)
+                    || rule
+                        .get("activationZone")
+                        .and_then(Value::as_str)
+                        .is_some_and(|zone| zone != "battlefield")
                     || !self.rule_active_for_source(permanent, &rule)
                     || rule.get("activationLimit").is_some_and(|limit| {
                         let Some(id) = limit["id"].as_str() else {
@@ -31696,10 +31756,10 @@ impl GameEngine {
                         .ok_or_else(|| {
                             EngineError::new("off-battlefield activation is not executable")
                         })?;
-                    let tapped_sources = self.apply_payment(player_index, action)?;
                     if mana_rule_supported(&rule) {
                         self.apply_activated_discard_costs(action, &rule)?;
                         self.apply_activated_exile_source_costs(action, &rule)?;
+                        let tapped_sources = self.apply_payment(player_index, action)?;
                         let mana_symbols = action
                             .decisions
                             .get("offBattlefieldManaProduced")
@@ -31738,6 +31798,15 @@ impl GameEngine {
                         self.check_state_based_actions_with_provider(Some(provider))?;
                         return Ok(());
                     }
+                    // Activation costs may be paid in any order. Move an
+                    // off-battlefield source out of its declared zone before
+                    // activating mana sources so a nested mana activation or
+                    // trigger cannot invalidate the source halfway through
+                    // paying Channel-style costs.
+                    self.apply_activated_discard_costs(action, &rule)?;
+                    self.apply_activated_exile_source_costs(action, &rule)?;
+                    self.apply_activated_return_costs(action, &rule)?;
+                    let tapped_sources = self.apply_payment(player_index, action)?;
                     self.stack_sequence += 1;
                     let stack_id = format!("stack:{}", self.stack_sequence);
                     self.state.stack.push(StackObject {
@@ -31751,9 +31820,6 @@ impl GameEngine {
                         decisions: action.decisions.clone(),
                         targets: action.targets.clone(),
                     });
-                    self.apply_activated_discard_costs(action, &rule)?;
-                    self.apply_activated_exile_source_costs(action, &rule)?;
-                    self.apply_activated_return_costs(action, &rule)?;
                     for source in tapped_sources {
                         self.enqueue_permanent_tapped_triggers(&source);
                     }

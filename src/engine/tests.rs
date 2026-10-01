@@ -4,6 +4,54 @@ use crate::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
+fn loop_shortcut_missing_reused_choice_falls_back_without_panicking() {
+    let reused_action = LegalAction {
+        id: "choose:room:runestone".to_string(),
+        kind: ActionKind::ChooseResolution,
+        player_id: "player-0".to_string(),
+        label: "Choose Runestone Caverns".to_string(),
+        card_instance_id: Some("dungeon".to_string()),
+        payment_sources: Vec::new(),
+        decisions: BTreeMap::from([(
+            "room".to_string(),
+            Value::String("Runestone Caverns".to_string()),
+        )]),
+        targets: BTreeMap::new(),
+        target_order: Vec::new(),
+        attacker_id: None,
+        blocker_id: None,
+    };
+    let request = EngineDecisionRequest {
+        id: "resolution:room".to_string(),
+        kind: DecisionKind::ResolutionChoice,
+        player_id: "player-0".to_string(),
+        source_card: None,
+        source_card_instance_id: Some("dungeon".to_string()),
+        choice: None,
+        options: vec![LegalAction {
+            id: "choose:room:graveyard".to_string(),
+            label: "Choose Muiral's Graveyard".to_string(),
+            decisions: BTreeMap::from([(
+                "room".to_string(),
+                Value::String("Muiral's Graveyard".to_string()),
+            )]),
+            ..reused_action.clone()
+        }],
+    };
+    let reused = ReusedLoopChoice {
+        option_index: 0,
+        action: reused_action,
+    };
+
+    assert_eq!(
+        LoopShortcutDecisionProvider::<WardDecisionProvider>::reusable_option_index(
+            &request, &reused,
+        ),
+        None
+    );
+}
+
+#[test]
 fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     let mut engine = test_engine(2);
     let mut extracted_definition = test_definition("extracted-card", "Creature - Zombie Imp");
@@ -5539,16 +5587,16 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
         test_definition("return-target", "Creature"),
         "player-1",
     ));
-    engine.state.players[0].mana_pool.extend([
-        FloatingMana {
-            symbol: "U".to_string(),
-            spend_restriction: None,
-        },
-        FloatingMana {
-            symbol: "U".to_string(),
-            spend_restriction: None,
-        },
-    ]);
+    for index in 0..2 {
+        engine.state.players[0].battlefield.push(test_instance(
+            &format!("channel-mana-source-{index}"),
+            test_definition(
+                &format!("channel-mana-source-{index}"),
+                "Basic Land - Island",
+            ),
+            "player-0",
+        ));
+    }
     let mut source = test_instance(
         "channel-source",
         test_definition("channel-source", "Legendary Land"),
@@ -5596,9 +5644,20 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
         "the reduced off-battlefield activation must be recursively executable: {}",
         source.definition.rules[0]
     );
+    engine.state.players[0].battlefield.push(test_instance(
+        "channel-source-on-battlefield",
+        source.definition.clone(),
+        "player-0",
+    ));
     engine.state.players[0].hand.push(source);
 
     let legal_actions = engine.legal_priority_actions(0);
+    assert!(
+        legal_actions.iter().all(|action| {
+            action.card_instance_id.as_deref() != Some("channel-source-on-battlefield")
+        }),
+        "an activation restricted to the hand must not be published from the battlefield"
+    );
     let action = legal_actions
             .iter()
             .into_iter()
@@ -5614,12 +5673,32 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
                     "two generic mana are removed from the hand activation cost; actions={legal_actions:#?}"
                 )
             });
-    assert_eq!(
-        action.decisions["manaPoolPayment"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+    assert_eq!(action.payment_sources.len(), 2);
+    engine
+        .apply_priority_action(action, &mut RandomAi::seeded(92))
+        .expect("the reduced channel ability pays mana and discards its source once");
+    assert!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .all(|card| card.instance_id != "channel-source")
+    );
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "channel-source")
+    );
+    assert!(engine.state.stack.iter().any(|object| {
+        object.card.instance_id == "channel-source"
+            && object.ability_kind.as_deref() == Some("activatedAbility")
+    }));
+    assert!(
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .filter(|card| card.instance_id.starts_with("channel-mana-source-"))
+            .all(|card| card.tapped)
     );
 }
 
@@ -7807,6 +7886,40 @@ fn training_anchor_opening_hand_is_chosen_from_published_pool() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn deterministic_puzzle_can_configure_an_exact_opening_hand() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].library.extend([
+        test_instance(
+            "combo-a-instance",
+            test_definition("combo-a", "Sorcery"),
+            "player-0",
+        ),
+        test_instance(
+            "combo-b-instance",
+            test_definition("combo-b", "Artifact"),
+            "player-0",
+        ),
+    ]);
+
+    engine
+        .configure_fixed_opening_hand("player-0", &["combo-b".to_string(), "combo-a".to_string()])
+        .expect("fixed opening hand");
+
+    assert_eq!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .map(|card| card.definition.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["combo-b", "combo-a"]
+    );
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "fixedOpeningHandConfigured"
+            && event.detail["definitionIds"] == json!(["combo-b", "combo-a"])
+    }));
+}
+
 #[test]
 fn compare_condition_reads_numeric_decision_results() {
     let engine = test_engine(2);
@@ -13922,11 +14035,6 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
         }),
         json!({
             "kind": "rulesMarker",
-            "activeFaceIndex": 1,
-            "startingLoyalty": { "kind": "integer", "value": 2 },
-        }),
-        json!({
-            "kind": "rulesMarker",
             "text": "Transformable card faces.",
             "transformFaces": [
                 {
@@ -13940,6 +14048,7 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
                     "name": "Tamiyo, Seasoned Scholar",
                     "typeLine": "Legendary Planeswalker - Tamiyo",
                     "manaCost": "",
+                    "loyalty": "2",
                     "power": null,
                     "toughness": null,
                 },

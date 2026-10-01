@@ -421,6 +421,30 @@ fn compile_session_deck(
             oracle: oracle_request(card),
         })?
         .card;
+        if matches!(layout.as_str(), "flip" | "transform") {
+            let catalog_faces = selected
+                .get("faces")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            if let Some(compiled_faces) = definition
+                .rules
+                .iter_mut()
+                .find(|rule| rule["transformFaces"].is_array())
+                .and_then(|rule| rule["transformFaces"].as_array_mut())
+            {
+                for (compiled_face, catalog_face) in
+                    compiled_faces.iter_mut().zip(catalog_faces.iter())
+                {
+                    if let (Some(target), Some(loyalty)) = (
+                        compiled_face.as_object_mut(),
+                        catalog_face.get("loyalty").and_then(Value::as_str),
+                    ) {
+                        target.insert("loyalty".to_string(), Value::String(loyalty.to_string()));
+                    }
+                }
+            }
+        }
         let related_tokens = selected
             .get("relatedTokens")
             .and_then(Value::as_array)
@@ -961,5 +985,53 @@ mod tests {
 
         let deck = compile_session_deck(&session, 0).expect("session deck compiles");
         assert_eq!(deck.cards.len(), 1);
+    }
+
+    #[test]
+    fn transform_face_compilation_preserves_planeswalker_starting_loyalty() {
+        let session = LocalSession {
+            id: "tamiyo-session".to_string(),
+            name: "Tamiyo deck".to_string(),
+            creator: "dd-the-dd".to_string(),
+            is_meta_deck: false,
+            updated_at: "1".to_string(),
+            state: json!({
+                "cards": [{
+                    "name": "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+                    "quantity": 1,
+                    "selectedOption": {
+                        "id": "tamiyo",
+                        "layout": "transform",
+                        "typeLine": "Legendary Creature - Moonfolk Wizard // Legendary Planeswalker - Tamiyo",
+                        "manaCost": "{U}",
+                        "oracleText": null,
+                        "faces": [{
+                            "id": "tamiyo-front",
+                            "name": "Tamiyo, Inquisitive Student",
+                            "typeLine": "Legendary Creature - Moonfolk Wizard",
+                            "manaCost": "{U}",
+                            "oracleText": "When you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.",
+                            "power": "0",
+                            "toughness": "3"
+                        }, {
+                            "id": "tamiyo-back",
+                            "name": "Tamiyo, Seasoned Scholar",
+                            "typeLine": "Legendary Planeswalker - Tamiyo",
+                            "manaCost": "",
+                            "oracleText": "+2: Until your next turn, whenever a creature attacks you, it gets -1/-0 until end of turn.",
+                            "loyalty": "2"
+                        }]
+                    }
+                }]
+            }),
+        };
+
+        let deck = compile_session_deck(&session, 0).expect("Tamiyo deck compiles");
+        let faces = deck.cards[0]
+            .rules
+            .iter()
+            .find_map(|rule| rule["transformFaces"].as_array())
+            .expect("transform faces are retained");
+        assert_eq!(faces[1]["loyalty"], "2");
     }
 }
