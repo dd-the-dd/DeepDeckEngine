@@ -51,6 +51,7 @@ fn loop_shortcut_missing_reused_choice_falls_back_without_panicking() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     let mut engine = test_engine(2);
@@ -7920,6 +7921,7 @@ fn deterministic_puzzle_can_configure_an_exact_opening_hand() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn compare_condition_reads_numeric_decision_results() {
     let engine = test_engine(2);
