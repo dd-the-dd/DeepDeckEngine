@@ -430,7 +430,10 @@ impl HistorySpool {
         })
     }
 
-    #[cfg(test)]
+    #[cfg(all(
+        test,
+        any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+    ))]
     fn pending_count(&self) -> u64 {
         self.connect()
             .and_then(|connection| {
@@ -834,7 +837,10 @@ fn wait_for_history_work(signal: &WorkSignal) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{
         DEFAULT_SPOOL_MAX_BYTES, DeliveryError, DeliveryErrorKind, HistoryEvent, HistoryQueue,

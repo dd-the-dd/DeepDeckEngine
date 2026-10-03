@@ -59,7 +59,10 @@ pub fn apply_merge_patch(target: &mut Value, patch: &Value) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{apply_merge_patch, merge_patch};
     use serde_json::json;

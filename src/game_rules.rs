@@ -613,7 +613,10 @@ fn display_colors(colors: &BTreeSet<char>) -> String {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
 

@@ -51,9 +51,12 @@ pwsh ./scripts/check-public-tree.ps1
 ```
 
 `cargo check --all-targets` is intentionally part of CI because it type-checks
-the very large private-access unit-test modules. CI executes the independently
-linked integration-test binaries; contributors with enough virtual memory can
-also run the complete monolithic unit-test binary with `cargo test --lib`.
+every target. CI executes the private-access unit tests in four independently
+linked, memory-bounded partitions on Linux and Windows; plain `cargo test` and
+`cargo test --lib` continue to run the complete unit-test suite locally.
+`scripts/check-unit-test-partitions.ps1` guards the partition inventory and
+fails when a new private-access test has not been assigned to a partition.
+CI also executes the independently linked integration-test binaries.
 The reviewed-fixture audit binaries remain visible as advisory CI steps while
 their explicitly linked parser regressions are repaired; their fixtures are not
 weakened to make a release pass.

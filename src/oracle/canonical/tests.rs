@@ -1,5 +1,6 @@
 use super::*;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_hand_exile_composes_card_criteria_and_preserves_the_source_link() {
     for instruction in [
@@ -22,6 +23,7 @@ fn linked_hand_exile_composes_card_criteria_and_preserves_the_source_link() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_exiled_card_copy_sequence_supports_optional_and_mandatory_copying() {
     for (instruction, outer_kind) in [
@@ -68,6 +70,7 @@ fn linked_exiled_card_copy_sequence_supports_optional_and_mandatory_copying() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_card_mana_value_can_fix_an_activated_x_cost() {
     let parsed = parse_simple_activated_ability_for_face(
@@ -92,6 +95,7 @@ fn linked_card_mana_value_can_fix_an_activated_x_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn deck_audit_primitives_compose_related_oracle_formulations() {
     for instruction in [
@@ -116,6 +120,7 @@ fn deck_audit_primitives_compose_related_oracle_formulations() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn bounded_free_cast_from_hand_composes_spell_criteria_and_runtime_arithmetic() {
     assert!(parse_permanent_criteria("instant or sorcery", "").is_some());
@@ -169,6 +174,7 @@ fn bounded_free_cast_from_hand_composes_spell_criteria_and_runtime_arithmetic() 
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn multiplicative_numeric_prefixes_build_factors_through_ten() {
     for (word, factor) in [
@@ -197,6 +203,7 @@ fn multiplicative_numeric_prefixes_build_factors_through_ten() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn controlled_counted_lord_bonus_composes_selectors_criteria_and_scaling() {
     let parsed = parse_common_static_ability(
@@ -237,6 +244,7 @@ fn controlled_counted_lord_bonus_composes_selectors_criteria_and_scaling() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn named_token_creation_replacement_composes_retained_and_additional_tokens() {
     let parsed = parse_common_static_ability(
@@ -266,6 +274,7 @@ fn named_token_creation_replacement_composes_retained_and_additional_tokens() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn global_destruction_binds_only_destroyed_permanents_for_linked_life_gain() {
     let parsed = parse_expansion_triggered(
@@ -298,6 +307,7 @@ fn global_destruction_binds_only_destroyed_permanents_for_linked_life_gain() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn controller_turn_keywords_compose_controlled_state_criteria() {
     let parsed = parse_common_static_ability(
@@ -332,6 +342,7 @@ fn controller_turn_keywords_compose_controlled_state_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn nontoken_source_entry_can_create_nonlegendary_token_copies() {
     let instruction = parse_expansion_instruction(
@@ -352,6 +363,7 @@ fn nontoken_source_entry_can_create_nonlegendary_token_copies() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn controlled_permanent_lists_can_gain_ward_conditionally() {
     assert!(parse_activation_costs("{1}").is_some());
@@ -374,6 +386,7 @@ fn controlled_permanent_lists_can_gain_ward_conditionally() {
     assert!(crate::engine::rule_is_executable(&conditional.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn fetch_land_subtype_lists_strip_indefinite_articles_from_every_alternative() {
     for (text, expected) in [
@@ -405,6 +418,7 @@ fn fetch_land_subtype_lists_strip_indefinite_articles_from_every_alternative() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn source_with_commas_returns_as_a_different_permanent_type() {
     let parsed = parse_expansion_triggered(
@@ -427,6 +441,7 @@ fn source_with_commas_returns_as_a_different_permanent_type() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn draw_then_return_from_hand_uses_composable_zone_and_order_primitives() {
     for (text, draw_count, put_count) in [
@@ -469,6 +484,7 @@ fn draw_then_return_from_hand_uses_composable_zone_and_order_primitives() {
         .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ordinal_draw_transform_and_variable_loyalty_sequences_use_shared_grammars() {
     let investigate = parse_expansion_triggered(
@@ -531,6 +547,7 @@ fn ordinal_draw_transform_and_variable_loyalty_sequences_use_shared_grammars() {
     assert!(crate::engine::rule_is_executable(&draw_and_emblem.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn named_tokens_preserve_their_tapped_entry_state_through_trigger_composition() {
     for (text, token_name) in [
@@ -555,6 +572,7 @@ fn named_tokens_preserve_their_tapped_entry_state_through_trigger_composition() 
     assert!(create_token_effect("Create a tapped imaginary maybe token.").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn optional_library_search_can_shuffle_before_putting_the_selection_on_top() {
     for (criteria, expected_filter_kind) in [
@@ -592,6 +610,7 @@ fn optional_library_search_can_shuffle_before_putting_the_selection_on_top() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn split_library_search_composes_costs_criteria_and_two_destinations() {
     for reference in ["them", "those cards"] {
@@ -626,6 +645,7 @@ fn split_library_search_composes_costs_criteria_and_two_destinations() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ordinal_triggered_branches_reuse_leaf_effect_parsers() {
     let parsed = parse_expansion_triggered(
@@ -659,6 +679,7 @@ fn ordinal_triggered_branches_reuse_leaf_effect_parsers() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn gift_keyword_binds_generic_effects_and_followup_conditions() {
     let treasure = parse_remaining_kellan_ability(
@@ -708,6 +729,7 @@ fn gift_keyword_binds_generic_effects_and_followup_conditions() {
     assert!(crate::engine::rule_is_executable(&rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn zero_loyalty_ninjutsu_and_conditional_planeswalker_rules_are_generic() {
     let ninjutsu = parse_keyword_ability(
@@ -753,6 +775,7 @@ fn zero_loyalty_ninjutsu_and_conditional_planeswalker_rules_are_generic() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn legacy_rule_families_parse_without_card_specific_branches() {
     let attack = parse_expansion_triggered(
@@ -813,6 +836,7 @@ fn legacy_rule_families_parse_without_card_specific_branches() {
     assert!(crate::engine::rule_is_executable(&entering_counters.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn permanent_selection_then_sacrifice_rest_composes_player_quantity_and_criteria() {
     let cases = [
@@ -884,6 +908,7 @@ fn permanent_selection_then_sacrifice_rest_composes_player_quantity_and_criteria
     assert!(crate::engine::rule_is_executable(&triggered.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn topiary_lecturer_mana_scales_with_its_power() {
     let parsed = parse_mana_ability("{T}: Add an amount of {G} equal to this creature's power.")
@@ -905,6 +930,7 @@ fn topiary_lecturer_mana_scales_with_its_power() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opus_mill_trigger_uses_actual_mana_spent_threshold() {
     let parsed = parse_common_triggered_ability(
@@ -922,6 +948,7 @@ fn opus_mill_trigger_uses_actual_mana_spent_threshold() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn warp_parser_reuses_the_generic_cost_parser_without_reminder_text_dependency() {
     for oracle_text in [
@@ -940,6 +967,7 @@ fn warp_parser_reuses_the_generic_cost_parser_without_reminder_text_dependency()
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn dredge_parser_cross_checks_the_keyword_and_reminder_quantities() {
     let parsed = parse_keyword_ability(
@@ -959,6 +987,7 @@ fn dredge_parser_cross_checks_the_keyword_and_reminder_quantities() {
         .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn self_death_face_down_pile_uses_the_generic_zone_sequence() {
     let parsed = parse_expansion_triggered(
@@ -976,6 +1005,7 @@ fn self_death_face_down_pile_uses_the_generic_zone_sequence() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn saga_chapters_grant_parsed_abilities_and_search_by_exact_mana_cost() {
     let mana = parse_generalized_zone_and_combat_ability(
@@ -1014,6 +1044,7 @@ fn saga_chapters_grant_parsed_abilities_and_search_by_exact_mana_cost() {
     assert!(crate::engine::rule_is_executable(&search.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn saga_chapters_reuse_the_fixed_mana_effect_leaf() {
     let red = parse_generalized_zone_and_combat_ability(
@@ -1037,6 +1068,7 @@ fn saga_chapters_reuse_the_fixed_mana_effect_leaf() {
     assert!(parse_general_effect_instruction("Add {1}.", "").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn direct_mana_effects_distinguish_one_color_from_color_combinations() {
     let combination = parse_general_effect_instruction(
@@ -1066,6 +1098,7 @@ fn direct_mana_effects_distinguish_one_color_from_color_combinations() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn equipment_targeting_reductions_parse_amount_subject_and_attached_object() {
     let equip = parse_avatar_deck_static(
@@ -1096,6 +1129,7 @@ fn equipment_targeting_reductions_parse_amount_subject_and_attached_object() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn multi_kicker_uses_independent_generic_costs_and_cost_specific_triggers() {
     let kicker = parse_keyword_ability("Kicker {G} and/or {1}{U}", "Test Battlemage")
@@ -1125,6 +1159,7 @@ fn multi_kicker_uses_independent_generic_costs_and_cost_specific_triggers() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ward_parser_reuses_the_generic_cost_parser_including_keyword_lists() {
     let cases = [
@@ -1204,6 +1239,7 @@ fn ward_parser_reuses_the_generic_cost_parser_including_keyword_lists() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn blight_reuses_the_root_cost_atom_across_activated_keyword_and_casting_costs() {
     let activated = parse_simple_activated_ability(
@@ -1295,6 +1331,7 @@ fn blight_reuses_the_root_cost_atom_across_activated_keyword_and_casting_costs()
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn unspecified_source_counter_cost_defers_the_counter_kind_to_activation() {
     let activated =
@@ -1317,6 +1354,7 @@ fn unspecified_source_counter_cost_defers_the_counter_kind_to_activation() {
     assert!(parse_activation_costs("Remove zero counters from this creature").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn granted_ward_uses_the_same_cost_parser() {
     let parsed =
@@ -1335,6 +1373,7 @@ fn granted_ward_uses_the_same_cost_parser() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn flashback_reuses_the_generic_cost_parser() {
     let cases = [
@@ -1368,6 +1407,7 @@ fn flashback_reuses_the_generic_cost_parser() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn targeted_zone_change_uses_criteria_and_resolution_conditions() {
     let conditional = parse_common_zone_and_value_spell(
@@ -1439,6 +1479,7 @@ fn targeted_zone_change_uses_criteria_and_resolution_conditions() {
     assert!(crate::engine::rule_is_executable(&inherited_damage.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn reusable_criteria_stats_and_shared_subject_grammars_cover_legacy_forms() {
     let reduction = parse_common_static_ability(
@@ -1551,6 +1592,7 @@ fn reusable_criteria_stats_and_shared_subject_grammars_cover_legacy_forms() {
     assert!(parse_permanent_criteria("colorlessly Eldrazi", "").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn create_creature_token_parser_uses_general_quantity_and_color_helpers() {
     let blood =
@@ -1604,6 +1646,7 @@ fn create_creature_token_parser_uses_general_quantity_and_color_helpers() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn expansion_triggers_compose_events_and_effects_without_string_fallbacks() {
     let support = parse_expansion_triggered(
@@ -1675,6 +1718,7 @@ fn expansion_triggers_compose_events_and_effects_without_string_fallbacks() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn landfall_deck_grammar_handles_short_names_replacements_and_single_cast_permissions() {
     let named_entry = parse_expansion_triggered(
@@ -1721,6 +1765,7 @@ fn landfall_deck_grammar_handles_short_names_replacements_and_single_cast_permis
     assert!(crate::engine::rule_is_executable(&single_cast.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn variable_x_clauses_share_one_expression_parser() {
     let variable_re = Regex::new(&format!(r"^where X is ({})$", variable_clause_pattern()))
@@ -1839,6 +1884,7 @@ fn variable_x_clauses_share_one_expression_parser() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn criteria_grammar_combines_supertypes_subtypes_and_characteristics() {
     assert_eq!(
@@ -1876,6 +1922,7 @@ fn criteria_grammar_combines_supertypes_subtypes_and_characteristics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn activation_cost_grammar_parses_arbitrary_sacrifice_criteria() {
     let mana = parse_mana_ability("{T}, Sacrifice another Goblin: Add {B}{R}.")
@@ -1897,6 +1944,7 @@ fn activation_cost_grammar_parses_arbitrary_sacrifice_criteria() {
     assert_eq!(activated.rule["effects"][0]["count"], integer(2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn general_effect_grammar_is_shared_by_spells_and_triggers() {
     let spell = parse_simple_spell_ability(
@@ -1966,6 +2014,7 @@ fn general_effect_grammar_is_shared_by_spells_and_triggers() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opponent_second_draw_and_multiple_target_player_draws_share_leaf_effects() {
     let trigger = parse_expansion_triggered(
@@ -1996,6 +2045,7 @@ fn opponent_second_draw_and_multiple_target_player_draws_share_leaf_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn keyword_reminder_text_does_not_hide_ward_or_crew_parameters() {
     let ward = parse_keyword_ability(
@@ -2022,6 +2072,7 @@ fn keyword_reminder_text_does_not_hide_ward_or_crew_parameters() {
     assert_eq!(teamwork.rule["ability"]["minimumPower"], integer(4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recurring_combat_keywords_and_non_gameplay_markers_parse_generically() {
     for (text, expected) in [
@@ -2083,6 +2134,7 @@ fn recurring_combat_keywords_and_non_gameplay_markers_parse_generically() {
     assert_eq!(partner.rule["kind"], "rulesMarker");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recent_effect_families_compose_without_card_specific_branches() {
     let named_partner = parse_keyword_ability(
@@ -2203,6 +2255,7 @@ fn recent_effect_families_compose_without_card_specific_branches() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recurring_aura_energy_regeneration_and_delayed_sacrifice_grammar_composes() {
     let energy = parse_expansion_triggered(
@@ -2285,6 +2338,7 @@ fn recurring_aura_energy_regeneration_and_delayed_sacrifice_grammar_composes() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn graveyard_exile_prepare_composes_shared_operation_primitives() {
     for (article, criteria, subject) in [
@@ -2336,6 +2390,7 @@ fn graveyard_exile_prepare_composes_shared_operation_primitives() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn static_grammar_parses_lords_and_enduring_story_without_card_names() {
     let lord = parse_common_static_ability("Other Elves you control get +1/+1.", "")
@@ -2415,6 +2470,7 @@ fn static_grammar_parses_lords_and_enduring_story_without_card_names() {
     assert_eq!(subtype_reduction.rule["modifiers"][0]["amount"], integer(1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn first_equip_ability_alternative_cost_composes_with_enduring_story() {
     for (text, mana_cost, conditioned) in [
@@ -2448,6 +2504,7 @@ fn first_equip_ability_alternative_cost_composes_with_enduring_story() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn single_source_characteristic_scales_with_controlled_permanent_criteria() {
     for (text, face_name, characteristic) in [
@@ -2479,6 +2536,7 @@ fn single_source_characteristic_scales_with_controlled_permanent_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recent_set_grammar_reuses_sources_costs_keywords_and_thresholds() {
     let named_attack =
@@ -2572,6 +2630,7 @@ fn recent_set_grammar_reuses_sources_costs_keywords_and_thresholds() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn conditional_alternative_cost_uses_spell_color_and_cost_grammar() {
     let parsed = parse_avatar_deck_spell(
@@ -2586,6 +2645,7 @@ fn conditional_alternative_cost_uses_spell_color_and_cost_grammar() {
     assert_eq!(parsed.rule["conditionalAlternativeCost"]["manaCost"], "{R}");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn entry_replacement_grammar_uses_criteria_and_quantities_instead_of_land_names() {
     let legendary = parse_conditional_enter_tapped(
@@ -2623,6 +2683,7 @@ fn entry_replacement_grammar_uses_criteria_and_quantities_instead_of_land_names(
     assert_eq!(entering_counter.rule["replacement"][0]["count"], integer(1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn inset_spell_grammar_composes_targeted_bonuses_and_variable_player_values() {
     assert!(
@@ -2650,6 +2711,7 @@ fn inset_spell_grammar_composes_targeted_bonuses_and_variable_player_values() {
     assert_eq!(draw_effects[0]["count"], decision_result("xValue"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn prepare_trigger_grammar_uses_events_conditions_and_designation_effects() {
     let upkeep = parse_prepare_triggered_ability(
@@ -2696,6 +2758,7 @@ fn prepare_trigger_grammar_uses_events_conditions_and_designation_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn numeric_expression_grammar_composes_arithmetic_and_comparisons() {
     assert_eq!(
@@ -2747,6 +2810,7 @@ fn numeric_expression_grammar_composes_arithmetic_and_comparisons() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn generic_graveyard_search_and_return_grammar_preserves_criteria_and_destination() {
     let entomb = parse_simple_spell_ability(
@@ -2787,6 +2851,7 @@ fn generic_graveyard_search_and_return_grammar_preserves_criteria_and_destinatio
     assert_eq!(top.rule["effects"][0]["to"], "libraryTop");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn unearth_is_a_generic_graveyard_activation_with_both_exile_rules() {
     let parsed = parse_keyword_ability(
@@ -2804,6 +2869,7 @@ fn unearth_is_a_generic_graveyard_activation_with_both_exile_rules() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn dungeon_and_graveyard_trigger_grammar_is_data_driven() {
     let venture = parse_simple_activated_ability(
@@ -2951,6 +3017,7 @@ fn dungeon_and_graveyard_trigger_grammar_is_data_driven() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn acererak_named_entry_return_and_venture_uses_the_dungeon_grammar() {
     let instruction = "if you haven't completed Tomb of Annihilation, return Acererak to its owner's hand and venture into the dungeon.";
@@ -2970,6 +3037,7 @@ fn acererak_named_entry_return_and_venture_uses_the_dungeon_grammar() {
     assert_eq!(trigger.rule["effects"][0]["kind"], "conditionalEffect");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn dungeon_deck_patterns_compose_names_conditions_zones_and_keywords() {
     let named_entry = parse_expansion_triggered(
@@ -3050,6 +3118,7 @@ fn dungeon_deck_patterns_compose_names_conditions_zones_and_keywords() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn copy_permanent_activation_reuses_cost_target_and_copy_grammar() {
     for text in [
@@ -3076,6 +3145,7 @@ fn copy_permanent_activation_reuses_cost_target_and_copy_grammar() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn minimum_casting_mana_is_a_generic_untapped_static_modifier() {
     for text in [
@@ -3096,6 +3166,7 @@ fn minimum_casting_mana_is_a_generic_untapped_static_modifier() {
         .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn shared_free_casting_permission_composes_players_filter_cost_and_timing() {
     for text in [
@@ -3122,6 +3193,7 @@ fn shared_free_casting_permission_composes_players_filter_cost_and_timing() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn variable_player_counter_sweep_links_gain_payment_and_mana_value() {
     for text in [
@@ -3147,6 +3219,7 @@ fn variable_player_counter_sweep_links_gain_payment_and_mana_value() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn colors_spent_condition_uses_payment_metadata_and_target_criteria() {
     for text in [
@@ -3179,6 +3252,7 @@ fn colors_spent_condition_uses_payment_metadata_and_target_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn per_opponent_cost_or_controller_effect_is_composed_from_shared_grammar() {
     for text in [
@@ -3208,6 +3282,7 @@ fn per_opponent_cost_or_controller_effect_is_composed_from_shared_grammar() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn targeted_sacrifice_discard_and_life_sequence_composes_shared_primitives() {
     for text in [
@@ -3243,6 +3318,7 @@ fn targeted_sacrifice_discard_and_life_sequence_composes_shared_primitives() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn targeted_temporary_protection_then_explore_preserves_attacking_criteria() {
     for text in [
@@ -3269,6 +3345,7 @@ fn targeted_temporary_protection_then_explore_preserves_attacking_criteria() {
         );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn optional_combat_damage_mill_binds_cards_for_a_filtered_hand_choice() {
     for text in [
@@ -3299,6 +3376,7 @@ fn optional_combat_damage_mill_binds_cards_for_a_filtered_hand_choice() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn delayed_blink_can_conditionally_reward_its_source_and_reuses_target_criteria() {
     for text in [
@@ -3338,6 +3416,7 @@ fn delayed_blink_can_conditionally_reward_its_source_and_reuses_target_criteria(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn optional_entry_discard_is_a_criteria_driven_replacement() {
     for text in [
@@ -3367,6 +3446,7 @@ fn optional_entry_discard_is_a_criteria_driven_replacement() {
         );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_entry_exile_preserves_a_followup_effect_without_swallowing_criteria() {
     for text in [
@@ -3392,6 +3472,7 @@ fn linked_entry_exile_preserves_a_followup_effect_without_swallowing_criteria() 
         );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn per_opponent_linked_entry_exile_uses_distinct_controllers() {
     for text in [
@@ -3423,6 +3504,7 @@ fn per_opponent_linked_entry_exile_uses_distinct_controllers() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_exiled_card_owner_and_mana_value_feed_variable_tokens() {
     for text in [
@@ -3450,6 +3532,7 @@ fn linked_exiled_card_owner_and_mana_value_feed_variable_tokens() {
         );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_name_entry_and_opponent_taxes_share_stored_decision_grammar() {
     for text in [
@@ -3497,6 +3580,7 @@ fn chosen_name_entry_and_opponent_taxes_share_stored_decision_grammar() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn simultaneous_hand_choices_filter_before_comparing_mana_values() {
     let parsed = parse_simple_spell_ability(
@@ -3519,6 +3603,7 @@ fn simultaneous_hand_choices_filter_before_comparing_mana_values() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn zone_specific_entry_triggers_compose_with_optional_hand_replacement() {
     let parsed = parse_expansion_triggered(
@@ -3554,6 +3639,7 @@ fn zone_specific_entry_triggers_compose_with_optional_hand_replacement() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_name_reveal_until_sequence_tracks_every_destination() {
     let parsed = parse_simple_spell_ability(
@@ -3575,6 +3661,7 @@ fn chosen_name_reveal_until_sequence_tracks_every_destination() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opponent_library_searches_compose_selection_movement_and_permissions() {
     let acquire = parse_simple_spell_ability(
@@ -3604,6 +3691,7 @@ fn opponent_library_searches_compose_selection_movement_and_permissions() {
     assert!(crate::engine::rule_is_executable(&grasp.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
     let agent = parse_expansion_triggered(
@@ -3790,6 +3878,7 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn hand_and_library_value_patterns_parse_without_card_names() {
     let tutor = parse_simple_spell_ability(
@@ -3843,6 +3932,7 @@ fn hand_and_library_value_patterns_parse_without_card_names() {
     assert!(crate::engine::rule_is_executable(&echo.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opponent_hand_control_trigger_uses_zone_permissions_and_player_restrictions() {
     let parsed = parse_expansion_triggered(
@@ -3860,6 +3950,7 @@ fn opponent_hand_control_trigger_uses_zone_permissions_and_player_restrictions()
     assert_eq!(parsed.rule["effects"][2]["kind"], "grantHandPlayPermission");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn counter_followups_share_the_same_stack_target_grammar() {
     let offer = parse_counter_spell(
@@ -3892,6 +3983,7 @@ fn counter_followups_share_the_same_stack_target_grammar() {
     assert_eq!(drain.rule["effects"][0]["addManaAtNextMainPhase"], "C");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn new_deck_common_families_parse_to_executable_rules() {
     let tapped_tokens =
@@ -4301,6 +4393,7 @@ fn new_deck_common_families_parse_to_executable_rules() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn wipes_remaining_oracle_families_parse_to_executable_rules() {
     let cases = [
@@ -4332,6 +4425,7 @@ fn wipes_remaining_oracle_families_parse_to_executable_rules() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn legacy_staple_families_parse_to_executable_rules() {
     let rules = [
@@ -4412,6 +4506,7 @@ fn legacy_staple_families_parse_to_executable_rules() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn legacy_targets_costs_searches_and_stack_objects_use_shared_grammars() {
     assert!(create_token_effect("Create a 1/1 white Monk creature token with prowess.").is_some());
@@ -4858,6 +4953,7 @@ fn legacy_targets_costs_searches_and_stack_objects_use_shared_grammars() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn token_creation_can_attach_the_source_optionally_or_mandatorily() {
     for text in [
@@ -4889,6 +4985,7 @@ fn token_creation_can_attach_the_source_optionally_or_mandatorily() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn named_artifact_tokens_parse_embedded_static_and_equip_abilities() {
     assert!(
@@ -4929,6 +5026,7 @@ fn named_artifact_tokens_parse_embedded_static_and_equip_abilities() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn created_tokens_can_feed_reflexive_attachment_and_equipped_attacker_filters() {
     let enters = parse_expansion_triggered(
@@ -4987,6 +5085,7 @@ fn created_tokens_can_feed_reflexive_attachment_and_equipped_attacker_filters() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn temporary_source_bonus_scales_with_other_controlled_permanents() {
     for text in [
@@ -5016,6 +5115,7 @@ fn temporary_source_bonus_scales_with_other_controlled_permanents() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn cards_drawn_threshold_and_another_target_compose_in_combat_triggers() {
     for (condition_text, operator, threshold) in [
@@ -5050,6 +5150,7 @@ fn cards_drawn_threshold_and_another_target_compose_in_combat_triggers() {
     assert!(parse_condition_text("an opponent has drawn two or more cards this turn").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn target_qualified_casting_reduction_reuses_permanent_criteria() {
     for (text, amount, filter_kind) in [
@@ -5079,6 +5180,7 @@ fn target_qualified_casting_reduction_reuses_permanent_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn kicked_owned_target_group_binds_returns_for_the_next_upkeep() {
     for text in [
@@ -5111,6 +5213,7 @@ fn kicked_owned_target_group_binds_returns_for_the_next_upkeep() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_permanent_and_graveyard_card_exchange_uses_relational_targets() {
     let parsed = parse_simple_activated_ability(
@@ -5129,6 +5232,7 @@ fn linked_permanent_and_graveyard_card_exchange_uses_relational_targets() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn temporary_colored_spell_protection_composes_as_independent_effects() {
     let parsed = parse_simple_spell_ability(
@@ -5152,6 +5256,7 @@ fn temporary_colored_spell_protection_composes_as_independent_effects() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_hand_or_controlled_permanent_exile_uses_target_relations() {
     let parsed = parse_expansion_triggered(
@@ -5171,6 +5276,7 @@ fn linked_hand_or_controlled_permanent_exile_uses_target_relations() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn optional_energy_payment_creates_a_targeted_reflexive_trigger() {
     let parsed = parse_expansion_triggered(
@@ -5194,6 +5300,7 @@ fn optional_energy_payment_creates_a_targeted_reflexive_trigger() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn delve_and_cast_payment_dependent_rules_parse_generically() {
     let delve = parse_keyword_ability(
@@ -5229,6 +5336,7 @@ fn delve_and_cast_payment_dependent_rules_parse_generically() {
     assert!(crate::engine::rule_is_executable(&leaves.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn legacy_modal_spell_effect_lines_use_the_shared_effect_grammar() {
     let escalate = parse_keyword_ability(
@@ -5306,6 +5414,7 @@ fn legacy_modal_spell_effect_lines_use_the_shared_effect_grammar() {
     assert!(crate::engine::rule_is_executable(&repeatable.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn creature_token_abilities_use_the_shared_activated_ability_grammar() {
     for instruction in [
@@ -5342,6 +5451,7 @@ fn creature_token_abilities_use_the_shared_activated_ability_grammar() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn sacrifice_activation_costs_use_permanent_criteria_without_the_article() {
     let (costs, cost_decisions) = parse_activation_costs("Sacrifice an Eldrazi Scion")
@@ -5376,6 +5486,7 @@ fn sacrifice_activation_costs_use_permanent_criteria_without_the_article() {
     assert!(scion.rule.to_string().contains("Scion"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn controlled_permanents_can_share_a_parsed_quoted_mana_ability() {
     for (text, expected_mana, expected_modifiers) in [
@@ -5408,6 +5519,7 @@ fn controlled_permanents_can_share_a_parsed_quoted_mana_ability() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn color_count_qualifiers_compose_with_permanent_types() {
     for instruction in [
@@ -5422,6 +5534,7 @@ fn color_count_qualifiers_compose_with_permanent_types() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_creature_type_composes_with_a_controlled_permanent_selector() {
     for text in [
@@ -5438,6 +5551,7 @@ fn chosen_creature_type_composes_with_a_controlled_permanent_selector() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn metadata_reminders_do_not_create_fake_game_actions() {
     for text in [
@@ -5451,6 +5565,7 @@ fn metadata_reminders_do_not_create_fake_game_actions() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn variable_target_sets_reuse_permanent_criteria_for_blink_and_phase_out() {
     for instruction in [
@@ -5471,6 +5586,7 @@ fn variable_target_sets_reuse_permanent_criteria_for_blink_and_phase_out() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_or_qualified_permanent_death_uses_shared_event_and_effect_grammars() {
     for (text, face_name) in [
@@ -5491,6 +5607,7 @@ fn source_or_qualified_permanent_death_uses_shared_event_and_effect_grammars() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn controlled_sets_receive_variable_stats_and_parameterized_keywords() {
     let parsed = parse_simple_activated_ability(
@@ -5515,6 +5632,7 @@ fn controlled_sets_receive_variable_stats_and_parameterized_keywords() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn spell_cast_thresholds_compose_card_type_and_mana_value_criteria() {
     for text in [
@@ -5530,6 +5648,7 @@ fn spell_cast_thresholds_compose_card_type_and_mana_value_criteria() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn token_creation_events_keep_their_token_criteria() {
     let parsed = parse_expansion_triggered(
@@ -5543,6 +5662,7 @@ fn token_creation_events_keep_their_token_criteria() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn blink_token_and_chosen_type_families_compose_from_shared_primitives() {
     for instruction in [
@@ -5576,6 +5696,7 @@ fn blink_token_and_chosen_type_families_compose_from_shared_primitives() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn token_selectors_multipliers_and_recurring_triggers_are_generic() {
     for text in [
@@ -5604,6 +5725,7 @@ fn token_selectors_multipliers_and_recurring_triggers_are_generic() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_scaled_draw_discard_and_followup_damage_compose_generically() {
     let parsed = parse_simple_activated_ability(
@@ -5624,6 +5746,7 @@ fn counter_scaled_draw_discard_and_followup_damage_compose_generically() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn controlled_sacrifice_events_use_permanent_criteria() {
     let parsed = parse_expansion_triggered(
@@ -5637,6 +5760,7 @@ fn controlled_sacrifice_events_use_permanent_criteria() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn battlefield_to_graveyard_wording_normalizes_to_a_death_event() {
     let parsed = parse_expansion_triggered(
@@ -5649,6 +5773,7 @@ fn battlefield_to_graveyard_wording_normalizes_to_a_death_event() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn chosen_creature_type_can_filter_a_death_event() {
     let parsed = parse_expansion_triggered(
@@ -5666,6 +5791,7 @@ fn chosen_creature_type_can_filter_a_death_event() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn companion_and_delayed_mass_blink_parse_as_shared_mechanics() {
     let game_rule = parse_keyword_ability(
@@ -5696,6 +5822,7 @@ fn companion_and_delayed_mass_blink_parse_as_shared_mechanics() {
     assert!(crate::engine::rule_is_executable(&blink.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn split_second_and_temporary_quoted_trigger_parse_compositionally() {
     let split_second = parse_keyword_ability(
@@ -5760,6 +5887,7 @@ fn split_second_and_temporary_quoted_trigger_parse_compositionally() {
     assert!(crate::engine::rule_is_executable(&rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn zone_enchant_and_linked_aura_reanimation_use_shared_rule_primitives() {
     let enchant = parse_common_static_ability("Enchant creature card in a graveyard", "")
@@ -5781,6 +5909,7 @@ fn zone_enchant_and_linked_aura_reanimation_use_shared_rule_primitives() {
     assert!(crate::engine::rule_is_executable(&linked.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn activated_ability_sharing_uses_static_filters_and_linked_exile() {
     let flexible_mana = parse_common_static_ability(
@@ -5810,6 +5939,7 @@ fn activated_ability_sharing_uses_static_filters_and_linked_exile() {
     assert!(crate::engine::rule_is_executable(&shared.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cast_from_hand_energy_cascade_composes_search_and_alternative_cost() {
     let parsed = parse_expansion_triggered(
@@ -5830,6 +5960,7 @@ fn cast_from_hand_energy_cascade_composes_search_and_alternative_cost() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn impending_and_enter_or_attack_value_parse_compositionally() {
     let impending = parse_keyword_ability(
@@ -5861,6 +5992,7 @@ fn impending_and_enter_or_attack_value_parse_compositionally() {
     assert!(crate::engine::rule_is_executable(&value_trigger.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_destination_replacement_uses_players_and_zones() {
     let parsed = parse_common_static_ability(
@@ -5881,6 +6013,7 @@ fn graveyard_destination_replacement_uses_players_and_zones() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn land_play_events_preserve_whether_the_played_land_must_be_another_object() {
     for (oracle_text, excludes_source) in [
@@ -5908,6 +6041,7 @@ fn land_play_events_preserve_whether_the_played_land_must_be_another_object() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cast_from_zone_counter_amendment_reuses_counter_and_criteria_leaves() {
     let parsed = parse_simple_spell_ability(
@@ -5949,6 +6083,7 @@ fn cast_from_zone_counter_amendment_reuses_counter_and_criteria_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn saga_chapters_delegate_to_shared_effect_leaves() {
     let recruit = parse_generalized_zone_and_combat_ability(
@@ -6000,6 +6135,7 @@ fn saga_chapters_delegate_to_shared_effect_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn abbreviated_source_name_composes_with_enduring_story_static_modifiers() {
     let parsed = parse_common_static_ability(
@@ -6024,6 +6160,7 @@ fn abbreviated_source_name_composes_with_enduring_story_static_modifiers() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conditional_self_untap_restriction_reuses_the_condition_tree() {
     let parsed = parse_common_static_ability(
@@ -6061,6 +6198,7 @@ fn conditional_self_untap_restriction_reuses_the_condition_tree() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn opponent_filtered_spell_ordinal_composes_with_recruit() {
     let parsed = parse_expansion_triggered(
@@ -6090,6 +6228,7 @@ fn opponent_filtered_spell_ordinal_composes_with_recruit() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn any_player_spell_ordinal_composes_with_generic_effects_and_filters() {
     let lotho = parse_expansion_triggered(
@@ -6124,6 +6263,7 @@ fn any_player_spell_ordinal_composes_with_generic_effects_and_filters() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn controlled_filtered_combat_damage_and_ring_temptation_events_compose() {
     let army = parse_expansion_triggered(
@@ -6171,6 +6311,7 @@ fn controlled_filtered_combat_damage_and_ring_temptation_events_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn temporary_control_untap_and_keyword_sequence_preserves_one_target() {
     let parsed = parse_expansion_triggered(
@@ -6210,6 +6351,7 @@ fn temporary_control_untap_and_keyword_sequence_preserves_one_target() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn linked_exile_and_temporary_attack_saga_reuse_shared_leaves() {
     let search = parse_generalized_zone_and_combat_ability(
@@ -6263,6 +6405,7 @@ fn linked_exile_and_temporary_attack_saga_reuse_shared_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn target_player_group_exile_binds_variable_library_search_maximum() {
     let oracle = "Exile all attacking creatures target player controls. That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle.";
@@ -6308,6 +6451,7 @@ fn target_player_group_exile_binds_variable_library_search_maximum() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn modal_type_addition_reuses_power_criteria_duration_and_keyword_leaves() {
     let oracle = "Choose one \u{2014}\n\u{2022} Destroy target creature with power 4 or greater.\n\u{2022} Until end of turn, target creature becomes an artifact in addition to its other types and gains indestructible.";
@@ -6354,6 +6498,7 @@ fn modal_type_addition_reuses_power_criteria_duration_and_keyword_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn bounded_multi_target_tap_reuses_target_cardinality_and_criteria_leaves() {
     let oracle = "Tap one or two target creatures. (Then exile this card. You may cast the creature later from exile.)";
@@ -6381,6 +6526,7 @@ fn bounded_multi_target_tap_reuses_target_cardinality_and_criteria_leaves() {
     assert!(parse_general_effect_instruction("Tap three target creatures.", "").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn linked_target_bonus_condition_and_attachment_reuse_shared_leaves() {
     let oracle = "Untap target creature you control. It gets +2/+2 until end of turn. If it's a Dwarf, you may attach an Equipment you control to it.";
@@ -6423,6 +6569,7 @@ fn linked_target_bonus_condition_and_attachment_reuse_shared_leaves() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn shared_card_type_control_exchange_reuses_target_criteria_and_cardinality() {
     let oracle = "Exchange control of two target nonland permanents that share a card type. (Then exile this card. You may cast the creature later from exile.)";
@@ -6459,6 +6606,7 @@ fn shared_card_type_control_exchange_reuses_target_criteria_and_cardinality() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_zone_reduction_and_linked_resolution_cast_reuse_zone_and_filter_leaves() {
     let reduction = parse_common_static_ability(
@@ -6530,6 +6678,7 @@ fn source_zone_reduction_and_linked_resolution_cast_reuse_zone_and_filter_leaves
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn unqualified_counter_unless_paid_composes_inside_a_generic_modal_spell() {
     let oracle = "Choose one \u{2014}\n\u{2022} Counter target spell unless its controller pays {4}.\n\u{2022} Draw two cards, then discard a card.";
@@ -6572,6 +6721,7 @@ fn unqualified_counter_unless_paid_composes_inside_a_generic_modal_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn bounded_delayed_blink_and_activated_source_trigger_reuse_shared_leaves() {
     let activated = parse_simple_activated_ability(
@@ -6626,6 +6776,7 @@ fn bounded_delayed_blink_and_activated_source_trigger_reuse_shared_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attached_permanent_counter_clear_and_ability_loss_reuse_attachment_leaves() {
     let enters = parse_expansion_triggered(
@@ -6686,6 +6837,7 @@ fn attached_permanent_counter_clear_and_ability_loss_reuse_attachment_leaves() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_owner_shuffle_and_draw_reuses_the_permanent_destination_effect() {
     let activated = parse_simple_activated_ability(
@@ -6725,6 +6877,7 @@ fn source_owner_shuffle_and_draw_reuses_the_permanent_destination_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn exact_count_immediate_blink_reuses_cardinality_and_compound_criteria() {
     let parsed = parse_simple_spell_ability(
@@ -6769,6 +6922,7 @@ fn exact_count_immediate_blink_reuses_cardinality_and_compound_criteria() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn own_cost_reduction_sums_power_through_shared_keyword_criteria() {
     let total = parse_common_static_ability(
@@ -6814,6 +6968,7 @@ fn own_cost_reduction_sums_power_through_shared_keyword_criteria() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_bonus_counts_player_zones_that_meet_a_card_threshold() {
     let parsed = parse_common_static_ability(
@@ -6853,6 +7008,7 @@ fn self_bonus_counts_player_zones_that_meet_a_card_threshold() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn landfall_optional_base_power_toughness_uses_event_and_source_effect_leaves() {
     let parsed = parse_expansion_triggered(
@@ -6888,6 +7044,7 @@ fn landfall_optional_base_power_toughness_uses_event_and_source_effect_leaves() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_threshold_and_milled_card_destination_reuse_existing_leaves() {
     let threshold = parse_common_static_ability(
@@ -6934,6 +7091,7 @@ fn graveyard_threshold_and_milled_card_destination_reuse_existing_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn saga_chapters_link_keywords_and_damage_prevention_to_their_source() {
     let keyword = parse_generalized_zone_and_combat_ability(
@@ -6987,6 +7145,7 @@ fn saga_chapters_link_keywords_and_damage_prevention_to_their_source() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conditional_instead_sequence_reuses_conditions_and_effect_instructions() {
     let parsed = parse_simple_spell_ability(
@@ -7023,6 +7182,7 @@ fn conditional_instead_sequence_reuses_conditions_and_effect_instructions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn top_library_piles_capture_visibility_chooser_and_destinations() {
     let parsed = parse_simple_spell_ability(
@@ -7057,6 +7217,7 @@ fn top_library_piles_capture_visibility_chooser_and_destinations() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn saga_multi_chapter_delayed_blink_accepts_the_if_you_do_connector() {
     let parsed = parse_generalized_zone_and_combat_ability(
@@ -7098,6 +7259,7 @@ fn saga_multi_chapter_delayed_blink_accepts_the_if_you_do_connector() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_follow_up_binds_the_spells_mana_value_before_it_leaves_stack() {
     let parsed = parse_simple_spell_ability(
@@ -7135,6 +7297,7 @@ fn counter_follow_up_binds_the_spells_mana_value_before_it_leaves_stack() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn filtered_counter_exile_binds_a_free_cast_permission() {
     let parsed = parse_simple_spell_ability(
@@ -7169,6 +7332,7 @@ fn filtered_counter_exile_binds_a_free_cast_permission() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn optional_variable_draw_then_discard_reuses_trigger_mana_spent() {
     assert_eq!(
@@ -7230,6 +7394,7 @@ fn optional_variable_draw_then_discard_reuses_trigger_mana_spent() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn opponent_top_exile_reuses_quantity_permission_and_life_cost_leaves() {
     let parsed = parse_simple_spell_ability(
@@ -7279,6 +7444,7 @@ fn opponent_top_exile_reuses_quantity_permission_and_life_cost_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn target_owner_library_end_choice_reuses_target_criteria() {
     let parsed = parse_simple_spell_ability(
@@ -7316,6 +7482,7 @@ fn target_owner_library_end_choice_reuses_target_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn equipment_keywords_trigger_multipliers_and_subtype_equip_compose() {
     let prowess = parse_special_static_ability(
@@ -7378,6 +7545,7 @@ fn equipment_keywords_trigger_multipliers_and_subtype_equip_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn destroy_then_controller_amass_binds_last_known_values_and_follow_up() {
     let parsed = parse_expansion_triggered(
@@ -7421,6 +7589,7 @@ fn destroy_then_controller_amass_binds_last_known_values_and_follow_up() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn targeted_player_sacrifice_reuses_player_targets_and_permanent_criteria() {
     let parsed = parse_expansion_triggered(
@@ -7452,6 +7621,7 @@ fn targeted_player_sacrifice_reuses_player_targets_and_permanent_criteria() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conditional_own_casting_reduction_reuses_turn_event_conditions() {
     let parsed = parse_common_spell_ability(
@@ -7492,6 +7662,7 @@ fn conditional_own_casting_reduction_reuses_turn_event_conditions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn modal_temporary_death_replacement_and_target_player_group_modifier_compose() {
     let oracle = "Choose one \u{2014}\n\u{2022} Target creature gets -5/-5 until end of turn. If that creature would die this turn, exile it instead.\n\u{2022} Creatures target player controls get -1/-1 until end of turn.";
@@ -7544,6 +7715,7 @@ fn modal_temporary_death_replacement_and_target_player_group_modifier_compose() 
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn named_entry_or_attack_can_target_an_opponents_graveyard_optionally() {
     let parsed = parse_expansion_triggered(
@@ -7605,6 +7777,7 @@ fn named_entry_or_attack_can_target_an_opponents_graveyard_optionally() {
     .is_some(), "your-graveyard scope remains a valid sibling variant");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn other_permanent_death_trigger_does_not_imply_a_controller_scope() {
     let parsed = parse_expansion_triggered(
@@ -7635,6 +7808,7 @@ fn other_permanent_death_trigger_does_not_imply_a_controller_scope() {
     assert_eq!(controlled.rule["event"]["player"]["kind"], "controllerOf");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn stored_mana_value_parity_and_persistent_unused_modes_compose() {
     let replacement = parse_composed_entry_replacement(
@@ -7682,6 +7856,7 @@ fn stored_mana_value_parity_and_persistent_unused_modes_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn life_loss_triggers_compose_with_triggering_player_quantities_and_zone_counts() {
     let mill = parse_expansion_triggered(
@@ -7733,6 +7908,7 @@ fn life_loss_triggers_compose_with_triggering_player_quantities_and_zone_counts(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attacks_while_condition_reuses_permanent_criteria_and_shared_effects() {
     let pump = parse_expansion_triggered(
@@ -7761,6 +7937,7 @@ fn attacks_while_condition_reuses_permanent_criteria_and_shared_effects() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn optional_sacrifice_links_last_known_power_to_counters_and_amass() {
     let counters = parse_expansion_triggered(
@@ -7798,6 +7975,7 @@ fn optional_sacrifice_links_last_known_power_to_counters_and_amass() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn alternative_additional_costs_parse_in_either_order_through_shared_costs() {
     for oracle in [
@@ -7829,6 +8007,7 @@ fn alternative_additional_costs_parse_in_either_order_through_shared_costs() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn opponent_discard_and_optional_hand_count_are_generic_effects() {
     let discard = parse_expansion_triggered(
@@ -7860,6 +8039,7 @@ fn opponent_discard_and_optional_hand_count_are_generic_effects() {
     assert!(parse_general_effect_instruction("Each opponent discards their hand.", "").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn recent_opponent_graveyard_cards_can_enter_with_replaced_types_and_an_ability() {
     let parsed = parse_generalized_zone_and_combat_ability(
@@ -7900,6 +8080,7 @@ fn recent_opponent_graveyard_cards_can_enter_with_replaced_types_and_an_ability(
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn divided_damage_composes_target_count_and_positive_integer_distribution() {
     let parsed = parse_expansion_triggered(
@@ -7936,6 +8117,7 @@ fn divided_damage_composes_target_count_and_positive_integer_distribution() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn controlled_attachment_composes_two_independent_target_leaves() {
     let parsed = parse_expansion_triggered(
@@ -7962,6 +8144,7 @@ fn controlled_attachment_composes_two_independent_target_leaves() {
     assert!(crate::engine::rule_is_executable(&required.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn targeted_effect_can_install_a_linked_death_exile_replacement() {
     let damage = parse_general_effect_sequence(
@@ -7992,6 +8175,7 @@ fn targeted_effect_can_install_a_linked_death_exile_replacement() {
     assert!(crate::engine::rule_is_executable(&modal.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn optional_discard_count_composes_with_an_independent_followup_effect() {
     let parsed = parse_expansion_triggered(
@@ -8028,6 +8212,7 @@ fn optional_discard_count_composes_with_an_independent_followup_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn optional_sacrifice_composes_with_independent_followup_effects() {
     let parsed = parse_expansion_triggered(
@@ -8078,6 +8263,7 @@ fn optional_sacrifice_composes_with_independent_followup_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn revealed_cards_can_select_a_random_matching_card_and_randomize_the_rest() {
     let parsed = parse_expansion_triggered(
@@ -8112,6 +8298,7 @@ fn revealed_cards_can_select_a_random_matching_card_and_randomize_the_rest() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn first_matching_spell_reuses_cost_reduction_and_flash_leaves() {
     let parsed = parse_common_static_ability(
@@ -8144,6 +8331,7 @@ fn first_matching_spell_reuses_cost_reduction_and_flash_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn reveal_until_uses_a_numeric_threshold_to_choose_the_destination() {
     let parsed = parse_expansion_triggered(
@@ -8183,6 +8371,7 @@ fn reveal_until_uses_a_numeric_threshold_to_choose_the_destination() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn top_library_exile_permission_accepts_both_oracle_clause_orders() {
     for text in [
@@ -8217,6 +8406,7 @@ fn top_library_exile_permission_accepts_both_oracle_clause_orders() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn hob_compositions_reuse_leaf_grammar_and_reject_mismatched_restrictions() {
     let variable_counter = parse_general_effect_instruction(
@@ -8270,6 +8460,7 @@ fn hob_compositions_reuse_leaf_grammar_and_reject_mismatched_restrictions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn face_down_top_exile_links_a_live_conditional_play_permission() {
     for (text, count) in [
@@ -8307,6 +8498,7 @@ fn face_down_top_exile_links_a_live_conditional_play_permission() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn target_attachment_groups_feed_a_reflexive_power_damage_trigger() {
     for text in [
@@ -8345,6 +8537,7 @@ fn target_attachment_groups_feed_a_reflexive_power_damage_trigger() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_can_inherit_filtered_activated_abilities_from_its_controllers_zone() {
     for (text, zone, filter_kind) in [
@@ -8379,6 +8572,7 @@ fn source_can_inherit_filtered_activated_abilities_from_its_controllers_zone() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conditional_source_sacrifice_composes_counted_permanents_and_followup_effects() {
     let parsed = parse_generalized_zone_and_combat_ability(
@@ -8443,6 +8637,7 @@ fn conditional_source_sacrifice_composes_counted_permanents_and_followup_effects
         .is_none()
     );
 }
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn temporary_quoted_trigger_grant_composes_target_and_trigger_grammar() {
     for text in [
@@ -8471,6 +8666,7 @@ fn temporary_quoted_trigger_grant_composes_target_and_trigger_grammar() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn hoc_damage_control_mana_and_alternative_events_compose_shared_leaves() {
     let damaged = parse_expansion_triggered(
@@ -8539,6 +8735,7 @@ fn hoc_damage_control_mana_and_alternative_events_compose_shared_leaves() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn named_source_counter_cost_and_linked_counter_distribution_compose() {
     for text in [
@@ -8569,6 +8766,7 @@ fn named_source_counter_cost_and_linked_counter_distribution_compose() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn activated_modal_instructions_reuse_cost_and_effect_grammars() {
     for text in [
@@ -8594,6 +8792,7 @@ fn activated_modal_instructions_reuse_cost_and_effect_grammars() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_source_return_composes_zone_condition_and_tapped_state() {
     for (text, tapped, criteria) in [
@@ -8629,6 +8828,7 @@ fn graveyard_source_return_composes_zone_condition_and_tapped_state() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn activated_combat_effects_compose_target_criteria_and_conditional_reduction() {
     let unblockable = parse_simple_activated_ability(
@@ -8657,6 +8857,7 @@ fn activated_combat_effects_compose_target_criteria_and_conditional_reduction() 
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_entry_counter_threshold_and_each_combat_forms_compose() {
     let entry = parse_shock_land_replacement(
@@ -8703,6 +8904,7 @@ fn source_entry_counter_threshold_and_each_combat_forms_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn qualified_blockers_and_attached_turn_keywords_reuse_static_modifiers() {
     let blockers = parse_common_static_ability(
@@ -8744,6 +8946,7 @@ fn qualified_blockers_and_attached_turn_keywords_reuse_static_modifiers() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn life_threshold_counter_scaling_and_qualified_counterspell_compose() {
     let end_step = parse_expansion_triggered(
@@ -8788,6 +8991,7 @@ fn life_threshold_counter_scaling_and_qualified_counterspell_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn filtered_block_prohibition_and_static_ward_bonus_compose() {
     let spell = parse_simple_spell_ability(
@@ -8818,6 +9022,7 @@ fn filtered_block_prohibition_and_static_ward_bonus_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn filtered_attack_hand_power_entry_count_and_block_condition_compose() {
     let attack = parse_expansion_triggered(
@@ -8872,6 +9077,7 @@ fn filtered_attack_hand_power_entry_count_and_block_condition_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attached_attacks_alone_composes_event_scope_and_draw_life_effects() {
     let parsed = parse_expansion_triggered(
@@ -8897,6 +9103,7 @@ fn attached_attacks_alone_composes_event_scope_and_draw_life_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn source_counter_removal_if_you_do_and_zero_counter_followup_compose() {
     let parsed = parse_expansion_triggered(
@@ -8934,6 +9141,7 @@ fn source_counter_removal_if_you_do_and_zero_counter_followup_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn kicked_phase_out_instead_composes_conditional_targets_and_object_scope() {
     let parsed = parse_simple_spell_ability(
@@ -8971,6 +9179,7 @@ fn kicked_phase_out_instead_composes_conditional_targets_and_object_scope() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn greatest_opponent_count_reduction_and_triggering_player_token_count_compose() {
     let reduction = parse_common_static_ability(
@@ -9006,6 +9215,7 @@ fn greatest_opponent_count_reduction_and_triggering_player_token_count_compose()
     assert!(crate::engine::rule_is_executable(&trigger.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn other_controlled_entry_counters_scale_with_source_stat() {
     let parsed = parse_common_static_ability(
@@ -9023,6 +9233,7 @@ fn other_controlled_entry_counters_scale_with_source_stat() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn greatest_toughness_draw_and_any_hand_creatures_compose() {
     let parsed = parse_simple_spell_ability(
@@ -9052,6 +9263,7 @@ fn greatest_toughness_draw_and_any_hand_creatures_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn damaged_player_exile_until_matching_card_cast_and_remainder_compose() {
     let parsed = parse_expansion_triggered(
@@ -9093,6 +9305,7 @@ fn damaged_player_exile_until_matching_card_cast_and_remainder_compose() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn opponent_mill_reflexive_graveyard_copy_and_free_cast_compose() {
     let parsed = parse_expansion_triggered(
@@ -9132,6 +9345,7 @@ fn opponent_mill_reflexive_graveyard_copy_and_free_cast_compose() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn final_saga_chapter_resolution_and_reveal_sequence_compose() {
     let parsed = parse_expansion_triggered(
@@ -9161,6 +9375,7 @@ fn final_saga_chapter_resolution_and_reveal_sequence_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn equipped_attack_conditional_tokens_and_counters_compose() {
     let spirits = parse_expansion_triggered(
@@ -9206,6 +9421,7 @@ fn equipped_attack_conditional_tokens_and_counters_compose() {
     assert!(crate::engine::rule_is_executable(&counters.rule));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cast_source_entry_and_player_protection_until_next_turn_compose() {
     let parsed = parse_expansion_triggered(
@@ -9231,6 +9447,7 @@ fn cast_source_entry_and_player_protection_until_next_turn_compose() {
     assert_eq!(generic_subject.rule["condition"]["kind"], "wasCast");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn target_counter_links_subtype_and_keyword_while_it_remains() {
     let parsed = parse_simple_activated_ability(
@@ -9256,6 +9473,7 @@ fn target_counter_links_subtype_and_keyword_while_it_remains() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn discard_cost_source_keyword_and_gendered_tap_compose() {
     let parsed = parse_simple_activated_ability_for_face(
@@ -9277,6 +9495,7 @@ fn discard_cost_source_keyword_and_gendered_tap_compose() {
     assert_eq!(multiple.0.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn combat_damage_received_sacrifice_and_ring_tempt_compose() {
     let parsed = parse_expansion_triggered(
@@ -9305,6 +9524,7 @@ fn combat_damage_received_sacrifice_and_ring_tempt_compose() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn defending_player_least_power_sacrifice_composes() {
     for text in [
@@ -9334,6 +9554,7 @@ fn defending_player_least_power_sacrifice_composes() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn repeated_cascade_instances_and_event_value_sum_compose() {
     let cascade = parse_keyword_ability(
@@ -9367,6 +9588,7 @@ fn repeated_cascade_instances_and_event_value_sum_compose() {
     assert!(parse_keyword_ability("Cascade, unknown ability", "Test Tempest").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn enter_or_attack_mass_counters_and_counted_life_compose() {
     for (text, face_name) in [
@@ -9407,6 +9629,7 @@ fn enter_or_attack_mass_counters_and_counted_life_compose() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn flame_of_anor_conditional_modal_maximum_delegates_controlled_permanent_criteria() {
     let oracle = "Choose one. If you control a Wizard as you cast this spell, you may choose two instead.\n\u{2022} Target player draws two cards.\n\u{2022} Destroy target artifact.\n\u{2022} Test Flame deals 5 damage to target creature.";
@@ -9445,6 +9668,7 @@ fn flame_of_anor_conditional_modal_maximum_delegates_controlled_permanent_criter
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn targeted_hand_disruption_emits_a_discard_instead_of_a_zone_move() {
     for (text, player_kind) in [
@@ -9475,6 +9699,7 @@ fn targeted_hand_disruption_emits_a_discard_instead_of_a_zone_move() {
     .is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn hand_to_battlefield_haste_uses_a_real_delayed_sacrifice_trigger() {
     for text in [

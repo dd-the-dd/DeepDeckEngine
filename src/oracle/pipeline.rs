@@ -1,4 +1,7 @@
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 use serde_json::Value;
 
 use super::audit::{build_stages, iterations_for_rule, semantic_kind, unsupported_iteration};
@@ -99,7 +102,10 @@ pub fn parse_oracle_card(request: OracleCardParseRequest) -> OracleCardParseResu
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
 

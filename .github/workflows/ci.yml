@@ -30,6 +30,18 @@ jobs:
       - name: Compile every target
         if: runner.os == 'Linux'
         run: cargo check --locked --all-targets
+      - name: Verify unit-test partitions
+        shell: pwsh
+        run: ./scripts/check-unit-test-partitions.ps1
+      - name: Run partitioned unit tests
+        shell: pwsh
+        run: |
+          foreach ($partition in 1..4) {
+            cargo test --locked --lib --no-default-features --features "ci-unit-tests-$partition"
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
       - name: Run integration tests
         run: >-
           cargo test --locked

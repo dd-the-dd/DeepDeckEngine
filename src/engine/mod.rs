@@ -86155,6 +86155,16 @@ pub fn simulate_traced_random_game(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(
+        not(feature = "ci-test-partition"),
+        feature = "ci-unit-tests-1",
+        feature = "ci-unit-tests-2",
+        feature = "ci-unit-tests-3",
+        feature = "ci-unit-tests-4"
+    )
+))]
+#[cfg_attr(feature = "ci-test-partition", allow(dead_code, unused_imports))]
 #[path = "tests.rs"]
 mod tests;

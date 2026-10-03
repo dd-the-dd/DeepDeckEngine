@@ -97,6 +97,16 @@ fn catalog_path() -> Result<PathBuf, String> {
     }
     find_project_root_from(Path::new(env!("CARGO_MANIFEST_DIR")))
         .map(|root| root.join("data/cards-minimized.json"))
+        .or_else(|| {
+            #[cfg(test)]
+            {
+                let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("fixtures/card-catalog/named-tokens.json");
+                return fixture.is_file().then_some(fixture);
+            }
+            #[cfg(not(test))]
+            None
+        })
         .ok_or_else(|| "could not locate data/cards-minimized.json".to_string())
 }
 
@@ -233,7 +243,10 @@ pub fn lookup_cards(request: CardLookupRequest) -> Result<CardLookupResponse, St
     lookup_catalog(catalog()?, request)
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{CardLookupRequest, lookup_catalog, read_catalog, select_named_token_printing};
     use std::fs;

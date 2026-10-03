@@ -683,7 +683,10 @@ pub fn handle_agent_websocket(stream: TcpStream) -> Result<(), String> {
     handle_agent_websocket_with_key(stream, expected_api_key.as_deref())
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
     use std::net::TcpListener;

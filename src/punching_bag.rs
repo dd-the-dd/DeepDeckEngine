@@ -1685,7 +1685,10 @@ pub fn generate_punching_bag_scenarios(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
     use serde_json::json;

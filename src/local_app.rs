@@ -812,7 +812,10 @@ pub fn route_local_app(
     None
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{LocalSession, compile_session_deck, merge_selected_card_with_fallback};
     use serde_json::json;

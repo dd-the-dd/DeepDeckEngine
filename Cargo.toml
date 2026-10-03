@@ -3,6 +3,16 @@ name = "mtg-engine"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# CI enables exactly one of these internal features at a time so the private-
+# access unit tests link as bounded binaries. Normal `cargo test` enables none
+# of them and continues to compile and run the complete unit-test suite.
+ci-test-partition = []
+ci-unit-tests-1 = ["ci-test-partition"]
+ci-unit-tests-2 = ["ci-test-partition"]
+ci-unit-tests-3 = ["ci-test-partition"]
+ci-unit-tests-4 = ["ci-test-partition"]
+
 [dependencies]
 dotenvy = "0.15"
 rand = "0.8"

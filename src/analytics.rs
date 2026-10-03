@@ -1549,7 +1549,10 @@ fn creator_for_deck<'a>(deck_id: &str, deck_creators: &'a BTreeMap<String, Strin
         .unwrap_or(UNKNOWN_DECK_CREATOR)
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 fn query_dataset(
     dataset: &PersistedDeckAnalytics,
     query: DeckAnalyticsQuery,
@@ -1987,7 +1990,10 @@ impl DeckAnalyticsService {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
     use crate::engine::{CardDefinition, CardInstance, CombatState, EnginePlayer, GameMode};

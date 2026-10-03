@@ -1773,7 +1773,10 @@ impl GameSessionManager {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{
         CreateGameSessionRequest, GameSessionManager, analytics_pilot_for_ai_controller,

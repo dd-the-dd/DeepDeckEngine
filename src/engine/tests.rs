@@ -2,6 +2,7 @@ use super::*;
 use crate::model::{PlayableCardInput, compile_playable_card};
 use crate::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     let mut engine = test_engine(2);
@@ -123,6 +124,7 @@ fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hand_card_exiled_with_a_source_remains_linked_and_can_be_copied() {
     let mut engine = test_engine(2);
@@ -209,6 +211,7 @@ fn hand_card_exiled_with_a_source_remains_linked_and_can_be_copied() {
     assert!(copy_ids[0].starts_with("copy:card:imprinted-instant:"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exiled_card_mana_value_fixes_activated_x_declarations() {
     let mut engine = test_engine(2);
@@ -254,6 +257,7 @@ fn linked_exiled_card_mana_value_fixes_activated_x_declarations() {
     assert_eq!(declarations[0].decisions["xValue"], 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_conditional_flash_requires_the_declared_permanent() {
     let mut spell = test_definition("company", "Creature - Human Citizen");
@@ -278,6 +282,7 @@ fn hob_batch10_conditional_flash_requires_the_declared_permanent() {
     assert!(!engine.card_casts_with_static_flash("player-0", &spell, "graveyard"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
     let mut company = test_definition("warg-company", "Creature - Wolf");
@@ -321,6 +326,7 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
     assert!(can_attack(&engine));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_counter_trigger_without_a_counter_name_matches_any_counter() {
     let mut source = test_definition("counter-watcher", "Creature - Goblin");
@@ -356,6 +362,7 @@ fn hob_batch10_counter_trigger_without_a_counter_name_matches_any_counter() {
     assert_eq!(engine.state.stack[0].decisions["counterCount"], 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_card_candidates_can_match_a_controlled_legendarys_name() {
     let mut engine = test_engine(2);
@@ -390,6 +397,7 @@ fn hob_batch10_card_candidates_can_match_a_controlled_legendarys_name() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -472,6 +480,7 @@ fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn canonical_gap_selectors_are_supported() {
     let stack_objects = json!({
@@ -501,6 +510,7 @@ fn canonical_gap_selectors_are_supported() {
     })));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     let mut engine = test_engine(2);
@@ -562,6 +572,7 @@ fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
     let mut engine = test_engine(2);
@@ -617,6 +628,7 @@ fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_returned_source_replaces_types_and_preserves_supertypes() {
     let mut engine = test_engine(2);
@@ -662,6 +674,7 @@ fn hob_batch9_returned_source_replaces_types_and_preserves_supertypes() {
     assert_eq!(permanent.definition.toughness, None);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_bound_damage_recipient_is_filtered_before_destruction() {
     let mut engine = test_engine(2);
@@ -1117,6 +1130,7 @@ fn test_engine(player_count: usize) -> GameEngine {
     .expect("test setup is valid")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
     let mut engine = test_engine(2);
@@ -1229,6 +1243,7 @@ fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn looked_at_hand_memory_is_private_to_the_viewer_and_tracks_existing_cards() {
     let mut engine = test_engine(2);
@@ -1261,6 +1276,7 @@ fn looked_at_hand_memory_is_private_to_the_viewer_and_tracks_existing_cards() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1351,6 +1367,7 @@ fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
     assert_eq!(labels.len(), cast_actions.len());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1441,6 +1458,7 @@ fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1515,6 +1533,7 @@ fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1578,6 +1597,7 @@ fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
     assert_eq!(names.len(), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1682,6 +1702,7 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1733,6 +1754,7 @@ fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     assert!(!engine.permanent_has_keyword(&engine.state.players[0].battlefield[1], "vigilance"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes() {
     let hall = parse_oracle_card(OracleCardParseRequest {
@@ -1880,6 +1902,7 @@ fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
     let control = parse_oracle_card(OracleCardParseRequest {
@@ -2018,6 +2041,7 @@ fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_alternative_cast_and_land_entry_events_share_one_live_effect() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2075,6 +2099,7 @@ fn parsed_alternative_cast_and_land_entry_events_share_one_live_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
     let mut engine = test_engine(2);
@@ -2116,6 +2141,7 @@ fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
     assert_eq!(engine.state.players[0].graveyard.len(), 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_hand_discard_binds_the_draw_and_story_damage_amount() {
     let mut engine = test_engine(3);
@@ -2196,6 +2222,7 @@ fn optional_hand_discard_binds_the_draw_and_story_damage_amount() {
     assert_eq!(engine.state.players[2].life, 17);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
     let mut engine = test_engine(2);
@@ -2264,6 +2291,7 @@ fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
     assert_eq!(source.counters.get("+1/+1"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     let mut engine = test_engine(3);
@@ -2359,6 +2387,7 @@ fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     assert_eq!(returned[1].definition.type_line, "Artifact - Food");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     struct ChooseDredge;
@@ -2453,6 +2482,7 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn died_source_and_top_cards_return_as_one_shuffled_library_pile() {
     let mut engine = test_engine(2);
@@ -2520,6 +2550,7 @@ fn died_source_and_top_cards_return_as_one_shuffled_library_pile() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
     let mut engine = test_engine(2);
@@ -2567,6 +2598,7 @@ fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     let mut saga_definition = test_definition("completed-saga", "Enchantment - Saga");
@@ -2623,6 +2655,7 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2666,6 +2699,7 @@ fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2768,6 +2802,7 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_restricted_color_combination_mana_retains_its_spending_filter() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2825,6 +2860,7 @@ fn parsed_restricted_color_combination_mana_retains_its_spending_filter() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_equip_targeting_reduction_changes_the_payable_equip_cost() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2893,6 +2929,7 @@ fn parsed_equip_targeting_reduction_changes_the_payable_equip_cost() {
     assert_eq!(axe.attached_to.as_deref(), Some("dwarven-mauler"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn multi_kicker_declarations_cover_every_subset_and_charge_only_selected_costs() {
     let engine = test_engine(2);
@@ -2937,6 +2974,7 @@ fn multi_kicker_declarations_cover_every_subset_and_charge_only_selected_costs()
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
     let mut engine = test_engine(2);
@@ -3022,6 +3060,7 @@ fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
     assert_eq!(engine.state.players[0].graveyard.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn repeatable_modal_declarations_generate_multisets_and_count_occurrences() {
     let engine = test_engine(2);
@@ -3065,6 +3104,7 @@ fn repeatable_modal_declarations_generate_multisets_and_count_occurrences() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn eligible_companion_can_move_from_sideboard_to_hand_once_at_sorcery_timing() {
     let mut engine = test_engine(2);
@@ -3124,6 +3164,7 @@ fn eligible_companion_can_move_from_sideboard_to_hand_once_at_sorcery_timing() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
     let mut engine = test_engine(2);
@@ -3195,6 +3236,7 @@ fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
     let mut engine = test_engine(2);
@@ -3297,6 +3339,7 @@ fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
     let mut engine = test_engine(2);
@@ -3394,6 +3437,7 @@ fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expires() {
     let mut engine = test_engine(2);
@@ -3474,6 +3518,7 @@ fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expir
     assert!(engine.permanent_is_creature(permanent));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn graveyard_destination_replacement_applies_from_any_zone_without_death_triggers() {
     let mut engine = test_engine(2);
@@ -3555,6 +3600,7 @@ fn graveyard_destination_replacement_applies_from_any_zone_without_death_trigger
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn stacked_mill_multipliers_apply_to_opponents_only() {
     let mut engine = test_engine(2);
@@ -3602,6 +3648,7 @@ fn stacked_mill_multipliers_apply_to_opponents_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn profane_memento_triggers_once_for_each_matching_milled_card() {
     let mut engine = test_engine(2);
@@ -3653,6 +3700,7 @@ fn profane_memento_triggers_once_for_each_matching_milled_card() {
     assert_eq!(engine.state.players[0].life, life_before + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exiled_creatures_return_with_entering_characteristics() {
     let mut engine = test_engine(2);
@@ -3742,6 +3790,7 @@ fn linked_exiled_creatures_return_with_entering_characteristics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn high_tide_adds_blue_mana_only_to_tapped_islands() {
     let mut engine = test_engine(2);
@@ -3815,6 +3864,7 @@ fn high_tide_adds_blue_mana_only_to_tapped_islands() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn doomsday_exiles_each_library_except_its_bottom_cards() {
     let mut engine = test_engine(2);
@@ -3875,6 +3925,7 @@ fn doomsday_exiles_each_library_except_its_bottom_cards() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn trap_alternative_cost_conditions_use_turn_history() {
     let mut engine = test_engine(2);
@@ -3920,6 +3971,7 @@ fn trap_alternative_cost_conditions_use_turn_history() {
     assert!(!engine.condition_value(&summoning_condition, "player-1", &BTreeMap::new()));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     let mut engine = test_engine(2);
@@ -3982,6 +4034,7 @@ fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leaves() {
     let mut engine = test_engine(2);
@@ -4119,6 +4172,7 @@ fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leave
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exile_grants_activated_abilities_and_flexible_activation_mana() {
     let mut engine = test_engine(2);
@@ -4249,6 +4303,7 @@ fn linked_exile_grants_activated_abilities_and_flexible_activation_mana() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_zone_ability_inheritance_tracks_matching_graveyard_cards() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4317,6 +4372,7 @@ fn parsed_zone_ability_inheritance_tracks_matching_graveyard_cards() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     struct CastRevealedCard;
@@ -4463,6 +4519,7 @@ fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     assert_eq!(engine.state.players[0].life, 21);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn split_second_leaves_only_mana_abilities_and_pass_priority() {
     let mut engine = test_engine(2);
@@ -4537,6 +4594,7 @@ fn split_second_leaves_only_mana_abilities_and_pass_priority() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -4593,6 +4651,7 @@ fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn global_graveyard_exile_can_exclude_the_effect_controller() {
     let mut engine = test_engine(3);
@@ -4641,6 +4700,7 @@ fn global_graveyard_exile_can_exclude_the_effect_controller() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn multi_target_permanent_effects_mutate_every_chosen_target() {
     let mut engine = test_engine(2);
@@ -4742,6 +4802,7 @@ fn multi_target_permanent_effects_mutate_every_chosen_target() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
     let mut engine = test_engine(2);
@@ -4862,6 +4923,7 @@ fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
     let mut engine = test_engine(2);
@@ -4979,6 +5041,7 @@ fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn activated_declarations_bind_source_counter_variables_before_filtering_cards() {
     let mut engine = test_engine(2);
@@ -5058,6 +5121,7 @@ fn activated_declarations_bind_source_counter_variables_before_filtering_cards()
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn permanent_count_damage_and_temporary_keyword_loss_mutate_live_players() {
     let mut engine = test_engine(2);
@@ -5131,6 +5195,7 @@ fn permanent_count_damage_and_temporary_keyword_loss_mutate_live_players() {
     assert!(!engine.permanent_has_keyword(&engine.state.players[1].battlefield[0], "hexproof"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn card_type_threshold_static_modifiers_follow_live_graveyard_contents() {
     let mut engine = test_engine(2);
@@ -5205,6 +5270,7 @@ fn card_type_threshold_static_modifiers_follow_live_graveyard_contents() {
     assert!(!engine.permanent_has_self_static_modifier(&source, "attackEachCombatIfAble"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack() {
     let mut engine = test_engine(2);
@@ -5259,6 +5325,7 @@ fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack
     assert_eq!(engine.state.players[0].mana_pool[0].symbol, "R");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exile_graveyard_bottom_and_evoke_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -5376,6 +5443,7 @@ fn linked_exile_graveyard_bottom_and_evoke_mutate_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn target_groups_can_be_constrained_to_one_zone_owner() {
     let mut engine = test_engine(2);
@@ -5454,6 +5522,7 @@ fn target_groups_can_be_constrained_to_one_zone_owner() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn off_battlefield_activation_costs_use_numeric_reductions() {
     let mut engine = test_engine(2);
@@ -5554,6 +5623,7 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_player_can_copy_the_resolving_spell() {
     let mut engine = test_engine(2);
@@ -5621,6 +5691,7 @@ fn targeted_player_can_copy_the_resolving_spell() {
     assert!(is_spell_copy(&engine.state.stack[0].card));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_library_shuffle_publishes_distinct_keep_and_shuffle_actions() {
     struct ShuffleChoiceProvider {
@@ -5696,6 +5767,7 @@ fn optional_library_shuffle_publishes_distinct_keep_and_shuffle_actions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn conditional_draw_replacements_add_to_the_draw_event() {
     let mut engine = test_engine(2);
@@ -5748,6 +5820,7 @@ fn conditional_draw_replacements_add_to_the_draw_event() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
     let mut engine = test_engine(2);
@@ -5816,6 +5889,7 @@ fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     let mut engine = test_engine(2);
@@ -5967,6 +6041,7 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     assert_eq!(engine.state.players[0].hand.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     let mut restricted = test_definition("restricted-dungeon", "Dungeon - Test");
@@ -6140,6 +6215,7 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     assert!(effect_engine.permanent_has_keyword(permanent, "hexproof"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     let trigger = json!({
@@ -6199,6 +6275,7 @@ fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn copying_a_permanent_retains_the_resolving_ability_and_object_state() {
     let retained_rule = json!({
@@ -6280,6 +6357,7 @@ fn copying_a_permanent_retains_the_resolving_ability_and_object_state() {
     assert_eq!(copied.counters.get("storage"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn minimum_casting_mana_applies_after_other_cost_changes_only_while_untapped() {
     let mut floor_definition = test_definition("mana-floor", "Artifact");
@@ -6326,6 +6404,7 @@ fn minimum_casting_mana_applies_after_other_cost_changes_only_while_untapped() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     let mut source_definition = test_definition("shared-permission", "Enchantment");
@@ -6392,6 +6471,7 @@ fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_player_counter_payment_drives_the_following_sweep() {
     struct MaximumNumberProvider;
@@ -6507,6 +6587,7 @@ fn variable_player_counter_payment_drives_the_following_sweep() {
     assert!(engine.permanent_position(&land.instance_id).is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     let mana_payment = json!([
@@ -6577,6 +6658,7 @@ fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn each_opponent_independently_pays_or_grants_the_controller_effect() {
     struct MixedOpponentProvider;
@@ -6681,6 +6763,7 @@ fn each_opponent_independently_pays_or_grants_the_controller_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -6762,6 +6845,7 @@ fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state
     assert_eq!(engine.state.players[0].life, controller_life_before + 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_temporary_protection_affects_live_target_legality_for_the_turn() {
     let mut engine = test_engine(2);
@@ -6817,6 +6901,7 @@ fn targeted_temporary_protection_affects_live_target_legality_for_the_turn() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
     let mut engine = test_engine(2);
@@ -6903,6 +6988,7 @@ fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
     assert_eq!(engine.state.players[0].graveyard.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_controller() {
     let mut engine = test_engine(2);
@@ -6966,6 +7052,7 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     struct DeclineReplacement;
@@ -7049,6 +7136,7 @@ fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     assert_eq!(paid.state.players[0].graveyard.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn each_player_can_pay_a_card_cost_or_accept_life_loss() {
     let mut engine = test_engine(2);
@@ -7156,6 +7244,7 @@ fn each_player_can_pay_a_card_cost_or_accept_life_loss() {
     assert!(engine.state.players.iter().all(|player| player.life == 18));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn step_costs_and_globally_granted_triggers_use_shared_cost_execution() {
     let mut paid_engine = test_engine(2);
@@ -7302,6 +7391,7 @@ fn step_costs_and_globally_granted_triggers_use_shared_cost_execution() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn top_graveyard_return_and_attached_tap_trigger_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -7428,6 +7518,7 @@ impl DecisionProvider for KeepLegendDecisionProvider {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() {
     let mut engine = test_engine(2);
@@ -7474,6 +7565,7 @@ fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() 
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
     let mut engine = test_engine(2);
@@ -7564,6 +7656,7 @@ fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn creatures_put_onto_the_battlefield_attacking_do_not_trigger_attack_abilities() {
     let mut engine = test_engine(4);
@@ -7660,6 +7753,7 @@ fn creatures_put_onto_the_battlefield_attacking_do_not_trigger_attack_abilities(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training_anchor_opening_hand_is_chosen_from_published_pool() {
     let mut engine = test_engine(2);
@@ -7712,6 +7806,7 @@ fn training_anchor_opening_hand_is_chosen_from_published_pool() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn compare_condition_reads_numeric_decision_results() {
     let engine = test_engine(2);
@@ -7792,6 +7887,7 @@ fn retained_card_ids(engine: &GameEngine, player_index: usize) -> BTreeSet<Strin
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training_mode_keeps_seeded_twenty_card_decks_and_draws_five() {
     let first = GameEngine::new_with_mode(training_setup(), 73, GameMode::Training).unwrap();
@@ -7815,6 +7911,7 @@ fn training_mode_keeps_seeded_twenty_card_decks_and_draws_five() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training2_mode_keeps_commander_and_seeded_forty_card_libraries() {
     let first = GameEngine::new_with_mode(training2_setup(), 73, GameMode::Training2).unwrap();
@@ -7861,6 +7958,7 @@ impl DecisionProvider for AlwaysMulliganProvider {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn maximum_mulligans_removes_the_fourth_mulligan_option() {
     let mut engine = GameEngine::new_with_mode(training_setup(), 73, GameMode::Training).unwrap();
@@ -7892,6 +7990,7 @@ fn maximum_mulligans_removes_the_fourth_mulligan_option() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_entering_counters_use_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -7920,6 +8019,7 @@ fn variable_entering_counters_use_the_cast_x_value() {
     assert_eq!(card.counters.get("+1/+1"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn entering_counter_arithmetic_uses_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -7951,6 +8051,7 @@ fn entering_counter_arithmetic_uses_the_cast_x_value() {
     assert_eq!(card.counters.get("stun"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn numeric_operations_compose_and_apply_explicit_rounding() {
     let engine = test_engine(2);
@@ -7982,6 +8083,7 @@ fn numeric_operations_compose_and_apply_explicit_rounding() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
     let mut engine = test_engine(2);
@@ -8075,6 +8177,7 @@ fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_exile_returns_the_card_when_the_source_leaves() {
     let mut engine = test_engine(2);
@@ -8154,6 +8257,7 @@ fn linked_exile_returns_the_card_when_the_source_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn created_token_binding_can_receive_a_mandatory_source_attachment() {
     let mut engine = test_engine(2);
@@ -8223,6 +8327,7 @@ fn created_token_binding_can_receive_a_mandatory_source_attachment() {
     assert!(has_card_type_name(&token.definition.type_line, "Dwarf"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn created_equipment_token_applies_its_embedded_static_ability() {
     let mut engine = test_engine(2);
@@ -8322,6 +8427,7 @@ fn created_equipment_token_applies_its_embedded_static_ability() {
     assert_eq!(engine.current_power(creature), 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn temporary_counted_bonus_excludes_the_ability_source() {
     let mut engine = test_engine(2);
@@ -8383,6 +8489,7 @@ fn temporary_counted_bonus_excludes_the_ability_source() {
     assert_eq!(engine.current_toughness(eagle), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     let mut engine = test_engine(2);
@@ -8567,6 +8674,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     assert_eq!(delayed["effects"][0]["quantity"]["value"], 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn per_opponent_linked_exile_targets_distinct_controllers_and_returns_every_card() {
     let mut engine = test_engine(4);
@@ -8709,6 +8817,7 @@ fn per_opponent_linked_exile_targets_distinct_controllers_and_returns_every_card
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_exile_can_return_the_card_to_its_owners_hand() {
     let mut engine = test_engine(2);
@@ -8761,6 +8870,7 @@ fn linked_exile_can_return_the_card_to_its_owners_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_exiled_card_owner_and_mana_value_drive_token_creation() {
     let mut engine = test_engine(2);
@@ -8860,6 +8970,7 @@ fn linked_exiled_card_owner_and_mana_value_drive_token_creation() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_name_activation_tax_changes_opponent_nonmana_payment() {
     let mut engine = test_engine(2);
@@ -8945,6 +9056,7 @@ fn chosen_name_activation_tax_changes_opponent_nonmana_payment() {
     assert_eq!(activation.payment_sources.len(), 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn simultaneous_hand_choices_move_only_lowest_matching_cards() {
     let mut engine = test_engine(3);
@@ -9022,6 +9134,7 @@ fn simultaneous_hand_choices_move_only_lowest_matching_cards() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -9121,6 +9234,7 @@ fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_name_reveal_until_moves_cards_and_loses_life_per_exile() {
     let mut engine = test_engine(2);
@@ -9180,6 +9294,7 @@ fn chosen_name_reveal_until_moves_cards_and_loses_life_per_exile() {
     assert!(engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn wither_damage_places_minus_counters_instead_of_marking_creature_damage() {
     let mut engine = test_engine(2);
@@ -9215,6 +9330,7 @@ fn wither_damage_places_minus_counters_instead_of_marking_creature_damage() {
     assert_eq!(target.damage_marked, 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn fear_and_flying_only_block_restrictions_are_enforced() {
     let mut engine = test_engine(2);
@@ -9271,6 +9387,7 @@ fn fear_and_flying_only_block_restrictions_are_enforced() {
     assert!(!engine.can_block(&white_blocker, &swampwalker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn horsemanship_intimidate_and_skulk_block_restrictions_are_enforced() {
     let engine = test_engine(2);
@@ -9357,6 +9474,7 @@ fn horsemanship_intimidate_and_skulk_block_restrictions_are_enforced() {
     assert!(!engine.can_block(&large_blocker, &skulk));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     let mut engine = test_engine(2);
@@ -9422,6 +9540,7 @@ fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn toxic_adds_fixed_poison_only_after_combat_damage_to_a_player() {
     let mut engine = test_engine(2);
@@ -9461,6 +9580,7 @@ fn toxic_adds_fixed_poison_only_after_combat_damage_to_a_player() {
     assert_eq!(engine.state.players[1].counters.get("poison"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn generic_reflexive_trigger_freezes_bound_numeric_values_on_the_stack() {
     let mut engine = test_engine(2);
@@ -9530,6 +9650,7 @@ fn generic_reflexive_trigger_freezes_bound_numeric_values_on_the_stack() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn bound_discard_action_feeds_a_reflexive_trigger() {
     let mut engine = test_engine(2);
@@ -9613,6 +9734,7 @@ fn bound_discard_action_feeds_a_reflexive_trigger() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
     let mut engine = test_engine(2);
@@ -9677,6 +9799,7 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -9808,6 +9931,7 @@ fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     let mut engine = test_engine(2);
@@ -9880,6 +10004,7 @@ fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_blight_costs_offer_only_controlled_creatures_and_place_counters_when_paid() {
     let activated_parse = parse_oracle_card(OracleCardParseRequest {
@@ -10079,6 +10204,7 @@ fn parsed_blight_costs_offer_only_controlled_creatures_and_place_counters_when_p
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -10140,6 +10266,7 @@ fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
     assert_eq!(source.counters.get("quest"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opening_hand_metrics_are_recorded_once_with_land_count() {
     let mut engine = test_engine(2);
@@ -10158,6 +10285,7 @@ fn opening_hand_metrics_are_recorded_once_with_land_count() {
     assert!(events.iter().all(|event| event.detail["landCount"] == 7));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn attack_outcome_marks_only_empty_combat_trades_as_suicidal() {
     let mut engine = test_engine(2);
@@ -10205,6 +10333,7 @@ fn attack_outcome_marks_only_empty_combat_trades_as_suicidal() {
     assert_eq!(outcome.detail["suicidal"], true);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_priority_choice_is_replaced_by_pass() {
     let mut engine = test_engine(2);
@@ -10237,6 +10366,7 @@ fn repeated_priority_choice_is_replaced_by_pass() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_priority_action_uses_the_chosen_iteration_count() {
     let mut engine = test_engine(2);
@@ -10283,6 +10413,7 @@ fn repeated_priority_action_uses_the_chosen_iteration_count() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     let mut engine = test_engine(2);
@@ -10403,6 +10534,7 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     let mut engine = test_engine(2);
@@ -10471,6 +10603,7 @@ fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     let mut engine = test_engine(2);
@@ -10549,6 +10682,7 @@ fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn direct_game_loss_completes_a_two_player_game() {
     let mut engine = test_engine(2);
@@ -10570,6 +10704,7 @@ fn direct_game_loss_completes_a_two_player_game() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn exchanged_permanent_moves_to_its_controller_and_can_pay_a_sacrifice_cost() {
     let mut engine = test_engine(2);
@@ -10659,6 +10794,7 @@ fn exchanged_permanent_moves_to_its_controller_and_can_pay_a_sacrifice_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn doppelgang_materializes_a_large_finite_copy_effect() {
     let mut engine = test_engine(2);
@@ -10709,6 +10845,7 @@ fn doppelgang_materializes_a_large_finite_copy_effect() {
     assert_ne!(engine.state.status, GameStatus::Completed);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn resolution_selections_prune_impossible_combination_suffixes() {
     let objects = (0..46)
@@ -10721,6 +10858,7 @@ fn resolution_selections_prune_impossible_combination_suffixes() {
     assert!(selections.iter().all(|selection| selection.len() == 45));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn direct_card_selection_accepts_a_legal_combination_outside_precomputed_options() {
     struct DirectSelectionProvider {
@@ -10795,6 +10933,7 @@ fn direct_card_selection_accepts_a_legal_combination_outside_precomputed_options
     assert_eq!(decisions["landsToFind"], json!(selected));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     struct HandThenOrderProvider {
@@ -10952,6 +11091,7 @@ fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
     struct SearchSelectionProvider;
@@ -11075,6 +11215,7 @@ fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn split_library_search_moves_one_selected_card_to_each_destination() {
     struct SplitSearchSelectionProvider {
@@ -11243,6 +11384,7 @@ fn split_library_search_moves_one_selected_card_to_each_destination() {
     assert_eq!(engine.state.players[0].library[0].instance_id, "other-card");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     let mut engine = test_engine(2);
@@ -11341,6 +11483,7 @@ fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn promised_gift_effect_uses_the_bound_recipient_and_restricts_each_player() {
     let mut engine = test_engine(2);
@@ -11419,6 +11562,7 @@ fn promised_gift_effect_uses_the_bound_recipient_and_restricts_each_player() {
     assert_eq!(restricted_players, BTreeSet::from(["player-0", "player-1"]));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn doppelgang_ends_as_a_draw_before_an_unbounded_object_explosion() {
     let mut engine = test_engine(2);
@@ -11763,6 +11907,7 @@ fn test_commander_engine() -> GameEngine {
     .expect("commander setup is valid")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     let mut engine = test_engine(2);
@@ -11821,6 +11966,7 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
     #[derive(Default)]
@@ -11910,6 +12056,7 @@ fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
     assert_eq!(provider.order_choices, 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn looked_at_library_top_is_remembered_until_that_library_changes() {
     let mut engine = test_engine(2);
@@ -11981,6 +12128,7 @@ fn looked_at_library_top_is_remembered_until_that_library_changes() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn connive_draws_discards_and_counters_for_any_canonical_source() {
     let mut engine = test_engine(2);
@@ -12028,6 +12176,7 @@ fn connive_draws_discards_and_counters_for_any_canonical_source() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
     let mut engine = test_engine(2);
@@ -12126,6 +12275,7 @@ fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
     let target_opponent = json!({ "kind": "chosenTarget", "id": "targetOpponent" });
@@ -12285,6 +12435,7 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn card_choice_uses_the_player_named_by_the_candidate_zone() {
     struct TargetHandProvider {
@@ -12433,6 +12584,7 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn greatest_hand_wheel_uses_the_pre_discard_maximum_for_every_player() {
     let mut engine = test_engine(2);
@@ -12487,6 +12639,7 @@ fn greatest_hand_wheel_uses_the_pre_discard_maximum_for_every_player() {
     assert_eq!(engine.state.players[1].graveyard.len(), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     let mut engine = test_engine(2);
@@ -12572,6 +12725,7 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     assert_eq!(engine.state.players[0].battlefield[0].damage_marked, 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
     let mut control_engine = test_engine(2);
@@ -12725,6 +12879,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
     let mut engine = test_engine(2);
@@ -12792,6 +12947,7 @@ fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn echo_is_due_after_entry_then_is_paid_or_sacrificed_only_once() {
     let echo_rule = json!({
@@ -12855,6 +13011,7 @@ fn echo_is_due_after_entry_then_is_paid_or_sacrificed_only_once() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
     let mut engine = test_engine(2);
@@ -12950,6 +13107,7 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn commander_starts_in_command_zone_and_accumulates_cast_tax() {
     let mut engine = test_commander_engine();
@@ -13015,6 +13173,7 @@ fn commander_starts_in_command_zone_and_accumulates_cast_tax() {
     assert!(taxed_cast.label.contains("commander tax {2}"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn black_phyrexian_mana_prefers_black_mana_and_falls_back_to_two_life() {
     let requirement =
@@ -13038,6 +13197,7 @@ fn black_phyrexian_mana_prefers_black_mana_and_falls_back_to_two_life() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn snow_cost_requires_mana_produced_by_a_snow_source() {
     let requirement =
@@ -13062,6 +13222,7 @@ fn snow_cost_requires_mana_produced_by_a_snow_source() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
     let mut engine = test_commander_engine();
@@ -13144,6 +13305,7 @@ fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn commander_owner_can_move_it_back_to_command_zone() {
     let mut engine = test_commander_engine();
@@ -13172,6 +13334,7 @@ fn commander_owner_can_move_it_back_to_command_zone() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn twenty_one_combat_damage_from_one_commander_eliminates_a_player() {
     let mut engine = test_commander_engine();
@@ -13205,6 +13368,7 @@ fn twenty_one_combat_damage_from_one_commander_eliminates_a_player() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn omnath_converts_unspent_mana_to_black_between_steps() {
     let mut engine = test_engine(2);
@@ -13250,6 +13414,7 @@ fn omnath_converts_unspent_mana_to_black_between_steps() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn mana_reflection_makes_doubling_cube_triple_the_remaining_pool() {
     let mut engine = test_engine(2);
@@ -13319,6 +13484,7 @@ fn mana_reflection_makes_doubling_cube_triple_the_remaining_pool() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn alexios_grows_each_upkeep_without_moving_attached_equipment() {
     let mut engine = test_engine(3);
@@ -13422,6 +13588,7 @@ fn alexios_grows_each_upkeep_without_moving_attached_equipment() {
     assert!(engine.permanent_position("alexios").is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn transform_cards_switch_characteristics_and_active_rules() {
     let mut engine = test_engine(2);
@@ -13516,6 +13683,7 @@ fn ecc_test_stack(card_name: &str) -> StackObject {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ecc_shatter_the_sky_draws_for_large_creatures_then_destroys_all_creatures() {
     let mut engine = test_engine(2);
@@ -13547,6 +13715,7 @@ fn ecc_shatter_the_sky_draws_for_large_creatures_then_destroys_all_creatures() {
     assert_eq!(engine.state.players[1].hand.len(), player_one_hand);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ecc_archfiend_places_minus_counters_only_on_opposing_creatures() {
     let mut engine = test_engine(2);
@@ -13579,6 +13748,7 @@ fn ecc_archfiend_places_minus_counters_only_on_opposing_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ecc_everlasting_torment_makes_all_creature_damage_wither() {
     let mut engine = test_engine(2);
@@ -13630,6 +13800,7 @@ fn ecc_everlasting_torment_makes_all_creature_damage_wither() {
     assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
     let definition = compile_playable_card(PlayableCardInput {
@@ -13716,6 +13887,7 @@ fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     let mut engine = test_engine(2);
@@ -13818,6 +13990,7 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_investigates_when_she_attacks_without_an_external_card_catalog() {
     let rules = no_lands_rules(
@@ -14245,6 +14418,7 @@ fn floating_mana(symbols: &[&str]) -> Vec<FloatingMana> {
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
     let mut engine = test_engine(2);
@@ -14286,6 +14460,7 @@ fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
     assert_eq!(engine.state.stack[0].card.instance_id, "three-drop");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
     let mut engine = test_engine(2);
@@ -14356,6 +14531,7 @@ fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
     let mut engine = test_engine(2);
@@ -14412,6 +14588,7 @@ fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
     assert_eq!(engine.state.players[0].library.len(), library_size - 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn smothering_abomination_self_sacrifice_still_draws_a_card() {
     let mut engine = test_engine(2);
@@ -14429,6 +14606,7 @@ fn smothering_abomination_self_sacrifice_still_draws_a_card() {
     assert_eq!(engine.state.players[0].hand.len(), hand_size + 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn talon_gates_pays_one_then_adds_the_chosen_color_without_using_the_stack() {
     let mut engine = test_engine(2);
@@ -14500,6 +14678,7 @@ fn talon_gates_pays_one_then_adds_the_chosen_color_without_using_the_stack() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     let mut engine = test_engine(2);
@@ -14555,6 +14734,7 @@ fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     assert_eq!(engine.state.stack[0].card.instance_id, "white-spell");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
     let mut engine = test_engine(2);
@@ -14608,6 +14788,7 @@ fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn basic_land_subtype_does_not_duplicate_its_parsed_mana_ability() {
     let engine = test_engine(2);
@@ -14620,6 +14801,7 @@ fn basic_land_subtype_does_not_duplicate_its_parsed_mana_ability() {
     assert_eq!(choices[0].rule_index, Some(0));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
     let mut engine = test_engine(2);
@@ -14655,6 +14837,7 @@ fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     let mut engine = test_engine(2);
@@ -14719,6 +14902,7 @@ fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn continuous_power_bonus_updates_topiary_lecturer_stats_and_mana() {
     let mut engine = test_engine(2);
@@ -14770,6 +14954,7 @@ fn continuous_power_bonus_updates_topiary_lecturer_stats_and_mana() {
     assert!(choices.iter().any(|choice| choice.symbols == ["G", "G"]));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     let mut engine = test_engine(3);
@@ -14816,6 +15001,7 @@ fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     assert_eq!(produced, vec![json!(["U"]), json!(["R"])]);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     let mut engine = test_engine(2);
@@ -14878,6 +15064,7 @@ fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn impossible_payment_with_many_flexible_sources_is_pruned() {
     let mut engine = test_engine(2);
@@ -14896,6 +15083,7 @@ fn impossible_payment_with_many_flexible_sources_is_pruned() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn city_of_brass_mana_activation_puts_its_damage_trigger_on_the_stack() {
     let mut engine = test_engine(2);
@@ -14926,6 +15114,7 @@ fn city_of_brass_mana_activation_puts_its_damage_trigger_on_the_stack() {
     assert_eq!(engine.state.players[0].life, 19);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn city_of_brass_payment_trigger_is_above_the_spell() {
     let mut engine = test_engine(2);
@@ -14974,6 +15163,7 @@ fn city_of_brass_payment_trigger_is_above_the_spell() {
     assert_eq!(engine.state.stack[0].card.instance_id, "white-spell");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_spends_floating_mana_before_tapping_a_source() {
     let mut engine = test_engine(2);
@@ -15001,6 +15191,7 @@ fn payment_spends_floating_mana_before_tapping_a_source() {
     assert!(payment.activations.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_prefers_matching_restricted_sources() {
     let mut engine = test_engine(2);
@@ -15036,6 +15227,7 @@ fn payment_prefers_matching_restricted_sources() {
     assert_eq!(payment.activations[0].source_id, "tablet");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ally_encampment_and_plains_cast_great_divide_guide() {
     let mut engine = test_engine(2);
@@ -15080,6 +15272,7 @@ fn ally_encampment_and_plains_cast_great_divide_guide() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn great_divide_guide_grants_mana_ability_to_mature_allies_only() {
     let mut engine = test_engine(2);
@@ -15167,6 +15360,7 @@ fn great_divide_guide_grants_mana_ability_to_mature_allies_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() {
     let parse_static_rule = |name: &str, oracle_text: &str| {
@@ -15248,6 +15442,7 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -15323,6 +15518,7 @@ fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_uses_animated_lands_only_after_other_sources() {
     let mut engine = test_engine(2);
@@ -15367,6 +15563,7 @@ fn payment_uses_animated_lands_only_after_other_sources() {
     assert!(!source_ids.contains(&"animated"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     let mut engine = test_engine(2);
@@ -15465,6 +15662,7 @@ fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
     let decision_id = offspring_decision_id(0);
@@ -15548,6 +15746,7 @@ fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
     assert!(paid_engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn countered_offspring_spell_never_creates_a_copy() {
     let decision_id = offspring_decision_id(0);
@@ -15585,6 +15784,7 @@ fn countered_offspring_spell_never_creates_a_copy() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
     let mut declined_engine = engine_with_targeted_ward_permanent();
@@ -15621,6 +15821,7 @@ fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     let mut sacrifice_engine = engine_with_targeted_ward_permanent();
@@ -15745,6 +15946,7 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
     let counter_rule = json!({
@@ -15845,6 +16047,7 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
     let mut engine = test_engine(2);
@@ -15961,6 +16164,7 @@ fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn repeated_named_cast_wins_and_first_cast_uses_the_requested_library_position() {
     fn approach_definition() -> CardDefinition {
@@ -16046,6 +16250,7 @@ fn repeated_named_cast_wins_and_first_cast_uses_the_requested_library_position()
     assert!(repeated_cast.state.outcome.is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
     let mut engine = test_engine(2);
@@ -16149,6 +16354,7 @@ fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability() {
     let mut engine = test_engine(2);
@@ -16297,6 +16503,7 @@ fn station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability() {
     assert!(copy_action(&engine).is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
     let mut engine = test_engine(2);
@@ -16375,6 +16582,7 @@ fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
     assert!(engine.state.players[1].battlefield.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn strategic_betrayal_opponent_chooses_a_creature_then_exiles_their_graveyard() {
     let mut engine = test_engine(2);
@@ -16504,6 +16712,7 @@ fn strategic_betrayal_opponent_chooses_a_creature_then_exiles_their_graveyard() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
     let mut engine = test_engine(2);
@@ -16677,6 +16886,7 @@ fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
     assert_eq!(engine.state.stack[0].controller, "player-0");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
     let mut engine = test_engine(2);
@@ -16816,6 +17026,7 @@ fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
     assert_eq!(engine.state.stack[0].controller, "player-0");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -16893,6 +17104,7 @@ fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -16975,6 +17187,7 @@ fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17033,6 +17246,7 @@ fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17122,6 +17336,7 @@ fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17228,6 +17443,7 @@ fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice()
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn petrified_hamlet_stores_a_land_name_and_applies_both_static_modifiers() {
     let trigger_rule = json!({
@@ -17406,6 +17622,7 @@ fn petrified_hamlet_stores_a_land_name_and_applies_both_static_modifiers() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn negate_targets_and_counters_only_a_noncreature_spell() {
     let mut engine = test_engine(2);
@@ -17532,6 +17749,7 @@ fn negate_targets_and_counters_only_a_noncreature_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_spell_effect_cannot_counter_a_triggered_ability() {
     let mut engine = test_engine(2);
@@ -17593,6 +17811,7 @@ fn counter_spell_effect_cannot_counter_a_triggered_ability() {
     assert!(engine.state.players[1].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
     let mut engine = test_engine(2);
@@ -17636,6 +17855,7 @@ fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
     let mut lotus_definition = test_definition("lotus-petal", "Artifact");
@@ -17701,6 +17921,7 @@ fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
     assert_eq!(engine.state.stack[0].card.instance_id, "black-spell");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_eldrazi_token_keeps_and_executes_its_embedded_mana_ability() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17765,6 +17986,7 @@ fn parsed_eldrazi_token_keeps_and_executes_its_embedded_mana_ability() {
     assert_eq!(engine.state.players[0].mana_pool[0].symbol, "C");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn clue_token_uses_its_parsed_catalog_ability_to_draw_a_card() {
     let mut engine = test_engine(2);
@@ -17810,6 +18032,7 @@ fn clue_token_uses_its_parsed_catalog_ability_to_draw_a_card() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn created_blood_token_uses_catalog_oracle_and_executes_all_of_its_costs() {
     let mut engine = test_engine(2);
@@ -17908,6 +18131,7 @@ fn created_blood_token_uses_catalog_oracle_and_executes_all_of_its_costs() {
     assert_eq!(engine.state.players[0].hand[0].instance_id, "drawn-card");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn named_token_creation_honors_the_tapped_entry_flag() {
     let mut engine = test_engine(2);
@@ -17950,6 +18174,7 @@ fn named_token_creation_honors_the_tapped_entry_flag() {
     assert!(treasure.definition.is_token);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn map_token_pays_taps_and_sacrifices_before_target_creature_explores() {
     let mut engine = test_engine(2);
@@ -18023,6 +18248,7 @@ fn map_token_pays_taps_and_sacrifices_before_target_creature_explores() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_damage() {
     let mut engine = test_engine(2);
@@ -18101,6 +18327,7 @@ fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn multiversal_passage_chooses_a_basic_land_type_before_optional_life_payment() {
     let mut engine = test_engine(2);
@@ -18177,6 +18404,7 @@ fn multiversal_passage_chooses_a_basic_land_type_before_optional_life_payment() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cavern_of_souls_offers_creature_subtypes_from_oracle_type_lines() {
     struct EldraziDecisionProvider;
@@ -18234,6 +18462,7 @@ fn cavern_of_souls_offers_creature_subtypes_from_oracle_type_lines() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_dies_trigger_fires_only_when_its_source_dies() {
     let mut engine = test_engine(2);
@@ -18321,6 +18550,7 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
     assert_eq!(insects, 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
     let mut engine = test_engine(2);
@@ -18386,6 +18616,7 @@ fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
     assert_eq!(graveborn.definition.toughness.as_deref(), Some("1"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn mobilize_creates_attacking_warriors_then_sacrifices_them_at_end_step() {
     let mut engine = test_engine(2);
@@ -18435,6 +18666,7 @@ fn mobilize_creates_attacking_warriors_then_sacrifices_them_at_end_step() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18560,6 +18792,7 @@ fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attached_permanent_attack_trigger_uses_the_equipped_attacker() {
     let mut engine = test_engine(2);
@@ -18615,6 +18848,7 @@ fn attached_permanent_attack_trigger_uses_the_equipped_attacker() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn spell_cast_trigger_can_filter_by_distinct_color_count() {
     let mut engine = test_engine(2);
@@ -18656,6 +18890,7 @@ fn spell_cast_trigger_can_filter_by_distinct_color_count() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn static_permission_allows_playing_a_land_from_graveyard() {
     let mut engine = test_engine(2);
@@ -18721,6 +18956,7 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
     assert!(engine.state.players[0].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counters() {
     let mut engine = test_engine(2);
@@ -18780,6 +19016,7 @@ fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counte
     assert!(!permanent.flags.contains_key("attacking"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
     let mut engine = test_engine(2);
@@ -18858,6 +19095,7 @@ fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     let mut engine = test_engine(2);
@@ -18922,6 +19160,7 @@ fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     assert_eq!(engine.current_power(creature), 6);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_leave_trigger_can_require_the_graveyard_destination() {
     let mut engine = test_engine(2);
@@ -18960,6 +19199,7 @@ fn self_leave_trigger_can_require_the_graveyard_destination() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_counter_effects_execute_after_a_sacrifice_cost() {
     let mut engine = test_engine(2);
@@ -19039,6 +19279,7 @@ fn self_counter_effects_execute_after_a_sacrifice_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
     let mut engine = test_engine(2);
@@ -19162,6 +19403,7 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_then_token_quantity_uses_the_updated_source_counter() {
     let mut engine = test_engine(2);
@@ -19227,6 +19469,7 @@ fn counter_then_token_quantity_uses_the_updated_source_counter() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() {
     let mut engine = test_engine(3);
@@ -19305,6 +19548,7 @@ fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
     let mut engine = test_engine(2);
@@ -19357,6 +19601,7 @@ fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
     let mut engine = test_engine(2);
@@ -19455,6 +19700,7 @@ fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
     assert!(engine.permanent_has_keyword(target, "trample"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn creature_entered_during_combat_trigger_ignores_main_phase_entries() {
     let mut engine = test_engine(2);
@@ -19603,6 +19849,7 @@ fn emeritus_definition(include_attack_trigger: bool) -> CardDefinition {
 }
 
 /// Feature: Casting a preparation permanent never declares the linked spell's target.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
     let mut engine = test_engine(2);
@@ -19712,6 +19959,7 @@ fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
 }
 
 /// Feature: Emeritus pays its optional eight-card attack instruction during trigger resolution.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
     let mut engine = test_engine(2);
@@ -19761,6 +20009,7 @@ fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_permission_follows_the_permanents_current_controller() {
     let mut engine = test_engine(2);
@@ -19799,6 +20048,7 @@ fn prepared_spell_permission_follows_the_permanents_current_controller() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_copy_ceases_while_phased_out_and_returns_on_phase_in() {
     let mut engine = test_engine(2);
@@ -19834,6 +20084,7 @@ fn prepared_spell_copy_ceases_while_phased_out_and_returns_on_phase_in() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn preparing_twice_does_not_create_a_second_spell_copy() {
     let mut engine = test_engine(2);
@@ -19862,6 +20113,7 @@ fn preparing_twice_does_not_create_a_second_spell_copy() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn delayed_next_spell_trigger_is_consumed_and_copies_the_cast_spell() {
     let mut engine = test_engine(2);
@@ -19927,6 +20179,7 @@ fn delayed_next_spell_trigger_is_consumed_and_copies_the_cast_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn delayed_step_trigger_is_consumed_and_resolves_its_effects() {
     let mut engine = test_engine(2);
@@ -19964,6 +20217,7 @@ fn delayed_step_trigger_is_consumed_and_resolves_its_effects() {
     assert_eq!(engine.state.players[0].hand.len(), hand_size + 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
     let mut engine = test_engine(2);
@@ -19989,6 +20243,7 @@ fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
 }
 
 /// Feature: Tablet's milled card stays playable through the end step and expires in cleanup.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn tablet_permission_survives_until_the_current_turn_cleanup() {
     let mut engine = test_engine(2);
@@ -20066,6 +20321,7 @@ fn tablet_permission_survives_until_the_current_turn_cleanup() {
     assert!(!playable_from_graveyard(&engine));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn single_cast_permission_prohibits_later_spells_for_the_turn() {
     let mut engine = test_engine(2);
@@ -20118,6 +20374,7 @@ fn single_cast_permission_prohibits_later_spells_for_the_turn() {
 }
 
 /// Feature: One attacker exposes players, opposing planeswalkers, and battles as defenders.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attacker_actions_expose_every_supported_defender_kind() {
     let mut engine = test_engine(3);
@@ -20192,6 +20449,7 @@ fn attacker_actions_expose_every_supported_defender_kind() {
 }
 
 /// Feature: A human can cancel an attacker and redeclare it against another defender.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn human_revises_attacker_target_before_finishing_declarations() {
     #[derive(Default)]
@@ -20292,6 +20550,7 @@ fn human_revises_attacker_target_before_finishing_declarations() {
 }
 
 /// Feature: Multiple blockers can share one attacker and Rust owns their damage division.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn combat_supports_multiple_blockers_and_current_damage_assignment() {
     let mut engine = test_engine(2);
@@ -20341,6 +20600,7 @@ fn combat_supports_multiple_blockers_and_current_damage_assignment() {
     assert_eq!(serialized["combat"]["blockers"], json!([]));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn trample_assigns_lethal_damage_in_order_then_hits_the_defending_player() {
     let mut engine = test_engine(2);
@@ -20397,6 +20657,7 @@ fn trample_assigns_lethal_damage_in_order_then_hits_the_defending_player() {
     assert_eq!(engine.state.players[1].graveyard.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn blocked_trampler_hits_its_defender_after_all_blockers_are_gone() {
     let mut engine = test_engine(2);
@@ -20428,6 +20689,7 @@ fn blocked_trampler_hits_its_defender_after_all_blockers_are_gone() {
 }
 
 /// Feature: Unblocked combat damage is assigned to the chosen permanent defender.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn combat_damage_hits_the_selected_permanent_instead_of_its_controller() {
     let mut engine = test_engine(2);
@@ -20468,6 +20730,7 @@ fn combat_damage_hits_the_selected_permanent_instead_of_its_controller() {
 }
 
 /// Feature: A permanent declaration includes an opponent land and returns that exact object.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn permanent_target_declarations_include_opponent_lands() {
     let mut engine = test_engine(2);
@@ -20552,6 +20815,7 @@ fn permanent_target_declarations_include_opponent_lands() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn hexproof_excludes_only_opposing_permanents_from_target_declarations() {
     let mut engine = test_engine(2);
@@ -20591,6 +20855,7 @@ fn hexproof_excludes_only_opposing_permanents_from_target_declarations() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn menace_requires_two_legal_blockers_before_blocking_can_finish() {
     let mut engine = test_engine(2);
@@ -20669,6 +20934,7 @@ fn menace_requires_two_legal_blockers_before_blocking_can_finish() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn first_and_double_strike_use_distinct_combat_damage_steps() {
     let mut first_strike_engine = test_engine(2);
@@ -20760,6 +21026,7 @@ fn first_and_double_strike_use_distinct_combat_damage_steps() {
 }
 
 /// Feature: Nonland permanent declarations expose every legal object and no lands.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn nonland_permanent_declarations_filter_the_complete_battlefield() {
     let mut engine = test_engine(2);
@@ -20845,6 +21112,7 @@ fn nonland_permanent_declarations_filter_the_complete_battlefield() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn boros_charm_spell_instruction_grants_indestructible_until_cleanup() {
     let mut engine = test_engine(2);
@@ -20882,6 +21150,7 @@ fn boros_charm_spell_instruction_grants_indestructible_until_cleanup() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
     let mut engine = test_engine(2);
@@ -20964,6 +21233,7 @@ fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn replicate_pays_each_additional_cost_and_copies_the_spell() {
     let mut engine = test_engine(2);
@@ -21069,6 +21339,7 @@ fn replicate_pays_each_additional_cost_and_copies_the_spell() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn threefold_signal_replicates_three_color_permanents_as_tokens() {
     let mut engine = test_engine(2);
@@ -21172,6 +21443,7 @@ fn threefold_signal_replicates_three_color_permanents_as_tokens() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
     let mut engine = test_engine(2);
@@ -21246,6 +21518,7 @@ fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
     assert_eq!(engine.state.players[0].hand.len(), initial_hand_size + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
     let mut engine = test_engine(2);
@@ -21323,6 +21596,7 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
     assert_eq!(room.flags.get("roomDoor1Unlocked"), Some(&true));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
     let mut engine = test_engine(2);
@@ -21382,6 +21656,7 @@ fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn earthbent_land_returns_tapped_after_it_is_exiled() {
     let mut engine = test_engine(2);
@@ -21446,6 +21721,7 @@ fn earthbent_land_returns_tapped_after_it_is_exiled() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
     let mut engine = test_engine(2);
@@ -21546,6 +21822,7 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
     assert_eq!(stone.counters.get("+1/+1"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
     let engine = test_engine(2);
@@ -21579,6 +21856,7 @@ fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
     assert!(engine.can_block(&reach_blocker, &attacker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn bending_events_draw_and_transform_avatar_aang() {
     let mut engine = test_engine(2);
@@ -21639,6 +21917,7 @@ fn bending_events_draw_and_transform_avatar_aang() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
     let mut expansion_engine = test_engine(2);
@@ -21772,6 +22051,7 @@ fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn fuse_casts_both_split_halves_with_independent_targets() {
     let mut engine = test_engine(2);
@@ -21850,6 +22130,7 @@ fn fuse_casts_both_split_halves_with_independent_targets() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
     let mut engine = test_engine(2);
@@ -21949,6 +22230,7 @@ fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn kheru_spellsnatcher_exiles_and_grants_a_free_cast_permission() {
     let mut engine = test_engine(2);
@@ -22003,6 +22285,7 @@ fn kheru_spellsnatcher_exiles_and_grants_a_free_cast_permission() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn boundless_realms_keeps_maximum_size_search_choices_available() {
     let mut engine = test_engine(2);
@@ -22083,6 +22366,7 @@ fn boundless_realms_keeps_maximum_size_search_choices_available() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn avatar_spell_instruction_without_x_defaults_to_zero() {
     let mut engine = test_engine(2);
@@ -22111,6 +22395,7 @@ fn avatar_spell_instruction_without_x_defaults_to_zero() {
         .expect("a non-X Avatar spell resolves without an X declaration");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn priority_fingerprint_ignores_event_history_but_tracks_game_changes() {
     let mut engine = test_engine(2);
@@ -22123,6 +22408,7 @@ fn priority_fingerprint_ignores_event_history_but_tracks_game_changes() {
     assert_ne!(engine.priority_state_fingerprint(), initial);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
     let mut engine = test_engine(2);
@@ -22220,6 +22506,7 @@ fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
     let mut engine = test_engine(2);
@@ -22282,6 +22569,7 @@ fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
     let mut engine = test_engine(2);
@@ -22360,6 +22648,7 @@ fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
     let mut engine = test_engine(2);
@@ -22415,6 +22704,7 @@ fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     let mut engine = test_engine(2);
@@ -22490,6 +22780,7 @@ fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     assert_eq!(suspended.counters.get("time"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn suspend_removes_time_counters_and_casts_the_card_for_free() {
     let mut engine = test_engine(2);
@@ -22534,6 +22825,7 @@ fn suspend_removes_time_counters_and_casts_the_card_for_free() {
     assert!(engine.permanent_has_keyword(permanent, "haste"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn kellan_triggers_only_for_casts_outside_hand_and_casts_a_smaller_permanent() {
     let mut engine = test_engine(2);
@@ -22589,6 +22881,7 @@ fn kellan_triggers_only_for_casts_outside_hand_and_casts_a_smaller_permanent() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn imoti_grants_cascade_to_six_mana_spells() {
     let mut engine = test_engine(2);
@@ -22634,6 +22927,7 @@ fn imoti_grants_cascade_to_six_mana_spells() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn minds_desire_grants_a_free_play_from_exile_this_turn() {
     let mut engine = test_engine(2);
@@ -22674,6 +22968,7 @@ fn minds_desire_grants_a_free_play_from_exile_this_turn() {
     assert_eq!(action.decisions["withoutPayingManaCost"], true);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn ragavan_grants_its_controller_permission_to_cast_an_opponents_exiled_card() {
     let mut engine = test_engine(2);
@@ -22718,6 +23013,7 @@ fn ragavan_grants_its_controller_permission_to_cast_an_opponents_exiled_card() {
     assert_eq!(cast.decisions["castSourceZone"], "exile");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn mind_grind_mills_every_revealed_card_through_the_xth_land_for_each_opponent() {
     let mut engine = test_engine(3);
@@ -22777,6 +23073,7 @@ fn mind_grind_mills_every_revealed_card_through_the_xth_land_for_each_opponent()
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     let mut engine = test_engine(2);
@@ -22831,6 +23128,7 @@ fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     let mut engine = test_engine(2);
@@ -22885,6 +23183,7 @@ fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
     let mut engine = test_engine(2);
@@ -22948,6 +23247,7 @@ fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
     let mut engine = test_engine(2);
@@ -22996,6 +23296,7 @@ fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     let mut engine = test_engine(2);
@@ -23057,6 +23358,7 @@ fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     let mut engine = test_engine(2);
@@ -23123,6 +23425,7 @@ fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     assert_eq!(restored.definition, original_definition);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
     let mut engine = test_engine(2);
@@ -23184,6 +23487,7 @@ fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn damping_sphere_replaces_large_land_mana_and_taxes_later_spells() {
     let mut engine = test_engine(2);
@@ -23223,6 +23527,7 @@ fn damping_sphere_replaces_large_land_mana_and_taxes_later_spells() {
     assert!(costs.iter().any(|cost| cost == "{1}"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn dragon_throne_grants_and_resolves_its_equipped_creature_ability() {
     let mut engine = test_engine(2);
@@ -23298,6 +23603,7 @@ fn dragon_throne_grants_and_resolves_its_equipped_creature_ability() {
     assert!(engine.permanent_has_keyword(other, "trample"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn capitoline_triad_emblem_sets_only_its_controllers_creatures_base_to_nine() {
     let mut engine = test_engine(2);
@@ -23351,6 +23657,7 @@ fn capitoline_triad_emblem_sets_only_its_controllers_creatures_base_to_nine() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn odric_makes_the_attacking_player_choose_defending_creatures_blocks() {
     #[derive(Default)]
@@ -23426,6 +23733,7 @@ fn odric_makes_the_attacking_player_choose_defending_creatures_blocks() {
     assert!(provider.attacker_chose_blocks);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
     let mut engine = test_engine(2);
@@ -23468,6 +23776,7 @@ fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn hone_counters_on_any_equipment_increase_the_equipped_creatures_power() {
     let mut engine = test_engine(2);
@@ -23489,6 +23798,7 @@ fn hone_counters_on_any_equipment_increase_the_equipped_creatures_power() {
     assert_eq!(engine.current_toughness(&creature), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn storied_grants_an_enduring_story_once_the_generic_threshold_is_met() {
     let mut engine = test_engine(2);
@@ -23524,6 +23834,7 @@ fn storied_grants_an_enduring_story_once_the_generic_threshold_is_met() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
     let mut engine = test_engine(2);
@@ -23587,6 +23898,7 @@ fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() {
     let mut engine = test_engine(2);
@@ -23701,6 +24013,7 @@ fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() 
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -23751,6 +24064,7 @@ fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     assert!(engine.permanent_has_keyword(target, "firstStrike"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -23830,6 +24144,7 @@ fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     assert!(engine.permanent_position("untapped-target").is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn source_power_characteristic_counts_only_its_controllers_permanents() {
     let mut engine = test_engine(2);
@@ -23878,6 +24193,7 @@ fn source_power_characteristic_counts_only_its_controllers_permanents() {
     assert_eq!(engine.current_toughness(garrison), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn opponent_second_draw_creates_a_token_and_grouped_players_each_draw() {
     let mut engine = test_engine(4);
@@ -23967,6 +24283,7 @@ fn opponent_second_draw_creates_a_token_and_grouped_players_each_draw() {
     assert_eq!(engine.state.players[3].hand.len(), initial_hands[3]);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
     let mut engine = test_engine(2);
@@ -24020,6 +24337,7 @@ fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
     let mut engine = test_engine(2);
@@ -24103,6 +24421,7 @@ fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn conditional_combat_keywords_follow_turn_and_attacking_alone_state() {
     let mut engine = test_engine(2);
@@ -24179,6 +24498,7 @@ fn conditional_combat_keywords_follow_turn_and_attacking_alone_state() {
     assert!(engine.can_block(&blocker, &engine.state.players[0].battlefield[1]));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn sokrates_can_activate_during_an_opponents_combat_and_prevent_damage() {
     let mut engine = test_engine(2);
@@ -24264,6 +24584,7 @@ fn sokrates_can_activate_during_an_opponents_combat_and_prevent_damage() {
     assert_eq!(engine.state.players[1].hand.len(), hand_sizes[1] + 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn class_level_requirement_controls_permanent_rules_and_intrinsic_keywords() {
     let engine = test_engine(2);
@@ -24285,6 +24606,7 @@ fn class_level_requirement_controls_permanent_rules_and_intrinsic_keywords() {
     assert!(engine.permanent_has_keyword(&class, "flying"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn linked_exchange_targets_and_resolution_share_one_player() {
     let mut engine = test_engine(2);
@@ -24421,6 +24743,7 @@ fn linked_exchange_targets_and_resolution_share_one_player() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     let mut engine = test_engine(2);
@@ -24544,6 +24867,7 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn linked_hand_or_permanent_exile_returns_the_selected_permanent() {
     let mut engine = test_engine(2);
@@ -24677,6 +25001,7 @@ fn linked_hand_or_permanent_exile_returns_the_selected_permanent() {
     assert!(engine.permanent_position("chosen-creature").is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
     let mut engine = test_engine(2);
@@ -24792,6 +25117,7 @@ fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
     assert!(type_line_contains(&attacker.definition.type_line, "Angel"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
     let mut engine = test_engine(2);
@@ -24874,6 +25200,7 @@ fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
     assert_eq!(entering.counters.get("+1/+1"), Some(&1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn graveyard_leave_triggers_filter_the_cards_that_moved() {
     let mut engine = test_engine(2);
@@ -24928,6 +25255,7 @@ fn graveyard_leave_triggers_filter_the_cards_that_moved() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25019,6 +25347,7 @@ fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25108,6 +25437,7 @@ fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25155,6 +25485,7 @@ fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
     assert!(engine.permanent_has_keyword(ori, "vigilance"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25196,6 +25527,7 @@ fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     assert!(!engine.static_modifier_applies_to("doesNotUntap", &bombur));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn opponent_first_filtered_spell_trigger_counts_only_matching_spells() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25269,6 +25601,7 @@ fn opponent_first_filtered_spell_trigger_counts_only_matching_spells() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn any_player_second_spell_trigger_counts_each_player_independently() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25337,6 +25670,7 @@ fn any_player_second_spell_trigger_counts_each_player_independently() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25406,6 +25740,7 @@ fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn temporary_control_sequence_restores_controller_at_cleanup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25462,6 +25797,7 @@ fn temporary_control_sequence_restores_controller_at_cleanup() {
     assert!(!engine.permanent_has_keyword(restored, "haste"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25569,6 +25905,7 @@ fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
     assert_eq!(engine.current_toughness(attacker), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_group_exile_searches_for_the_number_actually_exiled() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25673,6 +26010,7 @@ fn parsed_group_exile_searches_for_the_number_actually_exiled() {
     assert!(searched_lands.iter().all(|card| card.tapped));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25736,6 +26074,7 @@ fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() 
     assert!(has_keyword(&target.definition, "indestructible"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25812,6 +26151,7 @@ fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
     assert!(engine.state.players[1].battlefield[1].tapped);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25896,6 +26236,7 @@ fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25952,6 +26293,7 @@ fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_attack_trigger_casts_from_graveyard_and_links_the_exile_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26012,6 +26354,7 @@ fn parsed_attack_trigger_casts_from_graveyard_and_links_the_exile_replacement() 
     assert!(engine.state.players[0].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26129,6 +26472,7 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
     assert_eq!(loot_engine.state.players[0].graveyard.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26208,6 +26552,7 @@ fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26283,6 +26628,7 @@ fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26357,6 +26703,7 @@ fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_card() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26459,6 +26806,7 @@ fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_car
     assert!(!engine.static_modifier_applies_to("doesNotUntap", &enchanted));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26535,6 +26883,7 @@ fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26647,6 +26996,7 @@ fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26694,6 +27044,7 @@ fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26739,6 +27090,7 @@ fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
     assert_eq!(engine.current_toughness(&source), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26800,6 +27152,7 @@ fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
     assert_eq!(engine.current_toughness(&source), 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
     let threshold = parse_oracle_card(OracleCardParseRequest {
@@ -26920,6 +27273,7 @@ fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
     assert!(spell_engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
     let keyword_rule = parse_oracle_card(OracleCardParseRequest {
@@ -27065,6 +27419,7 @@ fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
     assert_eq!(engine.state.players[0].life, life_before - 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27131,6 +27486,7 @@ fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
     assert_eq!(resolve_from("graveyard"), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
     struct TwoCardPileProvider;
@@ -27228,6 +27584,7 @@ fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27298,6 +27655,7 @@ fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27412,6 +27770,7 @@ fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
     assert_eq!(too_large.state.players[0].library.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27511,6 +27870,7 @@ fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
     assert!(instant.state.permissions.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27576,6 +27936,7 @@ fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_owner_library_choice_is_made_by_the_owner() {
     struct OwnerChoosesBottom;
@@ -27675,6 +28036,7 @@ fn parsed_owner_library_choice_is_made_by_the_owner() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27797,6 +28159,7 @@ fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_azog_uses_last_known_controller_and_power_for_amass_and_draw() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27882,6 +28245,7 @@ fn parsed_azog_uses_last_known_controller_and_power_for_amass_and_draw() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27955,6 +28319,7 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28034,6 +28399,7 @@ fn no_lands_rules(
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     let aftermath_rules = no_lands_rules(
@@ -28149,6 +28515,7 @@ fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     assert!(dosan_engine.spell_casting_prohibited("player-1"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds() {
     let glacial_rules = no_lands_rules(
@@ -28246,6 +28613,7 @@ fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
     let braids_rule = no_lands_rules(
@@ -28383,6 +28751,7 @@ fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics() {
     let swat_rules = no_lands_rules(
@@ -28570,6 +28939,7 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
     let rules = no_lands_rules(
@@ -28641,6 +29011,7 @@ fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
     assert_eq!(engine.state.players[0].mana_pool[0].symbol, "G");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn no_lands_engine_sylvan_library_uses_only_cards_drawn_this_turn() {
     struct SylvanDecisionProvider {
@@ -28752,6 +29123,7 @@ fn no_lands_engine_sylvan_library_uses_only_cards_drawn_this_turn() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
     let misty_rules = no_lands_rules(
@@ -28812,6 +29184,7 @@ fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
     let misty_rules = no_lands_rules(
@@ -28900,6 +29273,7 @@ fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
     assert_eq!(engine.state.stack[0].card.instance_id, "archive-trap");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(
@@ -28986,6 +29360,7 @@ fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_two_target_attachment_moves_the_declared_equipment() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29066,6 +29441,7 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29139,6 +29515,7 @@ fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_optional_counted_discard_draw_mutates_live_zones() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29210,6 +29587,7 @@ fn parsed_optional_counted_discard_draw_mutates_live_zones() {
     assert!(engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_top_library_exile_installs_a_live_play_permission() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29280,6 +29658,7 @@ fn parsed_top_library_exile_installs_a_live_play_permission() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn conditional_exile_permission_tracks_the_live_battlefield() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29368,6 +29747,7 @@ fn conditional_exile_permission_tracks_the_live_battlefield() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn group_attachment_creates_a_reflexive_trigger_with_the_attached_creature_as_source() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29484,6 +29864,7 @@ fn group_attachment_creates_a_reflexive_trigger_with_the_attached_creature_as_so
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn combined_mana_restriction_accepts_matching_spells_and_ability_sources_only() {
     let restriction = json!({
@@ -29521,6 +29902,7 @@ fn combined_mana_restriction_accepts_matching_spells_and_ability_sources_only() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29597,6 +29979,7 @@ fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check
     assert_eq!(engine.state.players[0].hand.len(), hand_before + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
     let animation = parse_oracle_card(OracleCardParseRequest {
@@ -29735,6 +30118,7 @@ fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29817,6 +30201,7 @@ fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     assert_eq!(modifier("enemy-two"), (-1, -1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     let filtered = parse_oracle_card(OracleCardParseRequest {
@@ -29926,6 +30311,7 @@ fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     assert!(!matches_stack_filter(&small_creature, &filter));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29992,6 +30378,7 @@ fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30107,6 +30494,7 @@ fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30197,6 +30585,7 @@ fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn external_entry_counters_use_the_static_sources_current_stat() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30233,6 +30622,7 @@ fn external_entry_counters_use_the_static_sources_current_stat() {
     assert_eq!(entering.counters.get("+1/+1"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn greatest_toughness_draw_then_hand_creatures_enter_together() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30316,6 +30706,7 @@ fn greatest_toughness_draw_then_hand_creatures_enter_together() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30407,6 +30798,7 @@ fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30530,6 +30922,7 @@ fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_play() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30630,6 +31023,7 @@ fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_pla
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
     let parse_trigger = |name: &str, oracle_text: &str| {
@@ -30809,6 +31203,7 @@ fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30871,6 +31266,7 @@ fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn counter_linked_characteristics_follow_the_target_counter() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30948,6 +31344,7 @@ fn counter_linked_characteristics_follow_the_target_counter() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31035,6 +31432,7 @@ fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
     assert_eq!(emblem["bearerId"], "test-wraith");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn ring_temptation_levels_drive_bearer_combat_rules() {
     let bearer = test_instance(
@@ -31122,6 +31520,7 @@ fn ring_temptation_levels_drive_bearer_combat_rules() {
     assert_eq!(engine.state.players[1].life, 17);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31196,6 +31595,7 @@ fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31265,6 +31665,7 @@ fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31341,6 +31742,7 @@ fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
     assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 5);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31420,6 +31822,7 @@ fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
     assert_eq!(engine.state.players[0].life, 22);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn flame_of_anor_modal_declarations_expand_from_one_to_two_with_wizard() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
