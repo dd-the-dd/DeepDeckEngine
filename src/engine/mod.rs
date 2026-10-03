@@ -10221,6 +10221,12 @@ impl GameEngine {
         });
     }
 
+    /// Eliminate a player because an authoritative session resource was
+    /// exhausted, such as its decision clock.
+    pub fn forfeit_player(&mut self, player_id: &str, reason: GameEndReason) {
+        self.eliminate_players(reason, vec![player_id.to_string()]);
+    }
+
     fn check_life_totals(&mut self) {
         let life_losers = self
             .state

@@ -112,6 +112,7 @@ pub enum GameEndReason {
     SimulationLimit,
     SpellOrAbility,
     UnpaidPact,
+    Time,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]

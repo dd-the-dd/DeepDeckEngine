@@ -96,6 +96,8 @@ struct CreateLocalDeckGameRequest {
     wait_timeout_ms: u64,
     #[serde(default)]
     human_decision_timeout_ms: Option<u64>,
+    #[serde(default)]
+    decision_clock: Option<crate::agent_protocol::DecisionClockConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -1914,6 +1916,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         max_mulligans: request.max_mulligans,
         wait_timeout_ms: request.wait_timeout_ms,
         human_decision_timeout_ms: request.human_decision_timeout_ms,
+        decision_clock: request.decision_clock,
     }) {
         Ok(session) => session,
         Err(error) => return session_error_response(error),

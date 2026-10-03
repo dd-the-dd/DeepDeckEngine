@@ -267,6 +267,7 @@ fn human_request(setup: GameSetup, seed: u64) -> CreateGameSessionRequest {
         start_with_sideboarding: false,
         free_mulligans: 0,
         human_decision_timeout_ms: None,
+        decision_clock: None,
         max_mulligans: None,
         wait_timeout_ms: 30_000,
         game_mode: Default::default(),

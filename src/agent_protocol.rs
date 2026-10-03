@@ -374,6 +374,133 @@ pub struct WebSocketAgent {
     previous_observation: Option<Value>,
     starting_analysis_sent: bool,
     sequence: u64,
+    decision_clock: Option<DecisionClock>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DecisionClockConfig {
+    pub initial_time_ms: u64,
+    #[serde(default)]
+    pub increment_ms: u64,
+    #[serde(default)]
+    pub delay_ms: u64,
+    #[serde(default)]
+    pub max_decision_ms: Option<u64>,
+    #[serde(default)]
+    pub reserve_ms: u64,
+}
+
+impl DecisionClockConfig {
+    pub fn validate(self) -> Result<(), EngineError> {
+        if self.initial_time_ms == 0 {
+            return Err(EngineError::new(
+                "decision clock initialTimeMs must be positive",
+            ));
+        }
+        if self.max_decision_ms == Some(0) {
+            return Err(EngineError::new(
+                "decision clock maxDecisionMs must be positive when provided",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DecisionClockBudget {
+    allowed_ms: u64,
+    remaining_ms: u64,
+    increment_ms: u64,
+    delay_ms: u64,
+    reserve_ms: u64,
+    soft_budget_ms: u64,
+}
+
+impl DecisionClockBudget {
+    fn payload(self, now_ms: u128) -> Value {
+        json!({
+            "remainingMs": self.remaining_ms,
+            "incrementMs": self.increment_ms,
+            "incrementPolicy": "per-turn",
+            "delayMs": self.delay_ms,
+            "reserveMs": self.reserve_ms,
+            "softDeadlineUnixMs": now_ms + u128::from(self.soft_budget_ms),
+            "hardDeadlineUnixMs": now_ms + u128::from(self.allowed_ms),
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DecisionClock {
+    config: DecisionClockConfig,
+    remaining_time_ms: u64,
+    last_increment_turn: Option<u32>,
+}
+
+impl DecisionClock {
+    fn new(config: DecisionClockConfig) -> Result<Self, EngineError> {
+        config.validate()?;
+        Ok(Self {
+            config,
+            remaining_time_ms: config.initial_time_ms,
+            last_increment_turn: None,
+        })
+    }
+
+    fn budget(
+        &mut self,
+        player_id: &str,
+        turn_number: u32,
+        category_timeout: Duration,
+    ) -> Result<DecisionClockBudget, EngineError> {
+        if self.last_increment_turn != Some(turn_number) {
+            if self.last_increment_turn.is_some() {
+                self.remaining_time_ms = self
+                    .remaining_time_ms
+                    .saturating_add(self.config.increment_ms);
+            }
+            self.last_increment_turn = Some(turn_number);
+        }
+        if self.remaining_time_ms == 0 {
+            return Err(agent_clock_expired(player_id));
+        }
+
+        let category_ms = category_timeout.as_millis().min(u128::from(u64::MAX)) as u64;
+        let hard_cap_ms = self
+            .config
+            .max_decision_ms
+            .unwrap_or(category_ms)
+            .min(category_ms);
+        let allowed_ms = hard_cap_ms
+            .min(self.remaining_time_ms.saturating_add(self.config.delay_ms))
+            .max(1);
+        Ok(DecisionClockBudget {
+            allowed_ms,
+            remaining_ms: self.remaining_time_ms,
+            increment_ms: self.config.increment_ms,
+            delay_ms: self.config.delay_ms,
+            reserve_ms: self.config.reserve_ms,
+            soft_budget_ms: self
+                .remaining_time_ms
+                .saturating_sub(self.config.reserve_ms)
+                .min(allowed_ms),
+        })
+    }
+
+    fn charge(&mut self, player_id: &str, elapsed: Duration) -> Result<(), EngineError> {
+        let elapsed_ms = elapsed.as_millis().min(u128::from(u64::MAX)) as u64;
+        let charged_ms = elapsed_ms.saturating_sub(self.config.delay_ms);
+        self.remaining_time_ms = self.remaining_time_ms.saturating_sub(charged_ms);
+        if self.remaining_time_ms == 0 {
+            return Err(agent_clock_expired(player_id));
+        }
+        Ok(())
+    }
+}
+
+fn agent_clock_expired(player_id: &str) -> EngineError {
+    EngineError::new(format!("agent clock expired for player {player_id}"))
 }
 
 impl WebSocketAgent {
@@ -383,9 +510,11 @@ impl WebSocketAgent {
         player_id: impl Into<String>,
         known_deck: Vec<CardDefinition>,
         history: Option<HistoryStream>,
+        decision_clock: Option<DecisionClockConfig>,
     ) -> Result<Self, EngineError> {
         let controller_id = controller_id.into();
         registered_connection(&controller_id)?;
+        let decision_clock = decision_clock.map(DecisionClock::new).transpose()?;
         Ok(Self {
             controller_id,
             context_id: context_id.into(),
@@ -395,6 +524,7 @@ impl WebSocketAgent {
             previous_observation: None,
             starting_analysis_sent: false,
             sequence: 0,
+            decision_clock,
         })
     }
 
@@ -477,8 +607,19 @@ impl WebSocketAgent {
         }
         let (connection, observation) = self.prepare(state)?;
         let update = self.observation_update(&connection, &observation);
-        let timeout = connection.timeout_category.decision_timeout();
-        connection.request(
+        let category_timeout = connection.timeout_category.decision_timeout();
+        let clock_budget = self
+            .decision_clock
+            .as_mut()
+            .map(|clock| clock.budget(&self.player_id, state.turn_number, category_timeout))
+            .transpose()?;
+        let timeout = clock_budget
+            .map(|budget| Duration::from_millis(budget.allowed_ms))
+            .unwrap_or(category_timeout);
+        let request_time_ms = now_millis();
+        let clock_payload = clock_budget.map(|budget| budget.payload(request_time_ms));
+        let started = Instant::now();
+        let result = connection.request(
             json!({
                 "type": "decisionRequested",
                 "schemaVersion": AGENT_PROTOCOL_VERSION,
@@ -486,13 +627,18 @@ impl WebSocketAgent {
                 "requestId": request.id,
                 "contextId": self.context_id,
                 "playerId": request.player_id,
-                "deadlineUnixMs": now_millis() + timeout.as_millis(),
+                "deadlineUnixMs": request_time_ms + timeout.as_millis(),
+                "clock": clock_payload,
                 "observationUpdate": update,
                 "decision": agent_request,
             }),
             &request.id,
             timeout,
-        )
+        );
+        if let Some(clock) = self.decision_clock.as_mut() {
+            clock.charge(&self.player_id, started.elapsed())?;
+        }
+        result
     }
 }
 
@@ -816,6 +962,124 @@ mod tests {
                 category.decision_timeout() * 5
             );
         }
+    }
+
+    #[test]
+    fn decision_clock_config_uses_backward_compatible_defaults() {
+        let config: DecisionClockConfig = serde_json::from_value(json!({
+            "initialTimeMs": 12_000
+        }))
+        .expect("minimal decision clock config parses");
+
+        assert_eq!(
+            config,
+            DecisionClockConfig {
+                initial_time_ms: 12_000,
+                increment_ms: 0,
+                delay_ms: 0,
+                max_decision_ms: None,
+                reserve_ms: 0,
+            }
+        );
+        assert!(config.validate().is_ok());
+        assert!(
+            DecisionClockConfig {
+                initial_time_ms: 0,
+                ..config
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            DecisionClockConfig {
+                max_decision_ms: Some(0),
+                ..config
+            }
+            .validate()
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn decision_clock_applies_delay_increment_reserve_and_decision_cap() {
+        let mut clock = DecisionClock::new(DecisionClockConfig {
+            initial_time_ms: 1_000,
+            increment_ms: 100,
+            delay_ms: 50,
+            max_decision_ms: Some(500),
+            reserve_ms: 200,
+        })
+        .expect("valid decision clock");
+
+        let first = clock
+            .budget("player-a", 1, Duration::from_millis(700))
+            .expect("first decision receives a budget");
+        assert_eq!(first.allowed_ms, 500);
+        assert_eq!(first.remaining_ms, 1_000);
+        assert_eq!(first.soft_budget_ms, 500);
+        assert_eq!(
+            first.payload(10_000),
+            json!({
+                "remainingMs": 1_000,
+                "incrementMs": 100,
+                "incrementPolicy": "per-turn",
+                "delayMs": 50,
+                "reserveMs": 200,
+                "softDeadlineUnixMs": 10_500,
+                "hardDeadlineUnixMs": 10_500,
+            })
+        );
+
+        clock
+            .charge("player-a", Duration::from_millis(450))
+            .expect("delay leaves 400 charged milliseconds");
+        assert_eq!(clock.remaining_time_ms, 600);
+        assert_eq!(
+            clock
+                .budget("player-a", 1, Duration::from_millis(700))
+                .expect("same turn does not increment")
+                .remaining_ms,
+            600
+        );
+        assert_eq!(
+            clock
+                .budget("player-a", 2, Duration::from_millis(700))
+                .expect("new turn increments once")
+                .remaining_ms,
+            700
+        );
+        assert_eq!(
+            clock
+                .budget("player-a", 2, Duration::from_millis(700))
+                .expect("repeated decisions on the turn do not increment")
+                .remaining_ms,
+            700
+        );
+    }
+
+    #[test]
+    fn decision_clock_expiry_is_terminal() {
+        let mut clock = DecisionClock::new(DecisionClockConfig {
+            initial_time_ms: 100,
+            increment_ms: 0,
+            delay_ms: 10,
+            max_decision_ms: None,
+            reserve_ms: 0,
+        })
+        .expect("valid decision clock");
+
+        let error = clock
+            .charge("player-a", Duration::from_millis(110))
+            .expect_err("all available time is charged after the delay");
+        assert_eq!(error.to_string(), "agent clock expired for player player-a");
+        assert_eq!(clock.remaining_time_ms, 0);
+        assert_eq!(
+            clock
+                .budget("player-a", 1, Duration::from_secs(5))
+                .expect_err("expired clocks cannot request another decision")
+                .to_string(),
+            "agent clock expired for player player-a"
+        );
     }
 
     #[test]
