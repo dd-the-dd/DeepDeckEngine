@@ -45,6 +45,7 @@ jobs:
       - name: Run integration tests
         run: >-
           cargo test --locked
+          --test agent_manifest_contract
           --test backend_contract
           --test interactive_session
           --test multiplayer_simulation

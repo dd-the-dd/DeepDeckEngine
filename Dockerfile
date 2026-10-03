@@ -7,6 +7,7 @@ RUN cargo build --locked --release --bin mtg-engine-server
 FROM debian:bookworm-slim
 RUN useradd --create-home --uid 10001 deepdeck
 COPY --from=builder /source/target/release/mtg-engine-server /usr/local/bin/mtg-engine-server
+COPY contracts /usr/local/share/deepdeck-engine/contracts
 USER deepdeck
 ENV MTG_ENGINE_ADDR=0.0.0.0:8787
 ENV MTG_UI_ADDR=

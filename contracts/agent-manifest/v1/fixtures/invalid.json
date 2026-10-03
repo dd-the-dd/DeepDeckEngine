@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "agent-manifest/v1",
+  "agentId": "org.example.invalid-agent",
+  "name": "Invalid Agent",
+  "version": "1.0.0",
+  "authors": [],
+  "compatibility": {
+    "gameModes": [
+      "legacy"
+    ],
+    "decks": {
+      "selection": "all"
+    },
+    "timeControls": [
+      "standard"
+    ],
+    "observationStreams": [
+      "full-observation-stream"
+    ],
+    "gameSharing": [
+      "private"
+    ]
+  }
+}

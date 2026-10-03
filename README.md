@@ -33,6 +33,9 @@ path in `MTG_CARD_CATALOG_PATH`. See [data/README.md](data/README.md).
 The WebSocket agent protocol is implemented in `src/agent_protocol.rs`. A
 server can require an API key by setting `MTG_ENGINE_API_KEY`; clients then send
 that key during registration. Never commit real keys or `.env` files.
+The versioned `agent-manifest/v1` JSON Schema and compatibility fixtures live in
+[`contracts/agent-manifest/v1`](contracts/agent-manifest/v1). Release archives and
+containers include this contract bundle for SDK and integration consumers.
 
 ## Public contracts and releases
 

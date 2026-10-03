@@ -20,13 +20,17 @@ jobs:
       - run: cargo check --locked --all-targets
       - run: >-
           cargo test --locked
+          --test agent_manifest_contract
           --test backend_contract
           --test interactive_session
           --test multiplayer_simulation
           --test playable_model
           --test random_game_engine
       - run: cargo build --locked --release --bin mtg-engine-server
-      - run: tar -C target/release -czf deepdeck-engine-linux-x86_64.tar.gz mtg-engine-server
+      - run: >-
+          tar -czf deepdeck-engine-linux-x86_64.tar.gz
+          -C target/release mtg-engine-server
+          -C ../.. contracts
       - uses: softprops/action-gh-release@v2
         with:
           files: deepdeck-engine-linux-x86_64.tar.gz

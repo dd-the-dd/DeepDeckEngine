@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "agent-manifest/v1",
+  "agentId": "org.example.minimal-agent",
+  "name": "Minimal Agent",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "Example Author"
+    }
+  ],
+  "compatibility": {
+    "gameModes": [
+      "legacy"
+    ],
+    "decks": {
+      "selection": "all"
+    },
+    "timeControls": [
+      "standard"
+    ],
+    "observationStreams": [
+      "full-observation-stream"
+    ],
+    "gameSharing": [
+      "private"
+    ]
+  }
+}

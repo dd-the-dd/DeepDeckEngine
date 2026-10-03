@@ -16,6 +16,7 @@ use tungstenite::http::StatusCode;
 use tungstenite::{Message, WebSocket, accept_hdr};
 
 pub const AGENT_PROTOCOL_VERSION: &str = "mtg-agent/v1";
+pub const AGENT_MANIFEST_VERSION: &str = "agent-manifest/v1";
 pub const OBSERVATION_SCHEMA_VERSION: &str = "player-observation/v1";
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -57,6 +58,20 @@ pub enum GameSharing {
     PublicReplay,
     ResearchDataset,
     TrainingDataset,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentType {
+    DeepLearning,
+    ReinforcementLearning,
+    AlphaStar,
+    RulesEngine,
+    Search,
+    Hybrid,
+    HumanUi,
+    #[default]
+    Other,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -139,6 +154,8 @@ pub struct AgentManifest {
     pub version: String,
     #[serde(default)]
     pub description: String,
+    #[serde(default)]
+    pub agent_type: AgentType,
     pub authors: Vec<AgentAuthor>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repository: Option<AgentRepository>,
@@ -151,7 +168,7 @@ pub struct AgentManifest {
 
 impl AgentManifest {
     pub fn validate(&self) -> Result<(), String> {
-        if self.schema_version != "agent-manifest/v1" {
+        if self.schema_version != AGENT_MANIFEST_VERSION {
             return Err("unsupported agent manifest schema".to_string());
         }
         if self.agent_id.trim().is_empty()
@@ -695,11 +712,12 @@ mod tests {
 
     fn manifest() -> AgentManifest {
         AgentManifest {
-            schema_version: "agent-manifest/v1".to_string(),
+            schema_version: AGENT_MANIFEST_VERSION.to_string(),
             agent_id: "org.example.agent".to_string(),
             name: "Example".to_string(),
             version: "1.0.0".to_string(),
             description: String::new(),
+            agent_type: AgentType::Other,
             authors: vec![AgentAuthor {
                 name: "Author".to_string(),
                 orcid: None,
