@@ -4,13 +4,6 @@ use super::{AbilityInput, strip_short_oracle_label};
 
 pub(crate) fn activation_parts(text: &str) -> Option<(&str, &str)> {
     let text = strip_short_oracle_label(text);
-    let activation_re = Regex::new(
-        r"(?i)^\s*(?:\(\s*)?(?:(?:\{[^}]+\})+|Pay \d+ life)(?:\s*,\s*(?:(?:\{[^}]+\})+|Pay \d+ life))*\s*:",
-    )
-    .expect("activation prefix regex compiles");
-    if let Some(matched) = activation_re.find(text) {
-        return Some((&text[..matched.end() - 1], &text[matched.end()..]));
-    }
     let mut parenthesis_depth = 0_u32;
     let mut quoted = false;
     let mut separator = None;
@@ -29,12 +22,7 @@ pub(crate) fn activation_parts(text: &str) -> Option<(&str, &str)> {
     let separator = separator?;
     let cost = &text[..separator];
     let effect = &text[separator + 1..];
-    let lower = cost.trim().to_ascii_lowercase();
-    (lower.starts_with("sacrifice ")
-        || lower.starts_with("remove ")
-        || lower.starts_with("equip—")
-        || lower.contains(", sacrifice "))
-    .then_some((cost, effect))
+    (!cost.trim().is_empty() && !effect.trim().is_empty()).then_some((cost, effect))
 }
 
 pub(crate) fn classify_ability(input: &AbilityInput<'_>) -> &'static str {
