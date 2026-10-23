@@ -64,6 +64,8 @@ struct CreateLocalDeckGameRequest {
     seed: u64,
     #[serde(default)]
     game_mode: GameMode,
+    #[serde(default)]
+    best_of: Option<u32>,
     #[serde(default = "default_http_max_turns")]
     max_turns: u32,
     #[serde(default)]
@@ -433,6 +435,7 @@ pub(crate) fn project_ai_state(
     project_session_view(
         GameSessionView {
             schema_version: "mtg-game-session/v1".to_string(),
+            analytics_recording: false,
             session_id: String::new(),
             revision: 0,
             state,
@@ -1801,6 +1804,10 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
             return error_response(400, format!("Invalid local deck game request: {error}"));
         }
     };
+    if let Err(error) = crate::session::resolve_session_best_of(request.game_mode, request.best_of)
+    {
+        return session_error_response(error);
+    }
     if request.players.len() < 2 || request.players.len() > 4 {
         return error_response(400, "Local deck games require two to four players");
     }
@@ -1885,6 +1892,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         });
     }
     let mut session = match game_session_manager().create(CreateGameSessionRequest {
+        record_analytics: true,
         setup: GameSetup {
             players,
             opening_hand_size: if request.opening_hand_size == 0 {
@@ -1896,6 +1904,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         },
         seed: request.seed,
         game_mode: request.game_mode,
+        best_of: request.best_of,
         max_turns: request.max_turns,
         human_player_ids: request.human_player_ids,
         combat_declaration_revision_player_ids: None,
@@ -2156,6 +2165,37 @@ fn route_game_session(
     }
 
     let suffix = path.strip_prefix("/game/sessions/")?;
+    if method == "GET" && suffix.contains("/spectator") {
+        let (session_id, tail) = suffix.split_once("/spectator")?;
+        if session_id.is_empty() || session_id.contains('/') {
+            return None;
+        }
+        let after = if tail.is_empty() {
+            None
+        } else {
+            match tail.strip_prefix('/').and_then(|v| v.parse::<u64>().ok()) {
+                Some(value) => Some(value),
+                None => return Some(error_response(400, "Invalid spectator cursor")),
+            }
+        };
+        // Never give network players/hosts an omniscient view of opponents' hands.
+        match authenticated_network_access(session_id, headers) {
+            Ok(None) => {}
+            Ok(Some(_)) => {
+                return Some(error_response(
+                    403,
+                    "Omniscient spectator frames are only available for local games",
+                ));
+            }
+            Err(response) => return Some(response),
+        }
+        return Some(
+            match game_session_manager().spectator_frames(session_id, after) {
+                Ok(frames) => json_response(200, &frames),
+                Err(error) => session_error_response(error),
+            },
+        );
+    }
     if method == "DELETE" && !suffix.contains('/') {
         let access = match authenticated_network_access(suffix, headers) {
             Ok(access) => access,
@@ -2323,7 +2363,7 @@ fn route_json_with_headers(
         ("OPTIONS", _) => json_response(200, &serde_json::json!({ "ok": true })),
         ("GET", "/health") => match game_session_manager().history_status() {
             Ok(history) => {
-                let mut response = serde_json::json!({ "ok": true });
+                let mut response = serde_json::json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] });
                 if let Some(history) = history {
                     response["history"] = serde_json::json!(history);
                 }
@@ -2742,6 +2782,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn local_deck_best_of_rejects_invalid_lengths_before_loading_decks() {
+        for (mode, best_of) in [
+            ("legacy", 0),
+            ("legacy", 2),
+            ("legacy", 9),
+            ("commander", 3),
+        ] {
+            let response = create_local_deck_game(
+                &json!({
+                    "players":[],"seed":1,"gameMode":mode,"bestOf":best_of
+                })
+                .to_string(),
+            );
+            assert_eq!(response.status, 400);
+            assert!(response.body.contains("bestOf"));
+        }
+        for best_of in [json!(1), json!(3), Value::Null] {
+            let request: CreateLocalDeckGameRequest = serde_json::from_value(json!({
+                "players":[],"seed":1,"gameMode":"legacy","bestOf":best_of
+            }))
+            .unwrap();
+            assert_eq!(request.best_of, best_of.as_u64().map(|n| n as u32));
+        }
+    }
+
+    #[test]
     fn configured_http_worker_stack_parses_large_oracle_requests() {
         let result = thread::Builder::new()
             .stack_size(HTTP_CONNECTION_STACK_SIZE)
@@ -2896,6 +2962,7 @@ mod tests {
     #[test]
     fn network_projection_keeps_only_the_viewers_private_cards_and_decision() {
         let mut view = GameSessionView {
+            analytics_recording: false,
             schema_version: "mtg-game-session/v1".to_string(),
             session_id: "network-test".to_string(),
             revision: 1,
@@ -3271,7 +3338,7 @@ mod tests {
         assert!(first_headers.contains("Connection: keep-alive"));
         assert_eq!(
             serde_json::from_slice::<Value>(&first_body).unwrap(),
-            json!({ "ok": true })
+            json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] })
         );
 
         client
@@ -3281,7 +3348,7 @@ mod tests {
         assert!(second_headers.contains("Connection: close"));
         assert_eq!(
             serde_json::from_slice::<Value>(&second_body).unwrap(),
-            json!({ "ok": true })
+            json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] })
         );
         server.join().expect("test server joins");
     }

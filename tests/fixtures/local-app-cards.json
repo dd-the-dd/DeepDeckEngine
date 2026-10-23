@@ -1,0 +1,16 @@
+{
+  "sets": {"fixture": "Local app unit-test fixture"},
+  "cards": {
+    "griselbrand": [{
+      "setCode": "fixture",
+      "collectorNumber": "1",
+      "urlFront": "fixture://griselbrand",
+      "typeLine": "Legendary Creature — Demon",
+      "oracleText": "Flying, lifelink\nPay 7 life: Draw seven cards.",
+      "manaCost": "{4}{B}{B}{B}{B}",
+      "manaValue": 8,
+      "power": "7",
+      "toughness": "7"
+    }]
+  }
+}

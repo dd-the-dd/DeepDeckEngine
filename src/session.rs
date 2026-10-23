@@ -19,7 +19,7 @@ use crate::http::project_ai_state;
 use crate::pilot_catalog::{is_playable_model_controller, pilot_definition};
 use crate::remote_ai::RemoteAi;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, mpsc};
@@ -35,6 +35,10 @@ fn default_session_wait_timeout_ms() -> u64 {
 
 fn default_max_turns() -> u32 {
     200
+}
+
+fn default_record_analytics() -> bool {
+    true
 }
 
 fn analytics_pilot_for_ai_controller(controller_id: &str) -> String {
@@ -174,8 +178,14 @@ fn session_run_error<T>(run: impl FnOnce() -> Result<T, EngineError>) -> Option<
 pub struct CreateGameSessionRequest {
     pub setup: GameSetup,
     pub seed: u64,
+    /// Disable the legacy aggregate when the caller owns quota-controlled metrics.
+    #[serde(default = "default_record_analytics")]
+    pub record_analytics: bool,
     #[serde(default)]
     pub game_mode: GameMode,
+    /// Accepted encounter length; omitted preserves Legacy BO3 and BO1 elsewhere.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub best_of: Option<u32>,
     #[serde(default = "default_max_turns")]
     pub max_turns: u32,
     #[serde(default)]
@@ -210,6 +220,22 @@ pub struct CreateGameSessionRequest {
     pub human_decision_timeout_ms: Option<u64>,
 }
 
+pub(crate) fn resolve_session_best_of(
+    game_mode: GameMode,
+    requested: Option<u32>,
+) -> Result<u32, GameSessionError> {
+    let best_of = requested.unwrap_or(if game_mode == GameMode::Legacy { 3 } else { 1 });
+    if !matches!(best_of, 1 | 3 | 5 | 7) {
+        return Err(GameSessionError::new("bestOf must be one of 1, 3, 5 or 7"));
+    }
+    if game_mode != GameMode::Legacy && best_of != 1 {
+        return Err(GameSessionError::new(
+            "Only Legacy supports multi-game series; this format requires bestOf 1",
+        ));
+    }
+    Ok(best_of)
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmitGameSessionAction {
@@ -237,6 +263,7 @@ pub struct GameSessionView {
     pub schema_version: String,
     pub session_id: String,
     pub revision: u64,
+    pub analytics_recording: bool,
     pub state: GameState,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub calculated_stats: BTreeMap<String, EffectivePowerToughness>,
@@ -293,9 +320,96 @@ struct SharedSession {
     changed: Condvar,
     history: Option<HistoryStream>,
     pending_recovery_error: Mutex<Option<String>>,
+    spectator: Mutex<SpectatorFrames>,
+}
+
+#[derive(Default)]
+struct SpectatorFrames {
+    sequence: u64,
+    bytes: usize,
+    frames: VecDeque<(usize, serde_json::Value)>,
 }
 
 impl SharedSession {
+    fn record_spectator(
+        &self,
+        state: &GameState,
+        request: Option<&EngineDecisionRequest>,
+        selected: serde_json::Value,
+    ) {
+        let match_state = self
+            .view
+            .lock()
+            .expect("session view lock")
+            .match_state
+            .clone();
+        let mut public_state = serde_json::to_value(state).expect("game state serializes");
+        // Spectators may see hands, not the order of libraries or private sideboards.
+        if let Some(players) = public_state
+            .get_mut("players")
+            .and_then(|v| v.as_array_mut())
+        {
+            for player in players {
+                for zone in ["library", "sideboard"] {
+                    if let Some(cards) = player.get_mut(zone).and_then(|v| v.as_array_mut()) {
+                        for card in cards {
+                            *card = serde_json::Value::Null;
+                        }
+                    }
+                }
+            }
+        }
+        let mut stream = self.spectator.lock().expect("spectator stream lock");
+        stream.sequence += 1;
+        let frame = serde_json::json!({
+            "sequence": stream.sequence, "revision": stream.sequence,
+            "state": public_state, "matchState": match_state,
+            "decision": request.map(|r| serde_json::json!({"id": r.id, "kind": r.kind, "playerId": r.player_id})),
+            "selectedAction": selected,
+        });
+        let size = serde_json::to_vec(&frame)
+            .expect("spectator frame serializes")
+            .len();
+        stream.bytes += size;
+        stream.frames.push_back((size, frame));
+        while stream.frames.len() > 512
+            || (stream.bytes > 32 * 1024 * 1024 && stream.frames.len() > 1)
+        {
+            if let Some((size, _)) = stream.frames.pop_front() {
+                stream.bytes -= size;
+            }
+        }
+    }
+
+    fn spectator_frames(&self, after: Option<u64>) -> serde_json::Value {
+        let stream = self.spectator.lock().expect("spectator stream lock");
+        let first = stream
+            .frames
+            .front()
+            .and_then(|(_, f)| f["sequence"].as_u64())
+            .unwrap_or(0);
+        let frames: Vec<_> = match after {
+            Some(cursor) => stream
+                .frames
+                .iter()
+                .filter(|(_, f)| f["sequence"].as_u64().unwrap_or(0) > cursor)
+                .take(128)
+                .map(|(_, f)| f.clone())
+                .collect(),
+            None => stream
+                .frames
+                .back()
+                .map(|(_, f)| vec![f.clone()])
+                .unwrap_or_default(),
+        };
+        let last = frames
+            .last()
+            .and_then(|f| f["sequence"].as_u64())
+            .unwrap_or(after.unwrap_or(0));
+        serde_json::json!({"frames": frames, "firstSequence": first, "latestSequence": stream.sequence,
+            "hasMore": after.is_some() && last < stream.sequence,
+            "truncated": after.is_some_and(|cursor| cursor.saturating_add(1) < first)})
+    }
     fn publish_match_state(&self, match_state: GameMatchState) {
         if let Some(history) = &self.history {
             history.publish_authoritative(
@@ -322,6 +436,7 @@ impl SharedSession {
     }
 
     fn publish_completion(&self, state: &GameState, error: Option<String>) {
+        self.record_spectator(state, None, serde_json::Value::Null);
         let recovery_error = self
             .pending_recovery_error
             .lock()
@@ -388,11 +503,16 @@ impl SharedSession {
 struct HistoryDecisionProvider<P> {
     inner: P,
     history: Option<HistoryStream>,
+    shared: Arc<SharedSession>,
 }
 
 impl<P> HistoryDecisionProvider<P> {
-    fn new(inner: P, history: Option<HistoryStream>) -> Self {
-        Self { inner, history }
+    fn new(inner: P, history: Option<HistoryStream>, shared: Arc<SharedSession>) -> Self {
+        Self {
+            inner,
+            history,
+            shared,
+        }
     }
 
     fn publish_decision(
@@ -403,6 +523,8 @@ impl<P> HistoryDecisionProvider<P> {
         response_time: Duration,
         error: Option<String>,
     ) {
+        self.shared
+            .record_spectator(state, Some(request), selected.clone());
         let Some(history) = &self.history else {
             return;
         };
@@ -1012,6 +1134,8 @@ impl GameSessionManager {
         &self,
         request: CreateGameSessionRequest,
     ) -> Result<GameSessionView, GameSessionError> {
+        let accepted_best_of = resolve_session_best_of(request.game_mode, request.best_of)?;
+        let games_to_win = accepted_best_of / 2 + 1;
         if let Some(history) = &self.history {
             let status = history.status().map_err(GameSessionError::new)?;
             let stored_bytes = status
@@ -1174,7 +1298,11 @@ impl GameSessionManager {
                 (player.id.clone(), pilot)
             })
             .collect::<BTreeMap<_, _>>();
-        let analytics = self.analytics.clone();
+        let analytics = if request.record_analytics {
+            self.analytics.clone()
+        } else {
+            None
+        };
         let analytics_deck_session_by_player_id =
             request.analytics_deck_session_by_player_id.clone();
         let game_mode = request.game_mode;
@@ -1203,12 +1331,13 @@ impl GameSessionManager {
             .as_ref()
             .map(|queue| queue.stream(session_id.clone()));
         let initial_view = GameSessionView {
+            analytics_recording: analytics.is_some(),
             calculated_stats: GameEngine::effective_power_toughness(engine.state()),
             decision: None,
             error: None,
             match_state: (game_mode == GameMode::Legacy).then(|| GameMatchState {
                 game_number: 1,
-                games_to_win: 2,
+                games_to_win,
                 phase: "game".to_string(),
                 wins_by_player_id: match_setup
                     .players
@@ -1226,6 +1355,7 @@ impl GameSessionManager {
             changed: Condvar::new(),
             history: history.clone(),
             pending_recovery_error: Mutex::new(None),
+            spectator: Mutex::new(SpectatorFrames::default()),
             view: Mutex::new(initial_view),
         });
         if let Some(history) = &history {
@@ -1236,6 +1366,7 @@ impl GameSessionManager {
                     "sessionId": session_id,
                     "seed": request.seed,
                     "gameMode": game_mode,
+                    "bestOf": accepted_best_of,
                     "maxTurns": request.max_turns,
                     "humanPlayerIds": request.human_player_ids,
                     "combatDeclarationRevisionPlayerIds": combat_declaration_revision_player_ids,
@@ -1363,10 +1494,9 @@ impl GameSessionManager {
                     cancelled,
                     human_decision_timeout,
                 };
-                let provider = HistoryDecisionProvider::new(provider, history);
-                let mut provider = ObservedDecisionProvider::new(provider);
+                let provider = HistoryDecisionProvider::new(provider, history, Arc::clone(&shared));
+                let mut provider = ObservedDecisionProvider::with_recording(provider, analytics.is_some());
                 const MAX_SESSION_RECOVERIES_PER_CHECKPOINT: usize = 3;
-                let games_to_win = if game_mode == GameMode::Legacy { 2 } else { 1 };
                 let mut game_number = 1_u32;
                 let mut wins_by_player_id = match_setup
                     .players
@@ -1598,6 +1728,21 @@ impl GameSessionManager {
         Ok(handle.shared.snapshot())
     }
 
+    pub fn spectator_frames(
+        &self,
+        session_id: &str,
+        after: Option<u64>,
+    ) -> Result<serde_json::Value, GameSessionError> {
+        let handle = self
+            .sessions
+            .lock()
+            .expect("session registry lock")
+            .get(session_id)
+            .cloned()
+            .ok_or_else(|| GameSessionError::new(format!("unknown game session: {session_id}")))?;
+        Ok(handle.shared.spectator_frames(after))
+    }
+
     pub fn remove(&self, session_id: &str) -> Result<(), GameSessionError> {
         self.sessions
             .lock()
@@ -1775,6 +1920,18 @@ impl GameSessionManager {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn legacy_analytics_default_is_preserved_but_caller_can_disable_it() {
+        let payload = serde_json::json!({"setup": {"players": [], "openingHandSize": 7, "startingPlayer": 0}, "seed": 1});
+        let legacy: super::CreateGameSessionRequest =
+            serde_json::from_value(payload.clone()).expect("legacy request");
+        assert!(legacy.record_analytics);
+        let mut opted_out = payload;
+        opted_out["recordAnalytics"] = serde_json::json!(false);
+        let learner: super::CreateGameSessionRequest =
+            serde_json::from_value(opted_out).expect("learner request");
+        assert!(!learner.record_analytics);
+    }
     use super::{
         CreateGameSessionRequest, GameSessionManager, analytics_pilot_for_ai_controller,
         apply_sideboarding, session_run_error,
@@ -1888,7 +2045,9 @@ mod tests {
                     starting_player: 0,
                 },
                 seed: 1,
+                record_analytics: true,
                 game_mode: GameMode::Free,
+                best_of: None,
                 max_turns: 1,
                 human_player_ids: Vec::new(),
                 combat_declaration_revision_player_ids: None,

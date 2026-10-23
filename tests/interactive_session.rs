@@ -256,6 +256,7 @@ fn setup(players: Vec<PlayerDeck>, opening_hand_size: usize) -> GameSetup {
 
 fn human_request(setup: GameSetup, seed: u64) -> CreateGameSessionRequest {
     CreateGameSessionRequest {
+        record_analytics: true,
         ai_controller_by_player_id: Default::default(),
         analytics_deck_session_by_player_id: Default::default(),
         analytics_context_id: None,
@@ -268,6 +269,7 @@ fn human_request(setup: GameSetup, seed: u64) -> CreateGameSessionRequest {
         max_mulligans: None,
         wait_timeout_ms: 30_000,
         game_mode: Default::default(),
+        best_of: None,
         combat_declaration_revision_player_ids: None,
         hold_priority_player_ids: Vec::new(),
         human_player_ids: setup

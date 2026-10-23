@@ -4,6 +4,19 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
     text: &str,
     face_name: &str,
 ) -> Option<CanonicalRuleDraft> {
+    if text == "Sunburst" || (text.starts_with("Sunburst (") && text.ends_with(')')) {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": { "kind": "sunburst" },
+            }),
+            &[
+                "Count distinct colors of mana spent to cast the resolving permanent",
+                "Enter with charge counters, or +1/+1 counters for a creature",
+            ],
+        ));
+    }
     let gift_named_token_re = Regex::new(r"(?i)^Gift (?:a|an) ([A-Z][A-Za-z -]+?)(?: \(.+\))?$")
         .expect("named-token gift regex compiles");
     if let Some(captures) = gift_named_token_re.captures(text) {

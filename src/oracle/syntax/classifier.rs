@@ -49,6 +49,7 @@ pub(crate) fn classify_ability(input: &AbilityInput<'_>) -> &'static str {
         return "triggeredAbility";
     }
     let standalone_enters_with = !lower.starts_with("graft ")
+        && !lower.starts_with("sunburst ")
         && lower
             .split_once(" enters with ")
             .is_some_and(|(subject, _)| !subject.contains('.'));
@@ -81,6 +82,8 @@ pub(crate) fn classify_ability(input: &AbilityInput<'_>) -> &'static str {
         .expect("firebending keyword classifier regex compiles")
         .is_match(normalized);
     if lower == "flying"
+        || lower == "sunburst"
+        || lower.starts_with("sunburst (")
         || lower.starts_with("graft ")
         || lower.starts_with("kicker ")
         || lower.starts_with("blitz ")

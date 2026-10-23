@@ -202,14 +202,20 @@ fn player_turn_snapshot(state: &GameState, player_id: &str) -> Option<TurnSnapsh
 
 pub struct ObservedDecisionProvider<P> {
     inner: P,
+    recording: bool,
     observations: Vec<DecisionObservation>,
     snapshots: Vec<TurnSnapshot>,
 }
 
 impl<P> ObservedDecisionProvider<P> {
     pub fn new(inner: P) -> Self {
+        Self::with_recording(inner, true)
+    }
+
+    pub fn with_recording(inner: P, recording: bool) -> Self {
         Self {
             inner,
+            recording,
             observations: Vec::new(),
             snapshots: Vec::new(),
         }
@@ -242,7 +248,7 @@ impl<P: DecisionProvider> DecisionProvider for ObservedDecisionProvider<P> {
         state: &GameState,
         request: &EngineDecisionRequest,
     ) -> Result<usize, EngineError> {
-        if request.kind == DecisionKind::Priority {
+        if self.recording && request.kind == DecisionKind::Priority {
             let active_player_id = state
                 .players
                 .get(state.active_player)
@@ -305,7 +311,8 @@ impl<P: DecisionProvider> DecisionProvider for ObservedDecisionProvider<P> {
     }
 
     fn observe_turn_completed(&mut self, state: &GameState) {
-        if let Some(active_player) = state.players.get(state.active_player)
+        if self.recording
+            && let Some(active_player) = state.players.get(state.active_player)
             && let Some(snapshot) = player_turn_snapshot(state, &active_player.id)
         {
             self.snapshots.push(snapshot);
@@ -2773,6 +2780,49 @@ mod tests {
         assert_eq!(snapshot.metrics["otherCounters"], 6.0);
         assert_eq!(snapshot.metrics["creatures"], 1.0);
         assert_eq!(snapshot.metrics["artifacts"], 1.0);
+    }
+
+    #[test]
+    fn disabled_analytics_forwards_decisions_without_retaining_samples() {
+        let state = GameState {
+            schema_version: "mtg-game/v1".to_string(),
+            game_mode: GameMode::Free,
+            status: GameStatus::InProgress,
+            turn_number: 1,
+            active_player: 0,
+            priority_player: Some(0),
+            step: GameStep::PrecombatMain,
+            players: vec![engine_player("player-1"), engine_player("player-2")],
+            game_pieces: Vec::new(),
+            commanders: Vec::new(),
+            stack: Vec::new(),
+            combat: CombatState::default(),
+            permissions: Vec::new(),
+            rule_modifiers: Vec::new(),
+            events: Vec::new(),
+            unsupported_rules: Vec::new(),
+            outcome: None,
+        };
+        let request = EngineDecisionRequest {
+            id: "test".to_string(),
+            kind: DecisionKind::Priority,
+            player_id: "player-1".to_string(),
+            source_card: None,
+            source_card_instance_id: None,
+            choice: None,
+            options: Vec::new(),
+        };
+        let mut legacy = ObservedDecisionProvider::new(crate::engine::RandomAi::seeded(1));
+        let mut learner =
+            ObservedDecisionProvider::with_recording(crate::engine::RandomAi::seeded(1), false);
+        assert_eq!(
+            legacy.choose(&state, &request).is_err(),
+            learner.choose(&state, &request).is_err()
+        );
+        legacy.observe_turn_completed(&state);
+        learner.observe_turn_completed(&state);
+        assert_eq!(legacy.analytics_checkpoint(), (1, 1));
+        assert_eq!(learner.analytics_checkpoint(), (0, 0));
     }
 
     #[test]

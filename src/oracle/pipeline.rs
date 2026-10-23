@@ -113,6 +113,48 @@ mod tests {
     }
 
     #[test]
+    fn sunburst_compiles_with_or_without_reminder_text() {
+        for (name, type_line, text) in [
+            (
+                "Engineered Explosives",
+                "Artifact",
+                "Sunburst (This artifact enters with a charge counter on it for each color of mana spent to cast it.)\n{2}, Sacrifice this artifact: Destroy each nonland permanent with mana value equal to the number of charge counters on this artifact.",
+            ),
+            (
+                "Skyreach Manta",
+                "Artifact Creature — Fish",
+                "Sunburst (This creature enters with a +1/+1 counter on it for each color of mana spent to cast it.)\nFlying",
+            ),
+            ("Test", "Artifact", "Sunburst"),
+        ] {
+            let result = parse_oracle_card(OracleCardParseRequest {
+                card_name: name.to_string(),
+                type_line: type_line.to_string(),
+                mana_cost: Some("{X}".to_string()),
+                oracle_text: Some(text.to_string()),
+                layout: None,
+                faces: Vec::new(),
+            });
+            assert_eq!(
+                result.status, "canonical",
+                "{name}: {:?}",
+                result.diagnostics
+            );
+            assert_eq!(
+                result.abilities[0].rule.as_ref().unwrap()["ability"]["kind"],
+                "sunburst"
+            );
+            assert!(
+                result
+                    .abilities
+                    .iter()
+                    .filter_map(|ability| ability.rule.as_ref())
+                    .all(crate::engine::rule_is_executable)
+            );
+        }
+    }
+
+    #[test]
     fn unmask_compiles_to_alternative_cost_and_shared_hand_operations() {
         let result = parse_oracle_card(OracleCardParseRequest {
             card_name: "Unmask".to_string(),
