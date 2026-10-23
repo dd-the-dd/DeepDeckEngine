@@ -2,6 +2,12 @@ use super::*;
 use crate::model::{PlayableCardInput, compile_playable_card};
 use crate::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
+#[path = "channel_tests.rs"]
+mod channel;
+
+#[path = "phasing_priority_tests.rs"]
+mod phasing_priority;
+
 #[test]
 fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
     let mut engine = test_engine(2);
@@ -7918,6 +7924,155 @@ fn variable_entering_counters_use_the_cast_x_value() {
         .expect("X replacement resolves");
 
     assert_eq!(card.counters.get("+1/+1"), Some(&4));
+}
+
+#[test]
+fn sunburst_counts_distinct_paid_colors_not_x_or_colorless_mana() {
+    for (payments, expected) in [
+        (json!([]), 0),
+        (json!([{ "mana": ["C", "C"] }]), 0),
+        (json!([{ "mana": ["U", "U"] }]), 1),
+        (json!([{ "mana": ["U", "B", "C"] }]), 2),
+        (
+            json!([{ "mana": ["W", "U"] }, { "kind": "manaPaymentMetadata", "manaPoolSymbols": ["B", "R", "G", "U"] }]),
+            5,
+        ),
+    ] {
+        for type_line in ["Artifact", "Artifact Creature — Construct"] {
+            let mut engine = test_engine(2);
+            let mut definition = test_definition("sunburst", type_line);
+            definition
+                .rules
+                .push(json!({ "kind": "keywordAbility", "ability": { "kind": "sunburst" } }));
+            assert!(rule_is_executable(&definition.rules[0]));
+            let mut card = test_instance("sunburst-card", definition, "player-0");
+            engine
+                .apply_enter_replacements_with_decisions(
+                    &mut card,
+                    &mut EmeritusDecisionProvider,
+                    &BTreeMap::from([
+                        ("xValue".to_string(), Value::from(9)),
+                        ("manaPayment".to_string(), payments.clone()),
+                    ]),
+                )
+                .unwrap();
+            let counter = if type_line == "Artifact" {
+                "charge"
+            } else {
+                "+1/+1"
+            };
+            assert_eq!(card.counters.get(counter).copied().unwrap_or(0), expected);
+            assert_eq!(card.counters.len(), usize::from(expected > 0));
+        }
+    }
+}
+
+#[test]
+fn sunburst_noncast_entry_gets_no_counters_and_multiple_instances_stack() {
+    let mut engine = test_engine(2);
+    let mut definition = test_definition("sunburst", "Artifact");
+    definition.rules =
+        vec![json!({ "kind": "keywordAbility", "ability": { "kind": "sunburst" } }); 2];
+    let mut card = test_instance("sunburst-card", definition, "player-0");
+    engine
+        .apply_enter_replacements(&mut card, &mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(card.counters.is_empty());
+    engine
+        .apply_enter_replacements_with_decisions(
+            &mut card,
+            &mut EmeritusDecisionProvider,
+            &BTreeMap::from([("manaPayment".to_string(), json!([{ "mana": ["U", "B"] }]))]),
+        )
+        .unwrap();
+    assert_eq!(card.counters.get("charge"), Some(&4));
+}
+
+#[test]
+fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
+    let mut engine = test_engine(2);
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Engineered Explosives".to_string(), type_line: "Artifact".to_string(),
+        mana_cost: Some("{X}".to_string()),
+        oracle_text: Some("Sunburst (This artifact enters with a charge counter on it for each color of mana spent to cast it.)\n{2}, Sacrifice this artifact: Destroy each nonland permanent with mana value equal to the number of charge counters on this artifact.".to_string()),
+        layout: None, faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical");
+    let mut definition = test_definition("explosives", "Artifact");
+    definition.mana_cost = "{X}".to_string();
+    definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.players[0].hand = vec![test_instance("explosives", definition, "player-0")];
+    engine.state.players[0].battlefield = vec![
+        mana_source("island", "Basic Land — Island", "{U}", None),
+        mana_source("swamp", "Basic Land — Swamp", "{B}", None),
+    ];
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.decisions.get("xValue") == Some(&Value::from(2))
+        })
+        .expect("cast Explosives with X=2 using blue and black lands");
+    engine
+        .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
+        .unwrap();
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap();
+    let (player, index) = engine.permanent_position("explosives").unwrap();
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("charge"),
+        Some(&2)
+    );
+    for (id, type_line, cost) in [
+        ("two", "Artifact", "{2}"),
+        ("one", "Creature", "{1}"),
+        ("land", "Land", "{2}"),
+    ] {
+        let mut definition = test_definition(id, type_line);
+        definition.mana_cost = cost.to_string();
+        let card = test_instance(id, definition, "player-1");
+        engine.state.players[1].battlefield.push(card);
+    }
+    engine.state.players[0].mana_pool = floating_mana(&["C", "C"]);
+    let activate = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("explosives")
+        })
+        .expect("pay 2 and sacrifice Explosives");
+    engine
+        .apply_priority_action(&activate, &mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(engine.permanent_position("explosives").is_none());
+    let activation = engine.state.stack.last().unwrap();
+    assert_eq!(activation.card.counters.get("charge"), Some(&2));
+    assert_eq!(
+        engine.runtime_numeric_expression(
+            &json!({ "kind": "countCounters", "object": { "kind": "self" }, "counter": "charge" }),
+            activation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        ),
+        Some(2)
+    );
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(engine.permanent_position("two").is_none());
+    assert!(engine.permanent_position("one").is_some());
+    assert!(engine.permanent_position("land").is_some());
 }
 
 #[test]
