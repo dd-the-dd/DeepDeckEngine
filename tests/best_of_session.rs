@@ -51,6 +51,28 @@ fn request(mode: GameMode, best_of: Option<u32>) -> CreateGameSessionRequest {
 }
 
 #[test]
+fn short_commander_sessions_keep_commander_rules_instead_of_duel() {
+    for seats in [2, 3, 4] {
+        let manager = GameSessionManager::new();
+        let mut input = request(GameMode::Commander, Some(1));
+        input.setup.players.truncate(seats);
+        let initial = manager.create(input).unwrap();
+        assert_eq!(initial.state.game_mode, GameMode::Commander);
+        assert_eq!(initial.state.players.len(), seats);
+        assert!(
+            initial.match_state.is_none(),
+            "Short Commander is not a Legacy/Duel series"
+        );
+        for player in &initial.state.players {
+            assert_eq!(player.life, 40);
+            assert_eq!(player.command_zone.len(), 1);
+            assert!(player.command_zone[0].definition.is_commander);
+        }
+        manager.remove(&initial.session_id).unwrap();
+    }
+}
+
+#[test]
 fn best_of_defaults_and_invalid_values_are_checked_before_start() {
     let manager = GameSessionManager::new();
     for value in [0, 2, 4, 8, u32::MAX] {

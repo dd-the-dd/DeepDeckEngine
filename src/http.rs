@@ -66,6 +66,10 @@ struct CreateLocalDeckGameRequest {
     game_mode: GameMode,
     #[serde(default)]
     best_of: Option<u32>,
+    /// Explicit qualification/play-in pods keep normal Commander rules and
+    /// decks. They are not Duel Commander and never become the default table.
+    #[serde(default)]
+    allow_short_commander_pod: bool,
     #[serde(default = "default_http_max_turns")]
     max_turns: u32,
     #[serde(default)]
@@ -585,10 +589,21 @@ fn authenticated_lobby_player(
     Ok(player_id)
 }
 
-fn validate_game_mode_player_count(game_mode: GameMode, player_count: usize) -> Result<(), String> {
+/// Validate table size without changing the selected format's rules. Ordinary
+/// Commander remains four seats; explicit qualifying pods can use two or three.
+pub fn validate_game_mode_player_count(
+    game_mode: GameMode,
+    player_count: usize,
+    allow_short_commander_pod: bool,
+) -> Result<(), String> {
+    if allow_short_commander_pod && game_mode != GameMode::Commander {
+        return Err(
+            "allowShortCommanderPod applies only to Commander qualification tables".to_string(),
+        );
+    }
     match game_mode {
-        GameMode::Commander if player_count != 4 => {
-            Err("Commander games require exactly four players".to_string())
+        GameMode::Commander if !(player_count == 4 || (allow_short_commander_pod && (2..=3).contains(&player_count))) => {
+            Err("Commander games require four players; explicit qualification pods may have two or three".to_string())
         }
         GameMode::DuelCommander if player_count != 2 => {
             Err("Duel Commander games require exactly two players".to_string())
@@ -610,7 +625,11 @@ fn create_network_lobby(body: &str) -> JsonResponse {
         Ok(username) => username,
         Err(error) => return error_response(400, error),
     };
-    if let Err(error) = validate_game_mode_player_count(request.game_mode, request.players.len()) {
+    if let Err(error) = validate_game_mode_player_count(
+        request.game_mode,
+        request.players.len(),
+        request.allow_short_commander_pod,
+    ) {
         return error_response(400, error);
     }
     if request.human_player_ids.len() < 2 || request.human_player_ids.len() > 4 {
@@ -1811,7 +1830,11 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
     if request.players.len() < 2 || request.players.len() > 4 {
         return error_response(400, "Local deck games require two to four players");
     }
-    if let Err(error) = validate_game_mode_player_count(request.game_mode, request.players.len()) {
+    if let Err(error) = validate_game_mode_player_count(
+        request.game_mode,
+        request.players.len(),
+        request.allow_short_commander_pod,
+    ) {
         return error_response(400, error);
     }
     let random_deck_count = request
@@ -2899,11 +2922,21 @@ mod tests {
 
     #[test]
     fn commander_player_counts_are_enforced_at_the_http_boundary() {
-        assert!(validate_game_mode_player_count(GameMode::Commander, 4).is_ok());
-        assert!(validate_game_mode_player_count(GameMode::Commander, 2).is_err());
-        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 2).is_ok());
-        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 4).is_err());
-        assert!(validate_game_mode_player_count(GameMode::Legacy, 2).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 4, false).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 2, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 3, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 2, false).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 4, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::Legacy, 2, false).is_ok());
+        for count in 0..=6 {
+            assert_eq!(
+                validate_game_mode_player_count(GameMode::Commander, count, true).is_ok(),
+                (2..=4).contains(&count)
+            );
+        }
+        for mode in [GameMode::Legacy, GameMode::DuelCommander, GameMode::Free] {
+            assert!(validate_game_mode_player_count(mode, 2, true).is_err());
+        }
     }
 
     fn private_card(owner: &str, id: &str, name: &str) -> crate::engine::CardInstance {
