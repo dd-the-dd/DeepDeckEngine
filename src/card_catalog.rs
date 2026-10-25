@@ -123,6 +123,29 @@ fn builtin_game_pieces() -> &'static StoredCardCatalog {
     })
 }
 
+/// Dungeons are outside the deck and sideboard (AFR release notes). Keep their
+/// rules in the embedded public Oracle catalog, not handwritten Engine effects.
+pub(crate) fn builtin_dungeon_printings()
+-> Result<Vec<(&'static str, &'static CatalogPrinting)>, String> {
+    [
+        "Lost Mine of Phandelver",
+        "Tomb of Annihilation",
+        "Dungeon of the Mad Mage",
+        "Undercity",
+    ]
+    .into_iter()
+    .map(|name| {
+        builtin_game_pieces()
+            .cards
+            .get(&name.to_lowercase())
+            .and_then(|values| values.first())
+            .filter(|printing| printing.is_game_piece == Some(true))
+            .map(|printing| (name, printing))
+            .ok_or_else(|| format!("Embedded dungeon {name} is missing"))
+    })
+    .collect()
+}
+
 fn select_named_token_printing<'a>(
     catalog: &'a StoredCardCatalog,
     name: &str,

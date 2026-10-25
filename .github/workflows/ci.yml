@@ -37,6 +37,7 @@ jobs:
           --test best_of_session
           --test commander_qualification
           --test deck_storage_sections
+          --test outside_game_dungeons
           --test interactive_session
           --test multiplayer_simulation
           --test playable_model
