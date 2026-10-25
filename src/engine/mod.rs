@@ -8864,7 +8864,7 @@ impl GameEngine {
         let mut unsupported_rules = Vec::new();
         let mut players = Vec::new();
         let mut commanders = Vec::new();
-        let mut game_pieces = setup
+        let game_pieces = setup
             .players
             .iter()
             .flat_map(|player| player.cards.iter())
@@ -8877,14 +8877,6 @@ impl GameEngine {
             })
             .into_values()
             .collect::<Vec<_>>();
-        for dungeon in crate::model::builtin_dungeon_definitions().map_err(EngineError::new)? {
-            if !game_pieces
-                .iter()
-                .any(|piece| piece.name.eq_ignore_ascii_case(&dungeon.name))
-            {
-                game_pieces.push(dungeon.clone());
-            }
-        }
         for definition in &game_pieces {
             for rule in &definition.rules {
                 if !rule_supported(rule) {
@@ -74558,6 +74550,18 @@ impl GameEngine {
         player_id: &str,
         entry_procedure: Option<&str>,
     ) -> Result<(), EngineError> {
+        // Load outside-game definitions only when needed. Ordinary games must
+        // not parse/serialize four unused dungeons in every observation/frame.
+        for dungeon in crate::model::builtin_dungeon_definitions().map_err(EngineError::new)? {
+            if !self
+                .state
+                .game_pieces
+                .iter()
+                .any(|piece| piece.name.eq_ignore_ascii_case(&dungeon.name))
+            {
+                self.state.game_pieces.push(dungeon.clone());
+            }
+        }
         let current_position = self.state.rule_modifiers.iter().find_map(|modifier| {
             (value_kind(modifier) == Some("dungeonPosition")
                 && modifier["playerId"].as_str() == Some(player_id))

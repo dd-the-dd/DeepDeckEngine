@@ -64,9 +64,9 @@ fn four_canonical_dungeons_are_complete_and_undercity_keeps_its_entry_restrictio
 }
 
 #[test]
-fn dungeons_are_available_without_entering_libraries_hands_or_sideboards() {
+fn ordinary_games_do_not_load_unused_dungeons_into_observations_or_decks() {
     let engine = GameEngine::new(setup(), 11).unwrap();
-    assert_eq!(engine.state().game_pieces.len(), 4);
+    assert!(engine.state().game_pieces.is_empty());
     for player in &engine.state().players {
         assert_eq!(player.library.len() + player.hand.len(), 60);
         assert!(player.sideboard.is_empty());
@@ -87,7 +87,7 @@ fn an_explicit_dungeon_printing_is_not_duplicated() {
     supplied.id = "explicit-dungeon-printing".into();
     setup.players[0].cards.push(supplied);
     let engine = GameEngine::new(setup, 11).unwrap();
-    assert_eq!(engine.state().game_pieces.len(), 4);
+    assert_eq!(engine.state().game_pieces.len(), 1);
     assert!(
         engine
             .state()
@@ -228,6 +228,7 @@ fn aluren_acererak_really_advances_rooms_and_drains_to_a_win_without_deck_dungeo
         })
         .unwrap();
     engine.run_from_postcombat_main(&mut ComboPilot, 1).unwrap();
+    assert_eq!(engine.state().game_pieces.len(), 4);
     assert_eq!(
         engine
             .state()
