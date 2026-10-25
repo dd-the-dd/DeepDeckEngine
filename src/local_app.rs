@@ -380,7 +380,6 @@ fn compile_session_deck(
         {
             continue;
         }
-        let type_line = value_string(selected, "typeLine");
         let is_game_piece = crate::local_deck_flags::is_auxiliary(card, selected);
         let layout = value_string(selected, "layout");
         let faces = selected.get("faces").and_then(Value::as_array);
