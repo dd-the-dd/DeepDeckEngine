@@ -52,6 +52,62 @@
         "urlFront": ""
       }
     ],
+    "lost mine of phandelver": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "lost-mine-of-phandelver",
+        "isToken": false,
+        "isGamePiece": true,
+        "layout": "normal",
+        "typeLine": "Dungeon",
+        "oracleId": "5c446a7f-0301-4343-b0df-146cf2db605b",
+        "oracleSourceUrl": "https://api.scryfall.com/cards/59b11ff8-f118-4978-87dd-509dc0c8c932",
+        "oracleText": "Cave Entrance — Scry 1. (Leads to: Goblin Lair, Mine Tunnels)\nGoblin Lair — Create a 1/1 red Goblin creature token. (Leads to: Storeroom, Dark Pool)\nMine Tunnels — Create a Treasure token. (Leads to: Dark Pool, Fungi Cavern)\nStoreroom — Put a +1/+1 counter on target creature. (Leads to: Temple of Dumathoin)\nDark Pool — Each opponent loses 1 life and you gain 1 life. (Leads to: Temple of Dumathoin)\nFungi Cavern — Target creature gets -4/-0 until your next turn. (Leads to: Temple of Dumathoin)\nTemple of Dumathoin — Draw a card.",
+        "urlFront": ""
+      }
+    ],
+    "tomb of annihilation": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "tomb-of-annihilation",
+        "isToken": false,
+        "isGamePiece": true,
+        "layout": "normal",
+        "typeLine": "Dungeon",
+        "oracleId": "d2ea2605-0ca0-4782-851d-e706bd0114e4",
+        "oracleSourceUrl": "https://api.scryfall.com/cards/70b284bd-7a8f-4b60-8238-f746bdc5b236",
+        "oracleText": "Trapped Entry — Each player loses 1 life. (Leads to: Veils of Fear, Oubliette)\nVeils of Fear — Each player loses 2 life unless they discard a card. (Leads to: Sandfall Cell)\nSandfall Cell — Each player loses 2 life unless they sacrifice a creature, artifact, or land of their choice. (Leads to: Cradle of the Death God)\nOubliette — Discard a card and sacrifice a creature, an artifact, and a land. (Leads to: Cradle of the Death God)\nCradle of the Death God — Create The Atropal, a legendary 4/4 black God Horror creature token with deathtouch.",
+        "urlFront": ""
+      }
+    ],
+    "dungeon of the mad mage": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "dungeon-of-the-mad-mage",
+        "isToken": false,
+        "isGamePiece": true,
+        "layout": "normal",
+        "typeLine": "Dungeon",
+        "oracleId": "30d0398c-bf5a-4b30-936f-afdb5a109b4b",
+        "oracleSourceUrl": "https://api.scryfall.com/cards/6f509dbe-6ec7-4438-ab36-e20be46c9922",
+        "oracleText": "Yawning Portal — You gain 1 life. (Leads to: Dungeon Level)\nDungeon Level — Scry 1. (Leads to: Goblin Bazaar, Twisted Caverns)\nGoblin Bazaar — Create a Treasure token. (Leads to: Lost Level)\nTwisted Caverns — Target creature can't attack until your next turn. (Leads to: Lost Level)\nLost Level — Scry 2. (Leads to: Runestone Caverns, Muiral's Graveyard)\nRunestone Caverns — Exile the top two cards of your library. You may play them. (Leads to: Deep Mines)\nMuiral's Graveyard — Create two 1/1 black Skeleton creature tokens. (Leads to: Deep Mines)\nDeep Mines — Scry 3. (Leads to: Mad Wizard's Lair)\nMad Wizard's Lair — Draw three cards and reveal them. You may cast one of them without paying its mana cost.",
+        "urlFront": ""
+      }
+    ],
+    "undercity": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "undercity",
+        "isToken": false,
+        "isGamePiece": true,
+        "layout": "normal",
+        "typeLine": "Dungeon — Undercity",
+        "oracleId": "36b61021-72f0-4c22-a41d-9b2f093d7ca8",
+        "oracleSourceUrl": "https://api.scryfall.com/cards/2c65185b-6cf0-451d-985e-56aa45d9a57d",
+        "oracleText": "You can't enter this dungeon unless you \"venture into Undercity.\"\nSecret Entrance — Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Leads to: Forge, Lost Well)\nForge — Put two +1/+1 counters on target creature. (Leads to: Trap!, Arena)\nLost Well — Scry 2. (Leads to: Arena, Stash)\nTrap! — Target player loses 5 life. (Leads to: Archives)\nArena — Goad target creature. (Leads to: Archives, Catacombs)\nStash — Create a Treasure token. (Leads to: Catacombs)\nArchives — Draw a card. (Leads to: Throne of the Dead Three)\nCatacombs — Create a 4/1 black Skeleton creature token with menace. (Leads to: Throne of the Dead Three)\nThrone of the Dead Three — Reveal the top ten cards of your library. Put a creature card from among them onto the battlefield with three +1/+1 counters on it. It gains hexproof until your next turn. Then shuffle.",
+        "urlFront": ""
+      }
+    ],
     "treasure": [
       {
         "setCode": "builtin",

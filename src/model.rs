@@ -5,6 +5,7 @@ use crate::oracle::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +37,53 @@ pub struct PlayableCardCompilation {
     pub executable_rule_count: usize,
     pub unexecutable_rule_count: usize,
     pub parser_result: OracleCardParseResult,
+}
+
+/// Canonical outside-game pieces, compiled once with the ordinary Oracle path.
+/// No network, mutable card catalog or user deck edit is needed to venture.
+pub fn builtin_dungeon_definitions() -> Result<&'static [CardDefinition], String> {
+    static DUNGEONS: OnceLock<Result<Vec<CardDefinition>, String>> = OnceLock::new();
+    DUNGEONS
+        .get_or_init(|| {
+            crate::card_catalog::builtin_dungeon_printings()?
+                .into_iter()
+                .map(|(name, printing)| {
+                    let compiled = compile_playable_card(PlayableCardInput {
+                        id: format!("builtin-dungeon:{}", printing.collector_number),
+                        face_id: None,
+                        is_token: false,
+                        is_game_piece: true,
+                        is_sideboard: false,
+                        power: None,
+                        toughness: None,
+                        oracle: OracleCardParseRequest {
+                            card_name: name.to_string(),
+                            type_line: printing.type_line.clone().unwrap_or_default(),
+                            mana_cost: None,
+                            oracle_text: printing.oracle_text.clone(),
+                            layout: None,
+                            faces: Vec::new(),
+                        },
+                    })?;
+                    if compiled.unsupported_ability_count != 0
+                        || compiled.unexecutable_rule_count != 0
+                        || !compiled
+                            .card
+                            .rules
+                            .iter()
+                            .any(|rule| rule["kind"] == "dungeonRoom")
+                    {
+                        return Err(format!(
+                            "Embedded dungeon {name} could not be compiled completely"
+                        ));
+                    }
+                    Ok(compiled.card)
+                })
+                .collect()
+        })
+        .as_ref()
+        .map(|values| values.as_slice())
+        .map_err(Clone::clone)
 }
 
 fn compile_token_oracle_definition(
