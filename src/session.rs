@@ -194,6 +194,10 @@ pub struct CreateGameSessionRequest {
     pub combat_declaration_revision_player_ids: Option<Vec<String>>,
     #[serde(default)]
     pub ai_controller_by_player_id: BTreeMap<String, String>,
+    /// Opt-in relay for server-validated official assignments, including a
+    /// controller that disconnected between registration and game creation.
+    #[serde(default)]
+    pub allow_disconnected_agent_fallback: bool,
     #[serde(default)]
     pub analytics_pilot_by_player_id: BTreeMap<String, String>,
     #[serde(default)]
@@ -1181,6 +1185,10 @@ impl GameSessionManager {
             if !is_playable_model_controller(controller_id)
                 && ground_truth_version.is_none()
                 && !is_registered_agent_controller(controller_id)
+                && !(request.allow_disconnected_agent_fallback
+                    && controller_id
+                        .strip_prefix("agent:")
+                        .is_some_and(|id| !id.trim().is_empty()))
             {
                 return Err(GameSessionError::new(format!(
                     "unsupported AI controller: {controller_id}"
@@ -1400,12 +1408,13 @@ impl GameSessionManager {
                     .find(|player| player.id == *player_id)
                     .map(|player| player.cards.clone())
                     .unwrap_or_default();
-                WebSocketAgent::new(
+                WebSocketAgent::for_session(
                     controller_id.clone(),
                     format!("{session_id}:{player_id}"),
                     player_id.clone(),
                     known_deck,
                     history.clone(),
+                    request.allow_disconnected_agent_fallback,
                 )
                 .map(|client| (player_id.clone(), client))
                 .map_err(|error| GameSessionError::new(error.to_string()))
@@ -2052,6 +2061,7 @@ mod tests {
                 human_player_ids: Vec::new(),
                 combat_declaration_revision_player_ids: None,
                 ai_controller_by_player_id: Default::default(),
+                allow_disconnected_agent_fallback: false,
                 analytics_pilot_by_player_id: Default::default(),
                 analytics_context_id: None,
                 analytics_deck_session_by_player_id: Default::default(),

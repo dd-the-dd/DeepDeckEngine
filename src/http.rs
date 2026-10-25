@@ -81,6 +81,8 @@ struct CreateLocalDeckGameRequest {
     #[serde(default)]
     ai_controller_by_player_id: BTreeMap<String, String>,
     #[serde(default)]
+    allow_disconnected_agent_fallback: bool,
+    #[serde(default)]
     analytics_pilot_by_player_id: BTreeMap<String, String>,
     #[serde(default)]
     analytics_context_id: Option<String>,
@@ -1932,6 +1934,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         human_player_ids: request.human_player_ids,
         combat_declaration_revision_player_ids: None,
         ai_controller_by_player_id: request.ai_controller_by_player_id,
+        allow_disconnected_agent_fallback: request.allow_disconnected_agent_fallback,
         analytics_pilot_by_player_id: request.analytics_pilot_by_player_id,
         analytics_context_id: request.analytics_context_id,
         analytics_deck_session_by_player_id,
