@@ -380,11 +380,7 @@ fn compile_session_deck(
         {
             continue;
         }
-        let type_line = value_string(selected, "typeLine");
-        let is_game_piece = card_flag(card, selected, "isGamePiece")
-            || type_line.starts_with("Token")
-            || type_line.starts_with("Emblem")
-            || type_line.starts_with("Dungeon");
+        let is_game_piece = crate::local_deck_flags::is_auxiliary(card, selected);
         let layout = value_string(selected, "layout");
         let faces = selected.get("faces").and_then(Value::as_array);
         let face_id = matches!(layout.as_str(), "flip" | "prepare" | "transform")
@@ -409,7 +405,7 @@ fn compile_session_deck(
             face_id,
             is_token: card_flag(card, selected, "isToken"),
             is_game_piece,
-            is_sideboard: card_flag(card, selected, "isSideboard"),
+            is_sideboard: crate::local_deck_flags::is_sideboard(card, selected),
             power: selected
                 .get("power")
                 .and_then(Value::as_str)
@@ -516,10 +512,7 @@ fn validation_session_deck(session: &LocalSession) -> Result<CompiledLocalDeck, 
             continue;
         }
         let type_line = value_string(selected, "typeLine");
-        let is_game_piece = card_flag(card, selected, "isGamePiece")
-            || type_line.starts_with("Token")
-            || type_line.starts_with("Emblem")
-            || type_line.starts_with("Dungeon");
+        let is_game_piece = crate::local_deck_flags::is_auxiliary(card, selected);
         if is_game_piece {
             continue;
         }
@@ -545,7 +538,7 @@ fn validation_session_deck(session: &LocalSession) -> Result<CompiledLocalDeck, 
                 || matches!(section.as_str(), "commander" | "commanders"),
             is_token: card_flag(card, selected, "isToken"),
             is_game_piece,
-            is_sideboard: card_flag(card, selected, "isSideboard"),
+            is_sideboard: crate::local_deck_flags::is_sideboard(card, selected),
             mana_cost: value_string(selected, "manaCost"),
             power: None,
             toughness: None,

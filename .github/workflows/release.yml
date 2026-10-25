@@ -21,6 +21,8 @@ jobs:
       - run: >-
           cargo test --locked
           --test backend_contract
+          --test commander_qualification
+          --test deck_storage_sections
           --test interactive_session
           --test multiplayer_simulation
           --test playable_model
