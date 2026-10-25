@@ -3,6 +3,17 @@ mod flags;
 use serde_json::json;
 
 #[test]
+fn container_build_includes_the_embedded_public_game_piece_catalog() {
+    let dockerfile = include_str!("../Dockerfile");
+    let copy = dockerfile
+        .find("COPY data/builtin-game-pieces.json ./data/builtin-game-pieces.json")
+        .expect("The container must supply the embedded catalog before compiling");
+    assert!(copy < dockerfile.find("RUN cargo build").unwrap());
+    let _: serde_json::Value =
+        serde_json::from_str(include_str!("../data/builtin-game-pieces.json")).unwrap();
+}
+
+#[test]
 fn section_only_sideboard_and_companion_stay_out_of_the_main_deck() {
     for section in ["sideboard", "companion", " SideBoard "] {
         let card = json!({"section":section});
