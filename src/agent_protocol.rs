@@ -9,7 +9,8 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::net::TcpStream;
-use std::sync::{Arc, Mutex, OnceLock, mpsc};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock, Weak, mpsc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tungstenite::handshake::server::{ErrorResponse, Request, Response};
 use tungstenite::http::StatusCode;
@@ -219,6 +220,7 @@ struct AgentConnection {
     game_sharing: GameSharing,
     outgoing: mpsc::Sender<Value>,
     pending: Mutex<HashMap<String, mpsc::Sender<AgentReply>>>,
+    disconnected: AtomicBool,
 }
 
 impl AgentConnection {
@@ -229,10 +231,15 @@ impl AgentConnection {
         timeout: Duration,
     ) -> Result<AgentReply, EngineError> {
         let (sender, receiver) = mpsc::channel();
-        self.pending
+        let mut pending = self
+            .pending
             .lock()
-            .map_err(|_| EngineError::new("agent response registry is poisoned"))?
-            .insert(request_id.to_string(), sender);
+            .map_err(|_| EngineError::new("agent response registry is poisoned"))?;
+        if self.disconnected.load(Ordering::Acquire) {
+            return Err(EngineError::new("agent websocket is disconnected"));
+        }
+        pending.insert(request_id.to_string(), sender);
+        drop(pending);
         if self.outgoing.send(message).is_err() {
             let _ = self
                 .pending
@@ -282,6 +289,24 @@ fn unregister_connection(agent_id: &str, connection: &Arc<AgentConnection>) {
     {
         agents.remove(agent_id);
     }
+    drop(agents);
+    // Wake blocked decisions immediately, even if their Arc keeps the old
+    // connection alive or a replacement has already registered under this ID.
+    if let Ok(mut pending) = connection.pending.lock() {
+        connection.disconnected.store(true, Ordering::Release);
+        pending.clear();
+    }
+}
+
+fn register_connection(agent_id: &str, connection: &Arc<AgentConnection>) -> Result<(), String> {
+    let previous = registry()
+        .lock()
+        .map_err(|_| "agent registry is poisoned".to_string())?
+        .insert(agent_id.to_string(), Arc::clone(connection));
+    if let Some(previous) = previous.filter(|previous| !Arc::ptr_eq(previous, connection)) {
+        unregister_connection(agent_id, &previous);
+    }
+    Ok(())
 }
 
 pub fn is_registered_agent_controller(controller_id: &str) -> bool {
@@ -357,6 +382,7 @@ pub struct WebSocketAgent {
     previous_observation: Option<Value>,
     starting_analysis_sent: bool,
     sequence: u64,
+    last_connection: Option<Weak<AgentConnection>>,
 }
 
 impl WebSocketAgent {
@@ -367,8 +393,38 @@ impl WebSocketAgent {
         known_deck: Vec<CardDefinition>,
         history: Option<HistoryStream>,
     ) -> Result<Self, EngineError> {
+        Self::for_session(
+            controller_id,
+            context_id,
+            player_id,
+            known_deck,
+            history,
+            false,
+        )
+    }
+
+    /// A trusted session may retain an assigned controller while it is offline.
+    /// Decisions use the session's legal random relay until the agent reconnects.
+    pub(crate) fn for_session(
+        controller_id: impl Into<String>,
+        context_id: impl Into<String>,
+        player_id: impl Into<String>,
+        known_deck: Vec<CardDefinition>,
+        history: Option<HistoryStream>,
+        allow_disconnected: bool,
+    ) -> Result<Self, EngineError> {
         let controller_id = controller_id.into();
-        registered_connection(&controller_id)?;
+        if !allow_disconnected {
+            registered_connection(&controller_id)?;
+        }
+        if !controller_id
+            .strip_prefix("agent:")
+            .is_some_and(|id| !id.trim().is_empty())
+        {
+            return Err(EngineError::new(
+                "external agent controller requires a nonempty agent: identity",
+            ));
+        }
         Ok(Self {
             controller_id,
             context_id: context_id.into(),
@@ -378,6 +434,7 @@ impl WebSocketAgent {
             previous_observation: None,
             starting_analysis_sent: false,
             sequence: 0,
+            last_connection: None,
         })
     }
 
@@ -409,6 +466,16 @@ impl WebSocketAgent {
 
     fn prepare(&mut self, state: &GameState) -> Result<(Arc<AgentConnection>, Value), EngineError> {
         let connection = self.connection()?;
+        let same_connection = self
+            .last_connection
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .is_some_and(|previous| Arc::ptr_eq(&previous, &connection));
+        if !same_connection {
+            self.previous_observation = None;
+            self.starting_analysis_sent = false;
+            self.last_connection = Some(Arc::downgrade(&connection));
+        }
         let observation = serde_json::to_value(state).map_err(|error| {
             EngineError::new(format!("could not serialize player observation: {error}"))
         })?;
@@ -619,16 +686,14 @@ fn handle_agent_websocket_with_key(
         game_sharing: register.game_sharing,
         outgoing,
         pending: Mutex::new(HashMap::new()),
+        disconnected: AtomicBool::new(false),
     });
     socket
         .get_mut()
         .set_read_timeout(Some(Duration::from_millis(100)))
         .map_err(|error| error.to_string())?;
-    registry()
-        .lock()
-        .map_err(|_| "agent registry is poisoned".to_string())?
-        .insert(agent_id.clone(), Arc::clone(&connection));
-    write_json(
+    register_connection(&agent_id, &connection)?;
+    if let Err(error) = write_json(
         &mut socket,
         &json!({
             "type": "registrationAccepted",
@@ -641,9 +706,15 @@ fn handle_agent_websocket_with_key(
             "startingAnalysisTimeoutMs": connection.timeout_category.starting_analysis_timeout().as_millis(),
             "gameSharing": connection.game_sharing,
         }),
-    )?;
+    ) {
+        unregister_connection(&agent_id, &connection);
+        return Err(error);
+    }
 
     loop {
+        if connection.disconnected.load(Ordering::Acquire) {
+            break;
+        }
         while let Ok(outgoing) = incoming.try_recv() {
             if let Err(error) = write_json(&mut socket, &outgoing) {
                 unregister_connection(&agent_id, &connection);
@@ -728,22 +799,38 @@ mod tests {
                 game_sharing: GameSharing::PublicReplay,
                 outgoing,
                 pending: Mutex::new(HashMap::new()),
+                disconnected: AtomicBool::new(false),
             })
         }
 
         let agent_id = "org.example.replacement";
         let old = connection(agent_id);
         let replacement = connection(agent_id);
-        registry()
+        let (old_pending, old_reply) = mpsc::channel();
+        let (new_pending, new_reply) = mpsc::channel();
+        old.pending
             .lock()
-            .expect("registry lock")
-            .insert(agent_id.to_string(), Arc::clone(&old));
-        registry()
+            .unwrap()
+            .insert("old-decision".into(), old_pending);
+        replacement
+            .pending
             .lock()
-            .expect("registry lock")
-            .insert(agent_id.to_string(), Arc::clone(&replacement));
+            .unwrap()
+            .insert("new-decision".into(), new_pending);
+        register_connection(agent_id, &old).unwrap();
+        register_connection(agent_id, &replacement).unwrap();
+        assert!(old.disconnected.load(Ordering::Acquire));
+        assert!(!replacement.disconnected.load(Ordering::Acquire));
 
         unregister_connection(agent_id, &old);
+        assert!(
+            matches!(old_reply.try_recv(), Err(mpsc::TryRecvError::Disconnected)),
+            "Disconnected decisions must wake without waiting for the response timeout"
+        );
+        assert!(
+            matches!(new_reply.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "The replacement's pending decision is not cancelled"
+        );
 
         let registered = registry()
             .lock()
@@ -754,9 +841,26 @@ mod tests {
         assert!(Arc::ptr_eq(&registered, &replacement));
 
         unregister_connection(agent_id, &replacement);
+        assert!(matches!(
+            new_reply.try_recv(),
+            Err(mpsc::TryRecvError::Disconnected)
+        ));
         assert!(!is_registered_agent_controller(&format!(
             "agent:{agent_id}"
         )));
+    }
+
+    #[test]
+    fn offline_session_relay_is_explicit_and_retains_the_agent_identity() {
+        let controller = "agent:org.example.offline-relay-test";
+        assert!(WebSocketAgent::new(controller, "test", "player-a", vec![], None).is_err());
+        let agent = WebSocketAgent::for_session(controller, "test", "player-a", vec![], None, true)
+            .unwrap();
+        assert_eq!(agent.controller_id, controller);
+        assert!(agent.connection().is_err());
+        assert!(
+            WebSocketAgent::for_session("agent:", "test", "player-a", vec![], None, true).is_err()
+        );
     }
 
     #[test]

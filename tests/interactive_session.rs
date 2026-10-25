@@ -258,6 +258,7 @@ fn human_request(setup: GameSetup, seed: u64) -> CreateGameSessionRequest {
     CreateGameSessionRequest {
         record_analytics: true,
         ai_controller_by_player_id: Default::default(),
+        allow_disconnected_agent_fallback: false,
         analytics_deck_session_by_player_id: Default::default(),
         analytics_context_id: None,
         analytics_pilot_by_player_id: Default::default(),
@@ -288,6 +289,69 @@ fn decision(view: &GameSessionView) -> &mtg_engine::engine::EngineDecisionReques
     view.decision
         .as_ref()
         .unwrap_or_else(|| panic!("session {} should await a decision", view.session_id))
+}
+
+#[test]
+fn assigned_offline_agent_can_finish_a_game_with_explicit_legal_relay() {
+    let manager = GameSessionManager::new();
+    let players = ["one", "two"]
+        .into_iter()
+        .map(|id| PlayerDeck {
+            id: id.into(),
+            name: id.into(),
+            starting_life: 20,
+            cards: (0..10)
+                .map(|index| {
+                    card(
+                        &format!("{id}-{index}"),
+                        "Wastes",
+                        "Basic Land - Wastes",
+                        "",
+                    )
+                })
+                .collect(),
+        })
+        .collect();
+    let mut request = human_request(setup(players, 7), 917);
+    request.human_player_ids.clear();
+    request.wait_timeout_ms = 10_000;
+    request
+        .ai_controller_by_player_id
+        .insert("one".into(), "agent:org.example.offline-session".into());
+    request
+        .ai_controller_by_player_id
+        .insert("two".into(), "agent:org.example.offline-opponent".into());
+    assert!(
+        manager.create(request.clone()).is_err(),
+        "Unknown agents remain rejected by default"
+    );
+    request.allow_disconnected_agent_fallback = true;
+    let mut view = manager
+        .create(request)
+        .expect("Explicitly assigned offline agents can start");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while view.state.outcome.is_none()
+        && view.error.is_none()
+        && std::time::Instant::now() < deadline
+    {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        view = manager
+            .view(&view.session_id)
+            .expect("Automated session stays readable");
+    }
+    assert!(
+        view.error.is_none(),
+        "Relay choices must not crash the game: {:?}",
+        view.error
+    );
+    assert!(
+        view.state.outcome.is_some(),
+        "A small finite library reaches a real game outcome"
+    );
+    assert!(
+        view.decision.is_none(),
+        "An offline agent must not leave a human prompt blocked"
+    );
 }
 
 fn action(view: &GameSessionView, predicate: impl Fn(&LegalAction) -> bool) -> LegalAction {

@@ -44,6 +44,16 @@ The WebSocket agent protocol is implemented in `src/agent_protocol.rs`. A
 server can require an API key by setting `MTG_ENGINE_API_KEY`; clients then send
 that key during registration. Never commit real keys or `.env` files.
 
+An orchestrator may explicitly set `allowDisconnectedAgentFallback: true` when
+creating an already-assigned session (including `from-local-decks`). Its default
+is false: unknown agent controllers are still rejected in ordinary requests.
+With this opt-in, an absent `agent:<identity>` retains its assignment and uses
+the session's seeded random legal-decision relay. A live registered manifest's
+format/deck compatibility is still checked. This is a disconnection policy, not
+an authorization, tournament admission, or time-bank feature. A disconnected
+socket wakes its pending decisions immediately; a replacement connection gets a
+fresh full observation before subsequent deltas.
+
 ## Public contracts and releases
 
 - Rust owns Oracle parsing, legal actions and game-state mutation.
