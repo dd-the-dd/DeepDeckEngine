@@ -120,6 +120,8 @@ pub(crate) fn parse_canonical_rule(
             .or_else(|| parse_special_activated_ability(text))
             .or_else(|| parse_simple_activated_ability_for_face(text, input.face_name))
             .or_else(|| parse_common_activated_ability(text))
+            .or_else(|| parse_special_static_ability(text))
+            .or_else(|| parse_common_static_ability(text, input.face_name))
             .map(promote_activated_mana_ability),
         "triggeredAbility" => parse_prepare_triggered_ability(text)
             .or_else(|| parse_special_triggered_ability(text))

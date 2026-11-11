@@ -22,6 +22,29 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
+    let tap_and_stun_re =
+        Regex::new(r"(?i)^Tap (up to one )?target (.+?) and put a stun counter on it\.$")
+            .expect("tap target and add stun counter regex compiles");
+    if let Some(captures) = tap_and_stun_re.captures(instruction) {
+        let target = chosen_target("targetPermanent");
+        return Some((
+            vec![
+                json!({ "kind": "tapPermanent", "permanent": target.clone() }),
+                json!({
+                    "kind": "putCounters",
+                    "permanent": target,
+                    "counter": "stun",
+                    "count": integer(1),
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
+                if captures.get(1).is_some() { 0 } else { 1 },
+                1,
+            )],
+        ));
+    }
     let tap_target_re = Regex::new(r"(?i)^Tap (up to one )?target (.+?)\.$")
         .expect("tap target permanent regex compiles");
     if let Some(captures) = tap_target_re.captures(instruction) {
@@ -6615,30 +6638,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 }],
             })],
             Vec::new(),
-        ));
-    }
-
-    let tap_and_stun_re =
-        Regex::new(r"(?i)^Tap (up to one )?target (.+?) and put a stun counter on it\.$")
-            .expect("tap target and add stun counter regex compiles");
-    if let Some(captures) = tap_and_stun_re.captures(instruction) {
-        let target = chosen_target("targetPermanent");
-        return Some((
-            vec![
-                json!({ "kind": "tapPermanent", "permanent": target.clone() }),
-                json!({
-                    "kind": "putCounters",
-                    "permanent": target,
-                    "counter": "stun",
-                    "count": integer(1),
-                }),
-            ],
-            vec![target_decision(
-                "targetPermanent",
-                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
-                if captures.get(1).is_some() { 0 } else { 1 },
-                1,
-            )],
         ));
     }
 
