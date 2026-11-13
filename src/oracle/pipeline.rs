@@ -1,75 +1,347 @@
-#[cfg(all(
-    test,
-    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
-))]
 use serde_json::Value;
 
+use std::sync::OnceLock;
+
+use crate::card_catalog::{named_token_names, ordinary_card_names};
+
 use super::audit::{build_stages, iterations_for_rule, semantic_kind, unsupported_iteration};
-use super::canonical::parse_canonical_rule;
+use super::canonical::{
+    CanonicalParseOutcome, compose_card_rules, compose_card_rules_native, parse_canonical_rule,
+    parse_canonical_rule_native,
+};
+use super::contextual_binding::validate_native_contextual_bindings;
 use super::model::{
     OracleCardParseRequest, OracleCardParseResult, ParsedOracleAbility, ParserDiagnostic,
+    ParserTransitionDiagnostic, RecognizerProvenance,
 };
 use super::syntax::{
-    AbilityInput, apply_class_level_requirement, class_level_header, classify_ability, documents,
-    is_class_type_line, recognize_entities, split_abilities,
+    AbilityInput, ExactNameTokenIndex, NameResolutionContext, NamedCardIndex,
+    apply_class_level_requirement, class_level_header, class_level_header_from_tokens,
+    classify_ability, classify_promoted_ability_from_tokens, documents, is_class_type_line,
+    recognize_oracle_entities, resolve_counter_name_spans, resolve_named_token_spans,
+    resolve_unknown_names, split_abilities,
 };
 
 const PARSER_SCHEMA_VERSION: &str = "oracle-parser/v1";
 
+struct CatalogNamedCardIndex;
+
+struct CatalogNamedTokenIndex;
+
+impl NamedCardIndex for CatalogNamedTokenIndex {
+    fn exact_name_ends(
+        &self,
+        tokens: &[super::model::RecognizedEntity],
+        start: usize,
+        maximum_end: usize,
+    ) -> Vec<usize> {
+        static INDEX: OnceLock<ExactNameTokenIndex> = OnceLock::new();
+        INDEX
+            .get_or_init(|| {
+                ExactNameTokenIndex::from_names(named_token_names().unwrap_or_default())
+            })
+            .exact_name_ends(tokens, start, maximum_end)
+    }
+}
+
+impl NamedCardIndex for CatalogNamedCardIndex {
+    fn exact_name_ends(
+        &self,
+        tokens: &[super::model::RecognizedEntity],
+        start: usize,
+        maximum_end: usize,
+    ) -> Vec<usize> {
+        static INDEX: OnceLock<ExactNameTokenIndex> = OnceLock::new();
+        INDEX
+            .get_or_init(|| {
+                let names = ordinary_card_names().unwrap_or_default();
+                ExactNameTokenIndex::from_names(names)
+            })
+            .exact_name_ends(tokens, start, maximum_end)
+    }
+}
+
 pub fn parse_oracle_card(request: OracleCardParseRequest) -> OracleCardParseResult {
+    parse_oracle_card_with_policy(request, OracleParsePolicy::Full)
+}
+
+/// Parses only abilities claimed by the shared token-driven automata.
+///
+/// Unlike [`parse_oracle_card`], this audit-oriented entry point never invokes
+/// the raw-text ability classifier or the legacy canonical parser. An ability
+/// that no native family claims remains explicitly unsupported.
+pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardParseResult {
+    parse_oracle_card_with_policy(request, OracleParsePolicy::NativeOnly)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OracleParsePolicy {
+    Full,
+    NativeOnly,
+}
+
+fn type_line_has_room(type_line: &str) -> bool {
+    type_line
+        .split(|character: char| !character.is_alphanumeric())
+        .any(|part| part.eq_ignore_ascii_case("Room"))
+}
+
+/// Adds the face-local Room door identity after either canonical parser path.
+///
+/// Ability line numbers restart on each face, so they cannot identify the left
+/// or right door. The request face order is the card-level source of truth and
+/// applies equally to Full and NativeOnly parsing.
+fn apply_room_door_index(
+    request: &OracleCardParseRequest,
+    source_face_id: Option<&str>,
+    rule: &mut Value,
+) {
+    if rule["kind"].as_str() == Some("rulesMarker")
+        || request.faces.is_empty()
+        || request
+            .faces
+            .iter()
+            .any(|face| !type_line_has_room(&face.type_line))
+    {
+        return;
+    }
+
+    let Some(source_face_id) = source_face_id else {
+        return;
+    };
+    let Some(door_index) = request
+        .faces
+        .iter()
+        .position(|face| face.id == source_face_id)
+    else {
+        return;
+    };
+
+    rule["roomDoorIndex"] = Value::from(door_index as u64);
+}
+
+fn native_failure_kind(
+    input: &AbilityInput<'_>,
+    promoted_kind: Option<&'static str>,
+) -> &'static str {
+    if let Some(kind) = promoted_kind {
+        return kind;
+    }
+    if input
+        .tokens
+        .first()
+        .is_some_and(|token| token.token_type == "keywordWord")
+    {
+        return "keywordAbility";
+    }
+    if input
+        .face_type_line
+        .split(|character: char| !character.is_alphanumeric())
+        .any(|part| part.eq_ignore_ascii_case("instant") || part.eq_ignore_ascii_case("sorcery"))
+    {
+        return "spellAbility";
+    }
+    "staticAbility"
+}
+
+fn parse_oracle_card_with_policy(
+    request: OracleCardParseRequest,
+    policy: OracleParsePolicy,
+) -> OracleCardParseResult {
     let context = request.clone();
+    let name_context = NameResolutionContext::new(
+        &request.card_name,
+        request.faces.iter().map(|face| face.name.as_str()),
+    );
+    let named_cards = CatalogNamedCardIndex;
+    let named_tokens = CatalogNamedTokenIndex;
     let mut abilities = Vec::new();
     for document in documents(&request) {
         let is_class = is_class_type_line(document.face_type_line);
         let mut minimum_class_level = 1_i64;
         for source in split_abilities(&document) {
-            let announced_class_level =
-                is_class.then(|| class_level_header(&source.text)).flatten();
             let ability_index = abilities.len();
-            let entities = recognize_entities(&source.text);
+            let mut entities = recognize_oracle_entities(&source.text);
+            let announced_class_level = is_class
+                .then(|| match policy {
+                    OracleParsePolicy::Full => class_level_header(&source.text),
+                    OracleParsePolicy::NativeOnly => class_level_header_from_tokens(&entities),
+                })
+                .flatten();
+            resolve_named_token_spans(&mut entities, &named_tokens);
+            resolve_counter_name_spans(&mut entities);
+            let mut name_resolution_failure = None;
+            let name_links =
+                match resolve_unknown_names(&source.text, &entities, &name_context, &named_cards) {
+                    Ok(resolution) => resolution.resolved,
+                    Err(failure) => {
+                        let resolved = failure.resolved.clone();
+                        name_resolution_failure = Some(failure);
+                        resolved
+                    }
+                };
             let input = AbilityInput {
                 face_name: document.face_name,
                 face_type_line: document.face_type_line,
                 source: &source,
+                tokens: &entities,
+                name_links: &name_links,
+                name_resolution_failure: name_resolution_failure.as_ref(),
             };
-            let ability_kind = classify_ability(&input);
-            match parse_canonical_rule(&input, ability_kind) {
-                Some(mut draft) => {
+            let promoted_ability_kind = classify_promoted_ability_from_tokens(&input);
+            let ability_kind = match policy {
+                OracleParsePolicy::Full => {
+                    promoted_ability_kind.unwrap_or_else(|| classify_ability(&input))
+                }
+                OracleParsePolicy::NativeOnly => {
+                    promoted_ability_kind.unwrap_or("unclassifiedAbility")
+                }
+            };
+            let parse_outcome = match policy {
+                OracleParsePolicy::Full => parse_canonical_rule(&input, ability_kind),
+                OracleParsePolicy::NativeOnly => {
+                    parse_canonical_rule_native(&input, promoted_ability_kind)
+                }
+            };
+            let (parse_outcome, parsed_diagnostics) = match parse_outcome {
+                CanonicalParseOutcome::ParsedLegacyAfterNativeRejection { draft, failure } => {
+                    let trace_start = failure.trace.len().saturating_sub(32);
+                    let message = format!(
+                        "Native candidate remained unpromoted; legacy semantics were preserved. {failure}"
+                    );
+                    let diagnostic = ParserDiagnostic {
+                        code: "native_candidate_unpromoted".to_string(),
+                        message,
+                        severity: "info".to_string(),
+                        automaton: Some(failure.automaton.to_string()),
+                        state: Some(failure.state.to_string()),
+                        token_index: Some(failure.token_index),
+                        span_start: Some(failure.span_start),
+                        span_end: Some(failure.span_end),
+                        expected: Some(failure.expected),
+                        found: failure.actual,
+                        trace: failure.trace[trace_start..]
+                            .iter()
+                            .map(|transition| ParserTransitionDiagnostic {
+                                state: transition.state.to_string(),
+                                token_index: transition.token_index,
+                            })
+                            .collect(),
+                    };
+                    (
+                        CanonicalParseOutcome::Parsed {
+                            draft,
+                            recognizer: RecognizerProvenance::Legacy,
+                        },
+                        vec![diagnostic],
+                    )
+                }
+                outcome => (outcome, Vec::new()),
+            };
+            match parse_outcome {
+                CanonicalParseOutcome::Parsed {
+                    mut draft,
+                    recognizer,
+                } => {
                     if announced_class_level.is_none() {
                         apply_class_level_requirement(&mut draft.rule, minimum_class_level);
                     }
-                    let iterations =
-                        iterations_for_rule(&input, ability_index, ability_kind, &draft);
+                    apply_room_door_index(&request, source.face_id.as_deref(), &mut draft.rule);
                     let final_ability_kind = semantic_kind(&draft.rule)
                         .unwrap_or(ability_kind)
                         .to_string();
+                    let iteration_kind = match policy {
+                        OracleParsePolicy::Full => ability_kind,
+                        OracleParsePolicy::NativeOnly => &final_ability_kind,
+                    };
+                    let iterations =
+                        iterations_for_rule(&input, ability_index, iteration_kind, &draft);
                     abilities.push(ParsedOracleAbility {
                         source,
                         ability_type: final_ability_kind,
                         status: "canonical".to_string(),
+                        recognizer,
                         rule: Some(draft.rule),
                         entities,
                         iterations,
-                        diagnostics: Vec::new(),
+                        diagnostics: parsed_diagnostics,
                     });
                 }
-                None => {
+                CanonicalParseOutcome::Unsupported => {
                     let iterations = unsupported_iteration(&input, ability_index, ability_kind);
                     abilities.push(ParsedOracleAbility {
                         source,
                         ability_type: ability_kind.to_string(),
                         status: "unsupported".to_string(),
+                        recognizer: RecognizerProvenance::Unclaimed,
                         rule: None,
                         entities,
                         iterations,
                         diagnostics: vec![ParserDiagnostic {
                             code: "unsupported_oracle_ability".to_string(),
-                            message:
-                                "No semantics-preserving simplification rule matched this ability."
-                                    .to_string(),
+                            message: match policy {
+                                OracleParsePolicy::Full =>
+                                    "No semantics-preserving simplification rule matched this ability."
+                                        .to_string(),
+                                OracleParsePolicy::NativeOnly =>
+                                    "No token-driven native automaton claimed this ability."
+                                        .to_string(),
+                            },
                             severity: "unsupported".to_string(),
+                            automaton: None,
+                            state: None,
+                            token_index: None,
+                            span_start: None,
+                            span_end: None,
+                            expected: None,
+                            found: None,
+                            trace: Vec::new(),
                         }],
                     });
+                }
+                CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer,
+                } => {
+                    let failure_kind = match policy {
+                        OracleParsePolicy::Full => ability_kind,
+                        OracleParsePolicy::NativeOnly => {
+                            native_failure_kind(&input, promoted_ability_kind)
+                        }
+                    };
+                    let iterations = unsupported_iteration(&input, ability_index, failure_kind);
+                    let trace_start = failure.trace.len().saturating_sub(32);
+                    abilities.push(ParsedOracleAbility {
+                        source,
+                        ability_type: failure_kind.to_string(),
+                        status: "unsupported".to_string(),
+                        recognizer,
+                        rule: None,
+                        entities,
+                        iterations,
+                        diagnostics: vec![ParserDiagnostic {
+                            code: "oracle_machine_failure".to_string(),
+                            message: failure.to_string(),
+                            severity: "unsupported".to_string(),
+                            automaton: Some(failure.automaton.to_string()),
+                            state: Some(failure.state.to_string()),
+                            token_index: Some(failure.token_index),
+                            span_start: Some(failure.span_start),
+                            span_end: Some(failure.span_end),
+                            expected: Some(failure.expected),
+                            found: failure.actual,
+                            trace: failure.trace[trace_start..]
+                                .iter()
+                                .map(|transition| ParserTransitionDiagnostic {
+                                    state: transition.state.to_string(),
+                                    token_index: transition.token_index,
+                                })
+                                .collect(),
+                        }],
+                    });
+                }
+                CanonicalParseOutcome::ParsedLegacyAfterNativeRejection { .. } => {
+                    unreachable!("legacy-after-native-rejection is normalized above")
                 }
             }
             if let Some(level) = announced_class_level {
@@ -77,6 +349,13 @@ pub fn parse_oracle_card(request: OracleCardParseRequest) -> OracleCardParseResu
             }
         }
     }
+    match policy {
+        OracleParsePolicy::Full => compose_card_rules(&mut abilities),
+        OracleParsePolicy::NativeOnly => compose_card_rules_native(&mut abilities),
+    }
+    // Binding validity is a property of native IR in either mode. Legacy
+    // rules remain outside this validation boundary.
+    validate_native_contextual_bindings(&request, &mut abilities);
     let status = if abilities
         .iter()
         .all(|ability| ability.status == "canonical")
@@ -104,6 +383,7 @@ pub fn parse_oracle_card(request: OracleCardParseRequest) -> OracleCardParseResu
 
 #[cfg(all(
     test,
+    not(feature = "parser-standalone"),
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
 ))]
 mod tests {

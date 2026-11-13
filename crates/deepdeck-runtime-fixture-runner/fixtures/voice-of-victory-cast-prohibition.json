@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "voice-of-victory-prohibits-only-opponents-during-controller-turn",
+  "seed": 113,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "prohibitCast",
+      "players": {
+        "kind": "opponentsOf",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      },
+      "duringTurnOf": { "kind": "controllerOf", "object": { "kind": "self" } }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Voice controller",
+        "battlefield": [{
+          "id": "voice-of-victory",
+          "name": "Voice of Victory",
+          "typeLine": "Creature - Human Bard",
+          "power": "1",
+          "toughness": "3",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "prohibitCast",
+              "players": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              "duringTurnOf": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }]
+          }]
+        }],
+        "hand": [{
+          "id": "controller-spell",
+          "name": "Controller Spell",
+          "typeLine": "Instant",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "hand": [{
+          "id": "opponent-spell",
+          "name": "Opponent Spell",
+          "typeLine": "Instant",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "controller-spell", "equals": true },
+    { "kind": "spellCastAvailable", "controllerId": "player-1", "sourceDefinitionId": "opponent-spell", "equals": false },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

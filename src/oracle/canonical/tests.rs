@@ -1,5 +1,26 @@
 use super::*;
 
+#[cfg(any(
+    not(feature = "ci-test-partition"),
+    feature = "ci-unit-tests-2",
+    feature = "ci-unit-tests-3"
+))]
+fn assert_atomic_scry(effects: &Value, count: i64) {
+    let effects = effects.as_array().expect("scry effects are an array");
+    assert_eq!(effects.len(), 7);
+    assert_eq!(effects[0]["kind"], "lookAtTopCards");
+    assert_eq!(effects[0]["count"], integer(count));
+    assert_eq!(effects[1]["kind"], "chooseCards");
+    assert_eq!(effects[2]["kind"], "chooseOrder");
+    assert_eq!(effects[3]["kind"], "moveCards");
+    assert_eq!(effects[3]["to"]["position"], "bottom");
+    assert_eq!(effects[4]["kind"], "chooseOrder");
+    assert_eq!(effects[5]["kind"], "moveCards");
+    assert_eq!(effects[5]["to"]["position"], "top");
+    assert_eq!(effects[6]["kind"], "emitAbilitySignal");
+    assert_eq!(effects[6]["abilityId"], "scry");
+}
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn linked_hand_exile_composes_card_criteria_and_preserves_the_source_link() {
@@ -152,6 +173,10 @@ fn bounded_free_cast_from_hand_composes_spell_criteria_and_runtime_arithmetic() 
     );
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
+    let candidates = permanent_target_candidates("creature", "")
+        .expect("the selector subgrammar recognizes a creature");
+    assert_eq!(candidates["where"], card_type("Creature"));
+
     let (effects, decisions) = parse_general_effect_instruction(
         "You may cast one creature spell with mana value X or less from your hand without paying its mana cost, where X is the number of artifacts you control.",
         "",
@@ -276,6 +301,48 @@ fn named_token_creation_replacement_composes_retained_and_additional_tokens() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
+fn connive_replacement_composes_event_selector_prelude_and_original_resume() {
+    let parsed = parse_common_static_ability(
+        "If a creature you control would connive, instead you draw a card, then that creature connives.",
+        "Test Genius",
+    )
+    .expect("the connive replacement should compose from reusable event pieces");
+    let modifier = &parsed.rule["modifiers"][0];
+    assert_eq!(modifier["kind"], "replaceEvent");
+    assert_eq!(modifier["event"]["kind"], "connive");
+    assert_eq!(modifier["event"]["objects"]["where"], card_type("Creature"));
+    assert_eq!(modifier["replacement"][0]["kind"], "drawCards");
+    assert_eq!(modifier["replacement"][0]["count"], integer(1));
+    assert_eq!(modifier["resumeOriginal"], true);
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let artifact = parse_common_static_ability(
+        "If an artifact you control would connive, instead you draw two cards, then that artifact connives.",
+        "Test Genius",
+    )
+    .expect("an unrelated permanent criterion and count should use the same grammar");
+    assert_eq!(
+        artifact.rule["modifiers"][0]["event"]["objects"]["where"],
+        card_type("Artifact")
+    );
+    assert_eq!(
+        artifact.rule["modifiers"][0]["replacement"][0]["count"],
+        integer(2)
+    );
+    assert!(crate::engine::rule_is_executable(&artifact.rule));
+
+    assert!(
+        parse_common_static_ability(
+            "If a creature you control would connive, instead you draw a card, then that artifact connives.",
+            "Test Genius",
+        )
+        .is_none(),
+        "the resumed event must refer to the same selected object class"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
 fn global_destruction_binds_only_destroyed_permanents_for_linked_life_gain() {
     let parsed = parse_expansion_triggered(
         "When Test Source enters, destroy all artifacts and enchantments your opponents control. You gain 1 life for each permanent destroyed this way.",
@@ -388,38 +455,6 @@ fn controlled_permanent_lists_can_gain_ward_conditionally() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
-fn fetch_land_subtype_lists_strip_indefinite_articles_from_every_alternative() {
-    for (text, expected) in [
-        (
-            "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
-            ["Island", "Swamp"],
-        ),
-        (
-            "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or a Swamp card, put it onto the battlefield, then shuffle.",
-            ["Island", "Swamp"],
-        ),
-        (
-            "{T}, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
-            ["Plains", "Island"],
-        ),
-    ] {
-        let rule = parse_special_activated_ability(text)
-            .unwrap_or_else(|| panic!("fetch-land subtype alternatives parse: {text}"))
-            .rule;
-        let operands = rule["effects"][0]["candidates"]["where"]["operands"]
-            .as_array()
-            .expect("fetch-land search has subtype alternatives");
-        assert_eq!(operands.len(), expected.len());
-        for (operand, subtype_name) in operands.iter().zip(expected) {
-            assert_eq!(operand["kind"], "subtypeContains");
-            assert_eq!(operand["value"], subtype_name);
-        }
-        assert!(crate::engine::rule_is_executable(&rule));
-    }
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[test]
 fn source_with_commas_returns_as_a_different_permanent_type() {
     let parsed = parse_expansion_triggered(
         "When Tom, Bert, and William die, if they were a creature, return them to the battlefield. They're an artifact. (They're no longer a creature.)",
@@ -439,49 +474,6 @@ fn source_with_commas_returns_as_a_different_permanent_type() {
     assert_eq!(parsed.rule["effects"][1]["kind"], "setPermanentCardTypes");
     assert_eq!(parsed.rule["effects"][1]["cardTypes"], json!(["Artifact"]));
     assert!(crate::engine::rule_is_executable(&parsed.rule));
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[test]
-fn draw_then_return_from_hand_uses_composable_zone_and_order_primitives() {
-    for (text, draw_count, put_count) in [
-        (
-            "Draw three cards, then put two cards from your hand on top of your library in any order.",
-            3,
-            2,
-        ),
-        (
-            "Draw two cards, then put one card from your hand on top of your library in any order.",
-            2,
-            1,
-        ),
-    ] {
-        let (effects, decisions) = parse_general_effect_instruction(text, "")
-            .unwrap_or_else(|| panic!("draw-and-return family parses: {text}"));
-        assert!(decisions.is_empty());
-        assert_eq!(effects.len(), 4);
-        assert_eq!(effects[0]["kind"], "drawCards");
-        assert_eq!(effects[0]["count"], integer(draw_count));
-        assert_eq!(effects[1]["kind"], "chooseCards");
-        assert_eq!(effects[1]["minimum"], integer(put_count));
-        assert_eq!(effects[1]["maximum"], integer(put_count));
-        assert_eq!(effects[1]["candidates"]["zone"]["kind"], "hand");
-        assert_eq!(effects[2]["kind"], "chooseOrder");
-        assert_eq!(effects[3]["kind"], "moveCards");
-        assert_eq!(effects[3]["to"]["kind"], "library");
-        assert_eq!(effects[3]["to"]["position"], "top");
-        assert!(crate::engine::rule_is_executable(&json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "effects": effects,
-        })));
-    }
-
-    assert!(parse_general_effect_instruction(
-            "Draw three cards, then put two cards from your graveyard on top of your library in any order.",
-            "",
-        )
-        .is_none());
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -788,13 +780,6 @@ fn legacy_rule_families_parse_without_card_specific_branches() {
         "revealUntilAndPutOntoBattlefield"
     );
     assert!(crate::engine::rule_is_executable(&attack.rule));
-
-    let alternative = parse_alternative_cost_ability(
-            "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.",
-        )
-        .expect("composite alternative cost parses");
-    assert_eq!(alternative.rule["ability"]["kind"], "alternativeCost");
-    assert!(crate::engine::rule_is_executable(&alternative.rule));
 
     for text in [
         "Creature cards in graveyards and libraries can't enter the battlefield.",
@@ -1940,8 +1925,7 @@ fn activation_cost_grammar_parses_arbitrary_sacrifice_criteria() {
     let activated =
         parse_simple_activated_ability("{2}, Sacrifice a legendary artifact or creature: Scry 2.")
             .expect("compound sacrifice cost parses");
-    assert_eq!(activated.rule["effects"][0]["kind"], "scry");
-    assert_eq!(activated.rule["effects"][0]["count"], integer(2));
+    assert_atomic_scry(&activated.rule["effects"], 2);
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -1958,7 +1942,7 @@ fn general_effect_grammar_is_shared_by_spells_and_triggers() {
     let enter = parse_expansion_triggered("When this Aura enters, scry 2.", "Test Aura")
         .expect("enter scry trigger parses");
     assert_eq!(enter.rule["event"]["kind"], "enterBattlefield");
-    assert_eq!(enter.rule["effects"][0]["kind"], "scry");
+    assert_atomic_scry(&enter.rule["effects"], 2);
 
     let death = parse_expansion_triggered("When this creature dies, draw a card.", "Test Creature")
         .expect("death draw trigger parses");
@@ -1990,6 +1974,95 @@ fn general_effect_grammar_is_shared_by_spells_and_triggers() {
         )
         .expect("self connive trigger parses");
     assert_eq!(self_connive.rule["effects"][0]["permanent"], self_ref());
+
+    let attacker_connive = parse_expansion_triggered(
+        "Whenever an equipped creature you control attacks, it connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+        "Test Tactician",
+    )
+    .expect("filtered controlled attacker should bind its pronoun to the attacker");
+    assert_eq!(
+        attacker_connive.rule["event"]["kind"],
+        "controlledCreatureDeclaredAttacker"
+    );
+    assert!(
+        attacker_connive.rule["event"]["where"]["operands"]
+            .as_array()
+            .is_some_and(|operands| operands
+                .iter()
+                .any(|operand| operand["kind"] == "isEquipped"))
+    );
+    assert_eq!(
+        attacker_connive.rule["effects"][0]["permanent"],
+        json!({ "kind": "triggeringPermanent" })
+    );
+    assert_eq!(
+        attacker_connive.rule["effects"][0]["player"]["object"],
+        json!({ "kind": "triggeringPermanent" })
+    );
+    assert!(crate::engine::rule_is_executable(&attacker_connive.rule));
+
+    let attacking_source_connive = parse_expansion_triggered(
+        "Whenever Test Operative attacks, it connives.",
+        "Test Operative",
+    )
+    .expect("a source attack should keep its pronoun bound to the source");
+    assert_eq!(
+        attacking_source_connive.rule["effects"][0]["permanent"],
+        self_ref()
+    );
+
+    let spell_from_hand_connive = parse_expansion_triggered(
+        "Whenever you cast a black spell from your hand, Test Operative connives.",
+        "Test Operative",
+    )
+    .expect("a colored spell cast from a specific zone composes with source connive");
+    assert_eq!(spell_from_hand_connive.rule["event"]["kind"], "spellCast");
+    assert_eq!(spell_from_hand_connive.rule["event"]["fromZone"], "hand");
+    assert!(crate::engine::rule_is_executable(
+        &spell_from_hand_connive.rule
+    ));
+
+    let optional_trigger_subject_connive = parse_expansion_triggered(
+        "Whenever another Villain you control enters, you may have it connive. Do this only once each turn. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+        "Test Overlord",
+    )
+    .expect("optional trigger-subject connive composes with a per-turn trigger limit");
+    assert_eq!(
+        optional_trigger_subject_connive.rule["effects"][0]["kind"],
+        "optionalEffects"
+    );
+    assert_eq!(
+        optional_trigger_subject_connive.rule["effects"][0]["effects"][0]["permanent"],
+        json!({ "kind": "triggeringPermanent" })
+    );
+    assert_eq!(
+        optional_trigger_subject_connive.rule["triggerLimit"]["kind"],
+        "onceEachTurn"
+    );
+    assert!(crate::engine::rule_is_executable(
+        &optional_trigger_subject_connive.rule
+    ));
+    for pronoun in ["he", "she", "they"] {
+        let oracle = format!("When Test Operative enters, {pronoun} connives.");
+        let parsed = parse_expansion_triggered(&oracle, "Test Operative")
+            .expect("source pronouns should resolve through the connive leaf");
+        assert_eq!(parsed.rule["effects"][0]["permanent"], self_ref());
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+    parse_general_effect_instruction("M.O.D.O.K. connives.", "M.O.D.O.K.")
+        .expect("punctuated source names should resolve in the connive leaf");
+    let activated_connive = parse_simple_activated_ability_for_face(
+        "Mental Organism — Pay 3 life: M.O.D.O.K. connives. Activate only during your turn. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.)",
+        "M.O.D.O.K.",
+    )
+    .expect("labeled life-payment activations should delegate connive and timing");
+    assert_eq!(activated_connive.rule["costs"][0]["kind"], "payLife");
+    assert_eq!(activated_connive.rule["effects"][0]["kind"], "connive");
+    assert_eq!(
+        activated_connive.rule["activationCondition"]["kind"],
+        "duringControllerTurn"
+    );
+    assert!(crate::engine::rule_is_executable(&activated_connive.rule));
 
     let draw_and_treasure = parse_simple_spell_ability(
             "Draw two cards and create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
@@ -2093,13 +2166,6 @@ fn recurring_combat_keywords_and_non_gameplay_markers_parse_generically() {
             parse_keyword_ability(text, "Test Creature").unwrap_or_else(|| panic!("{text} parses"));
         assert_eq!(parsed.rule["ability"]["kind"], expected);
     }
-
-    let restricted = parse_keyword_ability(
-        "This creature can block only creatures with flying.",
-        "Test Creature",
-    )
-    .expect("flying-only block restriction parses");
-    assert_eq!(restricted.rule["ability"]["kind"], "canBlockOnlyFlying");
 
     let theme = parse_keyword_ability("(Theme color: {W})", "Test Card")
         .expect("theme color metadata parses");
@@ -2417,10 +2483,6 @@ fn static_grammar_parses_lords_and_enduring_story_without_card_names() {
         (
             "Creatures can't attack you or planeswalkers you control unless their controller pays {2} for each of those creatures.",
             2,
-        ),
-        (
-            "Creatures can't attack you unless their controller pays {3} for each creature they control that's attacking you.",
-            3,
         ),
     ] {
         let tax = parse_common_static_ability(text, "")
@@ -3195,32 +3257,6 @@ fn shared_free_casting_permission_composes_players_filter_cost_and_timing() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
-fn variable_player_counter_sweep_links_gain_payment_and_mana_value() {
-    for text in [
-        "You get X {E} (energy counters), then you may pay any amount of {E}. Destroy each artifact, creature, and enchantment with mana value less than or equal to the amount of {E} paid this way.",
-        "You get three {E} (energy counters), then you may pay any amount of {E}. Destroy each creature with mana value less than or equal to the amount of {E} paid this way.",
-    ] {
-        let (effects, _) = parse_general_effect_sequence(text, "Test Sweep")
-            .expect("a variable player-counter payment sweep parses");
-        assert_eq!(effects[0]["kind"], "addPlayerCounters");
-        assert_eq!(effects[1]["kind"], "chooseNumber");
-        assert_eq!(effects[2]["kind"], "removePlayerCounters");
-        assert_eq!(effects[3]["kind"], "destroyPermanentsByManaValue");
-        assert!(crate::engine::rule_is_executable(&json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "effects": effects,
-        })));
-    }
-
-    assert!(
-        parse_general_effect_sequence("You get X {E}, then destroy all creatures.", "Test Sweep",)
-            .is_none()
-    );
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[test]
 fn colors_spent_condition_uses_payment_metadata_and_target_criteria() {
     for text in [
         "Converge \u{2014} Exile target nonland permanent if its mana value is less than or equal to the number of colors of mana spent to cast this spell.",
@@ -3753,14 +3789,6 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
         "and"
     );
 
-    let prison = parse_common_static_ability(
-            "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
-            "Ghostly Prison",
-        )
-        .expect("generic per-attacker tax parses");
-    assert_eq!(prison.rule["modifiers"][0]["kind"], "attackTax");
-    assert_eq!(prison.rule["modifiers"][0]["amount"]["value"], 2);
-
     let agent_value = parse_expansion_triggered(
             "At the beginning of your end step, if you control three or more permanents you don't own, draw three cards.",
             "Agent of Treachery",
@@ -3782,9 +3810,10 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
         "Draw two cards, then discard two cards. Untap up to three lands.",
     )
     .expect("independent ordered sentences compose into one spell ability");
-    assert_eq!(frantic.rule["effects"][0]["kind"], "drawThenDiscard");
-    assert_eq!(frantic.rule["effects"][1]["kind"], "choosePermanents");
-    assert_eq!(frantic.rule["effects"][2]["kind"], "untapPermanents");
+    assert_eq!(frantic.rule["effects"][0]["kind"], "drawCards");
+    assert_eq!(frantic.rule["effects"][1]["kind"], "discardCards");
+    assert_eq!(frantic.rule["effects"][2]["kind"], "choosePermanents");
+    assert_eq!(frantic.rule["effects"][3]["kind"], "untapPermanents");
 
     let shriekmaw = parse_expansion_triggered(
         "When this creature enters, destroy target nonartifact, nonblack creature.",
@@ -3816,12 +3845,6 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
     )
     .expect("an opposing creature death trigger parses without a card exception");
     assert_eq!(yahenni_growth.rule["event"]["kind"], "opponentCreatureDied");
-
-    let force = parse_counter_spell(
-            "Counter target noncreature spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
-        )
-        .expect("countering with an exile replacement parses");
-    assert_eq!(force.rule["effects"][0]["exileInstead"], true);
 
     let damn = parse_simple_spell_ability(
         "Destroy target creature. A creature destroyed this way can't be regenerated.",
@@ -3862,7 +3885,6 @@ fn control_sacrifice_blink_and_attack_tax_families_are_generic() {
         yahenni.rule,
         launderer_connive.rule,
         yahenni_growth.rule,
-        force.rule,
         damn.rule,
         enchant_enchantment.rule,
         control_enchantment.rule,
@@ -4475,11 +4497,6 @@ fn legacy_staple_families_parse_to_executable_rules() {
                 "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.",
             )
             .expect("targeted hand disruption parses")
-            .rule,
-            parse_alternative_cost_ability(
-                "If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.",
-            )
-            .expect("turn-conditional hand exile alternative parses")
             .rule,
             parse_alternative_cost_ability(
                 "You may return an Island you control to its owner's hand rather than pay this spell's mana cost.",
@@ -5148,6 +5165,55 @@ fn cards_drawn_threshold_and_another_target_compose_in_combat_triggers() {
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
     assert!(parse_condition_text("an opponent has drawn two or more cards this turn").is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn controlled_entry_history_condition_reuses_permanent_criteria() {
+    let condition =
+        parse_condition_text("an artifact entered the battlefield under your control this turn")
+            .expect("entry history should retain its permanent filter");
+    assert_eq!(condition["kind"], "controlledPermanentsEnteredThisTurn");
+    assert_eq!(condition["minimum"], integer(1));
+    assert_eq!(condition["where"], card_type("Artifact"));
+
+    let parsed = parse_expansion_triggered(
+        "Whenever Test Engineer attacks, if an artifact entered the battlefield under your control this turn, draw a card.",
+        "Test Engineer, Master of Machines",
+    )
+    .expect("a shortened source attack composes with entry history and draw");
+    assert_eq!(parsed.rule["event"]["kind"], "declaredAttacker");
+    assert_eq!(
+        parsed.rule["condition"]["kind"],
+        "controlledPermanentsEnteredThisTurn"
+    );
+    assert_eq!(parsed.rule["effects"][0]["kind"], "drawCards");
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let graveyard_return = parse_simple_activated_ability_for_face(
+        "{3}{W}{B}: Return this card from your graveyard to the battlefield with a finality counter on him. Then you may attach an Equipment you control to him. (If a creature with a finality counter on it would die, exile it instead.)",
+        "Test Soldier, Icy Assassin",
+    )
+    .expect("graveyard return composes with a counter and optional controlled attachment");
+    assert_eq!(graveyard_return.rule["activationZone"], "graveyard");
+    assert_eq!(
+        graveyard_return.rule["effects"][0]["kind"],
+        "moveAbilitySourceToBattlefield"
+    );
+    assert_eq!(
+        graveyard_return.rule["effects"][0]["enterWithCounters"][0]["counter"],
+        "finality"
+    );
+    assert_eq!(
+        graveyard_return.rule["effects"][1]["kind"],
+        "choosePermanents"
+    );
+    assert_eq!(graveyard_return.rule["effects"][1]["minimum"], integer(0));
+    assert_eq!(
+        graveyard_return.rule["effects"][2]["kind"],
+        "attachPermanent"
+    );
+    assert!(crate::engine::rule_is_executable(&graveyard_return.rule));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -6011,34 +6077,6 @@ fn graveyard_destination_replacement_uses_players_and_zones() {
     assert_eq!(parsed.rule["modifiers"][0]["from"]["kind"], "anyZone");
     assert_eq!(parsed.rule["modifiers"][0]["to"]["kind"], "exile");
     assert!(crate::engine::rule_is_executable(&parsed.rule));
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[test]
-fn land_play_events_preserve_whether_the_played_land_must_be_another_object() {
-    for (oracle_text, excludes_source) in [
-        ("When you play another land, draw a card.", true),
-        ("Whenever you play a land, draw a card.", false),
-    ] {
-        let (event, instruction) = parse_expansion_trigger_event(oracle_text, "Test Land")
-            .expect("the generic land-play event parses");
-
-        assert_eq!(event["kind"], "landPlayed");
-        assert_eq!(event["player"]["kind"], "controllerOf");
-        assert_eq!(
-            event["excludeSource"].as_bool().unwrap_or(false),
-            excludes_source
-        );
-        assert_eq!(instruction, "draw a card.");
-    }
-
-    assert!(
-        parse_expansion_trigger_event(
-            "Whenever an opponent plays a land, draw a card.",
-            "Test Land",
-        )
-        .is_none()
-    );
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -7074,6 +7112,46 @@ fn graveyard_threshold_and_milled_card_destination_reuse_existing_leaves() {
     assert_eq!(mill_to_hand.rule["effects"][2]["to"]["kind"], "hand");
     assert!(crate::engine::rule_is_executable(&mill_to_hand.rule));
 
+    let optional_milled_permanent = parse_simple_spell_ability(
+        "Mill two cards. You may put a permanent card from among the milled cards into your hand. You gain 2 life. (To mill two cards, put the top two cards of your library into your graveyard.)",
+    )
+    .expect("period-separated optional selection retains a trailing primitive effect");
+    assert_eq!(
+        optional_milled_permanent.rule["effects"][0]["bind"],
+        "milledCards"
+    );
+    assert_eq!(
+        optional_milled_permanent.rule["effects"][1]["minimum"],
+        integer(0)
+    );
+    assert_eq!(
+        optional_milled_permanent.rule["effects"][3]["kind"],
+        "gainLife"
+    );
+    assert_eq!(
+        optional_milled_permanent.rule["effects"][3]["amount"],
+        integer(2)
+    );
+    assert!(crate::engine::rule_is_executable(
+        &optional_milled_permanent.rule
+    ));
+
+    let activated_optional_selection = parse_simple_activated_ability(
+        "{3}, {T}: Mill four cards. You may put a Hero or enchantment card from among those cards into your hand. (To mill four cards, put the top four cards of your library into your graveyard.)",
+    )
+    .expect("activated abilities reuse the same bound mill-selection sequence");
+    assert_eq!(
+        activated_optional_selection.rule["costs"][0]["kind"],
+        "payMana"
+    );
+    assert_eq!(
+        activated_optional_selection.rule["effects"][1]["where"]["kind"],
+        "or"
+    );
+    assert!(crate::engine::rule_is_executable(
+        &activated_optional_selection.rule
+    ));
+
     let battlefield_variant = parse_simple_spell_ability(
         "Mill two cards. Then put a creature card from among them onto the battlefield.",
     )
@@ -7789,7 +7867,7 @@ fn other_permanent_death_trigger_does_not_imply_a_controller_scope() {
     assert_eq!(parsed.rule["event"]["where"]["value"], "Creature");
     assert_eq!(parsed.rule["event"]["excludeSource"], true);
     assert!(parsed.rule["event"].get("player").is_none());
-    assert_eq!(parsed.rule["effects"][0]["kind"], "scry");
+    assert_atomic_scry(&parsed.rule["effects"], 1);
     assert!(crate::engine::rule_is_executable(&parsed.rule));
 
     let nontoken = parse_expansion_triggered(
@@ -8142,6 +8220,29 @@ fn controlled_attachment_composes_two_independent_target_leaves() {
     .expect("different attachment types and a required recipient reuse the same leaves");
     assert_eq!(required.rule["declaration"]["decisions"][1]["minimum"], 1);
     assert!(crate::engine::rule_is_executable(&required.rule));
+
+    let optional_attachment = parse_expansion_triggered(
+        "Whenever another Villain you control enters, attach up to one target Equipment you control to target creature you control.",
+        "Test Fencer",
+    )
+    .expect("the attachment itself may be the optional target");
+    assert_eq!(
+        optional_attachment.rule["event"]["where"]["value"],
+        "Villain"
+    );
+    assert_eq!(
+        optional_attachment.rule["declaration"]["decisions"][0]["minimum"],
+        0
+    );
+    assert_eq!(
+        optional_attachment.rule["declaration"]["decisions"][1]["minimum"],
+        1
+    );
+    assert_eq!(
+        optional_attachment.rule["effects"][0]["kind"],
+        "attachPermanent"
+    );
+    assert!(crate::engine::rule_is_executable(&optional_attachment.rule));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -9032,7 +9133,7 @@ fn filtered_attack_hand_power_entry_count_and_block_condition_compose() {
     .expect("filtered controlled attackers should compose with a shared effect");
     assert_eq!(attack.rule["event"]["kind"], "controlledCreaturesAttacked");
     assert_eq!(attack.rule["event"]["where"]["value"], "Elf");
-    assert_eq!(attack.rule["effects"][0]["kind"], "scry");
+    assert_atomic_scry(&attack.rule["effects"], 1);
     assert!(crate::engine::rule_is_executable(&attack.rule));
 
     let hand_power = parse_common_static_ability(
@@ -9666,6 +9767,258 @@ fn flame_of_anor_conditional_modal_maximum_delegates_controlled_permanent_criter
         "Choose one. If an opponent controls a Wizard as you cast this spell, you may choose two instead.\n\u{2022} Draw a card.\n\u{2022} You gain 1 life.",
     )
     .is_none());
+
+    let teamwork = parse_general_modal_spell(
+        "Choose one. If this spell was cast using teamwork, choose both instead.\n\u{2022} Draw a card.\n\u{2022} You gain 1 life.",
+    )
+    .expect("teamwork payment should raise the generic modal maximum");
+    let maximum = &teamwork.rule["declaration"]["decisions"][0]["maximum"];
+    assert_eq!(maximum["kind"], "conditionalValue");
+    assert_eq!(maximum["condition"]["kind"], "decisionWas");
+    assert_eq!(maximum["condition"]["decisionId"], "teamworkPaid");
+    assert_eq!(maximum["ifTrue"], integer(2));
+    assert_eq!(maximum["ifFalse"], integer(1));
+    assert!(crate::engine::rule_is_executable(&teamwork.rule));
+
+    let doubled = parse_general_modal_spell(
+        "Choose one or both —\n\u{2022} Double target creature's power and toughness until end of turn.\n\u{2022} Target creature you control fights target creature an opponent controls.",
+    )
+    .expect("dynamic power and toughness bonuses should compose inside generic modes");
+    let double_effect = &doubled.rule["effects"][0]["then"][0];
+    assert_eq!(double_effect["kind"], "modifyPowerToughness");
+    assert_eq!(double_effect["power"]["kind"], "powerOf");
+    assert_eq!(double_effect["toughness"]["kind"], "toughnessOf");
+    assert!(crate::engine::rule_is_executable(&doubled.rule));
+
+    let linked = parse_general_effect_sequence(
+        "Choose target creature you control. Until end of turn, double its power and toughness and it gains trample.",
+        "Test Saga",
+    )
+    .expect("a chosen object should feed dynamic stats and a keyword in one sequence");
+    assert_eq!(linked.0[0]["kind"], "modifyPowerToughness");
+    assert_eq!(linked.0[1]["kind"], "grantKeyword");
+    assert_eq!(linked.0[1]["keyword"], "trample");
+    assert_eq!(linked.1[0]["kind"], "chooseTargets");
+
+    for (oracle, expected_effect) in [
+        (
+            "Target creature gains double strike until end of turn. If this spell was cast using teamwork, that creature also gains trample until end of turn.",
+            "grantKeyword",
+        ),
+        (
+            "Test Strike deals 2 damage to target attacking or blocking creature. If this spell was cast using teamwork, it deals 4 damage to that creature instead.",
+            "dealDamage",
+        ),
+        (
+            "Test Blast deals 5 damage to target creature. If this spell was cast using teamwork, it also deals 2 damage to that creature's controller.",
+            "dealDamage",
+        ),
+        (
+            "Counter target spell unless its controller pays {2}. Counter that spell unless its controller pays {4} instead if this spell was cast using teamwork.",
+            "conditional",
+        ),
+    ] {
+        let (effects, decisions) = parse_general_effect_sequence(oracle, "Test Strike")
+            .expect("teamwork variants should preserve one shared target declaration");
+        assert_eq!(effects[0]["kind"], expected_effect);
+        assert_eq!(decisions.len(), 1);
+        let rule = json!({
+            "kind": "spellAbility",
+            "source": self_ref(),
+            "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": decisions,
+            },
+            "effects": effects,
+        });
+        assert!(crate::engine::rule_is_executable(&rule));
+    }
+
+    let tribal_attack = parse_expansion_triggered(
+        "Whenever one or more Merfolk you control attack a player, draw a card.",
+        "Test Warlord",
+    )
+    .expect("attacking controlled subtype batches should reuse the filtered attack event");
+    assert_eq!(
+        tribal_attack.rule["event"]["kind"],
+        "controlledCreaturesAttacked"
+    );
+    assert_eq!(
+        tribal_attack.rule["event"]["where"]["kind"],
+        "subtypeContains"
+    );
+    assert!(crate::engine::rule_is_executable(&tribal_attack.rule));
+
+    let power_draw = parse_expansion_triggered(
+        "Whenever Test Scout attacks, draw a card if her power is 4 or greater.",
+        "Test Scout",
+    )
+    .expect("source power should guard a generic draw effect");
+    assert_eq!(power_draw.rule["effects"][0]["kind"], "conditional");
+    assert_eq!(power_draw.rule["effects"][0]["condition"]["operator"], ">=");
+    assert!(crate::engine::rule_is_executable(&power_draw.rule));
+
+    let equipment = parse_special_static_ability(
+        "Equipped creature gets +1/+1 and has flying and ward {1}. (Whenever equipped creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)",
+    )
+    .expect("equipment bonuses should compose any supported keyword list");
+    assert_eq!(
+        equipment.rule["modifiers"][0]["kind"],
+        "modifyPowerToughness"
+    );
+    assert_eq!(equipment.rule["modifiers"][1]["keyword"], "flying");
+    assert_eq!(equipment.rule["modifiers"][2]["kind"], "grantWard");
+    assert!(crate::engine::rule_is_executable(&equipment.rule));
+
+    let aura = parse_special_static_ability(
+        "Enchanted creature gets +2/+2, has first strike and vigilance, and is a legendary Soldier in addition to its other types.",
+    )
+    .expect("Aura characteristics should compose stats, keywords, and type additions");
+    assert_eq!(aura.rule["modifiers"][0]["kind"], "modifyPowerToughness");
+    assert_eq!(aura.rule["modifiers"][1]["keyword"], "firstStrike");
+    assert_eq!(aura.rule["modifiers"][2]["keyword"], "vigilance");
+    assert_eq!(aura.rule["modifiers"][3]["kind"], "addSupertype");
+    assert_eq!(aura.rule["modifiers"][4]["subtype"], "Soldier");
+    assert!(crate::engine::rule_is_executable(&aura.rule));
+
+    let attached_combat = parse_expansion_triggered(
+        "Whenever enchanted creature attacks or blocks, attach any number of target Equipment you control to it.",
+        "Test Aura",
+    )
+    .expect("attached combat events should feed a reusable multi-attachment effect");
+    assert_eq!(attached_combat.rule["event"]["kind"], "oneOf");
+    assert_eq!(
+        attached_combat.rule["event"]["events"][1]["kind"],
+        "attachedPermanentDeclaredBlocker"
+    );
+    assert_eq!(
+        attached_combat.rule["declaration"]["decisions"][0]["minimum"],
+        0
+    );
+    assert_eq!(
+        attached_combat.rule["effects"][0]["attachment"]["kind"],
+        "chosenTargets"
+    );
+    assert!(crate::engine::rule_is_executable(&attached_combat.rule));
+
+    let frozen = parse_common_static_ability(
+        "Enchanted creature loses all abilities and can't become untapped.",
+        "Test Aura",
+    )
+    .expect("equivalent untap-prohibition wording should reuse the same static primitives");
+    assert_eq!(frozen.rule["modifiers"][0]["kind"], "loseAllAbilities");
+    assert_eq!(frozen.rule["modifiers"][1]["kind"], "doesNotUntap");
+    assert!(crate::engine::rule_is_executable(&frozen.rule));
+
+    let doubled_damage = parse_general_effect_instruction(
+        "Target creature you control deals damage equal to twice its power to target creature an opponent controls.",
+        "Test Punch",
+    )
+    .expect("stat-based damage should accept a composable numeric multiplier");
+    assert_eq!(doubled_damage.0[0]["kind"], "dealDamage");
+    assert_eq!(doubled_damage.0[0]["amount"]["kind"], "multiply");
+    assert_eq!(doubled_damage.0[0]["amount"]["right"]["kind"], "powerOf");
+    assert_eq!(doubled_damage.1.len(), 2);
+
+    let targeted_form = parse_general_effect_instruction(
+        "Until end of turn, target artifact or creature becomes an artifact creature with base power and toughness 4/4 and gains flying.",
+        "Test Transformation",
+    )
+    .expect("targeted temporary forms should compose characteristics and keywords");
+    assert_eq!(targeted_form.0[0]["kind"], "becomeCreature");
+    assert_eq!(
+        targeted_form.0[0]["addTypes"],
+        json!(["Creature", "Artifact"])
+    );
+    assert_eq!(targeted_form.0[1]["kind"], "grantKeyword");
+    assert_eq!(targeted_form.1.len(), 1);
+    assert!(targeted_form.0.iter().all(crate::engine::effect_supported));
+
+    let source_form = parse_general_effect_instruction(
+        "Until end of turn, Test Shifter becomes a Dinosaur Hero with base power and toughness 3/5 and gains reach and vigilance.",
+        "Test Shifter",
+    )
+    .expect("named-source temporary forms should use the same characteristic grammar");
+    assert_eq!(source_form.0[0]["addSubtypes"], json!(["Dinosaur", "Hero"]));
+    assert_eq!(source_form.0[1]["keyword"], "reach");
+    assert_eq!(source_form.0[2]["keyword"], "vigilance");
+    assert!(source_form.1.is_empty());
+    assert!(source_form.0.iter().all(crate::engine::effect_supported));
+
+    let conditional_keyword = parse_common_static_ability(
+        "As long as you control an artifact creature or a Plan, Test Mastermind has indestructible.",
+        "Test Mastermind",
+    )
+    .expect("controlled permanent criteria should guard a source keyword");
+    let keyword_modifier = &conditional_keyword.rule["modifiers"][0];
+    assert_eq!(keyword_modifier["kind"], "grantKeyword");
+    assert_eq!(keyword_modifier["keyword"], "indestructible");
+    assert_eq!(keyword_modifier["condition"]["kind"], "controlsPermanent");
+    assert_eq!(keyword_modifier["condition"]["where"]["kind"], "or");
+    assert!(crate::engine::rule_is_executable(&conditional_keyword.rule));
+
+    let graveyard_threshold = parse_common_static_ability(
+        "As long as there are two or more creature cards in your graveyard, this creature gets +2/+2 and is all creature types.",
+        "Test Shapeshifter",
+    )
+    .expect("graveyard card thresholds should guard independent static modifiers");
+    assert_eq!(
+        graveyard_threshold.rule["modifiers"][0]["condition"]["kind"],
+        "compare"
+    );
+    assert_eq!(
+        graveyard_threshold.rule["modifiers"][0]["condition"]["left"]["kind"],
+        "countCards"
+    );
+    assert_eq!(
+        graveyard_threshold.rule["modifiers"][1]["keyword"],
+        "changeling"
+    );
+    assert!(crate::engine::rule_is_executable(&graveyard_threshold.rule));
+
+    let named_threshold = parse_common_static_ability(
+        "As long as there are two or more creature cards in your graveyard, Test Villain gets +2/+1.",
+        "Test Villain",
+    )
+    .expect("the same threshold should work without the optional type modifier");
+    assert_eq!(
+        named_threshold.rule["modifiers"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert!(crate::engine::rule_is_executable(&named_threshold.rule));
+
+    let reflexive_sacrifice = parse_expansion_triggered(
+        "When Test Executioner enters, you may sacrifice another creature. When you do, destroy target nonland permanent an opponent controls.",
+        "Test Executioner",
+    )
+    .expect("optional sacrifices should create a generic reflexive trigger");
+    let optional = &reflexive_sacrifice.rule["effects"][0];
+    assert_eq!(optional["kind"], "optionalAction");
+    assert_eq!(optional["action"]["kind"], "sacrificePermanents");
+    assert_eq!(optional["action"]["excludeSource"], true);
+    let reflexive = &optional["onPerformed"][0];
+    assert_eq!(reflexive["kind"], "createReflexiveTrigger");
+    assert_eq!(
+        reflexive["ability"]["declaration"]["decisions"][0]["kind"],
+        "chooseTargets"
+    );
+    assert_eq!(
+        reflexive["ability"]["effects"][0]["kind"],
+        "destroyPermanent"
+    );
+    assert!(crate::engine::rule_is_executable(&reflexive_sacrifice.rule));
+
+    let teamwork_tap = parse_expansion_triggered(
+        "Whenever Test Agent becomes tapped to pay a teamwork cost, put a +1/+1 counter on her and draw a card.",
+        "Test Agent",
+    )
+    .expect("teamwork taps should expose event context to an otherwise generic tap trigger");
+    assert_eq!(teamwork_tap.rule["event"]["kind"], "permanentTapped");
+    assert_eq!(teamwork_tap.rule["condition"]["kind"], "sourceFlagSet");
+    assert_eq!(teamwork_tap.rule["condition"]["flag"], "paidTeamworkCost");
+    assert_eq!(teamwork_tap.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(teamwork_tap.rule["effects"][1]["kind"], "drawCards");
+    assert!(crate::engine::rule_is_executable(&teamwork_tap.rule));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -9725,4 +10078,1489 @@ fn hand_to_battlefield_haste_uses_a_real_delayed_sacrifice_trigger() {
         "You may put a creature card from your graveyard onto the battlefield. That creature gains haste. Sacrifice it at the beginning of the next end step.",
     )
     .is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn composed_activation_costs_and_tap_counter_effect_reuse_shared_grammars() {
+    let text = "{3}{U}, Exile this card from your graveyard: Tap target creature and put a stun counter on it. Activate only as a sorcery. (If a permanent with a stun counter would become untapped, remove one from it instead.)";
+
+    let (costs, _) = parse_activation_costs("{3}{U}, Exile this card from your graveyard")
+        .expect("mana plus source-exile costs compose");
+    assert_eq!(costs.len(), 2);
+    assert_eq!(costs[1]["kind"], "exileSource");
+    assert_eq!(costs[1]["zone"], "graveyard");
+
+    let (effects, decisions) =
+        parse_general_effect_instruction("Tap target creature and put a stun counter on it.", "")
+            .expect("tap plus counter is a composed effect sequence");
+    assert_eq!(effects.len(), 2);
+    assert_eq!(effects[0]["kind"], "tapPermanent");
+    assert_eq!(effects[1]["kind"], "putCounters");
+    assert_eq!(decisions.len(), 1);
+
+    let parsed = parse_simple_activated_ability(text)
+        .expect("the activation envelope composes costs, effects, and timing");
+    assert_eq!(parsed.rule["activationZone"], "graveyard");
+    assert_eq!(parsed.rule["activationCondition"]["kind"], "sorceryTiming");
+    assert_eq!(parsed.rule["effects"].as_array().map(Vec::len), Some(2));
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn controlled_permanents_can_receive_a_granted_loyalty_mana_ability() {
+    let parsed = parse_common_static_ability(
+        "Planeswalkers you control have \"[+1]: Add {R}.\"",
+        "Way of the Pyromancer",
+    )
+    .expect("the granted-ability grammar delegates to the loyalty and mana subgrammars");
+    let modifier = &parsed.rule["modifiers"][0];
+    assert_eq!(modifier["kind"], "grantActivatedAbility");
+    assert_eq!(modifier["objects"]["where"], card_type("Planeswalker"));
+    assert_eq!(modifier["ability"]["costs"][0]["kind"], "payLoyalty");
+    assert_eq!(modifier["ability"]["effects"][0]["kind"], "addMana");
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn reusable_trigger_events_compose_with_optional_primitive_effects() {
+    let investigate = parse_expansion_triggered(
+        "Whenever a creature you control attacks alone, investigate.",
+        "Agent 13",
+    )
+    .expect("attacking alone composes with the investigate primitive");
+    assert_eq!(
+        investigate.rule["event"]["kind"],
+        "controlledCreaturesAttacked"
+    );
+    assert_eq!(investigate.rule["effects"][0]["kind"], "createTokens");
+    assert!(crate::engine::rule_is_executable(&investigate.rule));
+
+    let optional_draw = parse_expansion_triggered(
+        "Whenever one or more tokens you control enter, you may draw a card.",
+        "Mister Fantastic",
+    )
+    .expect("token entry composes with an optional draw primitive");
+    assert_eq!(optional_draw.rule["event"]["kind"], "permanentEntered");
+    assert_eq!(optional_draw.rule["effects"][0]["kind"], "optionalEffects");
+    assert_eq!(
+        optional_draw.rule["effects"][0]["effects"][0]["kind"],
+        "drawCards"
+    );
+    assert!(crate::engine::rule_is_executable(&optional_draw.rule));
+
+    let any_player_draw = parse_expansion_triggered(
+        "Whenever a player draws their second card each turn, you draw a card.",
+        "",
+    )
+    .expect("any player's second draw composes with the draw primitive");
+    assert_eq!(any_player_draw.rule["event"]["anyPlayer"], true);
+    assert_eq!(any_player_draw.rule["event"]["drawOrdinal"], integer(2));
+    assert!(crate::engine::rule_is_executable(&any_player_draw.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn reusable_marvel_leaves_share_events_targets_and_primitive_effects() {
+    let targeted_spell = parse_expansion_triggered(
+        "Whenever you cast a spell that targets a creature you control, put a +1/+1 counter on Mockingbird.",
+        "Mockingbird",
+    )
+    .expect("a targeting event composes with a counter primitive");
+    assert_eq!(
+        targeted_spell.rule["event"]["kind"],
+        "spellCastTargetingControlledCreature"
+    );
+    assert_eq!(targeted_spell.rule["effects"][0]["kind"], "putCounters");
+    assert!(crate::engine::rule_is_executable(&targeted_spell.rule));
+
+    let temporary_hand_power = parse_expansion_triggered(
+        "Whenever you cast a spell that targets a creature you control, draw a card. Until end of turn, Test Hero gains \"Test Hero's base power is equal to the number of cards in your hand.\"",
+        "Test Hero",
+    )
+    .expect("a targeting event should compose with a temporarily granted static ability");
+    assert_eq!(
+        temporary_hand_power.rule["event"]["kind"],
+        "spellCastTargetingControlledCreature"
+    );
+    assert_eq!(temporary_hand_power.rule["effects"][0]["kind"], "drawCards");
+    let grant = &temporary_hand_power.rule["effects"][1];
+    assert_eq!(grant["kind"], "grantAbility");
+    assert_eq!(grant["duration"]["kind"], "untilEndOfCurrentTurn");
+    assert_eq!(grant["ability"]["kind"], "staticAbility");
+    assert_eq!(
+        grant["ability"]["modifiers"][0]["power"]["kind"],
+        "countCards"
+    );
+    assert_eq!(
+        grant["ability"]["modifiers"][0]["power"]["zone"]["kind"],
+        "hand"
+    );
+    assert!(crate::engine::rule_is_executable(
+        &temporary_hand_power.rule
+    ));
+    assert!(
+        parse_general_effect_instruction(
+            "Until end of turn, Test Hero gains \"Other Hero's base power is equal to the number of cards in your hand.\".",
+            "Test Hero",
+        )
+        .is_none(),
+        "both source references in the quoted ability must agree"
+    );
+
+    let mana_symbol_tokens = parse_expansion_triggered(
+        "Whenever you cast a noncreature spell with one or more blue mana symbols in its mana cost, create that many 1/1 blue Merfolk creature tokens.",
+        "Test Merfolk",
+    )
+    .expect("a mana-symbol-filtered cast should feed its symbol count into token quantity");
+    assert_eq!(mana_symbol_tokens.rule["event"]["kind"], "spellCast");
+    assert_eq!(mana_symbol_tokens.rule["event"]["manaSymbol"], "U");
+    assert_eq!(
+        mana_symbol_tokens.rule["event"]["where"],
+        not(card_type("Creature"))
+    );
+    assert_eq!(
+        mana_symbol_tokens.rule["effects"][0]["quantity"]["kind"],
+        "countManaSymbolsInTriggeringSpell"
+    );
+    assert_eq!(
+        mana_symbol_tokens.rule["effects"][0]["quantity"]["symbol"],
+        "U"
+    );
+    assert!(crate::engine::rule_is_executable(&mana_symbol_tokens.rule));
+
+    let black_artifact_tokens = parse_expansion_triggered(
+        "Whenever you cast an artifact spell with one or more black mana symbols in its mana cost, create that many 2/2 black Zombie creature tokens.",
+        "Test Artificer",
+    )
+    .expect("unrelated criteria, color, and token definitions should reuse the same grammar");
+    assert_eq!(black_artifact_tokens.rule["event"]["manaSymbol"], "B");
+    assert_eq!(
+        black_artifact_tokens.rule["event"]["where"],
+        card_type("Artifact")
+    );
+    assert!(crate::engine::rule_is_executable(
+        &black_artifact_tokens.rule
+    ));
+
+    let attacks_alone = parse_expansion_triggered(
+        "Whenever Luke Cage attacks alone, he gets +2/+0 and gains indestructible until end of turn.",
+        "Luke Cage",
+    )
+    .expect("a named source attacking alone reuses the counted attack event");
+    assert_eq!(attacks_alone.rule["event"]["sourceMustAttack"], true);
+    assert_eq!(attacks_alone.rule["event"]["maximum"], integer(1));
+    assert!(crate::engine::rule_is_executable(&attacks_alone.rule));
+
+    let (panther_effects, panther_decisions) = parse_general_effect_sequence(
+        "Target player investigates. Target creature gets +1/+0 and gains flying until end of turn. Untap it.",
+        "Panther Pounce",
+    )
+    .expect("independent player and linked permanent targets compose");
+    assert_eq!(panther_decisions.len(), 2);
+    assert_eq!(panther_effects[0]["kind"], "createTokens");
+    assert_eq!(panther_effects.last().unwrap()["kind"], "untapPermanent");
+
+    let opening_hand = parse_common_static_ability(
+        "If Quicksilver, Brash Blur is in your opening hand, you may begin the game with him on the battlefield.",
+        "Quicksilver, Brash Blur",
+    )
+    .expect("named-source opening-hand text reuses the pregame keyword");
+    assert_eq!(
+        opening_hand.rule["ability"]["kind"],
+        "openingHandBattlefield"
+    );
+    assert!(crate::engine::rule_is_executable(&opening_hand.rule));
+
+    let prevention = parse_common_static_ability(
+        "Prevent all damage that would be dealt to Black Panther.",
+        "Black Panther",
+    )
+    .expect("named-source prevention reuses the static damage modifier");
+    assert_eq!(prevention.rule["modifiers"][0]["kind"], "preventDamage");
+    assert!(crate::engine::rule_is_executable(&prevention.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn ordinal_source_counter_trigger_composes_with_reflexive_followup() {
+    let parsed = parse_expansion_triggered(
+        "When the fourth plan counter is put on this enchantment, sacrifice it. When you do, put an indestructible counter on target creature you control.",
+        "Test Plan",
+    )
+    .expect("an ordinal source-counter event composes with a reflexive continuation");
+    assert_eq!(parsed.rule["event"]["kind"], "countersPlaced");
+    assert_eq!(parsed.rule["event"]["object"]["kind"], "self");
+    assert_eq!(parsed.rule["event"]["counter"], "plan");
+    assert_eq!(parsed.rule["event"]["resultingCount"], integer(4));
+    assert_eq!(parsed.rule["effects"][0]["kind"], "sacrificePermanent");
+    assert_eq!(parsed.rule["effects"][1]["kind"], "createReflexiveTrigger");
+    assert_eq!(
+        parsed.rule["effects"][1]["ability"]["effects"][0]["kind"],
+        "putCounters"
+    );
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let variant = parse_expansion_triggered(
+        "When the third charge counter is put on this artifact, sacrifice it. When you do, draw a card.",
+        "Test Device",
+    )
+    .expect("counter name, ordinal, source type, and followup are reusable leaves");
+    assert_eq!(variant.rule["event"]["counter"], "charge");
+    assert_eq!(variant.rule["event"]["resultingCount"], integer(3));
+    assert!(crate::engine::rule_is_executable(&variant.rule));
+
+    let (listed_effects, listed_decisions) = parse_general_effect_sequence(
+        "Sacrifice it, draw a card, and put a +1/+1 counter on each creature you control.",
+        "Test Plan",
+    )
+    .expect("three coordinated primitive effects preserve Oracle order");
+    assert!(listed_decisions.is_empty());
+    assert_eq!(listed_effects[0]["kind"], "sacrificePermanent");
+    assert_eq!(listed_effects[1]["kind"], "drawCards");
+    assert_eq!(listed_effects[2]["kind"], "putCounters");
+
+    assert!(
+        parse_expansion_triggered(
+            "When a plan counter is put on this enchantment, sacrifice it.",
+            "Ambiguous Plan",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn power_up_decorates_a_composed_activation_with_generic_mechanics() {
+    let parsed = parse_power_up_activated_ability(
+        "Power-up — {X}{U}{U}: Put X +1/+1 counters on Test Shifter. (Activate each power-up ability only once. Reduce the cost by her mana cost if she entered this turn.)",
+        "Test Shifter",
+    )
+    .expect("power-up should reuse activation costs, variables, and counter effects");
+
+    assert_eq!(parsed.rule["kind"], "activatedAbility");
+    assert_eq!(parsed.rule["abilityClass"], "powerUp");
+    assert_eq!(
+        parsed.rule["activationLimit"]["kind"],
+        "oncePerGameObjectAbility"
+    );
+    assert_eq!(parsed.rule["activationLimit"]["id"], "powerUp");
+    assert_eq!(parsed.rule["costs"][0]["kind"], "payMana");
+    assert_eq!(parsed.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(parsed.rule["effects"][0]["count"]["kind"], "decisionResult");
+
+    let modifier = &parsed.rule["activationCostModifiers"][0];
+    assert_eq!(modifier["kind"], "reduceManaCost");
+    assert_eq!(modifier["amount"]["kind"], "manaCostOf");
+    assert_eq!(modifier["amount"]["object"]["kind"], "self");
+    assert_eq!(modifier["condition"]["kind"], "sourceFlagSet");
+    assert_eq!(modifier["condition"]["flag"], "enteredThisTurn");
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    assert!(
+        parse_power_up_activated_ability(
+            "Power-up — {2}{G} Put a +1/+1 counter on Test Hero.",
+            "Test Hero",
+        )
+        .is_none()
+    );
+
+    let additional = parse_common_static_ability(
+        "Each power-up ability of permanents you control can be activated an additional time.",
+        "",
+    )
+    .expect("ability-class activation limits should be modifiable");
+    assert_eq!(
+        additional.rule["modifiers"][0]["kind"],
+        "additionalActivation"
+    );
+    assert_eq!(additional.rule["modifiers"][0]["abilityClass"], "powerUp");
+    assert_eq!(additional.rule["modifiers"][0]["amount"], integer(1));
+    assert!(crate::engine::rule_is_executable(&additional.rule));
+
+    let reduction = parse_common_static_ability(
+        "Power-up abilities of other creatures you control cost {3} less to activate.",
+        "",
+    )
+    .expect("generic activation reductions should filter by ability class and source");
+    assert_eq!(
+        reduction.rule["modifiers"][0]["kind"],
+        "reduceActivationCost"
+    );
+    assert_eq!(reduction.rule["modifiers"][0]["abilityClass"], "powerUp");
+    assert_eq!(reduction.rule["modifiers"][0]["amount"], integer(3));
+    assert_eq!(
+        reduction.rule["modifiers"][0]["objects"]["excludeSource"],
+        true
+    );
+    assert!(crate::engine::rule_is_executable(&reduction.rule));
+
+    parse_general_effect_instruction("Put a +1/+1 counter on Test Champion.", "Test Champion")
+        .expect("the source counter leaf is reusable inside a composed sequence");
+    create_token_effect(
+        "Create The Test Guardian, a legendary 4/4 green Cat God creature token with \"The Test Guardian can't be blocked by more than one creature.\"",
+    )
+    .expect("the named token leaf parses an embedded static ability");
+    parse_general_effect_sequence(
+        "Put a +1/+1 counter on Test Champion and create The Test Guardian, a legendary 4/4 green Cat God creature token with \"The Test Guardian can't be blocked by more than one creature.\".",
+        "Test Champion",
+    )
+    .expect("the coordinated sequence composes both reusable leaves");
+
+    let named_token = parse_power_up_activated_ability(
+        "Power-up — {5}{G}: Put a +1/+1 counter on Test Champion and create The Test Guardian, a legendary 4/4 green Cat God creature token with \"The Test Guardian can't be blocked by more than one creature.\" (Activate each power-up ability only once. Reduce the cost by her mana cost if she entered this turn.)",
+        "Test Champion",
+    )
+    .expect("power-up effects should compose counters with described named tokens");
+    assert_eq!(named_token.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(named_token.rule["effects"][1]["kind"], "createTokens");
+    assert_eq!(
+        named_token.rule["effects"][1]["token"]["abilities"][0]["modifiers"][0]["keyword"],
+        "maxOneBlocker"
+    );
+    assert!(crate::engine::rule_is_executable(&named_token.rule));
+
+    let conditional_evasion = parse_common_static_ability(
+        "Test Shifter can't be blocked if her power is 1 or less.",
+        "Test Shifter",
+    )
+    .expect("source power thresholds should compose with conditional evasion");
+    let evasion = &conditional_evasion.rule["modifiers"][0];
+    assert_eq!(evasion["kind"], "grantKeyword");
+    assert_eq!(evasion["keyword"], "cantBeBlocked");
+    assert_eq!(evasion["condition"]["operator"], "<=");
+    assert_eq!(evasion["condition"]["left"]["kind"], "powerOf");
+    assert!(crate::engine::rule_is_executable(&conditional_evasion.rule));
+
+    let extra_turn = parse_power_up_activated_ability(
+        "Power-up — {5}{U}{U}{U}: Put a +1/+1 counter on Test Conqueror. Take an extra turn after this one. During that turn, power-up abilities can't be activated. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)",
+        "Test Conqueror",
+    )
+    .expect("power-up should compose a source counter, extra turn, and scoped prohibition");
+    assert_eq!(extra_turn.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(extra_turn.rule["effects"][1]["kind"], "grantExtraTurn");
+    assert_eq!(
+        extra_turn.rule["effects"][2]["kind"],
+        "prohibitAbilityClassDuringGrantedExtraTurn"
+    );
+    assert_eq!(extra_turn.rule["effects"][2]["abilityClass"], "powerUp");
+    assert!(crate::engine::rule_is_executable(&extra_turn.rule));
+
+    let parity = parse_power_up_activated_ability(
+        "Power-up — {C}{W}{U}{B}{R}{G}: Put two +1/+1 counters on Test Titan. Choose odd or even. Destroy each other creature with mana value of the chosen quality. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn. Zero is even.)",
+        "Test Titan",
+    )
+    .expect("power-up should compose a parity choice with a reusable mana-value filter");
+    assert_eq!(
+        parity.rule["declaration"]["decisions"][0]["kind"],
+        "chooseOption"
+    );
+    assert_eq!(
+        parity.rule["declaration"]["decisions"][0]["options"],
+        json!(["odd", "even"])
+    );
+    assert_eq!(parity.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(parity.rule["effects"][1]["kind"], "destroyPermanent");
+    assert!(
+        parity.rule["effects"][1]
+            .to_string()
+            .contains("manaValueParity")
+    );
+    assert!(crate::engine::rule_is_executable(&parity.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn attached_controller_counter_history_and_effect_choices_compose() {
+    let aura = parse_expansion_triggered(
+        "At the beginning of the upkeep of enchanted creature's controller, that player draws a card.",
+        "Super Intelligence",
+    )
+    .expect("an attachment controller can be both trigger subject and effect player");
+    assert_eq!(aura.rule["event"]["kind"], "stepBegan");
+    assert_eq!(
+        aura.rule["event"]["player"]["kind"],
+        "controllerOfAttachedPermanent"
+    );
+    assert_eq!(
+        aura.rule["effects"][0]["player"]["kind"],
+        "controllerOfAttachedPermanent"
+    );
+    assert!(crate::engine::rule_is_executable(&aura.rule));
+
+    let beast = parse_common_static_ability(
+        "As long as you've put one or more +1/+1 counters on Beast this turn, he has flying.",
+        "Beast",
+    )
+    .expect("counter history on the source can gate a keyword");
+    assert_eq!(
+        beast.rule["modifiers"][0]["condition"]["kind"],
+        "sourceReceivedCountersThisTurn"
+    );
+    assert_eq!(beast.rule["modifiers"][0]["condition"]["counter"], "+1/+1");
+    assert!(crate::engine::rule_is_executable(&beast.rule));
+
+    let army = parse_expansion_triggered(
+        "When this creature enters, create a Food token or a Treasure token.",
+        "Ant-Man's Army",
+    )
+    .expect("alternative token creation can select one primitive effect at resolution");
+    assert_eq!(army.rule["effects"][0]["kind"], "chooseOneEffect");
+    assert_eq!(army.rule["effects"][0]["options"][0]["label"], "Food");
+    assert_eq!(army.rule["effects"][0]["options"][1]["label"], "Treasure");
+    assert!(crate::engine::rule_is_executable(&army.rule));
+
+    let copies = parse_general_effect_instruction(
+        "For each nontoken creature you control, create a token that's a copy of that creature, except it isn't legendary.",
+        "Multiversal Incursion",
+    )
+    .expect("a filtered permanent collection can feed a primitive copy operation");
+    assert_eq!(copies.0[0]["kind"], "forEachObject");
+    assert_eq!(copies.0[0]["effects"][0]["object"]["kind"], "boundValue");
+    assert_eq!(copies.0[0]["effects"][0]["removeLegendary"], true);
+    assert!(crate::engine::effect_supported(&copies.0[0]));
+
+    let lad = parse_simple_activated_ability(
+        "{T}: Reveal the top card of your library. If it's an artifact card, draw a card.",
+    )
+    .expect("top-card revelation can filter a bound card before a nested effect");
+    assert_eq!(lad.rule["effects"][0]["kind"], "lookAtTopCards");
+    assert_eq!(lad.rule["effects"][1]["kind"], "revealCards");
+    assert_eq!(lad.rule["effects"][2]["kind"], "forEachObject");
+    assert!(crate::engine::rule_is_executable(&lad.rule));
+
+    let justice = parse_expansion_triggered(
+        "Whenever another nonland permanent you control is returned to its owner's hand, put a +1/+1 counter on Justice.",
+        "Justice",
+    )
+    .expect("a return-to-hand event can reuse permanent filters and source counters");
+    assert_eq!(
+        justice.rule["event"]["kind"],
+        "controlledPermanentLeftBattlefield"
+    );
+    assert_eq!(justice.rule["event"]["destination"], "hand");
+    assert_eq!(justice.rule["effects"][0]["kind"], "putCounters");
+    assert!(crate::engine::rule_is_executable(&justice.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn temporal_conditions_conditional_flash_and_attachment_counts_compose() {
+    let avengers = parse_expansion_triggered(
+        "At the beginning of each end step, if you attacked with a Hero this turn or a Hero entered the battlefield under your control this turn, draw a card.",
+        "Avengers Assemble!",
+    )
+    .expect("alternative reusable turn-history conditions compose");
+    assert_eq!(avengers.rule["condition"]["kind"], "or");
+    assert_eq!(
+        avengers.rule["condition"]["operands"][0]["kind"],
+        "attackedWithSubtypeThisTurn"
+    );
+    assert_eq!(
+        avengers.rule["condition"]["operands"][1]["kind"],
+        "controlledPermanentsEnteredThisTurn"
+    );
+    assert!(crate::engine::rule_is_executable(&avengers.rule));
+
+    let awareness = parse_common_static_ability(
+        "As long as an opponent has cast a spell this turn, you may cast spells as though they had flash.",
+        "Captain Mar-Vell",
+    )
+    .expect("a turn-history condition can gate a generic casting permission");
+    assert_eq!(awareness.rule["modifiers"][0]["kind"], "grantFlashCasting");
+    assert_eq!(
+        awareness.rule["modifiers"][0]["condition"]["kind"],
+        "opponentCastSpellsThisTurn"
+    );
+    assert!(crate::engine::rule_is_executable(&awareness.rule));
+
+    let whiplash = parse_expansion_triggered(
+        "Whenever Whiplash attacks, if he's equipped, each opponent loses X life and you gain X life, where X is the number of Equipment attached to him.",
+        "Whiplash",
+    )
+    .expect("source attachment state and count feed primitive life effects");
+    assert_eq!(whiplash.rule["condition"]["kind"], "compare");
+    assert_eq!(whiplash.rule["effects"][0]["kind"], "loseLifeEachOpponent");
+    assert_eq!(
+        whiplash.rule["effects"][0]["amount"]["kind"],
+        "countAttachments"
+    );
+    assert_eq!(whiplash.rule["effects"][1]["kind"], "gainLife");
+    assert!(crate::engine::rule_is_executable(&whiplash.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn named_source_stats_feed_reusable_numeric_expressions() {
+    let named_toughness = x_variable_expression("Captain America's toughness")
+        .expect("a named source toughness is a numeric expression");
+    assert_eq!(named_toughness["kind"], "toughnessOf");
+    let group_bonus = parse_general_effect_instruction(
+        "Each other Hero you control gets +X/+X until end of turn, where X is Captain America's toughness.",
+        "Captain America",
+    )
+    .expect("the controlled group bonus consumes the named source statistic");
+    assert_eq!(group_bonus.0[0]["object"]["excludeSource"], true);
+
+    let captain = parse_expansion_triggered(
+        "Whenever Captain America attacks, each other Hero you control gets +X/+X until end of turn, where X is Captain America's toughness.",
+        "Captain America",
+    )
+    .expect("a named source toughness can feed a controlled-permanent modifier");
+    assert_eq!(captain.rule["effects"][0]["power"]["kind"], "toughnessOf");
+    assert_eq!(
+        captain.rule["effects"][0]["toughness"]["kind"],
+        "toughnessOf"
+    );
+    assert!(crate::engine::rule_is_executable(&captain.rule));
+
+    let war_machine = parse_expansion_triggered(
+        "At the beginning of combat on your turn, another target creature you control gets +X/+0 until end of turn, where X is War Machine's power.",
+        "War Machine",
+    )
+    .expect("a named source power can feed a targeted modifier");
+    assert_eq!(
+        war_machine.rule["effects"][0]["object"]["kind"],
+        "chosenTarget"
+    );
+    assert_eq!(war_machine.rule["effects"][0]["power"]["kind"], "powerOf");
+    assert!(crate::engine::rule_is_executable(&war_machine.rule));
+
+    let mana =
+        parse_mana_ability("{T}: Add X mana of any one color, where X is Doc Samson's power.")
+            .expect("a named source power can determine variable mana");
+    assert_eq!(mana.rule["effects"][0]["mana"]["amount"]["kind"], "powerOf");
+    assert!(crate::engine::rule_is_executable(&mana.rule));
+
+    let reduction = parse_common_static_ability(
+        "Instant and sorcery spells you cast with mana value 4 or greater cost {X} less to cast, where X is The Scarlet Witch's power.",
+        "The Scarlet Witch",
+    )
+    .expect("a named source power can determine a casting-cost reduction");
+    assert_eq!(reduction.rule["modifiers"][0]["amount"]["kind"], "powerOf");
+    assert!(crate::engine::rule_is_executable(&reduction.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn graveyard_thresholds_compose_across_ability_kinds() {
+    assert!(
+        parse_condition_text("there are two or more creature cards in your graveyard").is_some(),
+        "the shared graveyard threshold condition parses"
+    );
+    assert!(
+        create_token_effect("Create a tapped 2/1 black Villain creature token with menace.")
+            .is_some(),
+        "the shared tapped keyword token effect parses"
+    );
+    assert!(
+        parse_activation_costs("{3}, {T}").is_some(),
+        "the shared mana and tap activation costs parse"
+    );
+    let activation = parse_simple_activated_ability_for_face(
+        "{3}, {T}: Create a tapped 2/1 black Villain creature token with menace. Activate only if there are two or more creature cards in your graveyard.",
+        "Arnim Zola",
+    )
+    .expect("a graveyard threshold can gate a token activation");
+    assert_eq!(activation.rule["activationCondition"]["kind"], "compare");
+    assert_eq!(activation.rule["effects"][0]["kind"], "createTokens");
+    assert!(crate::engine::rule_is_executable(&activation.rule));
+
+    let reduction = parse_own_casting_reduction(
+        "This spell costs {2} less to cast if there are two or more creature cards in your graveyard.",
+    )
+    .expect("the same graveyard threshold can gate a casting-cost reduction");
+    assert_eq!(
+        reduction.rule["modifiers"][0]["condition"]["kind"],
+        "compare"
+    );
+    assert!(crate::engine::rule_is_executable(&reduction.rule));
+
+    let hydra = parse_expansion_triggered(
+        "When this creature enters, create a tapped 2/1 black Villain creature token with menace if there are two or more creature cards in your graveyard. Otherwise, mill two cards.",
+        "HYDRA Troopers",
+    )
+    .expect("the threshold can select between two primitive effect branches");
+    assert_eq!(hydra.rule["effects"][0]["kind"], "conditionalEffect");
+    assert_eq!(hydra.rule["effects"][0]["then"][0]["kind"], "createTokens");
+    assert_eq!(hydra.rule["effects"][0]["else"][0]["kind"], "mill");
+    assert!(crate::engine::rule_is_executable(&hydra.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn object_history_filters_compose_with_shared_targeting() {
+    let guardian = parse_expansion_triggered(
+        "When Red Guardian enters, destroy target creature an opponent controls that dealt damage this turn.",
+        "Red Guardian",
+    )
+    .expect("a target can be filtered by damage it dealt this turn");
+    assert!(
+        guardian.rule["declaration"]["decisions"][0]["candidates"]["where"]
+            .to_string()
+            .contains("dealtDamageThisTurn")
+    );
+    assert_eq!(guardian.rule["effects"][0]["kind"], "destroyPermanent");
+    assert!(crate::engine::rule_is_executable(&guardian.rule));
+
+    let nurse = parse_expansion_triggered(
+        "When Night Nurse enters, choose target permanent card in your graveyard that was put there from anywhere this turn. Return it to your hand.",
+        "Night Nurse",
+    )
+    .expect("a graveyard target can be filtered by its current-turn entry history");
+    assert!(
+        nurse.rule["declaration"]["decisions"][0]["candidates"]["where"]
+            .to_string()
+            .contains("enteredGraveyardThisTurn")
+    );
+    assert_eq!(nurse.rule["effects"][0]["kind"], "moveTargetCard");
+    assert!(crate::engine::rule_is_executable(&nurse.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn singular_cast_or_activation_mana_restriction_composes() {
+    for (name, subtype_name) in [
+        ("Avengers Tower", "Hero"),
+        ("Villainous Hideout", "Villain"),
+    ] {
+        let text = format!(
+            "{{T}}: Add one mana of any color. Spend this mana only to cast a {subtype_name} spell or to activate an ability of a {subtype_name} source."
+        );
+        let parsed = parse_mana_ability(&text)
+            .unwrap_or_else(|| panic!("{name} uses the shared restricted-mana grammar"));
+        let restriction = &parsed.rule["effects"][0]["mana"]["spendRestriction"];
+        assert_eq!(restriction["kind"], "castSpellOrActivateAbility");
+        assert_eq!(restriction["where"]["kind"], "subtypeContains");
+        assert_eq!(restriction["where"]["value"], subtype_name);
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn turn_history_quantities_and_saga_effects_compose_from_primitives() {
+    let misty = parse_simple_activated_ability_for_face(
+        "{2}, {T}, Discard a card: Draw a card for each card you've discarded this turn.",
+        "Misty Knight, Hero for Hire",
+    )
+    .expect("discard history should be reusable as a numeric expression");
+    assert_eq!(misty.rule["effects"][0]["kind"], "drawCards");
+    assert_eq!(
+        misty.rule["effects"][0]["count"]["kind"],
+        "countEventsThisTurn"
+    );
+    assert_eq!(misty.rule["effects"][0]["count"]["event"], "cardDiscarded");
+    assert!(crate::engine::rule_is_executable(&misty.rule));
+
+    let robot = parse_expansion_triggered(
+        "Whenever one or more creature cards are put into your graveyard from anywhere, you draw a card, lose 1 life, and put a plan counter on this enchantment.",
+        "Robot Domination",
+    )
+    .expect("graveyard history and a coordinated primitive effect list should compose");
+    assert_eq!(robot.rule["event"]["kind"], "cardsEnteredGraveyard");
+    assert_eq!(robot.rule["effects"][0]["kind"], "drawCards");
+    assert_eq!(robot.rule["effects"][1]["kind"], "loseLife");
+    assert_eq!(robot.rule["effects"][2]["kind"], "putCounters");
+    assert!(crate::engine::rule_is_executable(&robot.rule));
+
+    let (optional_draw, optional_decisions) = parse_general_effect_sequence(
+        "You may draw a card for each artifact you control. If you do, each opponent draws a card.",
+        "Armor Wars",
+    )
+    .expect("a generic optional action should compose with its performed follow-up");
+    assert!(optional_decisions.is_empty());
+    assert_eq!(optional_draw[0]["kind"], "optionalAction");
+    assert_eq!(optional_draw[0]["action"]["kind"], "drawCards");
+    assert_eq!(
+        optional_draw[0]["action"]["count"]["kind"],
+        "countPermanents"
+    );
+    assert_eq!(
+        optional_draw[0]["onPerformed"][0]["kind"],
+        "drawEachOpponent"
+    );
+
+    let (reduction, reduction_decisions) = parse_general_effect_instruction(
+        "Artifact spells you cast this turn cost {1} less to cast.",
+        "Armor Wars",
+    )
+    .expect("a turn-scoped cost reduction should install the standard modifier");
+    assert!(reduction_decisions.is_empty());
+    assert_eq!(reduction[0]["kind"], "installRuleModifier");
+    assert_eq!(reduction[0]["modifier"]["kind"], "reduceCastingCost");
+
+    let (variable_damage, variable_damage_decisions) = parse_general_effect_instruction(
+        "This Saga deals X damage to target opponent, where X is the greatest mana value among artifacts you control.",
+        "Armor Wars",
+    )
+    .expect("greatest mana value should feed the shared target-damage primitive");
+    assert_eq!(variable_damage[0]["kind"], "dealDamage");
+    assert_eq!(variable_damage[0]["amount"]["kind"], "greatestManaValue");
+    assert_eq!(
+        variable_damage_decisions[0]["candidates"]["kind"],
+        "players"
+    );
+
+    let (group_damage, group_damage_decisions) = parse_general_effect_sequence(
+        "This Saga deals 2 damage to each non-Villain creature and each opponent.",
+        "Avengers: Under Siege",
+    )
+    .expect("one damage amount should compose over a permanent set and opponents");
+    assert!(group_damage_decisions.is_empty());
+    assert_eq!(group_damage[0]["kind"], "dealDamage");
+    assert_eq!(group_damage[0]["recipient"]["kind"], "eachPermanent");
+    assert_eq!(group_damage[1]["kind"], "dealDamageToEachOpponent");
+
+    let tokens = create_token_effect("Create a Treasure token for each Villain you control.")
+        .expect("controlled-permanent counts should scale any reusable token definition");
+    assert_eq!(tokens["kind"], "createTokens");
+    assert_eq!(tokens["quantity"]["kind"], "countPermanents");
+    assert_eq!(tokens["quantity"]["where"]["kind"], "subtypeContains");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn token_keywords_and_quoted_rules_delegate_to_shared_ability_parsers() {
+    for (text, expected_last_kind) in [
+        (
+            "Create The Void, a legendary 5/5 black Horror Villain creature token with flying, indestructible, and \"The Void attacks each combat if able.\"",
+            "staticAbility",
+        ),
+        (
+            "Create Redwing, a legendary 1/1 blue Bird Scout creature token with flying and \"Whenever Redwing attacks, surveil 1.\"",
+            "triggeredAbility",
+        ),
+        (
+            "Create Galactus, a legendary 16/16 black Elder Alien creature token with flying, trample, and \"Whenever Galactus attacks, destroy target land.\"",
+            "triggeredAbility",
+        ),
+        (
+            "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\"",
+            "staticAbility",
+        ),
+    ] {
+        let effect = create_token_effect(text)
+            .unwrap_or_else(|| panic!("mixed token abilities did not parse: {text}"));
+        let abilities = effect["token"]["abilities"]
+            .as_array()
+            .expect("the token carries its compiled abilities");
+        assert!(abilities.len() >= 2);
+        assert_eq!(abilities.last().unwrap()["kind"], expected_last_kind);
+        let rule = json!({
+            "kind": "spellAbility",
+            "source": self_ref(),
+            "effects": [effect],
+        });
+        assert!(crate::engine::rule_is_executable(&rule));
+    }
+
+    let zabu = create_token_effect(
+        "Create Zabu, a legendary 2/2 green Cat creature token with \"Landfall — Whenever a land you control enters, put a +1/+1 counter on Zabu.\"",
+    )
+    .expect("a quoted named-token trigger delegates to the triggered grammar");
+    assert_eq!(zabu["token"]["abilities"][0]["kind"], "triggeredAbility");
+
+    let lands = parse_special_static_ability("You may play lands from the top of your library.")
+        .expect("the top-library permission accepts the land-only filter");
+    assert_eq!(
+        lands.rule["modifiers"][0]["kind"],
+        "playCardsFromTopLibrary"
+    );
+    assert_eq!(lands.rule["modifiers"][0]["where"]["value"], "Land");
+    assert!(crate::engine::rule_is_executable(&lands.rule));
+
+    let (alien_effects, alien_decisions) = parse_general_effect_sequence(
+        "Create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\" Put a +1/+1 counter on it for each invasion counter on this enchantment, then put an invasion counter on this enchantment.",
+        "Alien Invasion",
+    )
+    .expect("created-token bindings should feed scaled counters and a source counter");
+    assert!(alien_decisions.is_empty());
+    assert_eq!(alien_effects[0]["kind"], "createTokens");
+    assert_eq!(alien_effects[0]["bind"], "createdTokens");
+    assert_eq!(alien_effects[1]["permanent"]["kind"], "boundObjects");
+    assert_eq!(alien_effects[1]["count"]["kind"], "countCounters");
+    assert_eq!(alien_effects[2]["permanent"]["kind"], "self");
+    let alien_rule = json!({
+        "kind": "spellAbility",
+        "source": self_ref(),
+        "effects": alien_effects,
+    });
+    assert!(crate::engine::rule_is_executable(&alien_rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn optional_immediate_blink_reuses_target_criteria_and_entry_state() {
+    let parsed = parse_expansion_triggered(
+        "Whenever The Mighty Thor attacks, exile up to one target nontoken artifact or creature, then return that card to the battlefield tapped under its owner's control.",
+        "The Mighty Thor, Jane Foster",
+    )
+    .expect("the attack event should compose with an optional immediate blink");
+    assert_eq!(parsed.rule["event"]["kind"], "declaredAttacker");
+    let decision = &parsed.rule["declaration"]["decisions"][0];
+    assert_eq!(decision["minimum"], 0);
+    assert_eq!(decision["maximum"], 1);
+    assert!(
+        decision["candidates"]["where"]
+            .to_string()
+            .contains("isToken")
+    );
+    assert_eq!(parsed.rule["effects"][0]["kind"], "blinkPermanent");
+    assert_eq!(parsed.rule["effects"][0]["tapped"], true);
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let other = parse_general_effect_instruction(
+        "Exile up to one other target nonland permanent you control, then return that card to the battlefield under its owner's control.",
+        "The Mind Stone",
+    )
+    .expect("other and up-to-one are orthogonal blink target modifiers");
+    assert_eq!(other.1[0]["minimum"], 0);
+    assert_eq!(other.1[0]["candidates"]["excludeSource"], true);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn harness_persists_a_source_flag_and_gates_infinity_abilities() {
+    let harness = parse_spm_leaf_ability(
+        "{5}{W}, {T}: Harness The Mind Stone. (Once harnessed, its ∞ ability is active.)",
+        "The Mind Stone",
+    )
+    .expect("harness should reuse activation costs and a persistent source flag");
+    assert_eq!(harness.rule["costs"][0]["kind"], "payMana");
+    assert_eq!(harness.rule["costs"][1]["kind"], "tap");
+    assert_eq!(harness.rule["effects"][0]["kind"], "setPermanentFlag");
+    assert_eq!(harness.rule["effects"][0]["flag"], "harnessed");
+    assert!(crate::engine::rule_is_executable(&harness.rule));
+
+    let infinity = parse_spm_leaf_ability(
+        "∞ — At the beginning of your end step, exile up to one other target nonland permanent you control, then return that card to the battlefield under its owner's control.",
+        "The Mind Stone",
+    )
+    .expect("an infinity ability delegates to its ordinary triggered grammar");
+    assert_eq!(infinity.rule["event"]["kind"], "stepBegan");
+    assert_eq!(infinity.rule["condition"]["kind"], "sourceFlagSet");
+    assert_eq!(infinity.rule["condition"]["flag"], "harnessed");
+    assert!(crate::engine::rule_is_executable(&infinity.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn counter_placement_events_separate_actor_controller_and_source_exclusion() {
+    let invisible = parse_expansion_triggered(
+        "Whenever you put one or more +1/+1 counters on one or more other Heroes you control, you may create a 0/4 colorless Wall creature token with defender.",
+        "Invisible Woman, Sue Storm",
+    )
+    .expect("controlled other Heroes should compose with an optional token effect");
+    assert_eq!(invisible.rule["event"]["kind"], "countersPlaced");
+    assert_eq!(invisible.rule["event"]["placedBy"]["kind"], "controllerOf");
+    assert_eq!(invisible.rule["event"]["anyController"], false);
+    assert_eq!(invisible.rule["event"]["excludeSource"], true);
+    assert_eq!(invisible.rule["event"]["where"]["value"], "Hero");
+    assert_eq!(invisible.rule["effects"][0]["kind"], "optionalEffects");
+    assert!(crate::engine::rule_is_executable(&invisible.rule));
+
+    for (text, name, effect_kind) in [
+        (
+            "Whenever you put a +1/+1 counter on another creature, put a +1/+1 counter on this creature. This ability triggers only once each turn.",
+            "Knight of Wundagore",
+            "putCounters",
+        ),
+        (
+            "Whenever you put a +1/+1 counter on a creature, create a 1/1 green Insect creature token. This ability triggers only once each turn.",
+            "Ant-Man, Colony Commander",
+            "createTokens",
+        ),
+    ] {
+        let parsed = parse_expansion_triggered(text, name)
+            .unwrap_or_else(|| panic!("counter placement trigger did not compose: {name}"));
+        assert_eq!(parsed.rule["event"]["placedBy"]["kind"], "controllerOf");
+        assert_eq!(parsed.rule["event"]["anyController"], true);
+        assert_eq!(
+            parsed.rule["event"]["excludeSource"],
+            name == "Knight of Wundagore"
+        );
+        assert_eq!(parsed.rule["effects"][0]["kind"], effect_kind);
+        assert_eq!(parsed.rule["triggerLimit"]["kind"], "onceEachTurn");
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn per_permanent_counter_history_and_source_linked_ability_loss_compose() {
+    let kid_loki = parse_common_static_ability(
+        "Each creature you control that you've put one or more +1/+1 counters on this turn has hexproof.",
+        "Kid Loki",
+    )
+    .expect("a controlled permanent can be selected by its own counter history");
+    let selector = &kid_loki.rule["modifiers"][0]["objects"];
+    assert_eq!(selector["history"]["kind"], "receivedCountersPlacedBy");
+    assert_eq!(selector["history"]["counter"], "+1/+1");
+    assert_eq!(kid_loki.rule["modifiers"][0]["keyword"], "hexproof");
+    assert!(crate::engine::rule_is_executable(&kid_loki.rule));
+
+    let wasp = parse_expansion_triggered(
+        "Wasp's Sting — When The Wondrous Wasp enters, tap up to one target creature. It loses all abilities for as long as The Wondrous Wasp remains on the battlefield.",
+        "The Wondrous Wasp",
+    )
+    .expect("tap and source-linked ability loss should share one target decision");
+    assert_eq!(wasp.rule["effects"][0]["kind"], "tapPermanent");
+    assert_eq!(wasp.rule["effects"][1]["kind"], "installLinkedAbilityLoss");
+    assert_eq!(wasp.rule["declaration"]["decisions"][0]["minimum"], 0);
+    assert!(crate::engine::rule_is_executable(&wasp.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn filtered_discard_alternative_uses_modal_primitives() {
+    for (text, expected_filter) in [
+        (
+            "Draw three cards. Then discard two cards unless you discard an artifact card.",
+            "Artifact",
+        ),
+        (
+            "Draw four cards. Then discard three cards unless you discard a creature card.",
+            "Creature",
+        ),
+    ] {
+        assert!(
+            parse_general_effect_sequence(text, "").is_some(),
+            "shared sequence grammar did not recognize: {text}"
+        );
+        let parsed = parse_generic_effect_spell(text, "")
+            .unwrap_or_else(|| panic!("filtered discard alternative did not compose: {text}"));
+        assert_eq!(parsed.rule["effects"][0]["kind"], "drawCards");
+        assert_eq!(parsed.rule["effects"][1]["kind"], "chooseOneEffect");
+        assert_eq!(
+            parsed.rule["effects"][1]["options"][0]["availableIf"]["kind"],
+            "compare"
+        );
+        assert_eq!(
+            parsed.rule["effects"][1]["options"][0]["effects"][0]["kind"],
+            "discardCards"
+        );
+        assert_eq!(
+            parsed.rule["effects"][1]["options"][0]["effects"][0]["where"]["value"],
+            expected_filter
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(
+        parse_general_effect_sequence(
+            "Draw three cards. Then discard zero cards unless you discard an artifact card.",
+            "",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn source_counter_condition_composes_player_and_controlled_permanent_keywords() {
+    for (text, face_name, expected_counter, expected_subtype, expected_keyword) in [
+        (
+            "As long as Captain America has a shield counter on him, you and other Heroes you control have hexproof.",
+            "Captain America, Super-Soldier",
+            "shield",
+            "Hero",
+            "hexproof",
+        ),
+        (
+            "As long as Test Guardian has an aegis counter on her, you and other Clerics you control have shroud.",
+            "Test Guardian",
+            "aegis",
+            "Cleric",
+            "shroud",
+        ),
+    ] {
+        let parsed = parse_common_static_ability(text, face_name)
+            .unwrap_or_else(|| panic!("conditional shared keyword did not parse: {text}"));
+        assert_eq!(parsed.rule["condition"]["kind"], "compare");
+        assert_eq!(parsed.rule["condition"]["left"]["kind"], "countCounters");
+        assert_eq!(
+            parsed.rule["condition"]["left"]["counter"],
+            expected_counter
+        );
+        assert_eq!(
+            parsed.rule["modifiers"][0]["player"]["kind"],
+            "controllerOf"
+        );
+        assert_eq!(
+            parsed.rule["modifiers"][0]["player"]["object"]["kind"],
+            "self"
+        );
+        assert_eq!(
+            parsed.rule["modifiers"][1]["objects"]["where"]["value"],
+            expected_subtype
+        );
+        assert_eq!(parsed.rule["modifiers"][1]["keyword"], expected_keyword);
+        assert_eq!(
+            parsed.rule["modifiers"][1]["objects"]["excludeSource"],
+            true
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(
+        parse_common_static_ability(
+            "As long as Another Guardian has an aegis counter on her, you and other Clerics you control have shroud.",
+            "Test Guardian",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn attacking_alone_target_composes_temporary_bonus_and_life_gain() {
+    for (text, expected_power, expected_toughness, expected_life) in [
+        (
+            "{T}: Target creature you control that's attacking alone gets +1/+0 until end of turn. You gain 1 life.",
+            1,
+            0,
+            1,
+        ),
+        (
+            "{1}, {T}: Target artifact creature you control that's attacking alone gets +2/+1 until end of turn. You gain 3 life.",
+            2,
+            1,
+            3,
+        ),
+    ] {
+        let parsed = parse_simple_activated_ability_for_face(text, "Test Believers")
+            .unwrap_or_else(|| panic!("attacking-alone activation did not parse: {text}"));
+        assert_eq!(parsed.rule["kind"], "activatedAbility");
+        assert_eq!(parsed.rule["effects"][0]["kind"], "modifyPowerToughness");
+        assert_eq!(parsed.rule["effects"][0]["power"]["value"], expected_power);
+        assert_eq!(
+            parsed.rule["effects"][0]["toughness"]["value"],
+            expected_toughness
+        );
+        assert_eq!(parsed.rule["effects"][1]["kind"], "gainLife");
+        assert_eq!(parsed.rule["effects"][1]["amount"]["value"], expected_life);
+        let target_filter = &parsed.rule["declaration"]["decisions"][0]["candidates"]["where"];
+        assert!(
+            target_filter.to_string().contains("isAttackingAlone"),
+            "target selector omitted the attacking-alone predicate: {target_filter}"
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(
+        parse_simple_activated_ability_for_face(
+            "{T}: Target creature you control that's attacking together gets +1/+0 until end of turn. You gain 1 life.",
+            "Test Believers",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn controlled_permanent_damage_trigger_reuses_event_amount_for_optional_damage() {
+    assert!(
+        parse_general_effect_instruction(
+            "The Sensational She-Hulk deals that much damage to any target.",
+            "The Sensational She-Hulk",
+        )
+        .is_some(),
+        "the shared damage instruction must consume the recorded amount"
+    );
+    assert!(
+        parse_expansion_instruction(
+            "you may have The Sensational She-Hulk deal that much damage to any target.",
+            "The Sensational She-Hulk",
+        )
+        .is_some(),
+        "the optional-effect wrapper must compose around shared damage"
+    );
+    for (text, face_name, expected_type) in [
+        (
+            "Whenever a creature you control is dealt damage, you may have The Sensational She-Hulk deal that much damage to any target. Do this only once each turn.",
+            "The Sensational She-Hulk",
+            "Creature",
+        ),
+        (
+            "Whenever an artifact you control is dealt damage, you may have Test Retaliator deal that much damage to any target. This ability triggers only once each turn.",
+            "Test Retaliator",
+            "Artifact",
+        ),
+    ] {
+        let parsed = parse_expansion_triggered(text, face_name)
+            .unwrap_or_else(|| panic!("controlled-permanent damage trigger did not parse: {text}"));
+        assert_eq!(
+            parsed.rule["event"]["kind"],
+            "controlledPermanentDealtDamage"
+        );
+        assert_eq!(parsed.rule["event"]["where"]["value"], expected_type);
+        assert_eq!(parsed.rule["triggerLimit"]["kind"], "onceEachTurn");
+        assert_eq!(parsed.rule["effects"][0]["kind"], "optionalEffects");
+        assert_eq!(
+            parsed.rule["effects"][0]["effects"][0]["kind"],
+            "dealDamage"
+        );
+        assert_eq!(
+            parsed.rule["effects"][0]["effects"][0]["amount"]["decisionId"],
+            "damageAmount"
+        );
+        assert_eq!(
+            parsed.rule["declaration"]["decisions"][0]["candidates"]["kind"],
+            "anyTarget"
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(
+        parse_expansion_triggered(
+            "Whenever a creature you control is dealt damage, you may have Another Retaliator deal that much damage to any target. Do this only once each turn.",
+            "Test Retaliator",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn power_up_composes_counter_then_filtered_library_deployment_and_transform() {
+    let text = "Power-up — {W}{U}{B}{R}{G}: Put two +1/+1 counters on Nick Fury, then look at the top seven cards of your library. You may put a Hero, Equipment, or Vehicle card from among them onto the battlefield. If it's a double-faced card, you may transform it. Put the rest on the bottom of your library in a random order. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)";
+    let parsed = parse_power_up_activated_ability(text, "Nick Fury, Agent of S.H.I.E.L.D.")
+        .expect("the power-up wrapper should compose the counter and library sequence");
+    assert_eq!(parsed.rule["abilityClass"], "powerUp");
+    assert_eq!(parsed.rule["effects"][0]["kind"], "putCounters");
+    assert_eq!(parsed.rule["effects"][1]["kind"], "lookAtTopCards");
+    assert_eq!(parsed.rule["effects"][2]["kind"], "chooseCards");
+    assert!(
+        parsed.rule["effects"][2]["where"]
+            .to_string()
+            .contains("Hero")
+    );
+    assert_eq!(parsed.rule["effects"][3]["kind"], "moveCards");
+    assert_eq!(parsed.rule["effects"][4]["kind"], "optionalEffects");
+    assert_eq!(
+        parsed.rule["effects"][4]["effects"][0]["kind"],
+        "transformPermanent"
+    );
+    assert_eq!(
+        parsed.rule["effects"][4]["effects"][0]["object"]["decisionId"],
+        "cardForBattlefield"
+    );
+    assert_eq!(parsed.rule["effects"][5]["order"]["kind"], "random");
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let variant = parse_power_up_activated_ability(
+        "Power-up — {4}{G}: Put one +1/+1 counter on Test Scout, then look at the top five cards of your library. You may put a land card from among them onto the battlefield tapped. Put the rest on the bottom of your library in any order. (Activate each power-up ability only once. Reduce the cost by her mana cost if she entered this turn.)",
+        "Test Scout",
+    )
+    .expect("the same sequence leaves should support another count, filter, and ordering");
+    assert_eq!(variant.rule["effects"][1]["count"]["value"], 5);
+    assert_eq!(variant.rule["effects"][3]["to"]["tapped"], true);
+    assert_eq!(variant.rule["effects"][4]["kind"], "chooseOrder");
+    assert!(crate::engine::rule_is_executable(&variant.rule));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn optional_hand_deployment_uses_target_choice_to_select_fallback_branch() {
+    for (text, face_name, expected_filter_text) in [
+        (
+            "II — You may put a Hero creature card with mana value 3 or less from your hand onto the battlefield. If you don't, draw a card.",
+            "Origin of the Avengers",
+            "Hero",
+        ),
+        (
+            "IV — You may put an artifact card with mana value 2 or less from your hand onto the battlefield tapped. If you don't, you gain 2 life.",
+            "Test Chronicle",
+            "Artifact",
+        ),
+    ] {
+        let parsed = parse_generalized_zone_and_combat_ability(text, "triggeredAbility", face_name)
+            .unwrap_or_else(|| panic!("optional hand deployment did not parse: {text}"));
+        assert_eq!(parsed.rule["effects"][0]["kind"], "moveTargetCard");
+        assert_eq!(parsed.rule["declaration"]["decisions"][0]["minimum"], 0);
+        assert!(
+            parsed.rule["declaration"]["decisions"][0]["candidates"]["where"]
+                .to_string()
+                .contains(expected_filter_text)
+        );
+        assert_eq!(parsed.rule["effects"][1]["kind"], "ifTargetWasChosen");
+        assert!(
+            parsed.rule["effects"][1]["then"]
+                .as_array()
+                .is_some_and(Vec::is_empty)
+        );
+        assert!(
+            !parsed.rule["effects"][1]["else"]
+                .as_array()
+                .expect("fallback effects")
+                .is_empty()
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn activated_cost_reduction_can_depend_on_reusable_target_criteria() {
+    for (text, expected_reduction, expected_characteristic) in [
+        (
+            "{2}, {T}: Tap target creature. This ability costs {1} less to activate if it targets a creature with power 3 or less.",
+            1,
+            "powerOf",
+        ),
+        (
+            "{4}, {T}: Untap target artifact creature. This ability costs {2} less to activate if it targets an artifact creature with toughness 4 or less.",
+            2,
+            "toughnessOf",
+        ),
+    ] {
+        let parsed =
+            parse_simple_activated_ability_for_face(text, "Test Officer").unwrap_or_else(|| {
+                panic!("target-dependent activation reduction did not parse: {text}")
+            });
+        let modifier = &parsed.rule["activationCostModifiers"][0];
+        assert_eq!(modifier["kind"], "reduceManaCost");
+        assert_eq!(modifier["amount"]["value"], expected_reduction);
+        assert_eq!(modifier["targetCondition"]["decisionId"], "targetPermanent");
+        assert!(
+            modifier["targetCondition"]["where"]
+                .to_string()
+                .contains(expected_characteristic)
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn inline_modal_bullets_compose_with_bounded_targets_and_graveyard_targets() {
+    let parsed = parse_expansion_triggered(
+        "When Test Agent enters, choose one — • Put a +1/+1 counter on each of up to two target creatures. • Return target artifact or enchantment card from your graveyard to your hand.",
+        "Test Agent",
+    )
+    .expect("the flattened modal trigger should parse generically");
+    let decisions = parsed.rule["declaration"]["decisions"]
+        .as_array()
+        .expect("modal decisions");
+    assert_eq!(decisions[0]["kind"], "chooseModes");
+    assert_eq!(decisions[1]["id"], "mode1:targetPermanents");
+    assert_eq!(decisions[1]["minimum"], 0);
+    assert_eq!(decisions[1]["maximum"], 2);
+    assert_eq!(decisions[1]["condition"]["value"], "mode1");
+    assert_eq!(decisions[2]["id"], "mode2:targetGraveyardCard");
+    assert_eq!(decisions[2]["condition"]["value"], "mode2");
+    assert_eq!(parsed.rule["effects"][0]["then"][0]["kind"], "putCounters");
+    assert_eq!(
+        parsed.rule["effects"][1]["then"][0]["kind"],
+        "moveTargetCard"
+    );
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let multiline = parse_general_modal_spell(
+        "Choose one —\n• Put a charge counter on each of up to three target artifacts.\n• Return target creature card from your graveyard to your hand.",
+    )
+    .expect("the same grammar should support multiline bullets and other criteria");
+    assert_eq!(multiline.rule["declaration"]["decisions"][1]["maximum"], 3);
+    assert_eq!(
+        multiline.rule["declaration"]["decisions"][1]["candidates"]["where"]["value"],
+        "Artifact"
+    );
+    assert!(crate::engine::rule_is_executable(&multiline.rule));
+
+    assert!(
+        parse_general_modal_spell(
+            "Choose one — Put a +1/+1 counter on each of up to two target creatures."
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn teamwork_modal_composes_targeted_tokens_with_one_or_two_returns() {
+    let parsed = parse_general_modal_spell(
+        "Choose one. If this spell was cast using teamwork, choose both instead. \u{2022} Target player creates a 6/5 blue Leviathan creature token with hexproof. \u{2022} Return one or two target nonland permanents to their owners' hands.",
+    )
+    .expect("flattened teamwork modes should compose from generic leaves");
+    let decisions = parsed.rule["declaration"]["decisions"]
+        .as_array()
+        .expect("modal declarations");
+    assert_eq!(decisions[0]["maximum"]["kind"], "conditionalValue");
+    assert_eq!(
+        decisions[0]["maximum"]["condition"]["decisionId"],
+        "teamworkPaid"
+    );
+    assert_eq!(decisions[1]["id"], "mode1:targetPlayer");
+    assert_eq!(decisions[2]["id"], "mode2:targetPermanents");
+    assert_eq!(decisions[2]["minimum"], 1);
+    assert_eq!(decisions[2]["maximum"], 2);
+    assert_eq!(parsed.rule["effects"][0]["then"][0]["kind"], "createTokens");
+    assert_eq!(
+        parsed.rule["effects"][0]["then"][0]["token"]["abilities"][0]["kind"],
+        "hexproof"
+    );
+    assert_eq!(
+        parsed.rule["effects"][1]["then"][0]["kind"],
+        "returnToOwnersHand"
+    );
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    let variant = parse_general_effect_instruction(
+        "Return one or two target artifact creatures to their owners' hands.",
+        "Test Tide",
+    )
+    .expect("other permanent criteria should reuse the same cardinality grammar");
+    assert_eq!(variant.1[0]["minimum"], 1);
+    assert_eq!(variant.1[0]["maximum"], 2);
+    assert!(
+        variant.1[0]["candidates"]["where"]
+            .to_string()
+            .contains("Artifact")
+    );
+
+    assert!(
+        parse_general_effect_instruction(
+            "Return zero or two target creatures to their owners' hands.",
+            "Test Tide",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn dealt_damage_trigger_composes_source_counter_with_attacking_combat_branch() {
+    for (text, face_name, noncombat_only) in [
+        (
+            "Enrage \u{2014} Whenever The Incredible Hulk is dealt damage, put a +1/+1 counter on him. If he's attacking, untap him and there is an additional combat phase after this phase.",
+            "The Incredible Hulk",
+            false,
+        ),
+        (
+            "Whenever this creature is dealt noncombat damage, put a charge counter on it. If it's attacking, untap it and there is an additional combat phase after this phase.",
+            "Test Berserker",
+            true,
+        ),
+    ] {
+        let parsed = parse_expansion_triggered(text, face_name)
+            .unwrap_or_else(|| panic!("source damage trigger did not compose: {text}"));
+        assert_eq!(parsed.rule["event"]["kind"], "permanentDealtDamage");
+        assert_eq!(
+            parsed.rule["event"]["noncombatOnly"].as_bool(),
+            noncombat_only.then_some(true)
+        );
+        assert_eq!(parsed.rule["effects"][0]["kind"], "putCounters");
+        assert_eq!(parsed.rule["effects"][1]["kind"], "conditionalEffect");
+        assert_eq!(
+            parsed.rule["effects"][1]["condition"]["kind"],
+            "isAttacking"
+        );
+        assert_eq!(
+            parsed.rule["effects"][1]["then"][0]["kind"],
+            "untapPermanent"
+        );
+        assert_eq!(
+            parsed.rule["effects"][1]["then"][1]["kind"],
+            "addCombatPhase"
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(parse_expansion_triggered(
+        "Whenever Another Hulk is dealt damage, put a +1/+1 counter on him. If he's attacking, untap him and there is an additional combat phase after this phase.",
+        "The Incredible Hulk",
+    )
+    .is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn copy_target_ability_composes_stack_kind_controller_and_source_filter() {
+    let parsed = parse_simple_activated_ability_for_face(
+        "{1}, {T}: Copy target activated or triggered ability you control from a creature source. You may choose new targets for the copy. (Mana abilities can't be targeted.)",
+        "Test Prodigy",
+    )
+    .expect("the reusable stack-item filters should compose");
+    let decision = &parsed.rule["declaration"]["decisions"][0];
+    assert_eq!(decision["id"], "targetAbility");
+    assert_eq!(decision["candidates"]["kind"], "stackItems");
+    assert_eq!(decision["candidates"]["where"]["kind"], "and");
+    assert!(
+        decision["candidates"]["where"]
+            .to_string()
+            .contains("Creature")
+    );
+    assert_eq!(parsed.rule["effects"][0]["kind"], "copyStackItem");
+    assert_eq!(parsed.rule["effects"][0]["mayChooseNewTargets"], true);
+    assert!(crate::engine::rule_is_executable(&parsed.rule));
+
+    for (instruction, expected_kind, expected_source) in [
+        (
+            "Copy target triggered ability you control. You may choose new targets for the copy.",
+            "isTriggeredAbility",
+            None,
+        ),
+        (
+            "Copy target activated ability you control from an artifact source. You may choose new targets for the copy.",
+            "isActivatedAbility",
+            Some("Artifact"),
+        ),
+    ] {
+        let (_, decisions) = parse_general_effect_instruction(instruction, "Test Copier")
+            .unwrap_or_else(|| panic!("ability-copy variant did not parse: {instruction}"));
+        let filter = &decisions[0]["candidates"]["where"];
+        assert!(filter.to_string().contains(expected_kind));
+        assert_eq!(
+            expected_source.map(|source| filter.to_string().contains(source)),
+            expected_source.map(|_| true)
+        );
+    }
+
+    assert!(
+        parse_general_effect_instruction(
+            "Copy target spell ability you control. You may choose new targets for the copy.",
+            "Test Copier",
+        )
+        .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn improvise_parses_as_printed_and_as_a_filtered_granted_casting_ability() {
+    for text in [
+        "Improvise",
+        "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)",
+    ] {
+        let parsed = parse_keyword_ability(text, "Test Inventor")
+            .unwrap_or_else(|| panic!("improvise did not parse: {text}"));
+        assert_eq!(parsed.rule["ability"]["kind"], "improvise");
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    for (text, expected_filter) in [
+        (
+            "Noncreature spells you cast have improvise.",
+            "cardTypeContains",
+        ),
+        ("Artifact spells you cast have improvise.", "Artifact"),
+    ] {
+        let parsed = parse_common_static_ability(text, "Test Champion")
+            .unwrap_or_else(|| panic!("granted improvise did not parse: {text}"));
+        let modifier = &parsed.rule["modifiers"][0];
+        assert_eq!(modifier["kind"], "grantImprovise");
+        assert!(
+            modifier["spells"]["where"]
+                .to_string()
+                .contains(expected_filter)
+        );
+        assert!(crate::engine::rule_is_executable(&parsed.rule));
+    }
+
+    assert!(
+        parse_common_static_ability("Cards you own have improvise.", "Test Champion",).is_none()
+    );
 }

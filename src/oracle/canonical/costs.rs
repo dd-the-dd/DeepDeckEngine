@@ -50,6 +50,8 @@ pub(super) fn split_activation_cost_atoms(cost_text: &str) -> Vec<&str> {
 pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec<Value>)> {
     let mana_cost_re =
         Regex::new(r"^(?:\{[^}]+\})+$").expect("activation mana cost regex compiles");
+    let explicit_mana_cost_re = Regex::new(r"(?i)^Pay ((?:\{[^}]+\})+)$")
+        .expect("explicit activation mana cost regex compiles");
     let life_cost_re =
         Regex::new(r"(?i)^Pay (\d+) life$").expect("activation life cost regex compiles");
     let waterbend_cost_re =
@@ -96,10 +98,14 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             }));
             continue;
         }
-        if mana_cost_re.is_match(cost) {
+        let mana_cost = explicit_mana_cost_re
+            .captures(cost)
+            .and_then(|captures| captures.get(1).map(|value| value.as_str()))
+            .or_else(|| mana_cost_re.is_match(cost).then_some(cost));
+        if let Some(mana_cost) = mana_cost {
             let symbols = Regex::new(r"\{([^}]+)\}")
                 .expect("activation mana symbol regex compiles")
-                .captures_iter(cost)
+                .captures_iter(mana_cost)
                 .map(|captures| captures[1].to_ascii_uppercase())
                 .collect::<Vec<_>>();
             if symbols
@@ -108,7 +114,7 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
             {
                 return None;
             }
-            costs.push(json!({ "kind": "payMana", "manaCost": cost }));
+            costs.push(json!({ "kind": "payMana", "manaCost": mana_cost }));
             continue;
         }
         if let Some(captures) = life_cost_re.captures(cost) {
@@ -527,6 +533,27 @@ pub(super) fn parse_activation_costs(cost_text: &str) -> Option<(Vec<Value>, Vec
     (!costs.is_empty()).then_some((costs, decisions))
 }
 
+pub(super) fn parse_alternative_activation_costs(
+    cost_text: &str,
+) -> Option<((Vec<Value>, Vec<Value>), (Vec<Value>, Vec<Value>))> {
+    let lower = cost_text.to_ascii_lowercase();
+    let mut parsed = lower
+        .match_indices(" or ")
+        .filter_map(|(index, separator)| {
+            let left = cost_text[..index].trim();
+            let right = cost_text[index + separator.len()..].trim();
+            if left.is_empty() || right.is_empty() {
+                return None;
+            }
+            Some((
+                parse_activation_costs(left)?,
+                parse_activation_costs(right)?,
+            ))
+        });
+    let result = parsed.next()?;
+    parsed.next().is_none().then_some(result)
+}
+
 pub(super) fn parse_keyword_cost(text: &str, keyword: &str) -> Option<Value> {
     let keyword_text = text
         .split_once(" (")
@@ -650,52 +677,12 @@ pub(super) fn parse_resolution_cost_text(cost_text: &str) -> Option<Value> {
 }
 
 pub(super) fn parse_alternative_cost_ability(text: &str) -> Option<CanonicalRuleDraft> {
-    let composite_re = Regex::new(
-        r"(?i)^You may pay (\d+) life and exile (?:an? )?(.+?) card from your hand rather than pay this spell's mana cost\.$",
-    )
-    .expect("composite nonmana alternative cost regex compiles");
     let ability = if let Some(cost) = parse_keyword_cost(text, "Evoke") {
         json!({
             "kind": "alternativeCost",
             "mode": "evoke",
             "costs": [cost],
         })
-    } else if let Some(captures) = composite_re.captures(text) {
-        json!({
-            "kind": "alternativeCost",
-            "costs": [
-                {
-                    "kind": "payLife",
-                    "player": controller(),
-                    "amount": integer(captures[1].parse::<i64>().ok()?),
-                },
-                {
-                    "kind": "exileCard",
-                    "zone": hand(controller()),
-                    "where": color_filter(&captures[2])
-                        .or_else(|| parse_permanent_criteria(&captures[2], ""))?,
-                },
-            ],
-        })
-    } else if let Some(captures) = Regex::new(
-        r"(?i)^(If it's not your turn, )?you may exile (?:an? )?(.+?) card from your hand rather than pay this spell's mana cost\.$",
-    )
-    .expect("hand-exile alternative cost regex compiles")
-    .captures(text)
-    {
-        let mut ability = json!({
-            "kind": "alternativeCost",
-            "costs": [{
-                "kind": "exileCard",
-                "zone": hand(controller()),
-                "where": color_filter(&captures[2])
-                    .or_else(|| parse_permanent_criteria(&captures[2], ""))?,
-            }],
-        });
-        if captures.get(1).is_some() {
-            ability["condition"] = json!({ "kind": "notYourTurn" });
-        }
-        ability
     } else if let Some(captures) = Regex::new(
         r"(?i)^You may return (?:an? )?(.+?) you control to its owner's hand rather than pay this spell's mana cost\.$",
     )

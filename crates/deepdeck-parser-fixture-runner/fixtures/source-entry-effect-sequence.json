@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger/source-entry-effect-sequence",
+  "cases": [
+    {
+      "id": "exact-baleful-strix",
+      "request": {
+        "cardName": "Baleful Strix",
+        "typeLine": "Artifact Creature — Bird",
+        "manaCost": "{U}{B}",
+        "oracleText": "Flying, deathtouch\nWhen this creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          { "index": 0, "status": "canonical", "recognizer": "native" },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": { "kind": "self" }
+              },
+              "effects": [{
+                "kind": "drawCards",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": { "kind": "self" }
+                },
+                "count": { "kind": "integer", "value": 1 }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "targeted-sequence-sibling-preserves-one-slot",
+      "request": {
+        "cardName": "Entry Lesson",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, target creature gets +1/+1 until end of turn. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent" },
+            { "pointer": "/effects/0/kind", "equals": "modifyPowerToughness" },
+            { "pointer": "/effects/0/object/id", "equals": "targetPermanent" },
+            { "pointer": "/effects/1/kind", "equals": "untapPermanent" },
+            { "pointer": "/effects/1/permanent/id", "equals": "targetPermanent" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "exact-friendly-ghost-targeted-entry-modifier",
+      "request": {
+        "cardName": "Friendly Ghost",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\nWhen this creature enters, target creature gets +2/+4 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "flying" }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": { "kind": "self" }
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "modifyPowerToughness",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "power": { "kind": "integer", "value": 2 },
+                "toughness": { "kind": "integer", "value": 4 },
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "malformed-promoted-draw-near-miss",
+      "request": {
+        "cardName": "Malformed Entry Lesson",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, draw target player a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "source-entry-effect-sequence",
+          "state": "numeric.atom.start",
+          "expected": "integer, number word, or X",
+          "found": "target",
+          "tokenIndex": 6,
+          "traceContainsState": "effect.draw-cards.count"
+        }]
+      }
+    }
+  ]
+}

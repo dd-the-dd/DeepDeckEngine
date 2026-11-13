@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ghost-vacuum-return-is-unavailable-outside-sorcery-timing",
+  "seed": 84,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{6}" },
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "effects": [{
+      "kind": "moveCards",
+      "cards": {
+        "kind": "filterObjects",
+        "objects": { "kind": "cardsExiledWithSource" },
+        "where": { "kind": "cardTypeContains", "value": "Creature" }
+      },
+      "to": {
+        "kind": "battlefield",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "tapped": false,
+        "enterWithCounters": [{
+          "counter": "flying",
+          "count": { "kind": "integer", "value": 1 }
+        }],
+        "addTypes": ["Creature"],
+        "addSubtypes": ["Spirit"],
+        "basePower": { "kind": "integer", "value": 1 },
+        "baseToughness": { "kind": "integer", "value": 1 },
+        "retainExistingTypes": true
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "endStep",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ghost Vacuum pilot",
+        "manaPool": ["C", "C", "C", "C", "C", "C"],
+        "battlefield": [{
+          "id": "ghost-vacuum",
+          "name": "Ghost Vacuum",
+          "typeLine": "Artifact",
+          "manaCost": "{1}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "ghost-vacuum",
+      "abilityRuleIndex": 0,
+      "equals": false
+    },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "ghost-vacuum", "equals": false },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C", "C", "C", "C", "C", "C"] },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

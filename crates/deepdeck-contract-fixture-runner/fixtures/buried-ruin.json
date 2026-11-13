@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "buried-ruin/mana-and-artifact-return-are-executable",
+  "cardName": "Buried Ruin",
+  "oracleId": "3644f316-f9a3-46c9-9b1e-747f86cf4ead",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [
+        { "kind": "payMana", "manaCost": "{2}" },
+        { "kind": "tap", "object": { "kind": "self" } },
+        { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+      ],
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetGraveyardCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "graveyard",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": { "kind": "cardTypeContains", "value": "Artifact" }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+        "from": {
+          "kind": "graveyard",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "to": {
+          "kind": "hand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      }]
+    }
+  ]
+}

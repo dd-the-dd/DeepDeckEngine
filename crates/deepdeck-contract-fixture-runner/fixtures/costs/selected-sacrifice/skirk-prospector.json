@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "skirk-prospector/source-can-pay-a-selected-subtype-cost",
+  "cardName": "Skirk Prospector",
+  "oracleId": "c18013e4-0b99-44e3-a2b2-027ace68723a",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent0"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent0",
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "subtypeContains",
+              "value": "Goblin"
+            }
+          },
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{R}"
+      }
+    ]
+  }
+}

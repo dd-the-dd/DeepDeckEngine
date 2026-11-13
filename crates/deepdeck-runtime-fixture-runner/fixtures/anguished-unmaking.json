@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "anguished-unmaking-exiles-only-a-nonland-permanent-and-loses-life",
+  "seed": 72,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 3 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Anguished Unmaking pilot",
+        "life": 20,
+        "manaPool": ["C", "W", "B"],
+        "hand": [
+          {
+            "id": "anguished-unmaking",
+            "name": "Anguished Unmaking",
+            "typeLine": "Instant",
+            "manaCost": "{1}{W}{B}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "ineligible-land",
+            "name": "Ineligible Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "eligible-enchantment",
+            "name": "Eligible Enchantment",
+            "typeLine": "Enchantment"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "anguished-unmaking"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "eligible-enchantment",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ineligible-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "ineligible-land",
+      "equals": false
+    },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 17 },
+    { "kind": "eventCount", "eventKind": "permanentExiled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "lifeLost", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

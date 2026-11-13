@@ -1,8 +1,56 @@
 use super::*;
 
+pub(super) fn parse_condition_text_for_face(text: &str, face_name: &str) -> Option<Value> {
+    let condition = text.trim().trim_end_matches('.');
+    let named_source_has_counter_re =
+        Regex::new(r"(?i)^(.+?) has (?:a|an|one) (.+?) counters? on (?:it|him|her|them)$")
+            .expect("named source counter condition regex compiles");
+    if let Some(captures) = named_source_has_counter_re.captures(condition)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some(compare(
+            ">",
+            json!({
+                "kind": "countCounters",
+                "object": self_ref(),
+                "counter": captures.get(2)?.as_str().to_ascii_lowercase(),
+            }),
+            integer(0),
+        ));
+    }
+    parse_condition_text(condition)
+}
+
 pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
     let original_condition = text.trim().trim_end_matches('.');
     let condition = original_condition.to_ascii_lowercase();
+    let attacked_with_subtype_re =
+        Regex::new(r"(?i)^you attacked with (?:a|an) ([A-Za-z][A-Za-z'-]*) this turn$")
+            .expect("attacked-with-subtype condition regex compiles");
+    if let Some(captures) = attacked_with_subtype_re.captures(original_condition) {
+        return Some(json!({
+            "kind": "attackedWithSubtypeThisTurn",
+            "player": controller(),
+            "subtype": captures.get(1)?.as_str(),
+            "minimum": integer(1),
+        }));
+    }
+    if condition == "an opponent has cast a spell this turn" {
+        return Some(json!({
+            "kind": "opponentCastSpellsThisTurn",
+            "minimum": integer(1),
+        }));
+    }
+    let controlled_entry_this_turn_re =
+        Regex::new(r"(?i)^(?:a|an) (.+?) entered the battlefield under your control this turn$")
+            .expect("controlled permanent entry this turn condition regex compiles");
+    if let Some(captures) = controlled_entry_this_turn_re.captures(original_condition) {
+        return Some(json!({
+            "kind": "controlledPermanentsEnteredThisTurn",
+            "minimum": integer(1),
+            "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
+        }));
+    }
     if condition == "another creature entered the battlefield under your control this turn" {
         return Some(json!({
             "kind": "controlsPermanent",
@@ -246,6 +294,24 @@ pub(super) fn parse_condition_text(text: &str) -> Option<Value> {
             }),
             integer(0),
         ));
+    }
+    let source_equipped_re = Regex::new(r"(?i)^(?:it|he|she)(?:'s| is) equipped$")
+        .expect("source-equipped condition regex compiles");
+    if source_equipped_re.is_match(original_condition) {
+        return Some(compare(
+            ">=",
+            json!({
+                "kind": "countAttachments",
+                "object": self_ref(),
+                "where": subtype("Equipment"),
+            }),
+            integer(1),
+        ));
+    }
+    if let Some((left, right)) = original_condition.split_once(" or ")
+        && let (Some(left), Some(right)) = (parse_condition_text(left), parse_condition_text(right))
+    {
+        return Some(or(vec![left, right]));
     }
     if let Some((left, right)) = original_condition.split_once(" and ") {
         return Some(and(vec![

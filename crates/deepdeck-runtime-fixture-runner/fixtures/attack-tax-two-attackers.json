@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ghostly-prison-charges-separately-for-two-attackers",
+  "seed": 109,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ghostly Prison controller",
+        "battlefield": [{
+          "id": "ghostly-prison",
+          "name": "Ghostly Prison",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "attackTax",
+              "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 2 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "two-attackers-draw", "name": "Two Attackers Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [
+          { "id": "first-attacker", "name": "First Attacker", "typeLine": "Creature - Test", "power": "2", "toughness": "2", "rules": [] },
+          { "id": "second-attacker", "name": "Second Attacker", "typeLine": "Creature - Test", "power": "2", "toughness": "2", "rules": [] },
+          {
+            "id": "tax-land-a",
+            "name": "Tax Land A",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "tax-land-b",
+            "name": "Tax Land B",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "tax-land-c",
+            "name": "Tax Land C",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "tax-land-d",
+            "name": "Tax Land D",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 2 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 16 },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "tax-land-a", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "tax-land-b", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "tax-land-c", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "tax-land-d", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-1", "symbols": [] },
+    { "kind": "decisionCount", "equals": 3 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

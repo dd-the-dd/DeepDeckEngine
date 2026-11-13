@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "controlled-opponent-commander-enables-generic-alternative-cost",
+  "seed": 205,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "costs": [],
+      "condition": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countPermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "isCommander" },
+          "excludeSource": false
+        },
+        "right": { "kind": "integer", "value": 1 }
+      }
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Borrowed-commander pilot",
+        "hand": [
+          {
+            "id": "borrowed-authority",
+            "name": "Borrowed Authority",
+            "typeLine": "Instant",
+            "manaCost": "{3}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [],
+                  "condition": {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                      "where": { "kind": "isCommander" },
+                      "excludeSource": false
+                    },
+                    "right": { "kind": "integer", "value": 1 }
+                  }
+                }
+              },
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Commander owner",
+        "battlefield": [
+          { "id": "borrowed-leader", "name": "Borrowed Leader", "typeLine": "Legendary Creature", "power": "2", "toughness": "2", "isCommander": true, "controllerId": "player-0" }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "borrowed-authority", "useAlternativeCost": true, "equals": true },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

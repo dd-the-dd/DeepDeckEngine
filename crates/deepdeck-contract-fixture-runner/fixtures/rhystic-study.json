@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "rhystic-study/opponent-payment-before-optional-draw-is-executable",
+  "cardName": "Rhystic Study",
+  "oracleId": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "spellCast",
+      "opponentOfSourceController": true,
+      "where": null
+    },
+    "effects": [{
+      "kind": "optionalPayCostPerformEffects",
+      "player": { "kind": "triggeringPlayer" },
+      "cost": { "kind": "payMana", "manaCost": "{1}" },
+      "effects": [],
+      "declineEffects": [{
+        "kind": "optionalEffects",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "effects": [{
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": { "kind": "integer", "value": 1 }
+        }]
+      }]
+    }]
+  }
+}

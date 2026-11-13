@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "blood-crypt/both-native-rules-are-executable",
+  "cardName": "Blood Crypt",
+  "oracleId": "43985bbc-a0f6-4812-984e-392bc8562633",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{B}", "{R}"] }
+      }]
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "decisions": [{
+        "id": "optionalLifePayment",
+        "kind": "chooseWhetherToPay",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+      }],
+      "replacement": [{
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+        },
+        "then": [{
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }]
+      }]
+    }
+  ]
+}

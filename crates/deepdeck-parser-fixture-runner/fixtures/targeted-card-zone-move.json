@@ -1,0 +1,363 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "effect/targeted-card-zone-move",
+  "cases": [
+    {
+      "id": "exact-eternal-witness",
+      "request": {
+        "cardName": "Eternal Witness",
+        "typeLine": "Creature — Human Shaman",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "When this creature enters, you may return target card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/kind", "equals": "triggeredAbility" },
+            { "pointer": "/event/kind", "equals": "enterBattlefield" },
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/maximum", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/candidates/zone/kind", "equals": "graveyard" },
+            { "pointer": "/effects/0/kind", "equals": "optionalEffects" },
+            { "pointer": "/effects/0/effects/0/kind", "equals": "moveCards" },
+            { "pointer": "/effects/0/effects/0/from/kind", "equals": "graveyard" },
+            { "pointer": "/effects/0/effects/0/to/kind", "equals": "hand" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "exact-buried-ruin",
+      "request": {
+        "cardName": "Buried Ruin",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Return target artifact card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [{ "pointer": "/effects/0/kind", "equals": "addMana" }]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "activatedAbility" },
+              { "pointer": "/costs/0/kind", "equals": "payMana" },
+              { "pointer": "/costs/1/kind", "equals": "tap" },
+              { "pointer": "/costs/2/kind", "equals": "sacrificePermanent" },
+              { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "cardTypeContains" },
+              { "pointer": "/effects/0/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/from/kind", "equals": "graveyard" },
+              { "pointer": "/effects/0/to/kind", "equals": "hand" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-noxious-revival",
+      "request": {
+        "cardName": "Noxious Revival",
+        "typeLine": "Instant",
+        "manaCost": "{G/P}",
+        "oracleText": "({G/P} can be paid with either {G} or 2 life.)\nPut target card from a graveyard on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/minimum", "equals": 1 },
+              { "pointer": "/declaration/decisions/0/maximum", "equals": 1 },
+              { "pointer": "/declaration/decisions/0/candidates/zone/kind", "equals": "anyGraveyard" },
+              { "pointer": "/effects/0/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/to/kind", "equals": "library" },
+              { "pointer": "/effects/0/to/position", "equals": "top" },
+              { "pointer": "/effects/0/to/player/kind", "equals": "ownerOf" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-etb-card-type-union",
+      "request": {
+        "cardName": "Generic Graveyard Curator",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, you may return target instant or sorcery card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "or" },
+            { "pointer": "/effects/0/kind", "equals": "optionalEffects" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-owner-relation-required",
+      "request": {
+        "cardName": "Malformed Revival",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put target card from a graveyard on top of its library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "target-card-move-spell",
+          "state": "effect.target-card-move.put.destination-owner",
+          "found": "library"
+        }]
+      }
+    },
+    {
+      "id": "sibling-return-spell",
+      "request": {
+        "cardName": "Generic Recollection",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Return target creature card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "moveCards" },
+            { "pointer": "/effects/0/from/kind", "equals": "graveyard" },
+            { "pointer": "/effects/0/to/kind", "equals": "hand" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-optional-etb-followed-by-required-effect",
+      "request": {
+        "cardName": "Ambiguous Witness",
+        "typeLine": "Creature — Human Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may return target card from your graveyard to your hand. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "source-entry-effect-sequence",
+          "state": "trigger.source-entry-sequence.optional-scope"
+        }]
+      }
+    },
+    {
+      "id": "near-miss-card-target-is-not-a-permanent-anaphor",
+      "request": {
+        "cardName": "Malformed Reanimation",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Return target creature card from your graveyard to your hand. Then untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "target-card-move-spell",
+          "state": "lower.untap-target.permanent-binding"
+        }]
+      }
+    },
+    {
+      "id": "sibling-two-card-moves-use-distinct-target-bindings",
+      "request": {
+        "cardName": "Generic Double Recollection",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{G}",
+        "oracleText": "Return target artifact card from your graveyard to your hand. Then put target card from a graveyard on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetCard1" },
+            { "pointer": "/declaration/decisions/1/id", "equals": "targetCard2" },
+            { "pointer": "/effects/0/cards/id", "equals": "targetCard1" },
+            { "pointer": "/effects/1/cards/id", "equals": "targetCard2" },
+            { "pointer": "/effects/1/to/player/object/id", "equals": "targetCard2" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "regression-karakas-permanent-return-keeps-existing-native-route",
+      "request": {
+        "cardName": "Karakas",
+        "typeLine": "Legendary Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {W}.\n{T}: Return target legendary creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          { "index": 0, "status": "canonical", "recognizer": "native" },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "activatedAbility" },
+              { "pointer": "/effects/0/kind", "equals": "returnToOwnersHand" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "regression-reanimate-keeps-existing-native-route",
+      "request": {
+        "cardName": "Reanimate",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/effects/1/kind", "equals": "moveCards" },
+            { "pointer": "/effects/1/to/kind", "equals": "battlefield" },
+            { "pointer": "/effects/2/kind", "equals": "loseLife" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-unsupported-source-zone-is-not-approximated",
+      "request": {
+        "cardName": "Malformed Revival",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put target card from exile on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.target-card-move.put.source-article",
+            "expectedContains": "a",
+            "found": "exile"
+          }
+        ],
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    }
+  ]
+}

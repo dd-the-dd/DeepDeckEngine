@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "volcanic-island/native-mana-choice-is-executable",
+  "cardName": "Volcanic Island",
+  "oracleId": "c718911c-c955-4eb9-9e16-be4bd49a4e4e",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+    }]
+  }
+}

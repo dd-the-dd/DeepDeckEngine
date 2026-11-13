@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "deepdeck-round5-next-generic-correction/v1",
+  "generatedAt": "2026-11-12",
+  "mode": "read-only-native-only-analysis",
+  "parserFingerprint": "9DFFE7AAB863D3A980387CB8C4CDCE6CC695CCE1209E81CA34CA4C5159465A45",
+  "batch": {
+    "path": ".tmp/rotating-next-100-round5.json",
+    "sha256": "F3860456E8030490C19F0B22B938D9E0A01E7061E56707CAB5CE7B362738DA45",
+    "inputPath": ".tmp/rotating-next-100-round5-input.json",
+    "inputSha256": "5F8BC076F486ED0F5DBD626080F371CBBAC027F6B98FA1B944E7173FCF428285",
+    "auditPath": ".tmp/rotating-next-100-round5-nativeonly-9DFFE7AA.jsonl",
+    "auditSha256": "B8A1ADE405A8C57A9F5A847746EB6B69E18D3753F4E4C865643E3DF56FF161DE",
+    "cards": 100,
+    "abilities": 201,
+    "auditSeconds": 0.113
+  },
+  "countingRule": "A card is counted as a complete gain only when every currently unsupported ability is covered by the same precise correction. Touched abilities, shared vocabulary, or an executable primitive without a complete parent do not count as completed cards.",
+  "excludedInFlight": [
+    {
+      "concept": "permanent-died event and death-batch runtime",
+      "cards": [
+        { "name": "Blood Artist", "oracleId": "310f141c-7f37-4729-aed6-dd9c09db448d" },
+        { "name": "Pitiless Plunderer", "oracleId": "a784481f-eccb-4112-bb38-04a659319660" }
+      ],
+      "reason": "implementation is already in flight"
+    }
+  ],
+  "recommendation": {
+    "rank": 1,
+    "concept": "static additional land plays per controller turn",
+    "cardsTouchedInBatch": 2,
+    "cardsCompletedIfFixedAlone": 1,
+    "runtimeRisk": "low",
+    "completeCards": [
+      {
+        "name": "Exploration",
+        "oracleId": "0c2841bb-038c-4fbf-8360-bc0a1522b58d",
+        "oracle": "You may play an additional land on each of your turns.",
+        "remainingBlockersAfterFix": []
+      }
+    ],
+    "touchedNotCompleted": [
+      {
+        "name": "Icetill Explorer",
+        "oracleId": "109cdefd-e8cc-4ac7-b6ba-2cfdef8d780f",
+        "oracle": "You may play an additional land on each of your turns.",
+        "remainingBlockersAfterFix": [
+          "You may play lands from your graveyard.",
+          "Landfall — Whenever a land you control enters, mill a card."
+        ]
+      }
+    ],
+    "primitiveIr": {
+      "ruleKind": "staticAbility",
+      "modifier": {
+        "kind": "additionalLandPlay",
+        "player": "controllerOf(self)",
+        "count": "integer(parameter)"
+      }
+    },
+    "existingRuntime": [
+      "rule_is_executable already validates additionalLandPlay with a supported player reference and positive integer count",
+      "additional_land_play_count sums battlefield static modifiers controlled by the active player",
+      "the land-play legality path already consumes that additional allowance"
+    ],
+    "missingParserTransitions": [
+      "static parent recognizes the controller subject `you`",
+      "modal permission head consumes `may play`",
+      "numeric child resolves `an` as one and accepts ordinary numeric atoms for plural siblings",
+      "object child requires the Land card type and singular/plural agreement",
+      "period child consumes `on each of your turns` and fixes the affected player to controllerOf(self)",
+      "complete token consumption lowers to the existing modifier without regex or reconstructed text"
+    ],
+    "globalLeverage": {
+      "auditPath": ".tmp/oracle-global-nativeonly-9DFFE7AA.jsonl",
+      "auditSha256": "D72AF99CC59E6622AABD7748B8CF6D6B5BBB311A110029BE2A530BB8A20A00E4",
+      "exactOrParameterizedStaticAbilitiesTouched": 22,
+      "globalCardsCompletedIfFixedAlone": 4,
+      "completeCards": [
+        "Titania",
+        "Exploration",
+        "Azusa, Lost but Seeking",
+        "The Explorer"
+      ],
+      "scope": "Only the static `on each of your turns` family is counted. Temporary `this turn`, shared-player, Class-threshold, conditional, or quoted granted-ability parents remain separate."
+    },
+    "proofPlan": [
+      "exact Exploration fixture",
+      "numeric sibling `You may play two additional lands on each of your turns.`",
+      "near-miss for singular/plural disagreement and unsupported period/subject",
+      "runtime with one normal land play plus one additional play while the source remains on the battlefield",
+      "runtime control after the source leaves: the second land play is illegal",
+      "fresh round5 and global NativeOnly comparison with all prior canonical abilities protected"
+    ]
+  },
+  "rankedAlternatives": [
+    {
+      "rank": 2,
+      "concept": "step-began triggered envelope delegating to EffectSequence",
+      "cardsTouchedInBatch": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "runtimeRisk": "low-to-moderate",
+      "cards": [
+        {
+          "name": "Phyrexian Arena",
+          "oracleId": "ee579a32-a048-4335-b966-231ba731cdea",
+          "oracle": "At the beginning of your upkeep, you draw a card and lose 1 life."
+        }
+      ],
+      "reuse": ["stepBegan runtime event", "drawCards", "loseLife", "EffectSequence"],
+      "missing": "LocalTriggerEventNode has no generic step-began atom yet; the parent and lowerer must preserve the controller-relative upkeep."
+    },
+    {
+      "rank": 3,
+      "concept": "controlled permanent-entry event with typed predicate feeding EffectSequence",
+      "cardsTouchedInBatch": 4,
+      "cardsCompletedIfFixedAlone": 1,
+      "runtimeRisk": "low-to-moderate",
+      "cards": [
+        {
+          "name": "Tatyova, Benthic Druid",
+          "oracleId": "0715e860-3b3b-4331-9718-207973e94fee",
+          "oracle": "Landfall — Whenever a land you control enters, you gain 1 life and draw a card."
+        }
+      ],
+      "touchedNotCompleted": ["Garruk's Uprising", "Temur Ascendancy", "Icetill Explorer"],
+      "reuse": ["controlled object query", "permanentEntered runtime event", "gainLife", "drawCards", "EffectSequence"],
+      "missing": "The existing controlled-entry recognizer is private to a specialized reflexive-counter grammar; it must become a shared event atom and accept an ability-word prefix without absorbing the body."
+    },
+    {
+      "rank": 4,
+      "concept": "target-bound possessive permanent mana value",
+      "cardsTouchedInBatch": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "runtimeRisk": "moderate",
+      "cards": [
+        {
+          "name": "Feed the Swarm",
+          "oracleId": "5825997b-10d7-4a36-972c-a80ddd90b8ed",
+          "oracle": "Destroy target creature or enchantment an opponent controls. You lose life equal to that permanent's mana value."
+        }
+      ],
+      "reuse": ["NumericExpression::ManaValueOf(TargetBinding)", "chosen target binding", "destroy", "loseLife"],
+      "missing": "The numeric child accepts only `that card's`; the parent lowerer also currently rejects target-bound numeric expressions. Runtime proof must preserve mana value after the target leaves, including token and replacement cases."
+    },
+    {
+      "rank": 5,
+      "concept": "arbitrary-permanent sacrifice activation cost followed by add-mana",
+      "cardsTouchedInBatch": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "runtimeRisk": "moderate",
+      "cards": [
+        {
+          "name": "Phyrexian Altar",
+          "oracleId": "8d02b297-97c4-4379-9862-0a462400f66f",
+          "oracle": "Sacrifice a creature: Add one mana of any color."
+        }
+      ],
+      "reuse": ["sacrifice atomic action", "object selector", "AddManaEffectNode::AnyColor"],
+      "missing": "ActivationCostSequence currently models sacrifice-self, not a chosen controlled permanent. The cost decision, legality, payment ordering, and produced-mana choice require a shared cost atom and runtime proof."
+    },
+    {
+      "rank": 6,
+      "concept": "entered-tapped event object binding followed by untap",
+      "cardsTouchedInBatch": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "runtimeRisk": "moderate",
+      "cards": [
+        {
+          "name": "Amulet of Vigor",
+          "oracleId": "dba16032-66c1-4ccb-9d65-d41ac550d182",
+          "oracle": "Whenever a permanent you control enters tapped, untap it."
+        }
+      ],
+      "reuse": ["permanentEntered", "triggeringPermanent", "untapPermanent"],
+      "missing": "The runtime permanentEntered matcher does not retain an entered-tapped qualifier. This cannot be counted as the same correction as Tatyova until event-state capture and anaphoric triggering-permanent lowering are proved."
+    }
+  ],
+  "twoOrMoreCardCandidates": [
+    {
+      "concept": "destroy a non-targeting permanent collection",
+      "cardsCompletedIfFixedAlone": 2,
+      "cards": ["Ruinous Ultimatum", "Supreme Verdict"],
+      "decision": "deferred",
+      "runtimeRisk": "high",
+      "reason": "The current engine has not certified one simultaneous destruction batch. Sequential application can change static/replacement effects before later permanents are destroyed."
+    },
+    {
+      "concept": "generic permanent-entered triggers",
+      "apparentCompleteCards": ["Amulet of Vigor", "Tatyova, Benthic Druid"],
+      "cardsCompletedByOnePreciseCorrection": 0,
+      "decision": "split",
+      "reason": "Tatyova needs a controlled Land predicate and ordinary life/draw sequence; Amulet needs an entered-tapped state snapshot plus triggering-object untap. They share an event family but not the missing semantic atom."
+    }
+  ],
+  "newRound5Cards": [
+    {
+      "name": "Goblin Welder",
+      "oracleId": "9fc28e1f-f4ea-4bf8-9442-a36dba3b3b29",
+      "completeGainFromOneSmallFix": 0,
+      "risk": "high",
+      "blockers": [
+        "two linked targets belonging to the same player",
+        "all-targets-still-legal condition at resolution",
+        "simultaneous sacrifice and graveyard-to-battlefield return"
+      ]
+    },
+    {
+      "name": "Acererak the Archlich",
+      "oracleId": "31b4e85d-89fc-4712-8f05-7ec097b1d3b6",
+      "completeGainFromOneSmallFix": 0,
+      "risk": "high",
+      "blockers": [
+        "named dungeon completion condition plus source return and venture",
+        "per-opponent token creation with an unless-sacrifice choice bound to that opponent"
+      ]
+    },
+    {
+      "name": "Skullclamp",
+      "oracleId": "65986c1b-8e51-4604-b685-d82fa7d1263a",
+      "completeGainFromOneSmallFix": 0,
+      "risk": "moderate-to-high",
+      "blockers": [
+        "continuous +1/-1 modifier bound to the equipped creature",
+        "equipped-creature died event with last-known attachment relation"
+      ],
+      "note": "The in-flight generic death event may touch the second ability but cannot complete the card by itself."
+    }
+  ],
+  "decision": "No safe exact correction completes two or more round5 cards after excluding the in-flight death work. Implement the static additionalLandPlay child next; keep mass destruction deferred and do not merge Tatyova and Amulet into an inflated event claim."
+}

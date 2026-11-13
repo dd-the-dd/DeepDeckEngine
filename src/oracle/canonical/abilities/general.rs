@@ -510,37 +510,6 @@ pub(in crate::oracle::canonical) fn parse_generalized_zone_and_combat_ability(
         ));
     }
 
-    let opponent_draw_tax_re = Regex::new(
-        r"(?i)^Whenever an opponent draws a card, that player may pay (\{[^}]+\})\. If the player doesn't, you create a (.+?) token\.(?: \(.+\))?$",
-    )
-    .expect("opponent draw payment-or-token regex compiles");
-    if matches!(ability_kind, "triggeredAbility" | "staticAbility")
-        && let Some(captures) = opponent_draw_tax_re.captures(text)
-    {
-        return Some(draft(
-            json!({
-                "kind": "triggeredAbility",
-                "source": self_ref(),
-                "event": {
-                    "kind": "cardDrawn",
-                    "opponentOfSourceController": true,
-                },
-                "effects": [{
-                    "kind": "opponentMayPayManaOrCreateToken",
-                    "player": { "kind": "triggeringPlayer" },
-                    "beneficiary": controller(),
-                    "manaCost": captures[1].to_string(),
-                    "tokenName": captures[2].trim(),
-                }],
-            }),
-            &[
-                "Watch each opponent draw",
-                "Offer the triggering player the parsed mana payment",
-                "Create the named token for the controller if unpaid",
-            ],
-        ));
-    }
-
     let landfall_destination_re = Regex::new(
         r"(?i)^(?:Landfall [^\p{L}]+ )?Whenever a land you control enters, you may return target (.+?) card from your graveyard to your hand\. If that land is a (.+?), you may return that (.+?) card to the battlefield instead\.$",
     )

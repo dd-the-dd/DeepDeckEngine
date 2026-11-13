@@ -197,7 +197,7 @@ pub(in crate::oracle::canonical) fn parse_mana_ability(text: &str) -> Option<Can
             .flatten()
             .and_then(|restriction_filter| {
                 let activates_sources_re =
-                    Regex::new(r"(?i)(?:and|or) activate abilities of (.+?) sources?\.")
+                    Regex::new(r"(?i)(?:and|or)(?: to)? activate (?:an ability|abilities) of (?:a )?(.+?) sources?\.")
                         .expect("mana activation-source restriction regex compiles");
                 if let Some(captures) = activates_sources_re.captures(effect_text) {
                     let activation_filter =

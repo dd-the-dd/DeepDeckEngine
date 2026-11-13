@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "chaos-warp/owner-bound-library-reveal-sequence-is-executable",
+  "cardName": "Chaos Warp",
+  "oracleId": "07a0cba9-8768-4fd9-a3d5-b0f83b4bf8e8",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "targetPermanent",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "permanents", "where": null }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetOwner",
+        "value": {
+          "kind": "ownerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "putPermanentOnOwnerLibrary",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "position": "top"
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "boundValue", "id": "targetOwner" }
+        }
+      },
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "boundValue", "id": "targetOwner" }
+        },
+        "count": { "kind": "integer", "value": 1 },
+        "bind": "revealedTopCard"
+      },
+      {
+        "kind": "revealCards",
+        "cards": { "kind": "boundObjects", "binding": "revealedTopCard" }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "filterObjects",
+          "objects": { "kind": "boundObjects", "binding": "revealedTopCard" },
+          "where": { "kind": "isPermanentCard" }
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "boundValue", "id": "targetOwner" },
+          "tapped": false
+        }
+      }
+    ]
+  }
+}

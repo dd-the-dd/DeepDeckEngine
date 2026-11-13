@@ -220,7 +220,8 @@ pub(in crate::oracle::canonical) fn parse_counted_draw(instruction: &str) -> Opt
 pub(in crate::oracle::canonical) fn parse_put_counter(instruction: &str) -> Option<PutCounter<'_>> {
     let instruction = strip_suffix_ascii_case(instruction.trim(), ".")?;
     let instruction = strip_prefix_ascii_case(instruction, "Put ")?;
-    let (quantity_and_counter, recipient) = split_once_ascii_case(instruction, " counter on ")?;
+    let (quantity_and_counter, recipient) = split_once_ascii_case(instruction, " counter on ")
+        .or_else(|| split_once_ascii_case(instruction, " counters on "))?;
     let (count, counter) = parse_quantity_prefix(quantity_and_counter)?;
     let recipient = if strip_prefix_ascii_case(recipient, "this ").is_some() {
         CounterRecipient::Source
@@ -344,22 +345,6 @@ pub(in crate::oracle::canonical) fn parse_class_level(text: &str) -> Option<(&st
     let (cost, level) = split_once_ascii_case(text, ": Level ")?;
     let level = parse_number_word(level)?;
     (level >= 2).then_some((cost, level))
-}
-
-pub(in crate::oracle::canonical) fn parse_library_search_to_battlefield(
-    instruction: &str,
-) -> Option<(&str, bool)> {
-    let instruction = strip_prefix_ascii_case(instruction, "Search your library for ")?;
-    let (description, destination) = split_once_ascii_case(instruction, " card, put it ")?;
-    let destination = strip_suffix_ascii_case(destination, ", then shuffle.")?;
-    let tapped = if destination.eq_ignore_ascii_case("onto the battlefield tapped") {
-        true
-    } else if destination.eq_ignore_ascii_case("onto the battlefield") {
-        false
-    } else {
-        return None;
-    };
-    Some((description, tapped))
 }
 
 pub(in crate::oracle::canonical) fn parse_random_graveyard_card_return(

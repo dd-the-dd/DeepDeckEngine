@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "three-visits/forest-search-untapped-is-executable",
+  "cardName": "Three Visits",
+  "oracleId": "1b882a0e-0ede-4d1a-bd1a-9b7cffbcde8e",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": { "kind": "subtypeContains", "value": "Forest" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/d7644325-8a0f-4f40-bab6-518df7ac1d14/complete-rule-set",
+    "cardName":  "Soulscour",
+    "oracleId":  "d7644325-8a0f-4f40-bab6-518df7ac1d14",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "not",
+                                                                          "operand":  {
+                                                                                          "kind":  "cardTypeContains",
+                                                                                          "value":  "Artifact"
+                                                                                      }
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

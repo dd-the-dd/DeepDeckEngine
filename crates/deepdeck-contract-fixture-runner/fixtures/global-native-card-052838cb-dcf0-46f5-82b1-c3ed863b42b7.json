@@ -1,0 +1,36 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/052838cb-dcf0-46f5-82b1-c3ed863b42b7/complete-rule-set",
+    "cardName":  "Devastation",
+    "oracleId":  "052838cb-dcf0-46f5-82b1-c3ed863b42b7",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "or",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Land"
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

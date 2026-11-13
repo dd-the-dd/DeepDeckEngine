@@ -1,0 +1,322 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ghost-vacuum-exiles-links-and-returns-only-its-linked-creatures",
+  "seed": 84,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{6}" },
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "effects": [{
+      "kind": "moveCards",
+      "cards": {
+        "kind": "filterObjects",
+        "objects": { "kind": "cardsExiledWithSource" },
+        "where": { "kind": "cardTypeContains", "value": "Creature" }
+      },
+      "to": {
+        "kind": "battlefield",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "tapped": false,
+        "enterWithCounters": [{
+          "counter": "flying",
+          "count": { "kind": "integer", "value": 1 }
+        }],
+        "addTypes": ["Creature"],
+        "addSubtypes": ["Spirit"],
+        "basePower": { "kind": "integer", "value": 1 },
+        "baseToughness": { "kind": "integer", "value": 1 },
+        "retainExistingTypes": true
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ghost Vacuum pilot",
+        "manaPool": ["C", "C", "C", "C", "C", "C"],
+        "battlefield": [
+          {
+            "id": "ghost-vacuum",
+            "name": "Ghost Vacuum",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [{
+                    "id": "targetGraveyardCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": { "kind": "anyGraveyard" },
+                      "where": null
+                    }
+                  }]
+                },
+                "effects": [{
+                  "kind": "exileTargetCardWithSource",
+                  "card": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
+                  "source": { "kind": "self" },
+                  "fromZone": "graveyard"
+                }]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "payMana", "manaCost": "{6}" },
+                  { "kind": "tap", "object": { "kind": "self" } },
+                  { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+                ],
+                "activationCondition": { "kind": "sorceryTiming" },
+                "effects": [{
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "filterObjects",
+                    "objects": { "kind": "cardsExiledWithSource" },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "tapped": false,
+                    "enterWithCounters": [{
+                      "counter": "flying",
+                      "count": { "kind": "integer", "value": 1 }
+                    }],
+                    "addTypes": ["Creature"],
+                    "addSubtypes": ["Spirit"],
+                    "basePower": { "kind": "integer", "value": 1 },
+                    "baseToughness": { "kind": "integer", "value": 1 },
+                    "retainExistingTypes": true
+                  }
+                }]
+              }
+            ]
+          },
+          {
+            "id": "other-vacuum",
+            "name": "Other Linked Exiler",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetGraveyardCard",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": { "kind": "anyGraveyard" },
+                    "where": null
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "exileTargetCardWithSource",
+                "card": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
+                "source": { "kind": "self" },
+                "fromZone": "graveyard"
+              }]
+            }]
+          },
+          {
+            "id": "untap-helper-a",
+            "name": "Untap Helper A",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Artifact" },
+                    "excludeSource": true
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "untapPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+              }]
+            }]
+          },
+          {
+            "id": "untap-helper-b",
+            "name": "Untap Helper B",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Artifact" },
+                    "excludeSource": true
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "untapPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+              }]
+            }]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "graveyard": [
+          {
+            "id": "linked-creature",
+            "name": "Linked Creature",
+            "typeLine": "Creature - Beast",
+            "power": "7",
+            "toughness": "6"
+          },
+          {
+            "id": "linked-instant",
+            "name": "Linked Instant",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "foreign-linked-creature",
+            "name": "Foreign Linked Creature",
+            "typeLine": "Creature - Elf",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "other-vacuum",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetGraveyardCard": {
+          "kind": "cardDefinition",
+          "definitionId": "foreign-linked-creature"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "ghost-vacuum",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetGraveyardCard": {
+          "kind": "cardDefinition",
+          "definitionId": "linked-creature"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "untap-helper-a",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "ghost-vacuum"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "ghost-vacuum",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetGraveyardCard": {
+          "kind": "cardDefinition",
+          "definitionId": "linked-instant"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "untap-helper-b",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "ghost-vacuum"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "ghost-vacuum",
+      "abilityRuleIndex": 1
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "ghost-vacuum", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "linked-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "linked-creature", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "linked-instant", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "foreign-linked-creature", "equals": true },
+    { "kind": "permanentController", "playerId": "player-0", "definitionId": "linked-creature", "equals": "player-0" },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "linked-creature", "value": "Creature", "equals": true },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "linked-creature", "value": "Beast", "equals": true },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "linked-creature", "value": "Spirit", "equals": true },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "linked-creature", "power": 1, "toughness": 1 },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "linked-creature", "counter": "flying", "equals": 1 },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "other-vacuum", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "untap-helper-a", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "untap-helper-b", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "eventCount", "eventKind": "cardExiledWithSource", "equals": 3 },
+    { "kind": "eventCount", "eventKind": "permanentLeftBattlefield", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

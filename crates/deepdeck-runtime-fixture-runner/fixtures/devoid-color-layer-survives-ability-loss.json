@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "devoid-color-layer-remains-colorless-after-ability-loss",
+  "seed": 101111,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability suppressor controller",
+        "hand": [{
+          "id": "state-probe",
+          "name": "State Probe",
+          "typeLine": "Sorcery",
+          "manaCost": "{0}",
+          "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+        }],
+        "battlefield": [{
+          "id": "ability-suppressor",
+          "name": "Ability Suppressor",
+          "typeLine": "Enchantment",
+          "manaCost": "{2}",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "loseAllAbilities",
+              "objects": {
+                "kind": "permanents",
+                "where": { "kind": "nameEquals", "value": "Layered Devoid Creature" }
+              }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "layered-devoid-creature",
+          "name": "Layered Devoid Creature",
+          "typeLine": "Creature — Test",
+          "manaCost": "{U}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [{
+            "kind": "keywordAbility",
+            "source": { "kind": "self" },
+            "ability": { "kind": "devoid" }
+          }]
+        }]
+      }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "state-probe", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-1", "definitionId": "layered-devoid-creature", "keyword": "devoid", "equals": false },
+    { "kind": "permanentColorSymbol", "playerId": "player-1", "definitionId": "layered-devoid-creature", "symbol": "U", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "layered-devoid-creature", "equals": true }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "earthbender-ascension-entry-earthbends-then-searches",
+  "seed": 14101,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "earthbendLand0",
+        "kind": "chooseTargets",
+        "candidates": {
+          "kind": "permanents",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "cardTypeContains", "value": "Land" }
+        },
+        "minimum": 1,
+        "maximum": 1
+      }]
+    },
+    "effects": [
+      {
+        "kind": "becomeCreature",
+        "object": { "kind": "chosenTarget", "id": "earthbendLand0" },
+        "addTypes": ["Creature"],
+        "addSubtypes": [],
+        "basePower": { "kind": "integer", "value": 0 },
+        "baseToughness": { "kind": "integer", "value": 0 },
+        "retainExistingTypes": true,
+        "duration": { "kind": "permanent" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": { "kind": "chosenTarget", "id": "earthbendLand0" },
+        "keyword": "haste",
+        "duration": { "kind": "permanent" }
+      },
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "chosenTarget", "id": "earthbendLand0" },
+        "counter": "+1/+1",
+        "count": { "kind": "integer", "value": 2 }
+      },
+      {
+        "kind": "installDelayedZoneChangeTrigger",
+        "trackedObject": { "kind": "chosenTarget", "id": "earthbendLand0" },
+        "controller": { "kind": "abilityController" },
+        "destinations": ["graveyard", "exile"],
+        "effects": [{
+          "kind": "moveTriggeringCard",
+          "from": { "kind": "triggeringDestination" },
+          "to": "battlefield",
+          "controller": { "kind": "abilityController" },
+          "tapped": true
+        }]
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "earthbend",
+        "player": { "kind": "abilityController" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Earthbender controller",
+        "manaPool": ["C", "C", "G"],
+        "battlefield": [
+          { "id": "training-ground", "name": "Training Ground", "typeLine": "Land" }
+        ],
+        "hand": [
+          { "id": "earthbender-ascension", "name": "Earthbender Ascension", "typeLine": "Enchantment", "manaCost": "{2}{G}" }
+        ],
+        "library": [
+          { "id": "basic-forest", "name": "Forest", "typeLine": "Basic Land - Forest" },
+          { "id": "irrelevant-spell", "name": "Irrelevant Spell", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "earthbender-ascension" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "earthbender-ascension", "equals": true },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "training-ground", "value": "Creature", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "training-ground", "keyword": "haste", "equals": true },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "training-ground", "counter": "+1/+1", "equals": 2 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "basic-forest", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "basic-forest", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "irrelevant-spell", "equals": true },
+    { "kind": "eventCount", "eventKind": "delayedZoneChangeTriggerInstalled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "abilityPerformed", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

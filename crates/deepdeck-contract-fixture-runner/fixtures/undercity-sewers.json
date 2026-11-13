@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "undercity-sewers/all-native-rules-are-executable",
+  "cardName": "Undercity Sewers",
+  "oracleId": "08d80efc-9542-4ba2-824c-c8615d8d07f2",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{U}", "{B}"] }
+        }
+      ]
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "replacement": [
+        {
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }
+      ]
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+      "effects": [
+        {
+          "kind": "surveil",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": { "kind": "integer", "value": 1 }
+        },
+        {
+          "kind": "emitAbilitySignal",
+          "abilityId": "surveil",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    }
+  ]
+}

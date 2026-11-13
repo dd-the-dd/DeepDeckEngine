@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "additional-discard/Magmatic-Insight-exact-filtered-payment",
+  "cardName": "Magmatic Insight",
+  "oracleId": "6a9031b6-3f4d-4a36-90e1-ac77b8518cee",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "kind": "chooseObjects",
+            "id": "additionalCostCard",
+            "candidates": {
+              "kind": "cards",
+              "zone": {
+                "kind": "hand",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            },
+            "quantity": {
+              "kind": "exactly",
+              "value": {
+                "kind": "integer",
+                "value": 1
+              }
+            }
+          }
+        ],
+        "additionalCosts": [
+          {
+            "kind": "discardCard",
+            "card": {
+              "kind": "chosenObject",
+              "id": "additionalCostCard"
+            }
+          }
+        ]
+      },
+      "effects": []
+    },
+    {
+      "effects": [
+        {
+          "count": {
+            "kind": "integer",
+            "value": 2
+          },
+          "kind": "drawCards",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      ],
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      }
+    }
+  ]
+}

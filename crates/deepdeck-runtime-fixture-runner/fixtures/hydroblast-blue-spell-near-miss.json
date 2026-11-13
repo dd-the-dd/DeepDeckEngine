@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hydroblast-counter-mode-targets-but-does-not-counter-a-blue-spell",
+  "seed": 6301,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "minimum": 1,
+          "maximum": { "kind": "integer", "value": 1 },
+          "options": ["mode1", "mode2"],
+          "allowRepeated": false
+        },
+        {
+          "id": "mode1:targetStackObject",
+          "kind": "chooseTargets",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode1"
+          },
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "spells" }
+        },
+        {
+          "id": "mode2:targetPermanent",
+          "kind": "chooseTargets",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode2"
+          },
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "permanents", "where": null }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode1"
+        },
+        "then": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "mode1:targetStackObject" },
+            "where": { "kind": "colorContains", "value": "Red" }
+          },
+          "then": [{
+            "kind": "counterStackObject",
+            "object": { "kind": "chosenTarget", "id": "mode1:targetStackObject" }
+          }]
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode2"
+        },
+        "then": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "mode2:targetPermanent" },
+            "where": { "kind": "colorContains", "value": "Red" }
+          },
+          "then": [{
+            "kind": "destroyPermanent",
+            "permanent": { "kind": "chosenTarget", "id": "mode2:targetPermanent" }
+          }]
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Hydroblast pilot",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "hydroblast",
+          "name": "Hydroblast",
+          "typeLine": "Instant",
+          "manaCost": "{U}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Blue spell controller",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "blue-spell",
+          "name": "Blue Test Spell",
+          "typeLine": "Instant",
+          "manaCost": "{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "blue-spell" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "hydroblast" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "blue-spell",
+      "equals": false
+    },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 0 },
+    { "kind": "stackDepth", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1849,14 +1849,6 @@ pub(in crate::oracle::canonical) fn parse_azula_triggered_ability(
             "volcanoOfRokuMountain",
         ));
     }
-    if text.starts_with(
-        "Whenever an opponent searches their library, put a +1/+1 counter on Wan Shi Tong",
-    ) {
-        return Some(operation(
-            json!({ "kind": "librarySearched", "anyPlayer": true }),
-            "wanShiTongSearch",
-        ));
-    }
     if text.starts_with("Whenever Ragavan deals combat damage to a player, create a Treasure token")
     {
         return Some(operation(
@@ -1958,10 +1950,6 @@ pub(in crate::oracle::canonical) fn parse_azula_triggered_ability(
             "fireLordSozinCombat",
         ));
     }
-    if text.starts_with("When this Equipment enters, attach it to target creature you control.") {
-        return Some(operation(enter_self(), "twinBladesEnter"));
-    }
-
     if text.starts_with("Whenever Azula attacks, you lose 1 life and create a Clue token.") {
         return Some(triggered(
             json!({ "kind": "declaredAttacker", "object": self_ref() }),
@@ -3416,17 +3404,6 @@ pub(in crate::oracle::canonical) fn parse_special_triggered_ability(
                 vec!["haste"],
             ))
         }
-        "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")" => {
-            Some((
-                "anotherCreatureYouControl",
-                1,
-                "Treasure",
-                0,
-                0,
-                vec![],
-                vec![],
-            ))
-        }
         "When this creature dies, create a 1/1 black and green Insect creature token with flying." => {
             Some((
                 "thisCreature",
@@ -4103,41 +4080,6 @@ pub(in crate::oracle::canonical) fn parse_special_triggered_ability(
         ));
     }
 
-    if text
-        == "Whenever this creature attacks, you may exile eight cards from your graveyard. If you do, this creature becomes prepared."
-    {
-        return Some(draft(
-            json!({
-                "kind": "triggeredAbility",
-                "source": self_ref(),
-                "event": {
-                    "kind": "declaredAttacker",
-                    "object": self_ref(),
-                },
-                "effects": [{
-                    "kind": "optionalAction",
-                    "player": controller(),
-                    "action": {
-                        "kind": "exileCards",
-                        "count": 8,
-                        "from": graveyard(controller()),
-                    },
-                    "onPerformed": [{
-                        "kind": "setPrepared",
-                        "object": self_ref(),
-                        "value": true,
-                    }],
-                }],
-            }),
-            &[
-                "Resolve declared-attacker event",
-                "Resolve optional exact-eight-card exile",
-                "Attach if-performed branch",
-                "Resolve prepared vocabulary",
-            ],
-        ));
-    }
-
     if text == "When this land enters, choose a land card name." {
         return Some(draft(
             json!({
@@ -4661,16 +4603,6 @@ pub(in crate::oracle::canonical) fn parse_avatar_deck_trigger(
             });
             Some(rule)
         }
-        "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is this creature's power." => {
-            Some(operation(
-                json!({
-                    "kind": "spellCast",
-                    "anyPlayer": true,
-                    "where": not(card_type("Creature")),
-                }),
-                "esperSentinelTaxDraw",
-            ))
-        }
         "When this Vehicle enters, exile target player's graveyard." => {
             Some(operation(enter_self(), "nautiloidExileGraveyard"))
         }
@@ -5168,18 +5100,6 @@ pub(in crate::oracle::canonical) fn parse_simple_triggered_ability(
         ));
     }
     if text
-        == "When this enchantment enters, earthbend 2. Then search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
-    {
-        let mut effects = vec![earthbend_effect("earthbendLand", integer(2))];
-        effects.extend(search_library_effects(
-            json!({ "kind": "typeLineContains", "value": "Basic Land" }),
-            1,
-            "battlefield",
-            true,
-        ));
-        return Some(triggered(enter_event, effects));
-    }
-    if text
         == "Whenever equipped creature deals combat damage to a player, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")"
     {
         return Some(triggered(
@@ -5233,12 +5153,15 @@ pub(in crate::oracle::canonical) fn parse_simple_triggered_ability(
                 "kind": "optionalAction",
                 "player": controller(),
                 "action": {
-                    "kind": "drawThenDiscard",
+                    "kind": "drawCards",
                     "player": controller(),
-                    "drawCount": integer(2),
-                    "discardCount": integer(1),
+                    "count": integer(2),
                 },
-                "onPerformed": [],
+                "onPerformed": [{
+                    "kind": "discardCards",
+                    "player": controller(),
+                    "count": integer(1),
+                }],
             })],
         ));
     }
@@ -5902,19 +5825,6 @@ pub(in crate::oracle::canonical) fn parse_common_triggered_ability(
                     "Create a 3/3 colorless Golem artifact creature token with trample.",
                 )?,
             ],
-        ));
-    }
-
-    if text == "When this Spacecraft enters, draw two cards, then discard a card." {
-        return Some(triggered(
-            enter_event.clone(),
-            None,
-            vec![json!({
-                "kind": "drawThenDiscard",
-                "player": controller(),
-                "drawCount": integer(2),
-                "discardCount": integer(1),
-            })],
         ));
     }
 
@@ -7277,15 +7187,6 @@ pub(in crate::oracle::canonical) fn parse_remaining_deck_trigger(
                     "player": controller(),
                 }),
                 "targetOpponentDrainTwo",
-            ))
-        }
-        "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life." => {
-            Some(operation(
-                json!({
-                    "kind": "permanentDied",
-                    "where": card_type("Creature"),
-                }),
-                "targetPlayerDrainOne",
             ))
         }
         "Whenever one or more creatures you control deal combat damage to a player, you draw a card and lose 1 life." => {

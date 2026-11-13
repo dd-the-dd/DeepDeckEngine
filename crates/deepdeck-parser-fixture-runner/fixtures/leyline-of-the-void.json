@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "leyline-of-the-void/opening-hand-and-graveyard-replacement",
+  "cardName": "Leyline of the Void",
+  "oracleId": "f4e32fc1-1b8d-441e-8e76-71f19f98e925",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Leyline of the Void",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "If this card is in your opening hand, you may begin the game with it on the battlefield.\nIf a card would be put into an opponent's graveyard from anywhere, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "keywordAbility" },
+              { "pointer": "/source/kind", "equals": "self" },
+              { "pointer": "/ability/kind", "equals": "openingHandBattlefield" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "staticAbility" },
+              { "pointer": "/activeWhile/zone/kind", "equals": "battlefield" },
+              { "pointer": "/modifiers/0/kind", "equals": "replaceGraveyardDestination" },
+              { "pointer": "/modifiers/0/graveyardOwners/kind", "equals": "opponentsOf" },
+              { "pointer": "/modifiers/0/where/kind", "equals": "not" },
+              { "pointer": "/modifiers/0/where/operand/kind", "equals": "isToken" },
+              { "pointer": "/modifiers/0/from/kind", "equals": "anyZone" },
+              { "pointer": "/modifiers/0/to/kind", "equals": "exile" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "linked-name-and-pronoun-sibling",
+      "request": {
+        "cardName": "Quicksilver, Brash Blur",
+        "typeLine": "Legendary Creature - Human Hero",
+        "manaCost": "{2}{U}",
+        "oracleText": "If Quicksilver, Brash Blur is in your opening hand, you may begin the game with him on the battlefield.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "keywordAbility",
+          "ruleAssertions": [
+            { "pointer": "/ability/kind", "equals": "openingHandBattlefield" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unsupported-destination-near-miss",
+      "request": {
+        "cardName": "Malformed Leyline",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "If this card is in your opening hand, you may begin the game with it in your graveyard.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "opening-hand-battlefield",
+          "state": "pregame.opening-hand.destination-relation",
+          "found": "in"
+        }]
+      }
+    }
+  ]
+}

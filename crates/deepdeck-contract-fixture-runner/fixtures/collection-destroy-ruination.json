@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/nonbasic-land-qualifier-is-executable",
+  "cardName": "Ruination",
+  "oracleId": "59dbc873-72d9-4e7b-9442-2c7b8e8523e1",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "not", "operand": { "kind": "typeLineContains", "value": "Basic" } },
+            { "kind": "cardTypeContains", "value": "Land" }
+          ]
+        }
+      }
+    }]
+  }
+}

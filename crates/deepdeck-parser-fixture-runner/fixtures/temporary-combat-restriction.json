@@ -1,0 +1,430 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "temporary-combat-restriction/activated-effect-sequence",
+  "cardName": "Rogue's Passage",
+  "oracleId": "f29dc596-2121-4421-8463-15f6c2e8b9b3",
+  "cases": [
+    {
+      "id": "exact-rogues-passage",
+      "request": {
+        "cardName": "Rogue's Passage",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{4}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cant-attack-until-next-turn-sibling",
+      "request": {
+        "cardName": "Twisted Lock",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Target creature can't attack until your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "cantAttack"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilNextTurn"
+              },
+              {
+                "pointer": "/effects/0/duration/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-escape-tunnel-power-qualified-target",
+      "request": {
+        "cardName": "Escape Tunnel",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\n{T}, Sacrifice this land: Target creature with power 2 or less can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "tap"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "and"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/kind",
+                "equals": "powerOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/object/kind",
+                "equals": "candidate"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/right/kind",
+                "equals": "integer"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/right/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "cantBeBlocked"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cant-block-qualified-target-sibling",
+      "request": {
+        "cardName": "Skirmish Gate",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Target creature with power 2 or less can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "cantBlock"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "and"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/kind",
+                "equals": "powerOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "toughness-qualified-target-sibling",
+      "request": {
+        "cardName": "Bulwark Gate",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Target creature with toughness 3 or greater can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/kind",
+                "equals": "toughnessOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/right/value",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "malformed-threshold-keeps-structured-unpromoted-diagnostic",
+      "request": {
+        "cardName": "Malformed Tunnel",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Target creature with power enormous can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "activated-combat-restriction",
+            "state": "numeric.atom.start",
+            "found": "enormous"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multi-target-collection-is-not-lowered-as-one-scalar",
+      "request": {
+        "cardName": "Malformed Passage",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{4}, {T}: Two target creatures can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "activated-combat-restriction",
+            "state": "lower.keyword-grant.scalar-target",
+            "expectedContains": "scalar target slot"
+          }
+        ]
+      }
+    },
+    {
+      "id": "noncombat-prohibition-stays-outside-family",
+      "request": {
+        "cardName": "Malformed Passage",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{4}, {T}: Target creature can't activate abilities this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "target-list.complete",
+            "expectedContains": "exactly one target player",
+            "found": "can't"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-combat-duration-remains-structured",
+      "request": {
+        "cardName": "Malformed Passage",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{4}, {T}: Target creature can't be blocked this combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "activated-combat-restriction",
+            "state": "duration.until-end-of-turn.unit",
+            "found": "combat"
+          }
+        ]
+      }
+    }
+  ]
+}

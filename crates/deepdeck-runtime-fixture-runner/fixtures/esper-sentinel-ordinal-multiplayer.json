@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "esper-sentinel-filters-and-counts-first-spell-per-opponent",
+  "seed": 143,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "spellCast",
+      "opponentOfSourceController": true,
+      "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } },
+      "spellCastOrdinal": { "kind": "integer", "value": 1 }
+    },
+    "effects": [{
+      "kind": "optionalPayCostPerformEffects",
+      "player": { "kind": "triggeringPlayer" },
+      "cost": { "kind": "payMana", "genericAmount": { "kind": "powerOf", "object": { "kind": "self" } } },
+      "effects": [],
+      "declineEffects": [{
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sentinel controller",
+        "library": [
+          { "id": "draw-a", "name": "Draw A", "typeLine": "Land" },
+          { "id": "draw-b", "name": "Draw B", "typeLine": "Land" }
+        ],
+        "battlefield": [{
+          "id": "esper-sentinel",
+          "name": "Esper Sentinel",
+          "typeLine": "Artifact Creature — Human Soldier",
+          "manaCost": "{W}",
+          "power": "1",
+          "toughness": "1",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "spellCast",
+              "opponentOfSourceController": true,
+              "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } },
+              "spellCastOrdinal": { "kind": "integer", "value": 1 }
+            },
+            "effects": [{
+              "kind": "optionalPayCostPerformEffects",
+              "player": { "kind": "triggeringPlayer" },
+              "cost": { "kind": "payMana", "genericAmount": { "kind": "powerOf", "object": { "kind": "self" } } },
+              "effects": [],
+              "declineEffects": [{
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "First opponent",
+        "hand": [
+          {
+            "id": "creature-first",
+            "name": "Creature First",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          },
+          { "id": "qualifying-first", "name": "Qualifying First", "typeLine": "Sorcery", "manaCost": "{0}", "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }] },
+          { "id": "qualifying-second", "name": "Qualifying Second", "typeLine": "Instant", "manaCost": "{0}", "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }] }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Second opponent",
+        "hand": [{ "id": "other-opponent-first", "name": "Other Opponent First", "typeLine": "Instant", "manaCost": "{0}", "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }] }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "creature-first" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "qualifying-first" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "qualifying-second" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-2", "sourceDefinitionId": "other-opponent-first" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 2 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 0 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

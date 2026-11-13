@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger/phase-trigger-effect-sequence",
+  "cases": [
+    {
+      "id": "exact-phyrexian-arena",
+      "request": { "cardName": "Phyrexian Arena", "typeLine": "Enchantment", "manaCost": "{1}{B}{B}", "oracleText": "At the beginning of your upkeep, you draw a card and lose 1 life.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "success", "cardStatus": "canonical", "abilityCount": 1,
+        "abilities": [{
+          "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility",
+          "rule": {
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": { "kind": "stepBegan", "step": "upkeep", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+            "effects": [
+              { "kind": "drawCards", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "count": { "kind": "integer", "value": 1 } },
+              { "kind": "loseLife", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "amount": { "kind": "integer", "value": 1 } }
+            ]
+          }
+        }]
+      }
+    },
+    {
+      "id": "opponent-draw-step-scope",
+      "request": { "cardName": "Opponent Draw Observer", "typeLine": "Enchantment", "manaCost": "{2}{W}", "oracleText": "At the beginning of each opponent’s draw step, you gain 1 life.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "success", "cardStatus": "canonical", "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [
+          { "pointer": "/event/step", "equals": "draw" },
+          { "pointer": "/event/player/kind", "equals": "opponentsOf" },
+          { "pointer": "/effects/0/kind", "equals": "gainLife" }
+        ] }]
+      }
+    },
+    {
+      "id": "combat-on-your-turn-sibling",
+      "request": { "cardName": "Combat Observer", "typeLine": "Enchantment", "manaCost": "{2}{R}", "oracleText": "At the beginning of combat on your turn, draw a card.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "success", "cardStatus": "canonical", "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [
+          { "pointer": "/event/step", "equals": "beginCombat" },
+          { "pointer": "/event/player/kind", "equals": "controllerOf" }
+        ] }]
+      }
+    },
+    {
+      "id": "first-main-remains-precombat-main",
+      "request": { "cardName": "First Main Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of your first main phase, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "precombatMain" }] }] }
+    },
+    {
+      "id": "literal-postcombat-main-sibling",
+      "request": { "cardName": "Postcombat Main Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of your postcombat main phase, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "postcombatMain" }] }] }
+    },
+    {
+      "id": "each-upkeep-scope",
+      "request": { "cardName": "Each Upkeep Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of each upkeep, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "upkeep" }, { "pointer": "/event/player/kind", "equals": "eachPlayer" }] }] }
+    },
+    {
+      "id": "the-end-step-scope",
+      "request": { "cardName": "The End Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of the end step, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "endStep" }, { "pointer": "/event/player/kind", "equals": "eachPlayer" }] }] }
+    },
+    {
+      "id": "each-end-step-scope",
+      "request": { "cardName": "Each End Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of each end step, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "endStep" }, { "pointer": "/event/player/kind", "equals": "eachPlayer" }] }] }
+    },
+    {
+      "id": "each-combat-scope",
+      "request": { "cardName": "Each Combat Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of each combat, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "success", "cardStatus": "canonical", "abilityCount": 1, "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [{ "pointer": "/event/step", "equals": "beginCombat" }, { "pointer": "/event/player/kind", "equals": "eachPlayer" }] }] }
+    },
+    {
+      "id": "optional-target-declaration-stays-outside-wrapper",
+      "request": { "cardName": "End Step Purifier", "typeLine": "Enchantment", "manaCost": "{2}{W}", "oracleText": "At the beginning of your end step, you may destroy target artifact.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "success", "cardStatus": "canonical", "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "canonical", "recognizer": "native", "abilityType": "triggeredAbility", "ruleAssertions": [
+          { "pointer": "/declaration/decisions/0/kind", "equals": "chooseTargets" },
+          { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent" },
+          { "pointer": "/effects/0/kind", "equals": "optionalEffects" },
+          { "pointer": "/effects/0/effects/0/kind", "equals": "destroyPermanent" },
+          { "pointer": "/effects/0/effects/0/permanent/id", "equals": "targetPermanent" }
+        ] }]
+      }
+    },
+    {
+      "id": "missing-comma-is-not-claimed",
+      "request": { "cardName": "Missing Separator", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1, "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "unclaimed", "abilityType": "triggeredAbility" }], "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }] }
+    },
+    {
+      "id": "compound-temporal-header-is-not-claimed",
+      "request": { "cardName": "Compound Temporal Probe", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep and whenever a creature enters, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1, "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "unclaimed", "abilityType": "triggeredAbility" }], "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }] }
+    },
+    {
+      "id": "condition-head-remains-unclaimed",
+      "request": { "cardName": "Conditional Upkeep Probe", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep, if you control a creature, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1, "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "unclaimed", "abilityType": "triggeredAbility" }], "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }] }
+    },
+    {
+      "id": "once-only-suffix-remains-unclaimed",
+      "request": { "cardName": "Limited Upkeep Probe", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep, draw a card. This ability triggers only once each turn.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1, "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "unclaimed", "abilityType": "triggeredAbility" }], "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }] }
+    },
+    {
+      "id": "second-main-ordinal-remains-unclaimed",
+      "request": { "cardName": "Second Main Observer", "typeLine": "Enchantment", "manaCost": "{2}{U}", "oracleText": "At the beginning of your second main phase, draw a card.", "layout": "normal", "faces": [] },
+      "expect": { "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1, "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "unclaimed", "abilityType": "triggeredAbility" }], "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }] }
+    },
+    {
+      "id": "committed-malformed-draw-is-explicit-failure",
+      "request": { "cardName": "Malformed Upkeep Probe", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep, you draw target card.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "triggeredAbility" }],
+        "diagnostics": [{ "abilityIndex": 0, "code": "oracle_machine_failure", "automaton": "phase-trigger-sequence", "state": "numeric.atom.start", "found": "target" }]
+      }
+    },
+    {
+      "id": "wide-optional-scope-is-explicit-failure",
+      "request": { "cardName": "Wide Optional Probe", "typeLine": "Enchantment", "manaCost": "{1}{U}", "oracleText": "At the beginning of your upkeep, you may draw a card and gain 1 life.", "layout": "normal", "faces": [] },
+      "expect": {
+        "outcome": "failure", "cardStatus": "unsupported", "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "triggeredAbility" }],
+        "diagnostics": [{ "abilityIndex": 0, "code": "oracle_machine_failure", "automaton": "phase-trigger-sequence", "state": "trigger.phase.optional-scope", "expectedContains": "exactly one atomic effect" }]
+      }
+    }
+  ]
+}

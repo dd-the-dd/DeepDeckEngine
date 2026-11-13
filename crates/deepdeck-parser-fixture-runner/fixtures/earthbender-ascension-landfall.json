@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "earthbender-ascension/labeled-entry-reflexive-counter",
+  "cardName": "Earthbender Ascension",
+  "oracleId": "f8966fd5-2926-4ba0-b7d6-cfea40cd4e05",
+  "cases": [
+    {
+      "id": "exact-earthbender-ascension-landfall-ability",
+      "request": {
+        "cardName": "Earthbender Ascension",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this enchantment enters, earthbend 2. Then search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nLandfall \u2014 Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/event/kind", "equals": "enterBattlefield" },
+              { "pointer": "/declaration/decisions/0/id", "equals": "earthbendLand0" },
+              { "pointer": "/declaration/decisions/0/candidates/where/value", "equals": "Land" },
+              { "pointer": "/effects/0/kind", "equals": "becomeCreature" },
+              { "pointer": "/effects/1/kind", "equals": "grantKeyword" },
+              { "pointer": "/effects/1/keyword", "equals": "haste" },
+              { "pointer": "/effects/2/kind", "equals": "putCounters" },
+              { "pointer": "/effects/2/count/value", "equals": 2 },
+              { "pointer": "/effects/3/kind", "equals": "installDelayedZoneChangeTrigger" },
+              { "pointer": "/effects/4/kind", "equals": "emitAbilitySignal" },
+              { "pointer": "/effects/4/abilityId", "equals": "earthbend" },
+              { "pointer": "/effects/5/kind", "equals": "chooseCards" },
+              { "pointer": "/effects/5/candidates/where/kind", "equals": "and" },
+              { "pointer": "/effects/6/kind", "equals": "moveCards" },
+              { "pointer": "/effects/6/to/tapped", "equals": true },
+              { "pointer": "/effects/7/kind", "equals": "shuffleZone" },
+              { "pointer": "/effects/8/kind", "equals": "recordLibrarySearch" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/event/kind", "equals": "permanentEntered" },
+              { "pointer": "/event/where/value", "equals": "Land" },
+              { "pointer": "/effects/0/kind", "equals": "putCounters" },
+              { "pointer": "/effects/0/counter", "equals": "quest" },
+              { "pointer": "/effects/0/count/value", "equals": 1 },
+              { "pointer": "/effects/0/bind", "equals": "antecedentCountersPlaced" },
+              { "pointer": "/effects/1/kind", "equals": "conditionalEffect" },
+              { "pointer": "/effects/1/condition/left/kind", "equals": "boundValue" },
+              { "pointer": "/effects/1/then/0/kind", "equals": "createReflexiveTrigger" },
+              { "pointer": "/effects/1/then/0/ability/condition/operator", "equals": ">=" },
+              { "pointer": "/effects/1/then/0/ability/condition/left/kind", "equals": "countCounters" },
+              { "pointer": "/effects/1/then/0/ability/condition/left/counter", "equals": "quest" },
+              { "pointer": "/effects/1/then/0/ability/declaration/decisions/0/candidates/controller/kind", "equals": "controllerOf" },
+              { "pointer": "/effects/1/then/0/ability/effects/0/counter", "equals": "+1/+1" },
+              { "pointer": "/effects/1/then/0/ability/effects/1/kind", "equals": "grantKeyword" },
+              { "pointer": "/effects/1/then/0/ability/effects/1/keyword", "equals": "trample" },
+              { "pointer": "/effects/1/then/0/ability/effects/1/duration/kind", "equals": "untilEndOfCurrentTurn" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generalized-artifact-charge-shield-flying-sibling",
+      "request": {
+        "cardName": "Generalized Counter Engine",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Revolt \u2014 Whenever an artifact you control enters, put two charge counters on this artifact. When you do, if it has three or fewer charge counters on it, put a shield counter on target artifact creature you control. It gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/event/where/value", "equals": "Artifact" },
+              { "pointer": "/effects/0/counter", "equals": "charge" },
+              { "pointer": "/effects/0/count/value", "equals": 2 },
+              { "pointer": "/effects/1/then/0/ability/condition/operator", "equals": "<=" },
+              { "pointer": "/effects/1/then/0/ability/condition/right/value", "equals": 3 },
+              { "pointer": "/effects/1/then/0/ability/effects/0/counter", "equals": "shield" },
+              { "pointer": "/effects/1/then/0/ability/effects/1/keyword", "equals": "flying" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-reflexive-actor-near-miss",
+      "request": {
+        "cardName": "Malformed Counter Engine",
+        "typeLine": "Enchantment",
+        "manaCost": null,
+        "oracleText": "Landfall \u2014 Whenever a land you control enters, put a quest counter on this enchantment. When an opponent does, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "labeled-controlled-entry-reflexive-counter",
+            "state": "trigger.labeled-reflexive-counter.reflexive-player",
+            "found": "an"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-source-counter-comparator-near-miss",
+      "request": {
+        "cardName": "Malformed Counter Engine",
+        "typeLine": "Enchantment",
+        "manaCost": null,
+        "oracleText": "Landfall \u2014 Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or exactly quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "labeled-controlled-entry-reflexive-counter",
+            "state": "condition.source-counter-threshold.comparator-direction",
+            "found": "exactly"
+          }
+        ]
+      }
+    }
+  ]
+}

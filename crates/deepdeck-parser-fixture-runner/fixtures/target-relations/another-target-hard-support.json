@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-effect-sequence/another-target-relation-unsupported",
+  "cases": [
+    {
+      "id": "exact-Drooling-Groodion-needs-distinct-target-relation",
+      "request": {
+        "cardName": "Drooling Groodion",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{3}{B}{B}{G}",
+        "oracleText": "{2}{B}{G}, Sacrifice a creature: Target creature gets +2/+2 until end of turn. Another target creature gets -2/-2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "modifier-then-another",
+      "request": {
+        "cardName": "Synthetic Another Target Support Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Target creature gets +2/+2 until end of turn. Another target creature gets -2/-2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "incompatible-prior-artifact-target-is-conservative-refusal",
+      "request": {
+        "cardName": "Synthetic Another Target Support Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Destroy target artifact. Another target creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "damage-prior-target-without-target-binding-table-entry",
+      "request": {
+        "cardName": "Synthetic Another Target Support Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "This spell deals 1 damage to target creature. Another target creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "player-prior-target-is-conservative-refusal",
+      "request": {
+        "cardName": "Synthetic Another Target Support Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Target player loses 1 life. Another target creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "card-prior-target-is-conservative-refusal",
+      "request": {
+        "cardName": "Synthetic Another Target Support Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Return target creature card from your graveyard to your hand. Another target creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "lower.modify-stats.another-target-relation",
+            "expectedContains": "distinct-target relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "first-another-still-source-excluded",
+      "request": {
+        "cardName": "Synthetic First Another Positive",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Another target creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

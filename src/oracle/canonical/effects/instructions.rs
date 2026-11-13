@@ -12,15 +12,275 @@ fn parse_optional_linked_hand_exile_criteria(instruction: &str) -> Option<&str> 
     Some(strip_leading_article(criteria.trim()))
 }
 
+fn parse_tap_then_put_counter_instruction(
+    instruction: &str,
+    face_name: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let instruction = instruction.trim();
+    let instruction = strip_suffix_ascii_case(instruction, ".").unwrap_or(instruction);
+    let target_clause = strip_prefix_ascii_case(instruction, "Tap ")?;
+    let (minimum, target_clause) = strip_prefix_ascii_case(target_clause, "up to one ")
+        .map_or((1, target_clause), |rest| (0, rest));
+    let target_clause = strip_prefix_ascii_case(target_clause, "target ")?;
+    let (target_description, counter_clause) = split_once_ascii_case(target_clause, " and put ")?;
+    let counter_clause = strip_suffix_ascii_case(counter_clause.trim(), " on it")?;
+    let (count, counter_description) = parse_quantity_prefix(counter_clause)?;
+    let counter = strip_suffix_ascii_case(counter_description, " counter")
+        .or_else(|| strip_suffix_ascii_case(counter_description, " counters"))?
+        .trim();
+    if counter.is_empty() {
+        return None;
+    }
+
+    let target = chosen_target("targetPermanent");
+    Some((
+        vec![
+            json!({ "kind": "tapPermanent", "permanent": target.clone() }),
+            json!({
+                "kind": "putCounters",
+                "permanent": target,
+                "counter": counter.to_ascii_lowercase(),
+                "count": count,
+            }),
+        ],
+        vec![target_decision(
+            "targetPermanent",
+            permanent_target_candidates(target_description.trim(), face_name)?,
+            minimum,
+            1,
+        )],
+    ))
+}
+
+fn parse_zone_change_then_controller_search_instruction(
+    instruction: &str,
+    face_name: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let zone_change_then_controller_search_re = Regex::new(
+        r"(?i)^(Destroy|Exile) (up to one )?target (.+?)\. (?:Its controller|That player) may search their library for (?:a|an) (.+?) card, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.$",
+    )
+    .expect("zone change then target-controller library search regex compiles");
+    let captures = zone_change_then_controller_search_re.captures(instruction)?;
+    let target = chosen_target("targetPermanent");
+    let affected_player = json!({ "kind": "boundValue", "id": "targetController" });
+    let search_effects = search_library_effects_for(
+        affected_player.clone(),
+        parse_permanent_criteria(&captures[4], face_name)?,
+        1,
+        "battlefield",
+        captures.get(5).is_some(),
+    );
+    let zone_change_kind = if captures[1].eq_ignore_ascii_case("destroy") {
+        "destroyPermanent"
+    } else {
+        "exilePermanent"
+    };
+    Some((
+        vec![
+            json!({
+                "kind": "bind",
+                "id": "targetController",
+                "value": { "kind": "controllerOf", "object": target.clone() },
+            }),
+            json!({
+                "kind": zone_change_kind,
+                "permanent": target,
+            }),
+            json!({
+                "kind": "optionalEffects",
+                "player": affected_player,
+                "effects": search_effects,
+            }),
+        ],
+        vec![target_decision(
+            "targetPermanent",
+            permanent_target_candidates(&captures[3], face_name)?,
+            if captures.get(2).is_some() { 0 } else { 1 },
+            1,
+        )],
+    ))
+}
+
+pub(in crate::oracle::canonical) fn parse_linked_copy_instruction(
+    instruction: &str,
+    source_kind: &str,
+    binding: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let instruction = instruction.trim();
+    let instruction = strip_suffix_ascii_case(instruction, ".").unwrap_or(instruction);
+    let (subject, copy_and_duration) = split_once_ascii_case(instruction, " becomes a copy of ")?;
+    let object = match subject.trim().to_ascii_lowercase().as_str() {
+        "enchanted creature" | "enchanted permanent" | "equipped creature" => json!({
+            "kind": "attachedPermanent",
+            "attachment": self_ref(),
+        }),
+        "this creature" | "this permanent" => self_ref(),
+        _ => return None,
+    };
+    let (copy_description, duration_description) =
+        split_once_ascii_case(copy_and_duration, " until this ")?;
+    if !matches!(
+        copy_description.trim().to_ascii_lowercase().as_str(),
+        "that creature" | "that permanent" | "that object"
+    ) {
+        return None;
+    }
+    let duration_source =
+        strip_suffix_ascii_case(duration_description.trim(), " leaves the battlefield")?.trim();
+    if !duration_source.eq_ignore_ascii_case(source_kind) {
+        return None;
+    }
+    Some((
+        vec![json!({
+            "kind": "becomeCopyOfPermanent",
+            "object": object,
+            "copy": {
+                "kind": "singleBoundObject",
+                "binding": binding,
+            },
+            "retainResolvingAbility": false,
+            "duration": { "kind": "whileSourceOnBattlefield" },
+        })],
+        Vec::new(),
+    ))
+}
+
 pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     instruction: &str,
     face_name: &str,
 ) -> Option<(Vec<Value>, Vec<Value>)> {
+    if strip_prefix_ascii_case(instruction.trim_start(), "scry ").is_some() {
+        return Some((parse_scry_effect_instruction(instruction)?, Vec::new()));
+    }
+    if let Some(parsed) =
+        parse_zone_change_then_controller_search_instruction(instruction, face_name)
+    {
+        return Some(parsed);
+    }
+    let normalized = instruction.to_ascii_lowercase();
+    if (normalized.starts_with("destroy ") || normalized.starts_with("exile "))
+        && normalized.contains(". its owner may search their library ")
+    {
+        return None;
+    }
+    parse_general_effect_instruction_remaining(instruction, face_name)
+}
+
+fn parse_general_effect_instruction_remaining(
+    instruction: &str,
+    face_name: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let temporary_granted_hand_size_power_re = Regex::new(
+        r#"(?i)^Until end of turn, (.+?) gains "(.+?)(?:'s|\x{2019}s) base power is equal to the number of cards in your hand\."\.?$"#,
+    )
+    .expect("temporary granted hand-size power regex compiles");
+    if let Some(captures) = temporary_granted_hand_size_power_re.captures(instruction)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+        && source_reference_matches(captures.get(2)?.as_str(), face_name)
+    {
+        return Some((
+            vec![json!({
+                "kind": "grantAbility",
+                "object": self_ref(),
+                "ability": {
+                    "kind": "staticAbility",
+                    "source": self_ref(),
+                    "activeWhile": active_while_battlefield(),
+                    "modifiers": [{
+                        "kind": "setPower",
+                        "objects": self_ref(),
+                        "power": {
+                            "kind": "countCards",
+                            "zone": hand(controller()),
+                            "where": Value::Null,
+                        },
+                    }],
+                },
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+            Vec::new(),
+        ));
+    }
+
+    let source_power_conditional_draw_re = Regex::new(&format!(
+        r"(?i)^Draw a card if (?:(.+?)(?:'s|\x{{2019}}s)|(his|her|its|their)) power is ({}) or greater\.$",
+        count_word_pattern(),
+    ))
+    .expect("source-power conditional draw regex compiles");
+    if let Some(captures) = source_power_conditional_draw_re.captures(instruction) {
+        if captures
+            .get(1)
+            .is_some_and(|name| !source_reference_matches(name.as_str(), face_name))
+        {
+            return None;
+        }
+        return Some((
+            vec![json!({
+                "kind": "conditional",
+                "condition": compare(
+                    ">=",
+                    json!({ "kind": "powerOf", "object": self_ref() }),
+                    integer(parse_number_word(captures.get(3)?.as_str())?),
+                ),
+                "then": [{
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(1),
+                }],
+            })],
+            Vec::new(),
+        ));
+    }
     if instruction.eq_ignore_ascii_case("Proliferate.") {
         return Some((
             vec![json!({ "kind": "proliferate", "count": integer(1) })],
             Vec::new(),
         ));
+    }
+    if let Some(parsed) = parse_tap_then_put_counter_instruction(instruction, face_name) {
+        return Some(parsed);
+    }
+    if let Some(counter) = parse_put_counter(instruction) {
+        let permanent = match counter.recipient {
+            CounterRecipient::Source => Some(self_ref()),
+            CounterRecipient::NamedSource(recipient)
+                if matches!(
+                    recipient.to_ascii_lowercase().as_str(),
+                    "it" | "him" | "her" | "them"
+                ) || source_reference_matches(recipient, face_name) =>
+            {
+                Some(self_ref())
+            }
+            CounterRecipient::EachControlled(_) | CounterRecipient::NamedSource(_) => None,
+        };
+        if let Some(permanent) = permanent {
+            return Some((
+                vec![json!({
+                    "kind": "putCounters",
+                    "permanent": permanent,
+                    "counter": counter.counter,
+                    "count": counter.count,
+                })],
+                Vec::new(),
+            ));
+        }
+    }
+    if let Some(optional_instruction) = strip_prefix_ascii_case(instruction.trim(), "You may ") {
+        let mut normalized = optional_instruction.to_string();
+        if let Some(first) = normalized.get_mut(..1) {
+            first.make_ascii_uppercase();
+        }
+        if let Some((effects, decisions)) = parse_general_effect_instruction(&normalized, face_name)
+        {
+            return Some((
+                vec![json!({
+                    "kind": "optionalEffects",
+                    "player": controller(),
+                    "effects": effects,
+                })],
+                decisions,
+            ));
+        }
     }
     let tap_target_re = Regex::new(r"(?i)^Tap (up to one )?target (.+?)\.$")
         .expect("tap target permanent regex compiles");
@@ -166,32 +426,98 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     }
 
     let vivid_target_damage_re =
-        Regex::new(r"(?i)^It deals X damage to target (.+?), where X is (.+)\.$")
+        Regex::new(r"(?i)^(.+?) deals X damage to target (.+?), where X is (.+)\.$")
             .expect("source variable target-damage regex compiles");
     if let Some(captures) = vivid_target_damage_re.captures(instruction) {
-        let raw_criteria = captures.get(1)?.as_str();
-        let opponent_criteria = strip_suffix_ascii_case(raw_criteria, " an opponent controls");
-        let mut candidates = json!({
-            "kind": "permanents",
-            "where": parse_permanent_criteria(
-                opponent_criteria.unwrap_or(raw_criteria),
-                face_name,
-            )?,
-        });
-        if opponent_criteria.is_some() {
-            candidates["controller"] = json!({
-                "kind": "opponentsOf",
-                "player": controller(),
-            });
+        if !source_reference_matches(captures.get(1)?.as_str(), face_name) {
+            return None;
         }
+        let raw_criteria = captures.get(2)?.as_str();
+        let (target_id, candidates) = if raw_criteria.eq_ignore_ascii_case("opponent") {
+            (
+                "targetOpponent",
+                json!({
+                    "kind": "players",
+                    "where": { "kind": "isOpponentOf", "player": controller() },
+                }),
+            )
+        } else {
+            let opponent_criteria = strip_suffix_ascii_case(raw_criteria, " an opponent controls");
+            let mut candidates = json!({
+                "kind": "permanents",
+                "where": parse_permanent_criteria(
+                    opponent_criteria.unwrap_or(raw_criteria),
+                    face_name,
+                )?,
+            });
+            if opponent_criteria.is_some() {
+                candidates["controller"] = json!({
+                    "kind": "opponentsOf",
+                    "player": controller(),
+                });
+            }
+            ("targetDamagePermanent", candidates)
+        };
         return Some((
             vec![json!({
                 "kind": "dealDamage",
                 "source": self_ref(),
-                "amount": parse_numeric_expression_text(captures.get(2)?.as_str())?,
-                "recipient": chosen_target("targetDamagePermanent"),
+                "amount": parse_numeric_expression_text(captures.get(3)?.as_str())?,
+                "recipient": chosen_target(target_id),
             })],
-            vec![target_decision("targetDamagePermanent", candidates, 1, 1)],
+            vec![target_decision(target_id, candidates, 1, 1)],
+        ));
+    }
+
+    if instruction.eq_ignore_ascii_case("Draw a card for each card you've discarded this turn.") {
+        return Some((
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": {
+                    "kind": "countEventsThisTurn",
+                    "event": "cardDiscarded",
+                    "player": controller(),
+                },
+            })],
+            Vec::new(),
+        ));
+    }
+
+    let draw_for_each_controlled_permanent_re =
+        Regex::new(r"(?i)^Draw a card for each (.+?) you control\.$")
+            .expect("draw for each controlled permanent regex compiles");
+    if let Some(captures) = draw_for_each_controlled_permanent_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "drawCards",
+                "player": controller(),
+                "count": {
+                    "kind": "countPermanents",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                },
+            })],
+            Vec::new(),
+        ));
+    }
+
+    let temporary_casting_reduction_re =
+        Regex::new(r"(?i)^(.+?) spells you cast this turn cost \{(\d+)\} less to cast\.$")
+            .expect("temporary casting-cost reduction regex compiles");
+    if let Some(captures) = temporary_casting_reduction_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "installRuleModifier",
+                "modifier": {
+                    "kind": "reduceCastingCost",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                    "amount": integer(captures.get(2)?.as_str().parse::<i64>().ok()?),
+                },
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+            Vec::new(),
         ));
     }
 
@@ -532,6 +858,21 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
+    let triggering_player_draw_re = Regex::new(&format!(
+        r"(?i)^That player draws ({}) cards?\.$",
+        count_word_pattern(),
+    ))
+    .expect("triggering player draw regex compiles");
+    if let Some(captures) = triggering_player_draw_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "drawCards",
+                "player": { "kind": "triggeringPlayer" },
+                "count": integer(parse_number_word(captures.get(1)?.as_str())?),
+            })],
+            Vec::new(),
+        ));
+    }
 
     if instruction.eq_ignore_ascii_case("Exile all but the bottom card of each opponent's library.")
     {
@@ -796,6 +1137,39 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
+    let optional_controlled_attachment_to_source_re =
+        Regex::new(r"(?i)^(?:Then )?You may attach (?:a|an) (.+?) you control to (.+?)\.$")
+            .expect("optional controlled attachment to source regex compiles");
+    if let Some(captures) = optional_controlled_attachment_to_source_re.captures(instruction)
+        && (matches!(
+            captures.get(2)?.as_str().to_ascii_lowercase().as_str(),
+            "it" | "him" | "her" | "them" | "this creature" | "this permanent"
+        ) || source_reference_matches(captures.get(2)?.as_str(), face_name))
+    {
+        return Some((
+            vec![
+                json!({
+                    "kind": "choosePermanents",
+                    "id": "attachmentPermanent",
+                    "player": controller(),
+                    "minimum": integer(0),
+                    "maximum": integer(1),
+                    "candidates": {
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                    },
+                }),
+                json!({
+                    "kind": "attachPermanent",
+                    "attachment": decision_result("attachmentPermanent"),
+                    "to": self_ref(),
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+
     let self_return_attached_re = Regex::new(
         r"(?i)^Return this card from your graveyard to the battlefield attached to target (.+?)\.?$",
     )
@@ -896,6 +1270,37 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 "count": integer(count),
             })],
             Vec::new(),
+        ));
+    }
+    let target_player_discards_re = Regex::new(&format!(
+        r"(?i)^Target (player|opponent) discards (?:a|an|one|({})) cards?\.$",
+        count_word_pattern(),
+    ))
+    .expect("target-player discard regex compiles");
+    if let Some(captures) = target_player_discards_re.captures(instruction) {
+        let count = captures
+            .get(2)
+            .and_then(|value| parse_number_word(value.as_str()))
+            .unwrap_or(1);
+        return Some((
+            vec![json!({
+                "kind": "discardCards",
+                "player": chosen_target("targetPlayer"),
+                "count": integer(count),
+            })],
+            vec![target_decision(
+                "targetPlayer",
+                if captures[1].eq_ignore_ascii_case("opponent") {
+                    json!({
+                        "kind": "players",
+                        "where": { "kind": "isOpponentOf", "player": controller() },
+                    })
+                } else {
+                    json!({ "kind": "players" })
+                },
+                1,
+                1,
+            )],
         ));
     }
     let source_power_amass_re = Regex::new(
@@ -1485,6 +1890,28 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
+    let target_investigates_re = Regex::new(r"(?i)^Target (player|opponent) investigates\.$")
+        .expect("target player investigate regex compiles");
+    if let Some(captures) = target_investigates_re.captures(instruction) {
+        let mut effect = create_token_effect("Create a Clue token.")?;
+        effect["controller"] = chosen_target("targetPlayer");
+        return Some((
+            vec![effect],
+            vec![target_decision(
+                "targetPlayer",
+                if captures[1].eq_ignore_ascii_case("opponent") {
+                    json!({
+                        "kind": "players",
+                        "where": { "kind": "isOpponentOf", "player": controller() },
+                    })
+                } else {
+                    json!({ "kind": "players" })
+                },
+                1,
+                1,
+            )],
+        ));
+    }
 
     let exile_return_transformed_re = Regex::new(
         r"(?i)^(you may )?exile (.+?), then return (?:it|him|her|them) to the battlefield transformed under (?:its|his|her|their) owner's control\.$",
@@ -1532,6 +1959,48 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 "player": controller(),
             })],
             Vec::new(),
+        ));
+    }
+
+    let copy_target_ability_re = Regex::new(
+        r"(?i)^Copy target (activated or triggered|activated|triggered) ability you control(?: from (?:a|an) (.+?) source)?\. You may choose new targets for the copy\.$",
+    )
+    .expect("copy target ability and retarget regex compiles");
+    if let Some(captures) = copy_target_ability_re.captures(instruction) {
+        let ability_filter = match captures.get(1)?.as_str().to_ascii_lowercase().as_str() {
+            "activated" => json!({ "kind": "isActivatedAbility" }),
+            "triggered" => json!({ "kind": "isTriggeredAbility" }),
+            "activated or triggered" => or(vec![
+                json!({ "kind": "isActivatedAbility" }),
+                json!({ "kind": "isTriggeredAbility" }),
+            ]),
+            _ => return None,
+        };
+        let where_filter = if let Some(source_criteria) = captures.get(2) {
+            and(vec![
+                ability_filter,
+                parse_permanent_criteria(source_criteria.as_str(), face_name)?,
+            ])
+        } else {
+            ability_filter
+        };
+        return Some((
+            vec![json!({
+                "kind": "copyStackItem",
+                "object": chosen_target("targetAbility"),
+                "controller": controller(),
+                "mayChooseNewTargets": true,
+            })],
+            vec![target_decision(
+                "targetAbility",
+                json!({
+                    "kind": "stackItems",
+                    "controller": controller(),
+                    "where": where_filter,
+                }),
+                1,
+                1,
+            )],
         ));
     }
 
@@ -1722,6 +2191,10 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             )],
         ));
     }
+    // Legacy modal-only boundary. Top-level spell abilities in this family
+    // are intercepted by the token-driven targeted-hand-disruption machine.
+    // Remove this leaf once modal options retain and delegate their shared
+    // token ranges instead of reparsing each option as a raw instruction.
     let targeted_hand_disruption_re = Regex::new(
         r"(?i)^Target (player|opponent) reveals their hand\. You choose (?:a|an) (.+?) card from it\. That player discards that card\.$",
     )
@@ -1808,7 +2281,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
     let source_counter_re = Regex::new(&format!(
-        r"(?i)^Put (a|an|{}) ([A-Za-z0-9+/-]+) counters? on (.+?)\.$",
+        r"(?i)^(?:You )?Put (a|an|{}) ([A-Za-z0-9+/-]+) counters? on (.+?)\.$",
         count_word_pattern(),
     ))
     .expect("counter on source reference regex compiles");
@@ -2243,6 +2716,10 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     )
     .expect("generic hand-to-battlefield instruction regex compiles");
     if let Some(captures) = hand_to_battlefield_re.captures(instruction) {
+        let optional = instruction
+            .trim_start()
+            .to_ascii_lowercase()
+            .starts_with("you may ");
         return Some((
             vec![json!({
                 "kind": "moveTargetCard",
@@ -2258,7 +2735,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                     "zone": hand(controller()),
                     "where": parse_permanent_criteria(&captures[2], face_name)?,
                 }),
-                if captures.get(1).is_some() { 0 } else { 1 },
+                if optional { 0 } else { 1 },
                 1,
             )],
         ));
@@ -2686,6 +3163,31 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
+    let copy_each_controlled_permanent_re = Regex::new(
+        r"(?i)^For each (.+?) you control, create a token that's a copy of that (?:creature|permanent), except it isn't legendary\.$",
+    )
+    .expect("copy each controlled permanent regex compiles");
+    if let Some(captures) = copy_each_controlled_permanent_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "forEachObject",
+                "objects": {
+                    "kind": "eachPermanent",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                },
+                "bind": "iteratedPermanent",
+                "effects": [{
+                    "kind": "createTokenCopyOfPermanent",
+                    "object": { "kind": "boundValue", "id": "iteratedPermanent" },
+                    "grantKeywords": [],
+                    "exileAtNextEndStep": false,
+                    "removeLegendary": true,
+                }],
+            })],
+            Vec::new(),
+        ));
+    }
     let opponent_land_advantage_re =
         Regex::new(r"(?i)^If an opponent controls more lands than you, (.+)$")
             .expect("opponent land advantage conditional regex compiles");
@@ -2833,41 +3335,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     }
     if instruction.eq_ignore_ascii_case("Exile all graveyards.") {
         return Some((vec![json!({ "kind": "exileAllGraveyards" })], Vec::new()));
-    }
-    let destroy_then_controller_token_re = Regex::new(
-        r"(?i)^Destroy target (.+?)\.( It can't be regenerated\.)? Its controller creates (.+?)\.$",
-    )
-    .expect("destroy then controller token regex compiles");
-    if let Some(captures) = destroy_then_controller_token_re.captures(instruction) {
-        let mut token_effect = create_token_effect(&format!("Create {}.", &captures[3]))?;
-        token_effect["controller"] = json!({
-            "kind": "boundValue",
-            "id": "destroyedPermanentController",
-        });
-        return Some((
-            vec![
-                json!({
-                    "kind": "bind",
-                    "id": "destroyedPermanentController",
-                    "value": {
-                        "kind": "controllerOf",
-                        "object": chosen_target("targetPermanent"),
-                    },
-                }),
-                json!({
-                    "kind": "destroyPermanent",
-                    "permanent": chosen_target("targetPermanent"),
-                    "cannotRegenerate": captures.get(2).is_some(),
-                }),
-                token_effect,
-            ],
-            vec![target_decision(
-                "targetPermanent",
-                permanent_target_candidates(&captures[1], face_name)?,
-                1,
-                1,
-            )],
-        ));
     }
     let destroy_then_controller_life_re = Regex::new(&format!(
         r"(?i)^Destroy target (.+)\. Its controller gains ({}) life\.$",
@@ -3529,58 +3996,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let draw_then_top_re = Regex::new(&format!(
-        r"(?i)^Draw ({}) cards?, then put ({}) cards? from your hand on top of your library in any order\.$",
-        count_word_pattern(),
-        count_word_pattern(),
-    ))
-    .expect("draw-then-put-on-top regex compiles");
-    if let Some(captures) = draw_then_top_re.captures(instruction) {
-        let draw_count = integer(parse_number_word(&captures[1])?);
-        let put_count = integer(parse_number_word(&captures[2])?);
-        return Some((
-            vec![
-                json!({
-                    "kind": "drawCards",
-                    "player": controller(),
-                    "count": draw_count,
-                }),
-                json!({
-                    "kind": "chooseCards",
-                    "id": "cardsForLibrary",
-                    "player": controller(),
-                    "minimum": put_count.clone(),
-                    "maximum": put_count,
-                    "candidates": {
-                        "kind": "cards",
-                        "zone": hand(controller()),
-                        "where": Value::Null,
-                    },
-                }),
-                json!({
-                    "kind": "chooseOrder",
-                    "id": "cardsForLibraryOrder",
-                    "player": controller(),
-                    "objects": decision_result("cardsForLibrary"),
-                }),
-                json!({
-                    "kind": "moveCards",
-                    "cards": decision_result("cardsForLibraryOrder"),
-                    "to": {
-                        "kind": "library",
-                        "player": controller(),
-                        "position": "top",
-                    },
-                    "order": {
-                        "kind": "decisionOrder",
-                        "decisionId": "cardsForLibraryOrder",
-                    },
-                }),
-            ],
-            Vec::new(),
-        ));
-    }
-
     let target_copy_re = Regex::new(
         r"(?i)^Create a token that's a copy of target (.+?)(?:\. That token gains (haste) until end of turn)?\.$",
     )
@@ -3612,11 +4027,35 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         if captures.get(2).is_some() {
             candidates["excludeSource"] = Value::Bool(true);
         }
+        let target = chosen_target("targetPermanent");
         return Some((
-            vec![json!({
-                "kind": "exilePermanentAndControllerGainsPower",
-                "permanent": chosen_target("targetPermanent"),
-            })],
+            vec![
+                json!({
+                    "kind": "bind",
+                    "id": "exiledPermanentController",
+                    "value": { "kind": "controllerOf", "object": target.clone() },
+                }),
+                json!({
+                    "kind": "bind",
+                    "id": "exiledPermanentPower",
+                    "value": {
+                        "kind": "maximum",
+                        "operands": [
+                            { "kind": "powerOf", "object": target.clone() },
+                            integer(0),
+                        ],
+                    },
+                }),
+                json!({
+                    "kind": "exilePermanent",
+                    "permanent": target,
+                }),
+                json!({
+                    "kind": "gainLife",
+                    "player": { "kind": "boundValue", "id": "exiledPermanentController" },
+                    "amount": { "kind": "boundValue", "id": "exiledPermanentPower" },
+                }),
+            ],
             vec![target_decision(
                 "targetPermanent",
                 candidates,
@@ -3646,22 +4085,22 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     }
 
     let blink_re = Regex::new(
-        r"(?i)^(You may )?exile (another )?target (.+?), then return (?:that card|it) to the battlefield( tapped)? under (its owner's|your) control\.$",
+        r"(?i)^(You may )?exile (up to one )?(?:(another|other) )?target (.+?), then return (?:that card|it) to the battlefield( tapped)? under (its owner's|your) control\.$",
     )
     .expect("blink-permanent regex compiles");
     if let Some(captures) = blink_re.captures(instruction) {
-        let mut candidates = permanent_target_candidates(&captures[3], face_name)?;
-        if captures.get(2).is_some() {
+        let mut candidates = permanent_target_candidates(&captures[4], face_name)?;
+        if captures.get(3).is_some() {
             candidates["excludeSource"] = Value::Bool(true);
         }
         let mut effect = json!({
             "kind": "blinkPermanent",
             "permanent": chosen_target("targetPermanent"),
         });
-        if captures.get(4).is_some() {
+        if captures.get(5).is_some() {
             effect["tapped"] = Value::Bool(true);
         }
-        if captures[5].eq_ignore_ascii_case("your") {
+        if captures[6].eq_ignore_ascii_case("your") {
             effect["controller"] = controller();
         }
         return Some((
@@ -3669,7 +4108,11 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             vec![target_decision(
                 "targetPermanent",
                 candidates,
-                if captures.get(1).is_some() { 0 } else { 1 },
+                if captures.get(1).is_some() || captures.get(2).is_some() {
+                    0
+                } else {
+                    1
+                },
                 1,
             )],
         ));
@@ -4410,6 +4853,44 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         return Some((vec![effect], Vec::new()));
     }
 
+    let target_keyword_and_unblockable_re = Regex::new(
+        r"(?i)^(Another )?target (.+?) gains? (.+?) until end of turn and can't be blocked this turn\.$",
+    )
+    .expect("target keyword and unblockable instruction regex compiles");
+    if let Some(captures) = target_keyword_and_unblockable_re.captures(instruction) {
+        let description = if captures.get(1).is_some() {
+            format!("another {}", captures.get(2)?.as_str())
+        } else {
+            captures.get(2)?.as_str().to_string()
+        };
+        let target = chosen_target("targetPermanent");
+        let mut effects = oracle_keyword_list(captures.get(3)?.as_str())?
+            .into_iter()
+            .map(|keyword| {
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target.clone(),
+                    "keyword": keyword,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                })
+            })
+            .collect::<Vec<_>>();
+        effects.push(json!({
+            "kind": "grantKeyword",
+            "object": target,
+            "keyword": "cantBeBlocked",
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        }));
+        return Some((
+            effects,
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(&description, face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
     let target_keyword_re =
         Regex::new(r"(?i)^(Another )?target (.+?) gains? (.+?) until end of turn\.$")
             .expect("target keyword instruction regex compiles");
@@ -4961,6 +5442,30 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
+    let alternative_token_re =
+        Regex::new(r"(?i)^Create (?:a|one) (.+? token) or (?:a|one) (.+? token)\.$")
+            .expect("alternative token creation regex compiles");
+    if let Some(captures) = alternative_token_re.captures(instruction) {
+        let first = captures.get(1)?.as_str();
+        let second = captures.get(2)?.as_str();
+        return Some((
+            vec![json!({
+                "kind": "chooseOneEffect",
+                "player": controller(),
+                "options": [
+                    {
+                        "label": first.trim_end_matches(" token"),
+                        "effects": [create_token_effect(&format!("Create a {first}."))?],
+                    },
+                    {
+                        "label": second.trim_end_matches(" token"),
+                        "effects": [create_token_effect(&format!("Create a {second}."))?],
+                    },
+                ],
+            })],
+            Vec::new(),
+        ));
+    }
     if (instruction.to_ascii_lowercase().starts_with("create ")
         || instruction.to_ascii_lowercase().starts_with("you create "))
         && let Some(effect) = create_token_effect(instruction)
@@ -4968,22 +5473,36 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         return Some((vec![effect], Vec::new()));
     }
 
-    let draw_then_discard_re = Regex::new(&format!(
-        r"(?i)^Draw ({}) cards?, then discard ({}) cards?\.$",
+    let draw_then_discard_prefix_re = Regex::new(&format!(
+        r"(?i)^Draw ({}) cards?, then discard ({}) cards?(.*)$",
         count_word_pattern(),
         count_word_pattern(),
     ))
-    .expect("draw then discard instruction regex compiles");
-    if let Some(captures) = draw_then_discard_re.captures(instruction) {
-        return Some((
-            vec![json!({
-                "kind": "drawThenDiscard",
+    .expect("draw then discard prefix regex compiles");
+    if let Some(captures) = draw_then_discard_prefix_re.captures(instruction) {
+        let draw_count = integer(parse_number_word(&captures[1])?);
+        let discard_count = integer(parse_number_word(&captures[2])?);
+        let mut effects = vec![
+            json!({
+                "kind": "drawCards",
                 "player": controller(),
-                "drawCount": integer(parse_number_word(&captures[1])?),
-                "discardCount": integer(parse_number_word(&captures[2])?),
-            })],
-            Vec::new(),
-        ));
+                "count": draw_count,
+            }),
+            json!({
+                "kind": "discardCards",
+                "player": controller(),
+                "count": discard_count,
+            }),
+        ];
+        let suffix = captures.get(3)?.as_str();
+        if suffix == "." {
+            return Some((effects, Vec::new()));
+        }
+        let remaining = strip_prefix_ascii_case(suffix, " and ")?;
+        let (remaining_effects, decisions) =
+            parse_general_effect_instruction(remaining, face_name)?;
+        effects.extend(remaining_effects);
+        return Some((effects, decisions));
     }
 
     let begins_with_draw_then_discard = Regex::new(&format!(
@@ -5304,12 +5823,29 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let sentences = instruction
-        .strip_suffix('.')
-        .unwrap_or(instruction)
-        .split(". ")
-        .map(|sentence| format!("{}.", sentence.trim()))
-        .collect::<Vec<_>>();
+    let sentence_text = instruction.strip_suffix('.').unwrap_or(instruction);
+    let protected_source_remainder = (!face_name.is_empty())
+        .then(|| strip_prefix_ascii_case(sentence_text, face_name))
+        .flatten()
+        .and_then(|remainder| remainder.strip_prefix(' '));
+    let sentences = if let Some(remainder) = protected_source_remainder {
+        remainder
+            .split(". ")
+            .enumerate()
+            .map(|(index, sentence)| {
+                if index == 0 {
+                    format!("{} {}.", face_name, sentence.trim())
+                } else {
+                    format!("{}.", sentence.trim())
+                }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        sentence_text
+            .split(". ")
+            .map(|sentence| format!("{}.", sentence.trim()))
+            .collect::<Vec<_>>()
+    };
     if sentences.len() > 1
         && sentences.iter().skip(1).all(|sentence| {
             !matches!(
@@ -5347,7 +5883,51 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let target_connive_re = Regex::new(r"(?i)^Target (.+) connives\.$")
+    let optional_have_deal_re = Regex::new(r"(?i)^You may have (.+?) deal (.+)\.$")
+        .expect("optional have-subject deal instruction regex compiles");
+    if let Some(captures) = optional_have_deal_re.captures(instruction) {
+        let nested_instruction = format!(
+            "{} deals {}.",
+            captures.get(1)?.as_str(),
+            captures.get(2)?.as_str()
+        );
+        if let Some((effects, decisions)) =
+            parse_general_effect_instruction(&nested_instruction, face_name)
+        {
+            return Some((
+                vec![json!({
+                    "kind": "optionalEffects",
+                    "player": controller(),
+                    "effects": effects,
+                })],
+                decisions,
+            ));
+        }
+    }
+
+    let optional_have_re = Regex::new(r"(?i)^You may have (.+?) (.+)\.$")
+        .expect("optional have-subject instruction regex compiles");
+    if let Some(captures) = optional_have_re.captures(instruction) {
+        let nested_instruction = format!(
+            "{} {}.",
+            captures.get(1)?.as_str(),
+            captures.get(2)?.as_str()
+        );
+        if let Some((effects, decisions)) =
+            parse_general_effect_instruction(&nested_instruction, face_name)
+        {
+            return Some((
+                vec![json!({
+                    "kind": "optionalEffects",
+                    "player": controller(),
+                    "effects": effects,
+                })],
+                decisions,
+            ));
+        }
+    }
+
+    let target_connive_re = Regex::new(r"(?i)^(Up to one )?target (.+) connives\.$")
         .expect("target connive instruction regex compiles");
     if let Some(captures) = target_connive_re.captures(instruction) {
         let permanent = chosen_target("conniveTarget");
@@ -5359,21 +5939,20 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             })],
             vec![target_decision(
                 "conniveTarget",
-                permanent_target_candidates(&captures[1], face_name)?,
-                1,
+                permanent_target_candidates(&captures[2], face_name)?,
+                if captures.get(1).is_some() { 0 } else { 1 },
                 1,
             )],
         ));
     }
 
-    let self_connive_subject = if face_name.is_empty() {
-        r"(?:This creature|It)".to_string()
-    } else {
-        format!(r"(?:This creature|It|{})", regex::escape(face_name))
-    };
-    let self_connive_re = Regex::new(&format!(r"(?i)^{} connives\.$", self_connive_subject))
-        .expect("self connive instruction regex compiles");
-    if self_connive_re.is_match(instruction) {
+    if let Some(subject) = strip_suffix_ascii_case(instruction, " connives.")
+        .or_else(|| strip_suffix_ascii_case(instruction, " connive."))
+        && (matches!(
+            subject.to_ascii_lowercase().as_str(),
+            "this creature" | "it" | "he" | "she" | "they"
+        ) || source_reference_matches(subject, face_name))
+    {
         return Some((
             vec![json!({
                 "kind": "connive",
@@ -5527,17 +6106,14 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let library_selection_re = Regex::new(&format!(
-        r"(?i)^(Scry|Surveil) ({})\.$",
-        count_word_pattern()
-    ))
-    .expect("general library-selection instruction regex compiles");
+    let library_selection_re = Regex::new(&format!(r"(?i)^Surveil ({})\.$", count_word_pattern()))
+        .expect("legacy surveil instruction regex compiles");
     if let Some(captures) = library_selection_re.captures(instruction) {
         return Some((
             vec![json!({
-                "kind": captures[1].to_ascii_lowercase(),
+                "kind": "surveil",
                 "player": controller(),
-                "count": integer(parse_number_word(&captures[2])?),
+                "count": integer(parse_number_word(&captures[1])?),
             })],
             Vec::new(),
         ));
@@ -6021,6 +6597,33 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
+    let up_to_targets_counter_re = Regex::new(&format!(
+        r"(?i)^Put ({}) ([A-Za-z0-9+/ -]+) counters? on each of up to ({}) target (.+?)\.$",
+        count_word_pattern(),
+        count_word_pattern(),
+    ))
+    .expect("up-to targets counter instruction regex compiles");
+    if let Some(captures) = up_to_targets_counter_re.captures(instruction) {
+        let maximum = parse_number_word(captures.get(3)?.as_str())?;
+        return Some((
+            vec![json!({
+                "kind": "putCounters",
+                "permanent": { "kind": "chosenTargets", "id": "targetPermanents" },
+                "counter": captures[2].trim(),
+                "count": integer(parse_number_word(&captures[1])?),
+            })],
+            vec![target_decision(
+                "targetPermanents",
+                permanent_target_candidates(
+                    &singular_card_term(captures.get(4)?.as_str()),
+                    face_name,
+                )?,
+                0,
+                maximum,
+            )],
+        ));
+    }
+
     let self_counter_re = Regex::new(&format!(
         r"(?i)^Put ({}) ([A-Za-z0-9+/ -]+) counters? on (.+)\.$",
         count_word_pattern(),
@@ -6035,6 +6638,9 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 | "this permanent"
                 | "this equipment"
                 | "it"
+                | "him"
+                | "her"
+                | "them"
         ) || source_reference_matches(&captures[3], face_name))
     {
         return Some((
@@ -6193,7 +6799,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
     let source_damage_re = Regex::new(&format!(
-        r"(?i)^{} deals ({}) damage to (each player|each opponent|target opponent|any target)\.$",
+        r"(?i)^({}) deals ({}|that much) damage to (each player|each opponent|target opponent|any target)\.$",
         source_subject,
         quantity_word_pattern(),
     ))
@@ -6232,9 +6838,15 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             Vec::new(),
         ));
     }
-    if let Some(captures) = source_damage_re.captures(instruction) {
-        let amount = parse_numeric_expression_text(&captures[1])?;
-        if captures[2].eq_ignore_ascii_case("each player") {
+    if let Some(captures) = source_damage_re.captures(instruction)
+        && (face_name.is_empty() || source_reference_matches(captures.get(1)?.as_str(), face_name))
+    {
+        let amount = if captures[2].eq_ignore_ascii_case("that much") {
+            decision_result("damageAmount")
+        } else {
+            parse_numeric_expression_text(&captures[2])?
+        };
+        if captures[3].eq_ignore_ascii_case("each player") {
             return Some((
                 vec![json!({
                     "kind": "dealDamage",
@@ -6245,13 +6857,13 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 Vec::new(),
             ));
         }
-        if captures[2].eq_ignore_ascii_case("each opponent") {
+        if captures[3].eq_ignore_ascii_case("each opponent") {
             return Some((
                 vec![json!({ "kind": "dealDamageToEachOpponent", "amount": amount })],
                 Vec::new(),
             ));
         }
-        if captures[2].eq_ignore_ascii_case("target opponent") {
+        if captures[3].eq_ignore_ascii_case("target opponent") {
             return Some((
                 vec![json!({
                     "kind": "dealDamage",
@@ -6308,12 +6920,12 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
     let target_deals_stat_damage_re = Regex::new(
-        r"(?i)^Target (creature|planeswalker) you control deals damage equal to its (power|loyalty) to target (.+?)\.$",
+        r"(?i)^Target (creature|planeswalker) you control deals damage equal to (twice )?its (power|loyalty) to target (.+?)\.$",
     )
     .expect("target permanent deals stat-based damage regex compiles");
     if let Some(captures) = target_deals_stat_damage_re.captures(instruction) {
         let damage_source = chosen_target("damageSource");
-        let amount = if captures[2].eq_ignore_ascii_case("power") {
+        let base_amount = if captures[3].eq_ignore_ascii_case("power") {
             json!({ "kind": "powerOf", "object": damage_source.clone() })
         } else {
             json!({
@@ -6321,6 +6933,15 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 "object": damage_source.clone(),
                 "counter": "loyalty",
             })
+        };
+        let amount = if captures.get(2).is_some() {
+            json!({
+                "kind": "multiply",
+                "left": integer(2),
+                "right": base_amount,
+            })
+        } else {
+            base_amount
         };
         return Some((
             vec![json!({
@@ -6341,7 +6962,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 ),
                 target_decision(
                     "damageRecipient",
-                    permanent_target_candidates(captures.get(3)?.as_str(), face_name)?,
+                    permanent_target_candidates(captures.get(4)?.as_str(), face_name)?,
                     1,
                     1,
                 ),
@@ -6349,7 +6970,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
     let attach_controlled_permanents_re = Regex::new(
-        r"(?i)^Attach target (.+?) you control to (up to one )?target (.+?) you control\.$",
+        r"(?i)^Attach (up to one )?target (.+?) you control to (up to one )?target (.+?) you control\.$",
     )
     .expect("controlled permanent attachment instruction regex compiles");
     if let Some(captures) = attach_controlled_permanents_re.captures(instruction) {
@@ -6365,9 +6986,9 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                     json!({
                         "kind": "permanents",
                         "controller": controller(),
-                        "where": parse_permanent_criteria(&captures[1], face_name)?,
+                        "where": parse_permanent_criteria(&captures[2], face_name)?,
                     }),
-                    1,
+                    if captures.get(1).is_some() { 0 } else { 1 },
                     1,
                 ),
                 target_decision(
@@ -6375,9 +6996,9 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                     json!({
                         "kind": "permanents",
                         "controller": controller(),
-                        "where": parse_permanent_criteria(&captures[3], face_name)?,
+                        "where": parse_permanent_criteria(&captures[4], face_name)?,
                     }),
-                    if captures.get(2).is_some() { 0 } else { 1 },
+                    if captures.get(3).is_some() { 0 } else { 1 },
                     1,
                 ),
             ],
@@ -6618,32 +7239,8 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let tap_and_stun_re =
-        Regex::new(r"(?i)^Tap (up to one )?target (.+?) and put a stun counter on it\.$")
-            .expect("tap target and add stun counter regex compiles");
-    if let Some(captures) = tap_and_stun_re.captures(instruction) {
-        let target = chosen_target("targetPermanent");
-        return Some((
-            vec![
-                json!({ "kind": "tapPermanent", "permanent": target.clone() }),
-                json!({
-                    "kind": "putCounters",
-                    "permanent": target,
-                    "counter": "stun",
-                    "count": integer(1),
-                }),
-            ],
-            vec![target_decision(
-                "targetPermanent",
-                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
-                if captures.get(1).is_some() { 0 } else { 1 },
-                1,
-            )],
-        ));
-    }
-
     let targets_fight_re =
-        Regex::new(r"(?i)^(Another )?target (.+?) fights (up to one )?target (.+?)\.$")
+        Regex::new(r"(?i)^(Another )?target (.+?) fights (up to one )?(other )?target (.+?)\.$")
             .expect("two targeted permanents fight regex compiles");
     if let Some(captures) = targets_fight_re.captures(instruction) {
         let first_description = if captures.get(1).is_some() {
@@ -6666,16 +7263,56 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                 ),
                 target_decision(
                     "secondFighter",
-                    permanent_target_candidates(captures.get(4)?.as_str(), face_name)?,
+                    permanent_target_candidates(
+                        &format!(
+                            "{}{}",
+                            if captures.get(4).is_some() {
+                                "other "
+                            } else {
+                                ""
+                            },
+                            captures.get(5)?.as_str(),
+                        ),
+                        face_name,
+                    )?,
                     if captures.get(3).is_some() { 0 } else { 1 },
                     1,
                 ),
             ],
         ));
     }
+    let double_target_power_toughness_re = Regex::new(
+        r"(?i)^Double target (.+?)(?:'s|\x{2019}s) power and toughness until end of turn\.$",
+    )
+    .expect("double target power and toughness regex compiles");
+    if let Some(captures) = double_target_power_toughness_re.captures(instruction) {
+        let target = chosen_target("targetPermanent");
+        return Some((
+            vec![json!({
+                "kind": "modifyPowerToughness",
+                "object": target.clone(),
+                "power": {
+                    "kind": "powerOf",
+                    "object": target.clone(),
+                },
+                "toughness": {
+                    "kind": "toughnessOf",
+                    "object": target,
+                },
+                "duration": { "kind": "untilEndOfCurrentTurn" },
+            })],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(1)?.as_str(), face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
 
-    let source_fights_target_re = Regex::new(r"(?i)^(.+?) fights (up to one )?target (.+?)\.$")
-        .expect("source fights target regex compiles");
+    let source_fights_target_re =
+        Regex::new(r"(?i)^(.+?) fights (up to one )?(other )?target (.+?)\.$")
+            .expect("source fights target regex compiles");
     if let Some(captures) = source_fights_target_re.captures(instruction)
         && (matches!(
             captures[1].to_ascii_lowercase().as_str(),
@@ -6690,7 +7327,18 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             })],
             vec![target_decision(
                 "fightTarget",
-                permanent_target_candidates(captures.get(3)?.as_str(), face_name)?,
+                permanent_target_candidates(
+                    &format!(
+                        "{}{}",
+                        if captures.get(3).is_some() {
+                            "other "
+                        } else {
+                            ""
+                        },
+                        captures.get(4)?.as_str(),
+                    ),
+                    face_name,
+                )?,
                 if captures.get(2).is_some() { 0 } else { 1 },
                 1,
             )],
@@ -6723,7 +7371,12 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         variable_clause_pattern(),
     ))
     .expect("source variable power bonus instruction regex compiles");
-    if let Some(captures) = self_variable_bonus_re.captures(instruction) {
+    if let Some(captures) = self_variable_bonus_re.captures(instruction)
+        && !instruction.to_ascii_lowercase().starts_with("target ")
+        && !instruction
+            .to_ascii_lowercase()
+            .starts_with("another target ")
+    {
         let amount = x_variable_expression(captures.get(3)?.as_str())?;
         return Some((
             vec![json!({
@@ -6784,6 +7437,70 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             })],
             Vec::new(),
         ));
+    }
+
+    let temporary_creature_form_re = Regex::new(
+        r"(?i)^Until end of turn, (?:target (.+?)|(.+?)) becomes (?:a|an) (.+?) with base power and toughness ([+-]?\d+)/([+-]?\d+) and gains (.+)\.$",
+    )
+    .expect("temporary creature form regex compiles");
+    if let Some(captures) = temporary_creature_form_re.captures(instruction) {
+        let (object, decisions) = if let Some(description) = captures.get(1) {
+            (
+                chosen_target("targetPermanent"),
+                vec![target_decision(
+                    "targetPermanent",
+                    permanent_target_candidates(description.as_str(), face_name)?,
+                    1,
+                    1,
+                )],
+            )
+        } else {
+            let source = captures.get(2)?.as_str();
+            if !source_reference_matches(source, face_name) {
+                return None;
+            }
+            (self_ref(), Vec::new())
+        };
+        let mut add_types = vec!["Creature"];
+        let mut add_subtypes = Vec::new();
+        let mut add_colors = Vec::new();
+        for characteristic in captures.get(3)?.as_str().split_whitespace() {
+            match characteristic.to_ascii_lowercase().as_str() {
+                "artifact" => add_types.push("Artifact"),
+                "creature" => {}
+                "white" => add_colors.push("W"),
+                "blue" => add_colors.push("U"),
+                "black" => add_colors.push("B"),
+                "red" => add_colors.push("R"),
+                "green" => add_colors.push("G"),
+                _ => add_subtypes.push(characteristic),
+            }
+        }
+        let mut effects = vec![json!({
+            "kind": "becomeCreature",
+            "object": object.clone(),
+            "addTypes": add_types,
+            "addSubtypes": add_subtypes,
+            "addColors": add_colors,
+            "basePower": integer(captures[4].parse::<i64>().ok()?),
+            "baseToughness": integer(captures[5].parse::<i64>().ok()?),
+            "retainExistingTypes": true,
+            "replaceSubtypes": true,
+            "duration": { "kind": "untilEndOfCurrentTurn" },
+        })];
+        effects.extend(
+            oracle_keyword_list(captures.get(6)?.as_str())?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "grantKeyword",
+                        "object": object.clone(),
+                        "keyword": keyword,
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    })
+                }),
+        );
+        return Some((effects, decisions));
     }
 
     let animate_source_land_re = Regex::new(
@@ -6898,27 +7615,38 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     .expect("general target power toughness instruction regex compiles");
 
     let target_variable_bonus_re = Regex::new(&format!(
-        r"(?i)^Target (.+?) gets ([+-]?)X/([+-]\d+) until end of turn, where X is ({})\.$",
+        r"(?i)^(?:(Another) target|Target) (.+?) gets ([+-]?)X/([+-]\d+) until end of turn, where X is ({})\.$",
         variable_clause_pattern(),
     ))
     .expect("target variable power bonus instruction regex compiles");
     if let Some(captures) = target_variable_bonus_re.captures(instruction) {
-        let amount = x_variable_expression(captures.get(4)?.as_str())?;
+        let amount = x_variable_expression(captures.get(5)?.as_str())?;
         return Some((
             vec![json!({
                 "kind": "modifyPowerToughness",
                 "object": chosen_target("targetPermanent"),
-                "power": if captures.get(2)?.as_str() == "-" {
+                "power": if captures.get(3)?.as_str() == "-" {
                     json!({ "kind": "multiply", "left": integer(-1), "right": amount })
                 } else {
                     amount
                 },
-                "toughness": integer(captures[3].parse::<i64>().ok()?),
+                "toughness": integer(captures[4].parse::<i64>().ok()?),
                 "duration": { "kind": "untilEndOfCurrentTurn" },
             })],
             vec![target_decision(
                 "targetPermanent",
-                permanent_target_candidates(captures.get(1)?.as_str(), face_name)?,
+                permanent_target_candidates(
+                    &format!(
+                        "{}{}",
+                        if captures.get(1).is_some() {
+                            "another "
+                        } else {
+                            ""
+                        },
+                        captures.get(2)?.as_str(),
+                    ),
+                    face_name,
+                )?,
                 1,
                 1,
             )],
@@ -6999,19 +7727,24 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     }
 
     let controlled_variable_bonus_re = Regex::new(&format!(
-        r"(?i)^(.+?) you control get \+X/\+X until end of turn, where X is ({})\.$",
+        r"(?i)^(.+?) you control gets? \+X/\+X until end of turn, where X is ({})\.$",
         variable_clause_pattern(),
     ))
     .expect("controlled variable power toughness instruction regex compiles");
     if let Some(captures) = controlled_variable_bonus_re.captures(instruction) {
         let amount = x_variable_expression(captures.get(2)?.as_str())?;
+        let mut criteria = captures.get(1)?.as_str().trim();
+        criteria = strip_prefix_ascii_case(criteria, "each ").unwrap_or(criteria);
+        let exclude_source = strip_prefix_ascii_case(criteria, "other ").is_some();
+        criteria = strip_prefix_ascii_case(criteria, "other ").unwrap_or(criteria);
         return Some((
             vec![json!({
                 "kind": "modifyPowerToughness",
                 "object": {
                     "kind": "eachPermanent",
                     "player": controller(),
-                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                    "where": parse_permanent_criteria(criteria, face_name)?,
+                    "excludeSource": exclude_source,
                 },
                 "power": amount.clone(),
                 "toughness": amount,
@@ -7313,46 +8046,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let destroy_then_controller_search_re = Regex::new(
-        r"(?i)^Destroy (up to one )?target (.+?)\. (?:Its controller|That player) may search their library for (?:a|an) (.+?) card, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.$",
-    )
-    .expect("destroy then target-controller library search regex compiles");
-    if let Some(captures) = destroy_then_controller_search_re.captures(instruction) {
-        let target = chosen_target("targetPermanent");
-        let affected_player = json!({ "kind": "boundValue", "id": "targetController" });
-        let search_effects = search_library_effects_for(
-            affected_player.clone(),
-            parse_permanent_criteria(&captures[3], face_name)?,
-            1,
-            "battlefield",
-            captures.get(4).is_some(),
-        );
-        return Some((
-            vec![
-                json!({
-                    "kind": "bind",
-                    "id": "targetController",
-                    "value": { "kind": "controllerOf", "object": target.clone() },
-                }),
-                json!({
-                    "kind": "destroyPermanent",
-                    "permanent": target,
-                }),
-                json!({
-                    "kind": "optionalEffects",
-                    "player": affected_player,
-                    "effects": search_effects,
-                }),
-            ],
-            vec![target_decision(
-                "targetPermanent",
-                permanent_target_candidates(&captures[2], face_name)?,
-                if captures.get(1).is_some() { 0 } else { 1 },
-                1,
-            )],
-        ));
-    }
-
     let multi_target_zone_change_re = Regex::new(&format!(
         r"(?i)^(Destroy|Exile) up to ({}) target (.+)\.$",
         count_word_pattern(),
@@ -7518,23 +8211,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
                     or(filters)
                 },
             })
-        } else if description.eq_ignore_ascii_case("triggered ability or colorless spell") {
-            json!({
-                "kind": "stackItems",
-                "where": {
-                    "kind": "or",
-                    "operands": [
-                        { "kind": "isTriggeredAbility" },
-                        {
-                            "kind": "and",
-                            "operands": [
-                                { "kind": "isSpell" },
-                                { "kind": "isColorless" },
-                            ],
-                        },
-                    ],
-                },
-            })
         } else {
             let spell_description = if description.eq_ignore_ascii_case("spell") {
                 ""
@@ -7655,21 +8331,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
         ));
     }
 
-    let global_destroy_re = Regex::new(r"(?i)^Destroy all (.+)\.$")
-        .expect("global permanent destruction regex compiles");
-    if let Some(captures) = global_destroy_re.captures(instruction) {
-        return Some((
-            vec![json!({
-                "kind": "destroyPermanent",
-                "permanent": {
-                    "kind": "eachPermanent",
-                    "where": parse_permanent_criteria(&captures[1], face_name)?,
-                },
-            })],
-            Vec::new(),
-        ));
-    }
-
     if instruction.eq_ignore_ascii_case("Return target spell to its owner's hand.") {
         return Some((
             vec![json!({
@@ -7748,7 +8409,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
     }
 
     let target_return_re = Regex::new(
-        r"(?i)^Return (up to one |one |two )?(?:(other|another) )?target (.+) to (?:its owner's hand|their owners' hands)\.$",
+        r"(?i)^Return (up to one |one |two |one or two )?(?:(other|another) )?target (.+) to (?:its owner's hand|their owners' hands)\.$",
     )
     .expect("general target return instruction regex compiles");
     if let Some(captures) = target_return_re.captures(instruction) {
@@ -7756,12 +8417,18 @@ pub(in crate::oracle::canonical) fn parse_general_effect_instruction(
             .get(2)
             .map(|qualifier| format!("{} {}", qualifier.as_str(), &captures[3]))
             .unwrap_or_else(|| captures[3].to_string());
-        let cardinality = captures.get(1).map(|value| value.as_str().trim());
-        let maximum = if cardinality == Some("two") { 2 } else { 1 };
-        let minimum = if cardinality == Some("up to one") {
-            0
+        let cardinality = captures
+            .get(1)
+            .map(|value| value.as_str().trim().to_ascii_lowercase());
+        let maximum = if matches!(cardinality.as_deref(), Some("two" | "one or two")) {
+            2
         } else {
-            maximum
+            1
+        };
+        let minimum = match cardinality.as_deref() {
+            Some("up to one") => 0,
+            Some("one or two") => 1,
+            _ => maximum,
         };
         let target_id = if maximum == 1 {
             "targetPermanent"

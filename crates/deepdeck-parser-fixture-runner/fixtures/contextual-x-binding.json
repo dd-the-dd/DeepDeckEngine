@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card/contextual-x-binding",
+  "cases": [
+    {
+      "id": "vicious-rivalry-rejects-x-without-a-producer",
+      "request": {
+        "cardName": "Vicious Rivalry",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{G}",
+        "oracleText": "As an additional cost to cast this spell, pay X life.\nDestroy all artifacts and creatures with mana value X or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          },
+          {
+            "index": 1,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.start",
+            "expectedContains": "a supported effect subject",
+            "found": "As"
+          },
+          {
+            "abilityIndex": 1,
+            "code": "oracle_context_binding_failure",
+            "automaton": "card-context-binding",
+            "state": "binding.x-value.source",
+            "expectedContains": "xValue declaration or {X}",
+            "found": "{2}{B}{G}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "meltdown-accepts-x-from-the-spell-mana-cost",
+      "request": {
+        "cardName": "Meltdown",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "Destroy each artifact with mana value X or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "and" },
+            { "pointer": "/effects/0/permanent/where/operands/1/right/kind", "equals": "decisionResult" },
+            { "pointer": "/effects/0/permanent/where/operands/1/right/decisionId", "equals": "xValue" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "punishment-uses-x-from_its_own_face",
+      "request": {
+        "cardName": "Crime // Punishment",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{3}{W}{B} // {X}{B}{G}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "crime",
+            "name": "Crime",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{W}{B}",
+            "oracleText": "Put target creature or enchantment card from an opponent's graveyard onto the battlefield under your control."
+          },
+          {
+            "id": "punishment",
+            "name": "Punishment",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{B}{G}",
+            "oracleText": "Destroy each artifact, creature, and enchantment with mana value X."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where/kind",
+                "equals": "and"
+              },
+              {
+                "pointer": "/effects/0/permanent/where/operands/0/kind",
+                "equals": "or"
+              },
+              {
+                "pointer": "/effects/0/permanent/where/operands/1/kind",
+                "equals": "compare"
+              }
+            ]
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.target-card-move.put.source-article",
+            "expectedContains": "a",
+            "found": "an"
+          }
+        ]
+      }
+    },
+    {
+      "id": "x_on_a_different_split_face_is_not_a_producer",
+      "request": {
+        "cardName": "Wrong Face // Right Face",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{2}{B} // {X}{G}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "wrong-face",
+            "name": "Wrong Face",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{B}",
+            "oracleText": "Destroy all creatures with mana value X or less."
+          },
+          {
+            "id": "right-face",
+            "name": "Right Face",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{G}",
+            "oracleText": "Destroy all lands."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          { "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "spellAbility" },
+          { "index": 1, "status": "canonical", "recognizer": "native", "abilityType": "spellAbility" }
+        ],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_context_binding_failure",
+          "automaton": "card-context-binding",
+          "state": "binding.x-value.source",
+          "found": "{2}{B}"
+        }]
+      }
+    }
+  ]
+}

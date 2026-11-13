@@ -1,0 +1,248 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "library-search/typed-destination-reveal-order",
+  "cardName": "Demonic Tutor",
+  "oracleId": "82004860-e589-4e38-8d61-8c0210e4ea39",
+  "cases": [
+    {
+      "id": "demonic-tutor-any-card-to-hand",
+      "request": {
+        "cardName": "Demonic Tutor",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Search your library for a card, put that card into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+            { "pointer": "/effects/0/minimum", "equals": 1 },
+            { "pointer": "/effects/0/maximum", "equals": 1 },
+            { "pointer": "/effects/0/candidates/where", "equals": null },
+            { "pointer": "/effects/1/kind", "equals": "moveCards" },
+            { "pointer": "/effects/1/to/kind", "equals": "hand" },
+            { "pointer": "/effects/2/kind", "equals": "shuffleZone" },
+            { "pointer": "/effects/3/kind", "equals": "recordLibrarySearch" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "vampiric-tutor-shuffle-before-top-and-life",
+      "request": {
+        "cardName": "Vampiric Tutor",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card, then shuffle and put that card on top. You lose 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+            { "pointer": "/effects/0/minimum", "equals": 1 },
+            { "pointer": "/effects/1/kind", "equals": "shuffleZone" },
+            { "pointer": "/effects/1/excludeCards/decisionId", "equals": "searchedCards" },
+            { "pointer": "/effects/2/kind", "equals": "moveCards" },
+            { "pointer": "/effects/2/to/kind", "equals": "library" },
+            { "pointer": "/effects/2/to/position", "equals": "top" },
+            { "pointer": "/effects/3/kind", "equals": "recordLibrarySearch" },
+            { "pointer": "/effects/4/kind", "equals": "loseLife" },
+            { "pointer": "/effects/4/amount/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "enlightened-tutor-qualified-reveal-top",
+      "request": {
+        "cardName": "Enlightened Tutor",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+            { "pointer": "/effects/0/minimum", "equals": 0 },
+            { "pointer": "/effects/0/maximum", "equals": 1 },
+            { "pointer": "/effects/0/candidates/where/kind", "equals": "or" },
+            { "pointer": "/effects/1/kind", "equals": "revealCards" },
+            { "pointer": "/effects/2/kind", "equals": "shuffleZone" },
+            { "pointer": "/effects/2/excludeCards/decisionId", "equals": "searchedCards" },
+            { "pointer": "/effects/3/kind", "equals": "moveCards" },
+            { "pointer": "/effects/3/to/position", "equals": "top" },
+            { "pointer": "/effects/4/kind", "equals": "recordLibrarySearch" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "battlefield-sibling-preserves-existing-order",
+      "request": {
+        "cardName": "Land Lesson",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/minimum", "equals": 0 },
+            { "pointer": "/effects/1/to/kind", "equals": "battlefield" },
+            { "pointer": "/effects/1/to/tapped", "equals": true },
+            { "pointer": "/effects/2/kind", "equals": "shuffleZone" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "search-then-targeted-action-keeps-declaration",
+      "request": {
+        "cardName": "Targeted Research Lesson",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Search your library for a card, put that card into your hand, then shuffle. Target creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent" },
+            { "pointer": "/effects/0/id", "equals": "searchedCards" },
+            { "pointer": "/effects/4/kind", "equals": "modifyPowerToughness" },
+            { "pointer": "/effects/4/object/id", "equals": "targetPermanent" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "two-searches-use-distinct-collection-bindings",
+      "request": {
+        "cardName": "Double Research Lesson",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Search your library for a card, put that card into your hand, then shuffle. Search your library for an artifact card, then shuffle and put that card on top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/id", "equals": "searchedCards" },
+            { "pointer": "/effects/4/id", "equals": "searchedCards:1" },
+            { "pointer": "/effects/5/excludeCards/decisionId", "equals": "searchedCards:1" },
+            { "pointer": "/effects/6/cards/decisionId", "equals": "searchedCards:1" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "search-result-does-not-reuse-an-earlier-target-binding",
+      "request": {
+        "cardName": "Ambiguous Research Lesson",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Target creature gets +1/+1 until end of turn. Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "temporary-power-toughness",
+          "state": "effect.untap-target.reference",
+          "found": "it"
+        }]
+      }
+    },
+    {
+      "id": "top-before-shuffle-near-miss",
+      "request": {
+        "cardName": "Malformed Tutor",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card, put that card on top, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "library-search-move",
+          "state": "effect.library-search.destination",
+          "found": ","
+        }]
+      }
+    }
+  ]
+}

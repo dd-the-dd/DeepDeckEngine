@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "talisman-of-hierarchy/both-native-mana-rules-are-executable",
+  "cardName": "Talisman of Hierarchy",
+  "oracleId": "b693c3de-2eaf-4850-b405-e79d00adefda",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{W}", "{B}"] }
+        },
+        {
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 1 },
+          "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lightning-greaves-zero-equip-grants-dynamic-haste-and-shroud",
+  "seed": 85,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "attachedPermanent",
+          "attachment": { "kind": "self" }
+        },
+        "keyword": "haste"
+      },
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "attachedPermanent",
+          "attachment": { "kind": "self" }
+        },
+        "keyword": "shroud"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lightning Greaves pilot",
+        "battlefield": [
+          {
+            "id": "lightning-greaves",
+            "name": "Lightning Greaves",
+            "typeLine": "Artifact — Equipment",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": { "kind": "self" }
+                    },
+                    "keyword": "haste"
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": { "kind": "self" }
+                    },
+                    "keyword": "shroud"
+                  }
+                ]
+              },
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "equip",
+                  "costs": [{ "kind": "payMana", "manaCost": "{0}" }]
+                }
+              }
+            ]
+          },
+          {
+            "id": "new-mana-creature",
+            "name": "New Mana Creature",
+            "typeLine": "Creature — Elf",
+            "power": "1",
+            "toughness": "1",
+            "summoningSick": true,
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          },
+          {
+            "id": "unattached-new-creature",
+            "name": "Unattached New Creature",
+            "typeLine": "Creature — Human",
+            "power": "1",
+            "toughness": "1",
+            "summoningSick": true,
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          },
+          {
+            "id": "own-pinger",
+            "name": "Own Pinger",
+            "typeLine": "Creature — Wizard",
+            "power": "1",
+            "toughness": "1",
+            "summoningSick": false,
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "dealDamage",
+                "source": { "kind": "self" },
+                "amount": { "kind": "integer", "value": 1 },
+                "recipient": { "kind": "chosenTarget", "id": "targetPermanent" }
+              }]
+            }]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "opponent-pinger",
+          "name": "Opponent Pinger",
+          "typeLine": "Creature — Wizard",
+          "power": "1",
+          "toughness": "1",
+          "summoningSick": false,
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 1 },
+              "recipient": { "kind": "chosenTarget", "id": "targetPermanent" }
+            }]
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "equipTarget": {
+          "kind": "permanentDefinition",
+          "definitionId": "new-mana-creature"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "eventCount", "eventKind": "permanentAttached", "equals": 1 },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "new-mana-creature", "keyword": "haste", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "new-mana-creature", "keyword": "shroud", "equals": true },
+    { "kind": "permanentSummoningSick", "playerId": "player-0", "definitionId": "new-mana-creature", "equals": true },
+    { "kind": "activatedAbilityAvailable", "controllerId": "player-0", "sourceDefinitionId": "new-mana-creature", "abilityRuleIndex": 0, "equals": true },
+    { "kind": "activatedAbilityAvailable", "controllerId": "player-0", "sourceDefinitionId": "unattached-new-creature", "abilityRuleIndex": 0, "equals": false },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "own-pinger",
+      "abilityRuleIndex": 0,
+      "targets": { "targetPermanent": { "kind": "permanentDefinition", "definitionId": "new-mana-creature" } },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "own-pinger",
+      "abilityRuleIndex": 0,
+      "targets": { "targetPermanent": { "kind": "permanentDefinition", "definitionId": "unattached-new-creature" } },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-pinger",
+      "abilityRuleIndex": 0,
+      "targets": { "targetPermanent": { "kind": "permanentDefinition", "definitionId": "new-mana-creature" } },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-pinger",
+      "abilityRuleIndex": 0,
+      "targets": { "targetPermanent": { "kind": "permanentDefinition", "definitionId": "unattached-new-creature" } },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 1,
+      "targets": { "equipTarget": { "kind": "permanentDefinition", "definitionId": "new-mana-creature" } },
+      "equals": false
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

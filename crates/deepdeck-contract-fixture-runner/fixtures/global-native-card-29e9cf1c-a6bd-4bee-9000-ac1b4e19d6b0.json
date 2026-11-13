@@ -1,0 +1,46 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/29e9cf1c-a6bd-4bee-9000-ac1b4e19d6b0/complete-rule-set",
+    "cardName":  "Ritual of Soot",
+    "oracleId":  "29e9cf1c-a6bd-4bee-9000-ac1b4e19d6b0",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "compare",
+                                                                                               "left":  {
+                                                                                                            "kind":  "manaValueOf",
+                                                                                                            "object":  {
+                                                                                                                           "kind":  "candidate"
+                                                                                                                       }
+                                                                                                        },
+                                                                                               "operator":  "\u003c=",
+                                                                                               "right":  {
+                                                                                                             "kind":  "integer",
+                                                                                                             "value":  3
+                                                                                                         }
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

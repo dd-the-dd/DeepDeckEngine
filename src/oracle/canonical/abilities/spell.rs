@@ -53,31 +53,6 @@ pub(in crate::oracle::canonical) fn parse_own_casting_reduction(
             ],
         ));
     }
-    if text == "This spell costs {1} less to cast for each creature on the battlefield." {
-        return Some(draft(
-            json!({
-                "kind": "staticAbility",
-                "source": self_ref(),
-                "activeWhile": {
-                    "kind": "inZone",
-                    "object": self_ref(),
-                    "zone": { "kind": "stackOrCast" },
-                },
-                "modifiers": [{
-                    "kind": "reduceOwnGenericCastingCost",
-                    "amount": {
-                        "kind": "countPermanents",
-                        "allPlayers": true,
-                        "where": card_type("Creature"),
-                    },
-                }],
-            }),
-            &[
-                "Count creatures across the battlefield",
-                "Reduce the spell's generic casting cost",
-            ],
-        ));
-    }
     let targeted_casting_reduction_re =
         Regex::new(r"(?i)^This spell costs \{(\d+)\} less to cast if it targets (?:a|an) (.+?)\.$")
             .expect("target-qualified casting reduction regex compiles");
@@ -319,7 +294,7 @@ pub(in crate::oracle::canonical) fn parse_common_spell_ability(
     }
 
     let targeted_hand_disruption_re = Regex::new(
-        r"(?i)^Target (player|opponent) reveals their hand\. You choose (?:a|an) (.+?) card from it\. That player discards that card\.(?: You lose (\d+) life\.)?$",
+        r"(?i)^Target (player|opponent) reveals their hand\. You choose (?:a|an) (.+?) card from it\. That player discards that card\. You lose (\d+) life\.$",
     )
     .expect("targeted hand disruption regex compiles");
     if let Some(captures) = targeted_hand_disruption_re.captures(text) {
@@ -1215,74 +1190,6 @@ pub(in crate::oracle::canonical) fn parse_composed_spell(text: &str) -> Option<C
         ));
     }
 
-    if text == "Target opponent exiles a creature they control and their graveyard." {
-        let opponent = chosen_target("targetOpponent");
-        return Some(draft(
-            json!({
-                "kind": "spellAbility",
-                "source": self_ref(),
-                "declaration": {
-                    "kind": "castingDeclaration",
-                    "decisions": [
-                        target_decision(
-                            "targetOpponent",
-                            json!({
-                                "kind": "players",
-                                "where": {
-                                    "kind": "isOpponentOf",
-                                    "player": controller(),
-                                },
-                            }),
-                            1,
-                            1,
-                        ),
-                    ],
-                },
-                "effects": [
-                    {
-                        "kind": "choosePermanents",
-                        "id": "creatureToExile",
-                        "player": opponent.clone(),
-                        "minimum": minimum(vec![
-                            integer(1),
-                            json!({
-                                "kind": "countPermanents",
-                                "player": opponent.clone(),
-                                "where": card_type("Creature"),
-                            }),
-                        ]),
-                        "maximum": 1,
-                        "candidates": {
-                            "kind": "permanents",
-                            "controller": opponent.clone(),
-                            "where": card_type("Creature"),
-                        },
-                    },
-                    {
-                        "kind": "exileTogether",
-                        "objects": {
-                            "kind": "union",
-                            "sets": [
-                                decision_result("creatureToExile"),
-                                {
-                                    "kind": "cardsInZone",
-                                    "zone": graveyard(opponent),
-                                },
-                            ],
-                        },
-                    },
-                ],
-            }),
-            &[
-                "Extract required opponent target",
-                "Assign resolution choice to targeted opponent",
-                "Cap creature choice by available permanents",
-                "Union chosen creature with graveyard",
-                "Resolve simultaneous exile instruction",
-            ],
-        ));
-    }
-
     if text.starts_with("Draw two cards. Then you may discard two cards. When you do,") {
         return Some(draft(
             json!({
@@ -1752,14 +1659,6 @@ pub(in crate::oracle::canonical) fn parse_common_zone_and_value_spell(
         | "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle." => {
             Some(json!({ "kind": "typeLineContains", "value": "Basic Land" }))
         }
-        "Search your library for a Plains, Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle." => {
-            Some(or(vec![
-                subtype("Plains"),
-                subtype("Island"),
-                subtype("Swamp"),
-                subtype("Mountain"),
-            ]))
-        }
         _ => None,
     };
     if let Some(filter) = search_filter {
@@ -1773,52 +1672,6 @@ pub(in crate::oracle::canonical) fn parse_common_zone_and_value_spell(
                 "Choose a matching library card",
                 "Move it to the battlefield tapped",
                 "Shuffle the searched library",
-            ],
-        ));
-    }
-
-    let mandatory_sacrifice_filter = match text {
-        "As an additional cost to cast this spell, sacrifice a creature." => {
-            Some(card_type("Creature"))
-        }
-        "As an additional cost to cast this spell, sacrifice an artifact or creature." => {
-            Some(or(vec![card_type("Artifact"), card_type("Creature")]))
-        }
-        "As an additional cost to cast this spell, sacrifice a nonland permanent." => {
-            Some(not(card_type("Land")))
-        }
-        _ => None,
-    };
-    if let Some(filter) = mandatory_sacrifice_filter {
-        return Some(draft(
-            json!({
-                "kind": "spellAbility",
-                "source": self_ref(),
-                "declaration": {
-                    "kind": "castingDeclaration",
-                    "decisions": [
-                        target_decision(
-                            "additionalCostPermanent",
-                            json!({
-                                "kind": "permanents",
-                                "controller": controller(),
-                                "where": filter,
-                            }),
-                            1,
-                            1,
-                        ),
-                    ],
-                    "additionalCosts": [{
-                        "kind": "sacrificePermanent",
-                        "permanent": chosen_target("additionalCostPermanent"),
-                    }],
-                },
-                "effects": [],
-            }),
-            &[
-                "Recognize mandatory additional cost",
-                "Declare controlled permanent choice",
-                "Attach sacrifice payment",
             ],
         ));
     }
@@ -2264,22 +2117,6 @@ pub(in crate::oracle::canonical) fn parse_avatar_casting_instruction(
             &[
                 "Check whether a controlled creature left this turn",
                 "Reduce generic cost by two",
-            ],
-        ));
-    }
-    if text == "If you control a commander, you may cast this spell without paying its mana cost." {
-        return Some(draft(
-            json!({
-                "kind": "spellAbility",
-                "source": self_ref(),
-                "castingInstruction": {
-                    "kind": "freeIfControlCommander",
-                },
-                "effects": [],
-            }),
-            &[
-                "Check for a commander controlled by the caster",
-                "Offer the spell without paying its mana cost",
             ],
         ));
     }
@@ -2941,11 +2778,6 @@ pub(in crate::oracle::canonical) fn parse_azula_spell_ability(
             ],
         ));
     }
-    if text
-        == "Each creature with mana value X or less loses all abilities until end of turn. Destroy those creatures."
-    {
-        return Some(spell("dayOfBlackSun", vec![x_value()]));
-    }
     if text.starts_with("Choose three. You may choose the same mode more than once.")
         && text.contains("Fiery Confluence deals 1 damage to each creature.")
     {
@@ -3146,35 +2978,6 @@ pub(in crate::oracle::canonical) fn parse_remaining_deck_spell(
     match text {
         "Join forces — Starting with you, each player may pay any amount of mana. Each player creates X 1/1 white Soldier creature tokens, where X is the total amount of mana paid this way." => {
             Some(spell("joinForcesSoldiers", None))
-        }
-        "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn." =>
-        {
-            let mut damage_target = target_decision(
-                "damageTarget",
-                json!({
-                    "kind": "union",
-                    "sets": [
-                        { "kind": "players" },
-                        {
-                            "kind": "permanents",
-                            "where": card_type("Planeswalker"),
-                        },
-                    ],
-                }),
-                1,
-                1,
-            );
-            damage_target["condition"] = selection("spellMode", "damage");
-            let mut creature_target = target_permanent("creatureTarget", card_type("Creature"));
-            creature_target["condition"] = selection("spellMode", "doubleStrike");
-            Some(spell(
-                "borosCharm",
-                Some(declaration(vec![
-                    mode_decision(vec!["damage", "indestructible", "doubleStrike"]),
-                    damage_target,
-                    creature_target,
-                ])),
-            ))
         }
         "As an additional cost to cast this spell, you may sacrifice one or more creatures. When you do, copy this spell for each creature sacrificed this way." => {
             Some(draft(
@@ -5016,22 +4819,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_spell(
             vec![decision],
         ));
     }
-    if text == "Draw three cards. Then discard two cards unless you discard a creature card." {
-        return Some(expansion_spell_rule(
-            vec![
-                json!({
-                    "kind": "drawCards",
-                    "player": controller(),
-                    "count": integer(3),
-                }),
-                json!({
-                    "kind": "discardTwoUnlessDiscardCreature",
-                    "player": controller(),
-                }),
-            ],
-            Vec::new(),
-        ));
-    }
     if text.starts_with(
         "Exile all creatures. Incubate X, where X is the number of creatures exiled this way.",
     ) {
@@ -5084,22 +4871,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_spell(
                 json!({ "kind": "permanents", "where": card_type("Artifact") }),
                 2,
                 2,
-            )],
-        ));
-    }
-    if text
-        == "The owner of target permanent shuffles it into their library, then reveals the top card of their library. If it's a permanent card, they put it onto the battlefield."
-    {
-        return Some(expansion_spell_rule(
-            vec![json!({
-                "kind": "resolveSpellInstruction",
-                "operation": "chaosWarp",
-            })],
-            vec![target_decision(
-                "targetPermanent",
-                json!({ "kind": "permanents", "where": Value::Null }),
-                1,
-                1,
             )],
         ));
     }
@@ -5686,65 +5457,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_spell(
         ));
     }
 
-    if text
-        == "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying."
-    {
-        let spell = chosen_target("targetSpell");
-        return Some(expansion_spell_rule(
-            vec![
-                json!({
-                    "kind": "bind",
-                    "id": "counteredSpellController",
-                    "value": { "kind": "controllerOf", "object": spell.clone() },
-                }),
-                json!({ "kind": "counterSpell", "spell": spell }),
-                json!({
-                    "kind": "createTokens",
-                    "controller": { "kind": "boundValue", "id": "counteredSpellController" },
-                    "quantity": integer(1),
-                    "token": {
-                        "name": "Bird Token",
-                        "colors": ["blue"],
-                        "types": ["Creature"],
-                        "subtypes": ["Bird"],
-                        "power": 2,
-                        "toughness": 2,
-                        "abilities": [{ "kind": "flying" }],
-                    },
-                }),
-            ],
-            vec![target_decision(
-                "targetSpell",
-                json!({
-                    "kind": "stackObjects",
-                    "where": or(vec![
-                        card_type("Enchantment"),
-                        card_type("Instant"),
-                        card_type("Sorcery"),
-                    ]),
-                }),
-                1,
-                1,
-            )],
-        ));
-    }
-
-    if text
-        == "Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle."
-    {
-        return Some(expansion_spell_rule(
-            vec![json!({
-                "kind": "resolveSpellInstruction",
-                "operation": "exileTargetThenControllerMaySearchBasicLand",
-            })],
-            vec![target_decision(
-                "targetCreature",
-                json!({ "kind": "permanents", "where": card_type("Creature") }),
-                1,
-                1,
-            )],
-        ));
-    }
     if text == "Counter target spell that targets you or a permanent you control." {
         return Some(expansion_spell_rule(
             vec![json!({
@@ -5947,17 +5659,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_spell(
                 vec![target_decision(
                     "targetLand",
                     json!({ "kind": "cards", "zone": { "kind": "anyGraveyard" }, "where": card_type("Land") }),
-                    1,
-                    1,
-                )],
-            ));
-        }
-        "Counter target artifact or enchantment spell." => {
-            return Some(expansion_spell_rule(
-                vec![json!({ "kind": "counterSpell", "spell": chosen_target("targetSpell") })],
-                vec![target_decision(
-                    "targetSpell",
-                    json!({ "kind": "stackObjects", "where": or(vec![card_type("Artifact"), card_type("Enchantment")]) }),
                     1,
                     1,
                 )],

@@ -44,6 +44,30 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
     } else {
         text
     };
+    let mixed_keyword_and_rule_re =
+        Regex::new(r#"(?i)^(create .+? creature tokens?) with (.+?),? and \"([^\"]+)\"\.?$"#)
+            .expect("token with keywords and an embedded rule regex compiles");
+    if let Some(captures) = mixed_keyword_and_rule_re.captures(text) {
+        let base_instruction = format!("{}.", captures.get(1)?.as_str());
+        let mut effect = create_token_effect(&base_instruction)?;
+        let token_name = effect["token"]["name"].as_str().unwrap_or("This token");
+        let mut abilities = oracle_keyword_list(captures.get(2)?.as_str())?
+            .into_iter()
+            .map(|keyword| {
+                json!({
+                    "kind": "keywordAbility",
+                    "source": self_ref(),
+                    "ability": { "kind": keyword },
+                })
+            })
+            .collect::<Vec<_>>();
+        abilities.push(parse_token_embedded_rule(
+            captures.get(3)?.as_str(),
+            token_name,
+        )?);
+        effect["token"]["abilities"] = Value::Array(abilities);
+        return Some(with_token_entry_state(effect, tapped));
+    }
     let basic_named_token_re = Regex::new(&format!(
         r"(?i)^create ({}) (Treasure|Clue|Food) tokens?\.?$",
         quantity_word_pattern(),
@@ -72,6 +96,19 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
         effect["quantity"] = json!({
             "kind": "countCards",
             "zone": graveyard(controller()),
+            "where": parse_permanent_criteria(captures.get(2)?.as_str(), "")?,
+        });
+        return Some(effect);
+    }
+    let token_for_each_controlled_permanent_re =
+        Regex::new(r"(?i)^Create (?:a|one) (.+? token) for each (.+?) you control\.$")
+            .expect("token for each controlled permanent regex compiles");
+    if let Some(captures) = token_for_each_controlled_permanent_re.captures(text) {
+        let base_instruction = format!("Create a {}.", captures.get(1)?.as_str());
+        let mut effect = create_token_effect(&base_instruction)?;
+        effect["quantity"] = json!({
+            "kind": "countPermanents",
+            "player": controller(),
             "where": parse_permanent_criteria(captures.get(2)?.as_str(), "")?,
         });
         return Some(effect);
@@ -171,19 +208,58 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
         r"(?i)^create ([A-Za-z0-9 ',-]+), a legendary (\d+)/(\d+) (white|blue|black|red|green|colorless) ([A-Za-z][A-Za-z '-]+) creature token(?: with (.+?))?\.?$",
     )
     .expect("described legendary creature token regex compiles");
+    let described_legendary_token_with_rule_re = Regex::new(
+        r#"(?i)^create ([A-Za-z0-9 ',-]+), a legendary (\d+)/(\d+) (white|blue|black|red|green|colorless) ([A-Za-z][A-Za-z '-]+) creature token with \"([^\"]+)\"\.?$"#,
+    )
+    .expect("described legendary creature token with embedded rule regex compiles");
+    if let Some(captures) = described_legendary_token_with_rule_re.captures(text) {
+        let name = captures.get(1)?.as_str().trim();
+        let embedded_text = captures.get(6)?.as_str();
+        let normalized_rule = embedded_text
+            .strip_prefix(name)
+            .map(|suffix| format!("This creature{suffix}"))
+            .unwrap_or_else(|| embedded_text.to_string());
+        let ability = parse_token_embedded_rule(&normalized_rule, name)?;
+        let color = captures[4].to_ascii_lowercase();
+        return Some(with_token_entry_state(
+            json!({
+                "kind": "createTokens",
+                "controller": controller(),
+                "quantity": integer(1),
+                "token": {
+                    "name": name,
+                    "colors": if color == "colorless" { Vec::<String>::new() } else { vec![color] },
+                    "types": ["Legendary", "Creature"],
+                    "subtypes": captures[5].split_whitespace().collect::<Vec<_>>(),
+                    "power": captures[2].parse::<i64>().ok()?,
+                    "toughness": captures[3].parse::<i64>().ok()?,
+                    "abilities": [ability],
+                },
+            }),
+            tapped,
+        ));
+    }
     if let Some(captures) = described_legendary_token_re.captures(text) {
         let color = captures[4].to_ascii_lowercase();
-        let abilities = if let Some(keywords) = captures.get(6) {
-            oracle_keyword_list(keywords.as_str())?
-                .into_iter()
-                .map(|keyword| {
-                    json!({
-                        "kind": "keywordAbility",
-                        "source": self_ref(),
-                        "ability": { "kind": keyword },
+        let abilities = if let Some(description) = captures.get(6) {
+            let description = description.as_str();
+            if description.trim().starts_with('"') {
+                vec![parse_named_embedded_token_rule(
+                    description,
+                    captures.get(1)?.as_str().trim(),
+                )?]
+            } else {
+                oracle_keyword_list(description)?
+                    .into_iter()
+                    .map(|keyword| {
+                        json!({
+                            "kind": "keywordAbility",
+                            "source": self_ref(),
+                            "ability": { "kind": keyword },
+                        })
                     })
-                })
-                .collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
+            }
         } else {
             Vec::new()
         };
@@ -364,6 +440,22 @@ pub(in crate::oracle::canonical) fn create_token_effect(text: &str) -> Option<Va
         "token": token,
     });
     Some(with_token_entry_state(effect, tapped))
+}
+
+fn parse_named_embedded_token_rule(text: &str, token_name: &str) -> Option<Value> {
+    let text = text.trim().strip_prefix('"')?.strip_suffix('"')?.trim();
+    parse_token_embedded_rule(text, token_name)
+}
+
+fn parse_token_embedded_rule(text: &str, token_name: &str) -> Option<Value> {
+    let normalized = text
+        .strip_prefix(token_name)
+        .map(|suffix| format!("This creature{suffix}"))
+        .unwrap_or_else(|| text.to_string());
+    parse_embedded_token_rule(&normalized)
+        .or_else(|| parse_special_static_ability(&normalized).map(|parsed| parsed.rule))
+        .or_else(|| parse_common_static_ability(&normalized, token_name).map(|parsed| parsed.rule))
+        .or_else(|| parse_expansion_triggered(&normalized, token_name).map(|parsed| parsed.rule))
 }
 
 pub(in crate::oracle::canonical) fn parse_embedded_token_rule(text: &str) -> Option<Value> {

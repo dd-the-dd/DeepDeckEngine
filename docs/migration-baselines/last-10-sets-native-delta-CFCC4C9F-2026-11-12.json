@@ -1,0 +1,52 @@
+{
+  "checkpoint": "CFCC4C9F8D34F807DF8F0BBBE73F96E2C178CD0461D7F619913C5821BC783A96",
+  "status": "native_only_green_full_compatibility_red",
+  "promotableAsFullBaseline": false,
+  "analyzerSha256": "314292D342BF3BF56992B3CDC52286612F0E1644C164847AA4DF8175D131AC10",
+  "tenSetOccurrences": {
+    "uniqueOracleIds": 2323,
+    "completeNonzero": 196,
+    "completeVanilla": 3,
+    "partial": 865,
+    "noNativeCanonical": 1259,
+    "nativeAbilities": 1304,
+    "totalAbilities": 4697,
+    "deltaCompleteNonzeroFromB13": 2,
+    "deltaNativeAbilitiesFromB13": 9
+  },
+  "tenSetUnion": {
+    "uniqueOracleIds": 2279,
+    "completeNonzero": 153,
+    "completeVanilla": 3,
+    "overallCompletePercent": 6.85,
+    "partial": 864,
+    "noNativeCanonical": 1259,
+    "nativeAbilities": 1260,
+    "totalAbilities": 4652,
+    "nativeAbilityPercent": 27.09
+  },
+  "strictNativeOnlyComparisons": {
+    "round11": {"gainedAbilities": 2, "gainedFullyNativeCards": 1, "regressions": 0},
+    "queue450": {"gainedAbilities": 3, "gainedFullyNativeCards": 1, "regressions": 0},
+    "sevenSets": {"gainedAbilities": 7, "gainedFullyNativeCards": 4, "regressions": 0},
+    "global39288": {"previouslyNativePreserved": 14751, "gainedAbilities": 170, "gainedFullyNativeCards": 40, "regressions": 0}
+  },
+  "fullCompatibility": {
+    "claimRecords": 971,
+    "claimCards": 957,
+    "newNativeClaims": 970,
+    "canonicalAmongNewNativeClaims": 169,
+    "totalCanonicalNativeGains": 170,
+    "probeCards": 12,
+    "legacyCanonicalToNativeUnsupported": 12,
+    "b13TargetedBaselineCards": 957,
+    "b13TargetedBaselineSha256": "FB0DB2FF0DEBE6C3E1698EE41A131630399A96737374D32782A011ED5437BA39"
+  },
+  "proofs": {
+    "tenSetsDetailedSha256": "53466D8F3DDBE7B08E36AB3CDFE091D8F4D949D9E37FAF191A9ECBA637320162",
+    "tenSetsIndependentVerificationSha256": "B3622D75618071F23A716827F48D0C620BBA98A85E793F043FE36898C4641EB6",
+    "globalStrictComparisonSha256": "62B215BA76A09C5F066E3D27A207AAE35794783448EBCDEB39567288AB32D394",
+    "generatedContractsSha256": "A78182F3D4B3E54177681F8BB9930AE6F5D48F157535BC89CFDD9B3F3DFE7E99",
+    "fullRedProbeSha256": "DD00356068FF212B86CA3EB692573F873EB16DAD725EA024B7E09008BD11DC63"
+  }
+}

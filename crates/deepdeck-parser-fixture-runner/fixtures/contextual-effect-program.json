@@ -1,0 +1,351 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/contextual-effect-program",
+  "cases": [
+    {
+      "id": "same-face-mana-x-supplies-spell-consumer",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Draw X cards and create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/1/token/name",
+                "equals": "Treasure"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-spell-x-is-rejected-after-composition",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw X cards and create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cast-x-is-not-an-activation-x-producer",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Creature",
+        "manaCost": "{X}{U}",
+        "oracleText": "{T}: Draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "activation-declares-its-own-x-before-body",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Creature",
+        "manaCost": "{X}{U}",
+        "oracleText": "{X}, {T}: Draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{X}"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseNumber"
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "xValue"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "discard-self-derives-hand-zone",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "{1}, Discard this card: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "discardCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "incoherent-source-cost-zones-are-not-guessed",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Creature",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}, Discard this card: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.activation.source-zone-conflict"
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-immediate-mana-productions-defer-explicitly",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Creature",
+        "manaCost": "{1}{U}",
+        "oracleText": "Sacrifice this creature: Add {G}. Add {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-effect-order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "distinct-action-or-is-never-sequencing",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card or create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-face-x-cannot-supply-this-spell",
+      "request": {
+        "cardName": "Unbound Face // Producing Face",
+        "typeLine": "Instant // Instant",
+        "manaCost": "{1}{U} // {X}{G}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "unbound",
+            "name": "Unbound Face",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}",
+            "oracleText": "Draw X cards and create a Treasure token."
+          },
+          {
+            "id": "producer",
+            "name": "Producing Face",
+            "typeLine": "Instant",
+            "manaCost": "{X}{G}",
+            "oracleText": "You gain 1 life."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": []
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source",
+            "found": "{1}{U}"
+          }
+        ]
+      }
+    }
+  ]
+}

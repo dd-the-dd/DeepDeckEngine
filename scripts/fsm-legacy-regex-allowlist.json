@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "fsm-legacy-regex-allowlist/v1",
+  "policy": "This manifest records temporary semantic-regex debt outside the new token-driven FSM boundary. It is not permission to add regexes or card-specific branches. Each family leaves this list when its local automata reach semantic and runtime parity.",
+  "entries": [
+    {
+      "path": "src/oracle/syntax/classifier.rs",
+      "reason": "The legacy routing hint still recognizes several ability families from raw text.",
+      "removalCondition": "Classification is derived from successful token-driven ability-envelope parsing."
+    },
+    {
+      "path": "src/oracle/canonical/abilities/**",
+      "reason": "Legacy ability-envelope leaves still include regex-based Oracle patterns.",
+      "removalCondition": "Activated, triggered, static, replacement, keyword, and spell envelopes consume the shared token stream."
+    },
+    {
+      "path": "src/oracle/canonical/effects/**",
+      "reason": "Legacy effect leaves are being replaced family by family by reusable local automata.",
+      "removalCondition": "Every promoted effect family has zero regex fallback and equivalent primitive IR/runtime coverage."
+    },
+    {
+      "path": "src/oracle/canonical/conditions.rs",
+      "reason": "The legacy condition parser still reconstructs and matches text fragments.",
+      "removalCondition": "Condition expressions are parsed by the shared condition sub-automaton."
+    },
+    {
+      "path": "src/oracle/canonical/costs.rs",
+      "reason": "Non-mana legacy cost forms still include regex recognition.",
+      "removalCondition": "Compound costs are consumed by the shared cost sub-automaton while mana atoms continue to use the engine mana parser."
+    },
+    {
+      "path": "src/oracle/canonical/criteria.rs",
+      "reason": "Legacy target and object criteria contain regex-based qualifier parsing.",
+      "removalCondition": "Selectors and predicates are produced entirely by the shared selector sub-automaton."
+    },
+    {
+      "path": "src/oracle/canonical/numeric.rs",
+      "reason": "Legacy numeric expressions still use regex captures for several compound forms.",
+      "removalCondition": "All numeric atoms and operators are handled by the token-driven numeric-expression sub-automaton."
+    },
+    {
+      "path": "src/oracle/canonical/values.rs",
+      "reason": "Some legacy value leaves still recognize reconstructed text with regexes.",
+      "removalCondition": "Value, zone, duration, and color concepts are returned by typed token sub-automata."
+    }
+  ]
+}

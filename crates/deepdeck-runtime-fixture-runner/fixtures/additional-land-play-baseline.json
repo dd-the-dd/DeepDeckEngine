@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-player-may-play-only-one-land-per-turn",
+  "seed": 401,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "additionalLandPlay",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "count": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ordinary active player",
+        "hand": [
+          { "id": "baseline-forest-one", "name": "Forest One", "typeLine": "Basic Land - Forest", "rules": [] },
+          { "id": "baseline-forest-two", "name": "Forest Two", "typeLine": "Basic Land - Forest", "rules": [] }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "playLand", "playerId": "player-0", "sourceDefinitionId": "baseline-forest-one" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "baseline-forest-one", "equals": true },
+    { "kind": "landPlayAvailable", "playerId": "player-0", "sourceDefinitionId": "baseline-forest-two", "equals": false },
+    { "kind": "eventCount", "eventKind": "landPlayed", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

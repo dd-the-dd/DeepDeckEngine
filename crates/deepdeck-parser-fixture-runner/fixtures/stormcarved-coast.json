@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "stormcarved-coast/controlled-permanent-count-entry",
+  "cardName": "Stormcarved Coast",
+  "oracleId": "4722105b-0085-4bb8-bca1-9de0d3eb5600",
+  "cases": [
+    {
+      "id": "exact-stormcarved-coast",
+      "request": {
+        "cardName": "Stormcarved Coast",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or more other lands.\n{T}: Add {U} or {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": { "kind": "self" },
+              "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countPermanents",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "cardTypeContains", "value": "Land" }
+                  },
+                  "right": { "kind": "integer", "value": 2 }
+                }
+              },
+              "replacement": [{ "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{
+                "kind": "addMana",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-other-lands-sibling",
+      "request": {
+        "cardName": "Generalized Coast",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control three or more other lands.\n{T}: Add {G} or {W}.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              { "pointer": "/condition/operand/operator", "equals": ">=" },
+              { "pointer": "/condition/operand/left/where/value", "equals": "Land" },
+              { "pointer": "/condition/operand/right/value", "equals": 3 },
+              { "pointer": "/replacement/0/tapped", "equals": true }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "addMana" },
+              { "pointer": "/effects/0/mana/options/0", "equals": "{G}" },
+              { "pointer": "/effects/0/mana/options/1", "equals": "{W}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-comparison-near-miss",
+      "request": {
+        "cardName": "Malformed Coast",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or exactly other lands.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "controlled-count-entry",
+          "state": "condition.controlled-permanent-count.comparator-direction",
+          "expectedContains": "more",
+          "found": "exactly",
+          "traceContainsState": "replacement.controlled-count-entry.count-query"
+        }]
+      }
+    }
+  ]
+}

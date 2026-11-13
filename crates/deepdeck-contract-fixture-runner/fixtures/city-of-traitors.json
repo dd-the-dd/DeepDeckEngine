@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "city-of-traitors/land-play-sacrifice-is-executable",
+  "cardName": "City of Traitors",
+  "oracleId": "f161111d-9747-47b3-bb10-3c8bded32e21",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "landPlayed",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "excludeSource": true
+      },
+      "effects": [
+        { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+      ]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}{C}"
+      }]
+    }
+  ]
+}

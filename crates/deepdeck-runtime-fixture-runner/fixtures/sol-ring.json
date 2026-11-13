@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "sol-ring-add-two-colorless-mana",
+  "seed": 1,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": "{C}{C}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sol Ring pilot",
+        "battlefield": [
+          {
+            "id": "sol-ring",
+            "name": "Sol Ring",
+            "typeLine": "Artifact",
+            "manaCost": "{1}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "sol-ring"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": ["C", "C"]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "sol-ring",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

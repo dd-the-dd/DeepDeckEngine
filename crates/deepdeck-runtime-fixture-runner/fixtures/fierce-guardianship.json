@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "fierce-guardianship/commander-alternative-cost-counters-noncreature-spell",
+  "seed": 206,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "costs": [],
+      "condition": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countPermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "isCommander" },
+          "excludeSource": false
+        },
+        "right": { "kind": "integer", "value": 1 }
+      }
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Fierce Guardianship controller",
+        "battlefield": [
+          {
+            "id": "fierce-commander",
+            "name": "Fierce Commander",
+            "typeLine": "Legendary Creature",
+            "power": "2",
+            "toughness": "2",
+            "isCommander": true
+          }
+        ],
+        "hand": [
+          {
+            "id": "fierce-guardianship",
+            "name": "Fierce Guardianship",
+            "typeLine": "Instant",
+            "manaCost": "{2}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [],
+                  "condition": {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                      "where": { "kind": "isCommander" },
+                      "excludeSource": false
+                    },
+                    "right": { "kind": "integer", "value": 1 }
+                  }
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetSpell",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells",
+                        "where": {
+                          "kind": "not",
+                          "operand": { "kind": "cardTypeContains", "value": "Creature" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "counterSpell",
+                    "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["R"],
+        "hand": [
+          {
+            "id": "opponent-sorcery",
+            "name": "Opponent Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{R}",
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "opponent-sorcery" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "fierce-guardianship", "useAlternativeCost": true },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "opponent-sorcery", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "fierce-guardianship", "equals": true },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

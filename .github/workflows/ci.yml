@@ -36,11 +36,27 @@ jobs:
       - name: Run partitioned unit tests
         shell: pwsh
         run: |
+          cargo test --locked -p deepdeck-oracle --tests
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
           foreach ($partition in 1..4) {
-            cargo test --locked --lib --no-default-features --features "ci-unit-tests-$partition"
+            cargo test --locked -p deepdeck-oracle --lib --no-default-features --features "ci-unit-tests-$partition"
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
+            cargo test --locked -p deepdeck-engine-runtime --lib --no-default-features --features "ci-unit-tests-$partition"
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+            cargo test --locked -p mtg-engine --lib --no-default-features --features "ci-unit-tests-$partition"
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+          cargo test --locked -p deepdeck-oracle-engine-contracts --tests
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
           }
       - name: Run integration tests
         run: >-

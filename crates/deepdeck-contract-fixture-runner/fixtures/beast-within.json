@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "beast-within/controller-snapshot-token-is-executable",
+  "cardName": "Beast Within",
+  "oracleId": "7735eeba-693b-47e2-bd51-414379cf1016",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "permanents", "where": null }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "changedPermanentController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "changedPermanentController" },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "colors": ["Green"],
+          "types": ["Creature"],
+          "subtypes": ["Beast"],
+          "power": 3,
+          "toughness": 3,
+          "abilities": []
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "dovins-veto/all-native-rules-are-primitive-and-executable",
+  "cardName": "Dovin's Veto",
+  "oracleId": "1b388371-f9ef-45b4-82a3-ca20a8cd7807",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "stack" }
+      },
+      "modifiers": [{
+        "kind": "cantBeCountered",
+        "object": { "kind": "self" }
+      }]
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Creature" }
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      }]
+    }
+  ]
+}

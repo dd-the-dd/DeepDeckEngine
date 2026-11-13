@@ -1,0 +1,273 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "surrak-elusive-hunter-activated-and-triggered-sources",
+  "seed": 109,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "becameTarget",
+      "object": {
+        "kind": "union",
+        "sets": [
+          {
+            "kind": "permanents",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          },
+          {
+            "kind": "spells",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        ]
+      },
+      "targetingStackObject": {
+        "kind": "stackItems",
+        "controller": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "isSpell" },
+            { "kind": "isActivatedAbility" },
+            { "kind": "isTriggeredAbility" }
+          ]
+        }
+      }
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Surrak controller",
+        "library": [
+          { "id": "draw-one", "name": "Draw One", "typeLine": "Sorcery" },
+          { "id": "draw-two", "name": "Draw Two", "typeLine": "Sorcery" }
+        ],
+        "battlefield": [
+          {
+            "id": "surrak-elusive-hunter",
+            "name": "Surrak, Elusive Hunter",
+            "typeLine": "Legendary Creature - Human Warrior",
+            "power": "3",
+            "toughness": "3",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": { "kind": "self" },
+                "event": {
+                  "kind": "becameTarget",
+                  "object": {
+                    "kind": "union",
+                    "sets": [
+                      {
+                        "kind": "permanents",
+                        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                        "where": { "kind": "cardTypeContains", "value": "Creature" }
+                      },
+                      {
+                        "kind": "spells",
+                        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                        "where": { "kind": "cardTypeContains", "value": "Creature" }
+                      }
+                    ]
+                  },
+                  "targetingStackObject": {
+                    "kind": "stackItems",
+                    "controller": {
+                      "kind": "opponentsOf",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        { "kind": "isSpell" },
+                        { "kind": "isActivatedAbility" },
+                        { "kind": "isTriggeredAbility" }
+                      ]
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "drawCards",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "count": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "target-creature",
+            "name": "Target Creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "trample" }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Targeting opponent",
+        "hand": [
+          {
+            "id": "trigger-driver",
+            "name": "Trigger Driver",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": { "kind": "abilityController" },
+                    "amount": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "activated-source",
+            "name": "Activated Source",
+            "typeLine": "Artifact Creature - Wizard",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetCreature",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                        },
+                        "where": { "kind": "cardTypeContains", "value": "Creature" }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": { "kind": "abilityController" },
+                    "amount": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "triggered-source",
+            "name": "Triggered Source",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": { "kind": "self" },
+                "event": { "kind": "spellCast", "anyPlayer": true, "where": null },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetCreature",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                        },
+                        "where": { "kind": "cardTypeContains", "value": "Creature" }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": { "kind": "abilityController" },
+                    "amount": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "activated-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetCreature": {
+          "kind": "permanentDefinition",
+          "definitionId": "target-creature"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "trigger-driver"
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-0", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityTargetsChosen", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 23 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

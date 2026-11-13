@@ -1,0 +1,39 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/3ab3996f-aa3f-4041-8634-8e197d51f108/complete-rule-set",
+    "cardName":  "Mass Calcify",
+    "oracleId":  "3ab3996f-aa3f-4041-8634-8e197d51f108",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "not",
+                                                                                               "operand":  {
+                                                                                                               "kind":  "colorContains",
+                                                                                                               "value":  "White"
+                                                                                                           }
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

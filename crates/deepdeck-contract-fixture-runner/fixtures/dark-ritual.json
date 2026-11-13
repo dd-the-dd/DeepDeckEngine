@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "dark-ritual/direct-mana-spell-is-executable",
+  "cardName": "Dark Ritual",
+  "oracleId": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "addMana",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "mana": "{B}{B}{B}"
+    }]
+  }
+}

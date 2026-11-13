@@ -1,0 +1,46 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/e41d9b3a-0712-4174-8c5c-224065a63b16/complete-rule-set",
+    "cardName":  "Culling Sun",
+    "oracleId":  "e41d9b3a-0712-4174-8c5c-224065a63b16",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "compare",
+                                                                                               "left":  {
+                                                                                                            "kind":  "manaValueOf",
+                                                                                                            "object":  {
+                                                                                                                           "kind":  "candidate"
+                                                                                                                       }
+                                                                                                        },
+                                                                                               "operator":  "\u003c=",
+                                                                                               "right":  {
+                                                                                                             "kind":  "integer",
+                                                                                                             "value":  3
+                                                                                                         }
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

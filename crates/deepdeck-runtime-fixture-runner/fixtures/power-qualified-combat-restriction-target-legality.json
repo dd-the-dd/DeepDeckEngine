@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "power-qualified-combat-restriction-selects-only-legal-target",
+  "seed": 2184,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              {
+                "kind": "compare",
+                "operator": "<=",
+                "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+                "right": { "kind": "integer", "value": 2 }
+              }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "grantKeyword",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "keyword": "cantBeBlocked",
+      "duration": { "kind": "untilEndOfCurrentTurn" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Gate controller",
+        "battlefield": [
+          {
+            "id": "power-gate",
+            "name": "Power Gate",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        { "kind": "cardTypeContains", "value": "Creature" },
+                        {
+                          "kind": "compare",
+                          "operator": "<=",
+                          "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+                          "right": { "kind": "integer", "value": 2 }
+                        }
+                      ]
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "cantBeBlocked",
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }]
+            }]
+          },
+          {
+            "id": "small-creature",
+            "name": "Small Creature",
+            "typeLine": "Creature — Rogue",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "large-creature",
+            "name": "Large Creature",
+            "typeLine": "Creature — Giant",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "power-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": { "kind": "permanentDefinition", "definitionId": "small-creature" }
+      },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "power-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": { "kind": "permanentDefinition", "definitionId": "large-creature" }
+      },
+      "equals": false
+    },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "power-gate", "equals": false },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "small-creature", "keyword": "cantBeBlocked", "equals": false },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "large-creature", "keyword": "cantBeBlocked", "equals": false },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

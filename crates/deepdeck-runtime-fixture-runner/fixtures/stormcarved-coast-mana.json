@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "stormcarved-coast-chooses-blue-and-red-mana",
+  "seed": 13603,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Stormcarved Coast pilot",
+        "battlefield": [
+          { "id": "stormcarved-coast-blue", "name": "Stormcarved Coast", "typeLine": "Land" },
+          { "id": "stormcarved-coast-red", "name": "Stormcarved Coast", "typeLine": "Land" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "stormcarved-coast-blue",
+      "manaSymbols": ["U"]
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "stormcarved-coast-red",
+      "manaSymbols": ["R"]
+    }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U", "R"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "stormcarved-coast-blue",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "stormcarved-coast-red",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

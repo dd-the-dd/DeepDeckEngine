@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/meltdown-x-mana-value-is-executable",
+  "cardName": "Meltdown",
+  "oracleId": "8fd85a54-f0c7-4e9f-a4b4-b9b513b98d95",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Artifact" },
+            {
+              "kind": "compare",
+              "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+              "operator": "<=",
+              "right": { "kind": "decisionResult", "decisionId": "xValue" }
+            }
+          ]
+        }
+      }
+    }]
+  }
+}

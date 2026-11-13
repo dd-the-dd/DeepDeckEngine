@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "talisman-of-hierarchy-adds-white-and-damages-controller",
+  "seed": 59,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{W}", "{B}"] }
+      },
+      {
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 1 },
+        "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Hierarchy pilot",
+        "battlefield": [{
+          "id": "talisman-of-hierarchy",
+          "name": "Talisman of Hierarchy",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "talisman-of-hierarchy",
+    "manaSymbols": ["W"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["W"] },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 19 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 1 },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "talisman-of-hierarchy",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

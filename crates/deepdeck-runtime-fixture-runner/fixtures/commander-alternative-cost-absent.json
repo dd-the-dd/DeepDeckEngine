@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "commander-alternative-cost-is-unavailable-without-a-commander",
+  "seed": 202,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "costs": [],
+      "condition": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countPermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "isCommander" },
+          "excludeSource": false
+        },
+        "right": { "kind": "integer", "value": 1 }
+      }
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "No-commander pilot",
+        "hand": [
+          {
+            "id": "nameless-intervention",
+            "name": "Nameless Intervention",
+            "typeLine": "Instant",
+            "manaCost": "{3}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [],
+                  "condition": {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                      "where": { "kind": "isCommander" },
+                      "excludeSource": false
+                    },
+                    "right": { "kind": "integer", "value": 1 }
+                  }
+                }
+              },
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "nameless-intervention", "useAlternativeCost": true, "equals": false },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

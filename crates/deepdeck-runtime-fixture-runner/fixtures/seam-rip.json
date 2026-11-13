@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "seam-rip-exiles-only-the-eligible-opposing-permanent-and-returns-it-to-its-owner",
+  "seed": 48,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "exileTarget",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "opponentsOf",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Land" }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": { "kind": "candidate" }
+                },
+                "operator": "<=",
+                "right": { "kind": "integer", "value": 2 }
+              }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "exilePermanentWithSource",
+      "permanent": { "kind": "chosenTarget", "id": "exileTarget" },
+      "candidates": {
+        "kind": "permanents",
+        "controller": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "where": {
+          "kind": "and",
+          "operands": [
+            {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "manaValueOf",
+                "object": { "kind": "candidate" }
+              },
+              "operator": "<=",
+              "right": { "kind": "integer", "value": 2 }
+            }
+          ]
+        }
+      },
+      "minimum": 1,
+      "maximum": 1,
+      "returnWhenSourceLeaves": true
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Seam Rip pilot",
+        "manaPool": ["W"],
+        "hand": [{
+          "id": "seam-rip",
+          "name": "Seam Rip",
+          "typeLine": "Enchantment",
+          "manaCost": "{W}"
+        }],
+        "battlefield": [{
+          "id": "borrowed-unit",
+          "name": "Borrowed Unit",
+          "typeLine": "Artifact Creature - Robot",
+          "manaCost": "{1}{U}",
+          "power": "2",
+          "toughness": "2",
+          "controllerId": "player-1"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["B"],
+        "hand": [{
+          "id": "break-seal",
+          "name": "Break Seal",
+          "typeLine": "Instant",
+          "manaCost": "{B}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "kind": "chooseTargets",
+                "id": "targetPermanent",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": { "kind": "cardTypeContains", "value": "Enchantment" }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+            }]
+          }]
+        }],
+        "battlefield": [
+          {
+            "id": "too-expensive",
+            "name": "Too Expensive",
+            "typeLine": "Artifact",
+            "manaCost": "{2}{U}"
+          },
+          {
+            "id": "cheap-land",
+            "name": "Cheap Land",
+            "typeLine": "Land",
+            "manaCost": ""
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "seam-rip" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "break-seal" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "borrowed-unit",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "borrowed-unit",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "too-expensive",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "cheap-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "seam-rip",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "permanentExiled", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

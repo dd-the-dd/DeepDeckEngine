@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "pitiless-plunderer/controlled-other-creature-death-creates-catalog-treasure",
+  "cardName": "Pitiless Plunderer",
+  "oracleId": "a784481f-eccb-4112-bb38-04a659319660",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentDied",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "where": { "kind": "cardTypeContains", "value": "Creature" },
+      "excludeSource": true
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": { "kind": "namedToken", "name": "Treasure" }
+      }
+    ]
+  }
+}
+

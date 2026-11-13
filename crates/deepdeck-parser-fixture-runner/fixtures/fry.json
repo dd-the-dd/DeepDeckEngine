@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "fry/shared-relative-object-query",
+  "cases": [{
+    "id": "exact-fry",
+    "request": {
+      "cardName": "Fry",
+      "typeLine": "Instant",
+      "manaCost": "{1}{R}",
+      "oracleText": "This spell can't be countered.\nFry deals 5 damage to target creature or planeswalker that's white or blue.",
+      "layout": "normal",
+      "faces": []
+    },
+    "expect": {
+      "outcome": "success",
+      "cardStatus": "canonical",
+      "abilityCount": 2,
+      "abilities": [
+        {
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "rule": {
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "stack" }
+            },
+            "modifiers": [{
+              "kind": "cantBeCountered",
+              "object": { "kind": "self" }
+            }]
+          }
+        },
+        {
+          "index": 1,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "rule": {
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "or",
+                        "operands": [
+                          { "kind": "cardTypeContains", "value": "Creature" },
+                          { "kind": "cardTypeContains", "value": "Planeswalker" }
+                        ]
+                      },
+                      {
+                        "kind": "or",
+                        "operands": [
+                          { "kind": "colorContains", "value": "White" },
+                          { "kind": "colorContains", "value": "Blue" }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+              "amount": { "kind": "integer", "value": 5 }
+            }]
+          }
+        }
+      ]
+    }
+  }]
+}

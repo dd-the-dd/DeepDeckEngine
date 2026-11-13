@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "swan-song/counter-descriptive-token",
+  "cardName": "Swan Song",
+  "oracleId": "8ddfc283-c9b4-41a5-af88-cf0068e986cc",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Swan Song",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target enchantment, instant, or sorcery spell. Its controller creates a 2/2 blue Bird creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "spells" },
+            { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "or" },
+            { "pointer": "/effects/0/kind", "equals": "bind" },
+            { "pointer": "/effects/1/kind", "equals": "counterSpell" },
+            { "pointer": "/effects/2/kind", "equals": "createTokens" },
+            { "pointer": "/effects/2/controller/id", "equals": "counteredSpellController" },
+            { "pointer": "/effects/2/token/subtypes/0", "equals": "Bird" },
+            { "pointer": "/effects/2/token/abilities/0/kind", "equals": "flying" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "descriptive-token-sibling",
+      "request": {
+        "cardName": "Generic Counter Token Test",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target artifact spell. Its controller creates a 3/3 red Goblin creature token with haste.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/candidates/where/value", "equals": "Artifact" },
+            { "pointer": "/effects/2/token/power", "equals": 3 },
+            { "pointer": "/effects/2/token/toughness", "equals": 3 },
+            { "pointer": "/effects/2/token/subtypes/0", "equals": "Goblin" },
+            { "pointer": "/effects/2/token/abilities/0/kind", "equals": "haste" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "owner-anaphora-near-miss",
+      "request": {
+        "cardName": "Malformed Counter Token Test",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target artifact spell. Its owner creates a 3/3 red Goblin creature token with haste.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "counter-descriptive-token-sequence",
+          "state": "reference.player.controller-of-object",
+          "found": "owner"
+        }]
+      }
+    }
+  ]
+}

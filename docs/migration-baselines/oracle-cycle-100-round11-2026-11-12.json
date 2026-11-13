@@ -1,0 +1,299 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 11,
+  "generatedDate": "2026-11-12",
+  "status": "parser-contract-runtime-and-target-revalidation-certified",
+  "concept": "permanentEnteredEffectSequence",
+  "parserFingerprint": "FAAC58D9A9B820C60087F20BCFBC9CB071DEE07A4CE3B6BEE5C9AE3CAAE4621C",
+  "architecture": {
+    "event": "permanentEntered",
+    "eventObjectBindingInvented": false,
+    "query": "ObjectQuery with shared controller scope and excludeSource",
+    "effectBody": "shared EffectSequence",
+    "optionalBoundary": "one atomic effect",
+    "nominalHeadGuard": "ObjectPredicate nominal head plus permanent-domain support",
+    "unsupportedSurfaces": [
+      "your team controller scope",
+      "implicit event-object anaphora it",
+      "compound entered-or-attacks events",
+      "one-or-more event quantifiers",
+      "bare supertype without an object noun",
+      "optional multi-action scope"
+    ]
+  },
+  "proofs": {
+    "parser": {
+      "passed": 152,
+      "total": 152,
+      "fixtures": 32,
+      "buildSeconds": 30.209,
+      "executionSeconds": 0.481,
+      "path": ".tmp/permanent-entered-parser-final-regression.json"
+    },
+    "jsonGuards": {
+      "ownedCasesNativeOnly": 5,
+      "ownedCasesFull": 5,
+      "nativeOnlyExclusions": 7,
+      "passed": 17,
+      "total": 17,
+      "buildSeconds": 0,
+      "wallSeconds": 0.1946215,
+      "path": ".tmp/permanent-entered-json-guard-gates.json"
+    },
+    "exactAndSiblingRuntime": {
+      "passed": 10,
+      "total": 10,
+      "assertions": 60,
+      "buildSeconds": 0,
+      "tatyovaSeconds": 0.1167562,
+      "sharedSiblingSeconds": 0.058,
+      "paths": [
+        ".tmp/permanent-entered-tatyova-runtime.jsonl",
+        ".tmp/permanent-entered-generic-runtime-final.json"
+      ]
+    },
+    "targetLegalityUnitTests": {
+      "passed": 8,
+      "total": 8,
+      "compileSeconds": 39.76,
+      "wrapperExecutionSeconds": 1.444,
+      "harnessExecutionSeconds": 0.01,
+      "path": ".tmp/target-legality-unit-timing.json"
+    },
+    "targetLegalityRedToGreen": {
+      "passed": 1,
+      "total": 1,
+      "assertions": 5,
+      "buildSeconds": 50.238,
+      "executionSeconds": 0.598,
+      "path": ".tmp/target-legality-runtime-build.json"
+    },
+    "finalRuntimeRegression": {
+      "passed": 380,
+      "total": 380,
+      "assertions": 2364,
+      "buildSeconds": 0.204,
+      "executionSeconds": 1.615,
+      "path": ".tmp/target-legality-runtime-final.json"
+    },
+    "repositoryContracts": {
+      "passed": 223,
+      "total": 223,
+      "buildSeconds": 2.3111002,
+      "executionSeconds": 1.8209765,
+      "path": ".tmp/target-legality-contract-regression.jsonl"
+    },
+    "generatedAbilityContracts": {
+      "passed": 119,
+      "total": 119,
+      "executionSeconds": 0.0995099,
+      "path": ".tmp/permanent-entered-global-contract-run-FAAC58D9.json"
+    },
+    "generatedFullCardContracts": {
+      "passed": 51,
+      "total": 51,
+      "executionSeconds": 0.0314579,
+      "path": ".tmp/permanent-entered-full-card-contract-run-FAAC58D9.json"
+    },
+    "architecture": {
+      "violations": 0,
+      "historicalWarnings": 4
+    },
+    "independentGlobalVerification": {
+      "passed": true,
+      "path": ".tmp/permanent-entered-global-root-verification-FAAC58D9.json",
+      "sha256": "F80F0F76F3236058D978AFAC96EB9F1F6A3DADF09062798718DB1D076DFAAB6B"
+    }
+  },
+  "coverage": {
+    "round9": {
+      "cards": 100,
+      "preservedNativeAbilities": 26,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 1,
+      "unexpectedRegressions": 0
+    },
+    "queue450": {
+      "cards": 450,
+      "preservedNativeAbilities": 253,
+      "gainedNativeAbilities": 4,
+      "gainedFullyNativeCards": 2,
+      "unexpectedRegressions": 0
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "preservedNativeAbilities": 1130,
+      "gainedNativeAbilities": 22,
+      "gainedFullyNativeCards": 8,
+      "unexpectedRegressions": 0
+    },
+    "global": {
+      "cards": 39288,
+      "abilities": 67420,
+      "preservedNativeAbilities": 14533,
+      "gainedNativeAbilities": 119,
+      "gainedFullyRecognizedParserCards": 51,
+      "unexpectedRegressions": 0,
+      "targetedGainedAbilitiesWithSharedDynamicRevalidation": 15,
+      "targetedGainDecisionShape": "one chooseTargets decision per ability, minimum = maximum = 1",
+      "fullyRecognizedParserCardPopulation": {
+        "ordinaryNormal": 50,
+        "token": 1,
+        "tokenName": "Zabu"
+      }
+    }
+  },
+  "targetingRuntimeBoundary": {
+    "noLegalTargetAtCommit": "certified: pending triggered target commitment removes the ability",
+    "dynamicControllerOrPredicateRevalidation": "certified through shared declared-target candidate resolution",
+    "regressionFixture": "crates/deepdeck-runtime-fixture-runner/fixtures/permanent-entered-target-controller-revalidation.json",
+    "targetedGainedAbilities": 15,
+    "individuallyRuntimeProvenCards": [
+      "Tatyova, Benthic Druid",
+      "Soul Warden",
+      "Wirewood Savage",
+      "Aura Shards"
+    ],
+    "remainingLimits": [
+      "illegal slots are not individually removed from a genuine multi-target selection",
+      "zone candidate generation is limited to player and zone references supported by target_candidates",
+      "some event predicates still use printed rather than complete current or LKI characteristics"
+    ],
+    "durableReport": "docs/migration-baselines/declared-target-legality-2026-11-12.md"
+  },
+  "round10": {
+    "retained": 99,
+    "added": 1,
+    "addedCard": {
+      "name": "Farewell",
+      "oracleId": "4eb813fd-2d5a-4b02-8193-662681ef4e7d",
+      "source": "priority"
+    },
+    "sourceCounts": {
+      "recent": 34,
+      "priority": 33,
+      "league": 33
+    },
+    "batchSha256": "3508AB53CF3483AF9AEF7A0F137BF8C9D40A66C335CD890E6C89B1E1F89821F0",
+    "inputSha256": "00FFCC4FCBA8029723D10FC955F6E9F82FF190D022F993734B45DA254D3F5136",
+    "auditSha256": "38F4574F3E97F227D9EE4985BEEB227FEBADA6D7667345F2C6B6A8F29E7A97BF",
+    "fullNativeCardsBeforeNextFix": 0,
+    "nativeAbilities": 26,
+    "totalAbilities": 204,
+    "ranking": [
+      {
+        "rank": 1,
+        "concept": "controllerScopedFixedGenericSpellReduction",
+        "exactCard": "Goblin Anarchomancer",
+        "oracleId": "e9319f13-1f2b-429c-9d61-e58a3cbec86a",
+        "completeCardsIfFixedAlone": 1,
+        "partialAbilitiesIfFixedAlone": 0,
+        "globalAbilitiesEstimated": "35-37",
+        "atomic": true
+      },
+      {
+        "rank": 2,
+        "concept": "additionalCostSacrificeLand",
+        "exactCard": "Crop Rotation",
+        "oracleId": "28b46183-c62f-47b1-9fee-3ba148202cab",
+        "completeCardsIfFixedAlone": 1,
+        "partialAbilitiesIfFixedAlone": 0,
+        "atomic": true
+      },
+      {
+        "rank": 3,
+        "concept": "phaseBeganEffectSequence",
+        "exactCard": "Phyrexian Arena",
+        "oracleId": "ee579a32-a048-4335-b966-231ba731cdea",
+        "completeCardsIfFixedAlone": 1,
+        "partialAbilitiesIfFixedAlone": 0,
+        "atomic": true
+      },
+      {
+        "rank": 4,
+        "concept": "modalOneOrMoreCollectionExile",
+        "exactCard": "Farewell",
+        "oracleId": "4eb813fd-2d5a-4b02-8193-662681ef4e7d",
+        "completeCardsIfAllMissingChildrenAreFixed": 1,
+        "partialAbilitiesIfFixedAlone": 0,
+        "atomic": false,
+        "missingConcepts": [
+          "one-or-more modal cardinality",
+          "non-targeting exile collections",
+          "graveyard-zone collection exile"
+        ]
+      },
+      {
+        "rank": 5,
+        "concept": "returnOfWildspeakerModalChildren",
+        "exactCard": "Return of the Wildspeaker",
+        "oracleId": "2b76f9e9-cd28-4eaf-8674-215c34263f96",
+        "completeCardsIfAllMissingChildrenAreFixed": 1,
+        "partialAbilitiesIfFixedAlone": 0,
+        "atomic": false,
+        "missingConcepts": [
+          "greatest power numeric aggregation for draw",
+          "collection ModifyStats over non-Human creatures"
+        ]
+      }
+    ],
+    "rankingConclusion": "No confirmed atomic concept completes more than one card in this batch; spell reduction wins the tie through its larger global reuse estimate."
+  },
+  "timings": {
+    "initialIntegrationWindowSeconds": 115.098,
+    "laterReviewAndCorrectionTimeMeasured": false,
+    "parserBuildSeconds": 30.209,
+    "initialInvalidFixtureExecutionSeconds": 0.726,
+    "analyzerLinkSeconds": 1.433,
+    "round9AuditWallSeconds": 0.515,
+    "queue450AuditWallSeconds": 0.555,
+    "sevenSetsAuditWallSeconds": 2.418,
+    "globalAuditWallSeconds": 34.407,
+    "globalAuditExecutionSeconds": 28.259,
+    "abilityContractGenerationAndRunSeconds": 13.0327765,
+    "fullCardContractGenerationAndRunSeconds": 13.6327626,
+    "targetLegalityRunnerBuildSeconds": 50.238,
+    "targetLegalityRedToGreenExecutionSeconds": 0.598,
+    "targetLegalityUnitCompileSeconds": 39.76,
+    "targetLegalityUnitWrapperExecutionSeconds": 1.444,
+    "targetLegalityUnitHarnessExecutionSeconds": 0.01,
+    "finalRuntimeCachedBuildSeconds": 0.204,
+    "finalRuntimeExecutionSeconds": 1.615,
+    "contractRegressionBuildSeconds": 2.3111002,
+    "contractRegressionExecutionSeconds": 1.8209765,
+    "round10RefillSeconds": 1.4794479,
+    "round10AuditWallSeconds": 0.2603261,
+    "coordinationWaitIncludedInFocusedStageSeconds": 1715.578,
+    "coordinationWaitIsActiveDevelopment": false
+  },
+  "artifactChronologyUtc": {
+    "semantics": "observed artifact completion order; concurrent start order is not inferred",
+    "unboundedSteps": [
+      "initial integration internal order",
+      "corrective loop 1 exact timestamp",
+      "initial invalid fixture execution exact timestamp",
+      "corrective loop 2 exact timestamp"
+    ],
+    "orderedCompletions": [
+      { "time": "2026-11-12T20:30:41.360Z", "step": "parser build" },
+      { "time": "2026-11-12T20:39:39.940Z", "step": "analyzer link" },
+      { "time": "2026-11-12T20:39:50.694Z", "step": "round9 audit" },
+      { "time": "2026-11-12T20:39:51.256Z", "step": "queue450 audit" },
+      { "time": "2026-11-12T20:39:53.636Z", "step": "seven local sets audit" },
+      { "time": "2026-11-12T20:41:34.207Z", "step": "global audit" },
+      { "time": "2026-11-12T20:43:07.737Z", "step": "Tatyova runtime" },
+      { "time": "2026-11-12T20:44:22.757Z", "step": "ability contracts" },
+      { "time": "2026-11-12T20:45:27.733Z", "step": "full-card contracts" },
+      { "time": "2026-11-12T20:49:58.906Z", "step": "generic sibling runtime final" },
+      { "time": "2026-11-12T20:50:31.920Z", "step": "round10 refill" },
+      { "time": "2026-11-12T20:50:43.697Z", "step": "round10 audit" },
+      { "time": "2026-11-12T20:51:06.411Z", "step": "independent global verification" },
+      { "time": "2026-11-12T20:55:06.552Z", "step": "final parser regression" },
+      { "time": "2026-11-12T21:01:49.662Z", "step": "target-legality runtime build and red-to-green" },
+      { "time": "2026-11-12T21:03:52.466Z", "step": "target-legality unit tests" },
+      { "time": "2026-11-12T21:04:46.453Z", "step": "final runtime gate" },
+      { "time": "2026-11-12T21:04:51.067Z", "step": "final contract gate" }
+    ]
+  },
+  "tracker": ".tmp/card-migration-timings/permanent-entered-tatyova.json"
+}

@@ -1,0 +1,55 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/a332e80a-dc51-4dc6-bc85-e114a1c6fdb8/complete-rule-set",
+    "cardName":  "Vanquish the Horde",
+    "oracleId":  "a332e80a-dc51-4dc6-bc85-e114a1c6fdb8",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "activeWhile":  {
+                                          "kind":  "inZone",
+                                          "object":  {
+                                                         "kind":  "self"
+                                                     },
+                                          "zone":  {
+                                                       "kind":  "stackOrCast"
+                                                   }
+                                      },
+                      "kind":  "staticAbility",
+                      "modifiers":  [
+                                        {
+                                            "amount":  {
+                                                           "allPlayers":  true,
+                                                           "kind":  "countPermanents",
+                                                           "where":  {
+                                                                         "kind":  "cardTypeContains",
+                                                                         "value":  "Creature"
+                                                                     }
+                                                       },
+                                            "kind":  "reduceOwnGenericCastingCost"
+                                        }
+                                    ],
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  },
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Creature"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

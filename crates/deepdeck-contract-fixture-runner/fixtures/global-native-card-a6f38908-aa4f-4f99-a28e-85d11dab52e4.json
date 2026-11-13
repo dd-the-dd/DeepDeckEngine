@@ -1,0 +1,39 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/a6f38908-aa4f-4f99-a28e-85d11dab52e4/complete-rule-set",
+    "cardName":  "Ruinous Ultimatum",
+    "oracleId":  "a6f38908-aa4f-4f99-a28e-85d11dab52e4",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "player":  {
+                                                                           "kind":  "opponentsOf",
+                                                                           "player":  {
+                                                                                          "kind":  "controllerOf",
+                                                                                          "object":  {
+                                                                                                         "kind":  "self"
+                                                                                                     }
+                                                                                      }
+                                                                       },
+                                                            "where":  {
+                                                                          "kind":  "not",
+                                                                          "operand":  {
+                                                                                          "kind":  "cardTypeContains",
+                                                                                          "value":  "Land"
+                                                                                      }
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

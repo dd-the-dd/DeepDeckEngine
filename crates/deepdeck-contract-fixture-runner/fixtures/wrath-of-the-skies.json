@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "wrath-of-the-skies/energy-payment-sweep-is-executable",
+  "cardName": "Wrath of the Skies",
+  "oracleId": "21efa6f2-3e7c-4576-b5a3-0b75b2843442",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{ "id": "xValue", "kind": "chooseNumber", "minimum": 0 }]
+    },
+    "effects": [
+      {
+        "kind": "addPlayerCounters",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "counter": "energy",
+        "count": { "kind": "decisionResult", "decisionId": "xValue" }
+      },
+      {
+        "kind": "chooseNumber",
+        "id": "paidPlayerCounters",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": { "kind": "integer", "value": 0 },
+        "maximum": {
+          "kind": "countPlayerCounters",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "counter": "energy"
+        }
+      },
+      {
+        "kind": "removePlayerCounters",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "counter": "energy",
+        "count": { "kind": "decisionResult", "decisionId": "paidPlayerCounters" }
+      },
+      {
+        "kind": "destroyPermanentsByManaValue",
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Artifact" },
+            { "kind": "cardTypeContains", "value": "Creature" },
+            { "kind": "cardTypeContains", "value": "Enchantment" }
+          ]
+        },
+        "maximum": { "kind": "decisionResult", "decisionId": "paidPlayerCounters" }
+      }
+    ]
+  }
+}

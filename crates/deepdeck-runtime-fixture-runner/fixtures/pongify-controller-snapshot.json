@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "pongify-snapshots-target-controller-before-prohibited-destruction",
+  "seed": 14102,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "changedPermanentController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "cannotRegenerate": true
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "changedPermanentController" },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "colors": ["Green"],
+          "types": ["Creature"],
+          "subtypes": ["Ape"],
+          "power": 3,
+          "toughness": 3,
+          "abilities": []
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pongify pilot and owner",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "pongify",
+          "name": "Pongify",
+          "typeLine": "Instant",
+          "manaCost": "{U}"
+        }],
+        "battlefield": [{
+          "id": "stolen-creature",
+          "name": "Stolen Creature",
+          "typeLine": "Creature — Bear",
+          "manaCost": "{1}{G}",
+          "power": "2",
+          "toughness": "2",
+          "controllerId": "player-1"
+        }]
+      },
+      { "id": "player-1", "name": "Current controller" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "pongify" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "stolen-creature", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 1 },
+    { "kind": "permanentController", "playerId": "player-1", "definitionId": "token:ape token", "equals": "player-1" },
+    { "kind": "permanentTypeLineContains", "playerId": "player-1", "definitionId": "token:ape token", "value": "Ape", "equals": true },
+    { "kind": "permanentPowerToughness", "playerId": "player-1", "definitionId": "token:ape token", "power": 3, "toughness": 3 },
+    { "kind": "permanentColorSymbol", "playerId": "player-1", "definitionId": "token:ape token", "symbol": "G", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

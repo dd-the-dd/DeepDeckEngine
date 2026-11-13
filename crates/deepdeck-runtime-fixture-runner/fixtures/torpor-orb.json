@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "torpor-orb-suppresses-only-creature-entry-triggers",
+  "seed": 36,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "suppressTriggerCreation",
+      "causedBy": {
+        "kind": "enterBattlefield",
+        "object": {
+          "kind": "eventObject",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Torpor Orb pilot",
+        "manaPool": ["C", "C"],
+        "battlefield": [{
+          "id": "torpor-orb",
+          "name": "Torpor Orb",
+          "typeLine": "Artifact",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "suppressTriggerCreation",
+              "causedBy": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "eventObject",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }
+            }]
+          }]
+        }],
+        "hand": [
+          {
+            "id": "life-creature",
+            "name": "Life Creature",
+            "typeLine": "Creature",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [{
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+              "effects": [{
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 3 }
+              }]
+            }]
+          },
+          {
+            "id": "life-artifact",
+            "name": "Life Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [{
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+              "effects": [{
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 2 }
+              }]
+            }]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "life-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "life-artifact" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 22 },
+    { "kind": "eventCount", "eventKind": "enterBattlefieldTriggersSuppressed", "equals": 1 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "life-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "life-artifact", "equals": true },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

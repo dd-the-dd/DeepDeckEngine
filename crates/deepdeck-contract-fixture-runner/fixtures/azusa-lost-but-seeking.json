@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "azusa/additional-land-play-count-two-is-executable",
+  "cardName": "Azusa, Lost but Seeking",
+  "oracleId": "6c2c8bf3-9bf8-4a86-89d3-3bb36260dc51",
+  "expectedExecutable": true,
+  "rules": [{
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "additionalLandPlay",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "count": { "kind": "integer", "value": 2 }
+    }]
+  }]
+}

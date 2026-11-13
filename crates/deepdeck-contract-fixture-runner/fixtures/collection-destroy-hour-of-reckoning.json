@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/nontoken-qualifier-is-executable",
+  "cardName": "Hour of Reckoning",
+  "oracleId": "3bc13640-03f8-4b19-b0a4-7e7cb5271c0c",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "not", "operand": { "kind": "isToken" } },
+            { "kind": "cardTypeContains", "value": "Creature" }
+          ]
+        }
+      }
+    }]
+  }
+}

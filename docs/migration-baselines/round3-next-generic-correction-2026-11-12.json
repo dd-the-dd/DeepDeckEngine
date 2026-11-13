@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "deepdeck-round3-next-generic-correction/v1",
+  "generatedAt": "2026-11-12",
+  "mode": "read-only-native-only-analysis",
+  "parserFingerprint": "F0FAC6BDDD6C994FA1FFFAB4EEE73D9A901A719B42C757EEEEA2E898FE3A2887",
+  "batch": {
+    "path": ".tmp/rotating-next-100-round3.json",
+    "sha256": "43799DBE064A992EDCDF99A6A776E0EC281D38F0B4A6299281F5E5F28BEF13FB",
+    "cards": 100
+  },
+  "audit": {
+    "path": ".tmp/rotating-next-100-round3-nativeonly-F0FAC6BD.jsonl",
+    "sha256": "9AE332552E26770DA87763FF274C40D40CF7378D468F90D733B1794DD1F1A614",
+    "cards": 100,
+    "abilities": 200,
+    "seconds": 0.106
+  },
+  "excluded": [
+    {
+      "concept": "static attack tax",
+      "reason": "implementation in progress"
+    },
+    {
+      "concept": "destroy all collection",
+      "reason": "simultaneous batch destruction semantics are not runtime-certified"
+    }
+  ],
+  "recommendation": {
+    "concept": "targeted card-zone move",
+    "cardsTouched": 3,
+    "cardsCompletedIfFixedAlone": 3,
+    "newEngineOperationRequired": false,
+    "runtimeRisk": "low-to-moderate",
+    "cards": [
+      {
+        "name": "Eternal Witness",
+        "oracleId": "30b24e8e-3b0e-4d8e-90f3-f66eb7c1858c",
+        "batchRank": 43,
+        "set": "cmm",
+        "collectorNumber": "286",
+        "oracle": "When this creature enters, you may return target card from your graveyard to your hand.",
+        "alreadyNativeAbilities": 0,
+        "remainingBlockersAfterFix": []
+      },
+      {
+        "name": "Buried Ruin",
+        "oracleId": "3644f316-f9a3-46c9-9b1e-747f86cf4ead",
+        "batchRank": 54,
+        "set": "eoc",
+        "collectorNumber": "150",
+        "oracle": "{2}, {T}, Sacrifice this land: Return target artifact card from your graveyard to your hand.",
+        "alreadyNativeAbilities": 1,
+        "alreadyNativeText": ["{T}: Add {C}."],
+        "remainingBlockersAfterFix": []
+      },
+      {
+        "name": "Noxious Revival",
+        "oracleId": "97cabeda-9fe3-490d-99b4-4c8d87c17157",
+        "batchRank": 79,
+        "set": "nph",
+        "collectorNumber": "118",
+        "oracle": "Put target card from a graveyard on top of its owner's library.",
+        "alreadyNativeAbilities": 1,
+        "alreadyNativeText": ["({G/P} can be paid with either {G} or 2 life.)"],
+        "remainingBlockersAfterFix": []
+      }
+    ],
+    "typedNode": {
+      "name": "TargetCardMoveNode",
+      "fields": ["selector:ObjectPredicate", "source:CardZoneScope", "destination:CardZoneDestination"],
+      "sourceVariants": ["ControllerGraveyard", "AnyGraveyard"],
+      "destinationVariants": ["ControllerHand", "TargetOwnerLibraryTop"]
+    },
+    "reusedIr": ["chooseTargets", "moveCards", "ownerOf", "optionalEffects", "payMana", "tap", "sacrificePermanent"],
+    "missingTransitions": [
+      "recognize return/put as surfaces of the same card-zone move",
+      "recognize controller graveyard versus any graveyard",
+      "recognize controller hand versus chosen-target owner library top",
+      "delegate the card predicate to the shared object selector",
+      "compose the child under source-entry, activated, and spell parents",
+      "keep optionality in the source-entry parent",
+      "require complete token consumption in every parent"
+    ],
+    "runtimeProofs": [
+      "optional source-entry return declined and accepted",
+      "activated mana/tap/sacrifice costs paid before the exact chosen card moves",
+      "opponent graveyard card moves to its owner's library top",
+      "target moved before resolution produces a no-op",
+      "owner reference is resolved safely across the move"
+    ]
+  },
+  "alternatives": [
+    {
+      "rank": 2,
+      "concept": "additional land play",
+      "cardsTouched": 2,
+      "cardsCompletedIfFixedAlone": 1,
+      "completeOracleIds": ["0c2841bb-038c-4fbf-8360-bc0a1522b58d"],
+      "runtimeRisk": "low"
+    },
+    {
+      "rank": 3,
+      "concept": "upkeep draw then lose life",
+      "cardsTouched": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "completeOracleIds": ["ee579a32-a048-4335-b966-231ba731cdea"],
+      "runtimeRisk": "low"
+    },
+    {
+      "rank": 4,
+      "concept": "entered-tapped object binding then untap",
+      "cardsTouched": 1,
+      "cardsCompletedIfFixedAlone": 1,
+      "completeOracleIds": ["dba16032-66c1-4ccb-9d65-d41ac550d182"],
+      "runtimeRisk": "moderate"
+    },
+    {
+      "rank": 5,
+      "concept": "destroy followups",
+      "cardsTouched": 2,
+      "cardsCompletedIfFixedAlone": 0,
+      "oracleIds": ["5825997b-10d7-4a36-972c-a80ddd90b8ed", "05849bd6-8f38-4031-be2b-e2aa03beb8cc"],
+      "reason": "two different missing contracts: numeric LKI and regeneration/controller LKI",
+      "runtimeRisk": "moderate-to-high"
+    }
+  ],
+  "globalOpportunity": {
+    "lexicallyTouchedCards": 57,
+    "cardsWithoutOtherApparentBlockers": 40,
+    "countedInRound3Gain": false,
+    "caveat": "activation-cost compatibility and parent envelopes were not certified globally"
+  }
+}

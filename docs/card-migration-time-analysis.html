@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analyse du temps de migration des cartes</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182231;
+      --muted: #617086;
+      --line: #dce3ec;
+      --panel: #ffffff;
+      --page: #f5f7fb;
+      --blue: #1769e0;
+      --blue-soft: #eaf2ff;
+      --green: #137a4b;
+      --green-soft: #eaf8f1;
+      --yellow: #f2b705;
+      --yellow-soft: #fff8d9;
+      --yellow-line: #dfaa00;
+      --red: #b63838;
+      --red-soft: #fff0f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { width: min(1180px, calc(100% - 32px)); margin: 32px auto 64px; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 44px); line-height: 1.08; letter-spacing: -.035em; }
+    h2 { margin: 0 0 14px; font-size: 22px; }
+    p { margin: 8px 0; }
+    .lead { max-width: 850px; color: var(--muted); font-size: 17px; }
+    .card {
+      margin-top: 22px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 8px 28px rgba(35, 48, 68, .06);
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .metric {
+      min-height: 112px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+    .metric strong { display: block; font-size: 26px; line-height: 1.1; margin: 8px 0; }
+    .metric span { color: var(--muted); font-size: 13px; }
+    .metric.good { border-color: #b9e3cf; background: var(--green-soft); }
+    .metric.warn { border-color: #efd975; background: var(--yellow-soft); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; }
+    table { width: 100%; min-width: 880px; border-collapse: separate; border-spacing: 0; background: #fff; }
+    th, td { padding: 14px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { position: sticky; top: 0; z-index: 1; background: #eef3f9; color: #38475c; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    tr:last-child td { border-bottom: 0; }
+    .order { width: 64px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+    .step { width: 250px; font-weight: 750; }
+    .step small { display: block; margin-top: 3px; color: var(--muted); font-weight: 500; }
+    .time { width: 245px; font-variant-numeric: tabular-nums; font-weight: 750; white-space: nowrap; }
+    .description { min-width: 340px; color: #46556a; }
+    .child td { background: #fafbfe; }
+    .child .step { padding-left: 32px; }
+    .loop td {
+      background: var(--yellow-soft);
+      border-top: 2px solid var(--yellow-line);
+      border-bottom: 2px solid var(--yellow-line);
+    }
+    .loop td:first-child { border-left: 2px solid var(--yellow-line); border-radius: 9px 0 0 9px; }
+    .loop td:last-child { border-right: 2px solid var(--yellow-line); border-radius: 0 9px 9px 0; }
+    .attempts { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; white-space: normal; }
+    .attempt {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 9px;
+      border: 1px solid #e2c655;
+      border-radius: 999px;
+      background: #fffdf2;
+      font-size: 13px;
+    }
+    .dash { color: #987900; font-weight: 800; }
+    .tag {
+      display: inline-block;
+      margin-right: 7px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+    .tag.blue { color: #0c55bd; background: var(--blue-soft); }
+    .tag.green { color: var(--green); background: var(--green-soft); }
+    .tag.yellow { color: #785e00; background: #ffe98d; }
+    .tag.red { color: var(--red); background: var(--red-soft); }
+    .total td { background: #eef5ff; font-size: 16px; font-weight: 800; }
+    .note {
+      margin-top: 14px;
+      padding: 13px 15px;
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      background: var(--blue-soft);
+      color: #314764;
+    }
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .compare {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+    }
+    .compare h3 { margin: 0 0 10px; font-size: 18px; }
+    .compare .big { font-size: 30px; font-weight: 850; letter-spacing: -.025em; }
+    .compare ul { margin: 12px 0 0; padding-left: 20px; color: #49586c; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 12px 0 16px; color: var(--muted); font-size: 13px; }
+    .swatch { display: inline-block; width: 16px; height: 12px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
+    .swatch.loop-swatch { background: var(--yellow-soft); border: 2px solid var(--yellow-line); }
+    @media (max-width: 850px) {
+      .metrics, .comparison { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      main { width: min(100% - 20px, 1180px); margin-top: 20px; }
+      .metrics, .comparison { grid-template-columns: 1fr; }
+      .card { padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="tag blue">Mesures réelles · 11 novembre 2026</span>
+    <h1>Où passe le temps pendant la migration d’une carte?</h1>
+    <p class="lead">
+      Le tableau suit Growth Spiral dans l’ordre chronologique. C’est notre meilleur exemple du
+      nouveau flux de travail : préanalyse en parallèle, automate générique, fixtures pilotées par
+      les données, puis certification stricte.
+    </p>
+  </header>
+
+  <section class="metrics">
+    <article class="metric good">
+      <span>Temps total · Growth Spiral</span>
+      <strong>12 min 53 s</strong>
+      <span>Dans la cible de 12 à 18 minutes pour un nouveau concept.</span>
+    </article>
+    <article class="metric">
+      <span>Compilation cumulée</span>
+      <strong>1 min 46 s</strong>
+      <span>13,7 % du temps total.</span>
+    </article>
+    <article class="metric">
+      <span>Exécution des commandes/tests</span>
+      <strong>16,3 s</strong>
+      <span>Le moteur de test lui-même n’est pas le principal coût.</span>
+    </article>
+    <article class="metric warn">
+      <span>Boucles correctives</span>
+      <strong>3</strong>
+      <span>Deux corrections produit et une erreur de commande Cargo.</span>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Déroulement chronologique — Growth Spiral</h2>
+    <div class="legend">
+      <span><i class="swatch loop-swatch"></i>Cadre jaune : étape répétée en boucle</span>
+      <span>Les temps dans les boucles sont séparés par des tirets et sont déjà inclus dans leur étape parent.</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="order">Ordre</th>
+            <th class="step">Nom de l’étape</th>
+            <th class="time">Temps</th>
+            <th class="description">Description vulgarisée</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="order">1</td>
+            <td class="step">Préanalyse de la carte<small>Lecture et identification du concept manquant</small></td>
+            <td class="time">0,028 s sur le chemin critique</td>
+            <td class="description">
+              L’analyse avait été faite en parallèle pendant Fabled Passage. Le travail existe,
+              mais il n’a presque pas retardé Growth Spiral. Le manque identifié était :
+              « choisir facultativement une carte filtrée d’une zone et la mettre sur le champ de bataille ».
+            </td>
+          </tr>
+          <tr>
+            <td class="order">2</td>
+            <td class="step">Construction de la solution<small>Automate, traduction en primitives et fixtures</small></td>
+            <td class="time">9 min 07,6 s</td>
+            <td class="description">
+              Création de l’automate générique, branchement dans la séquence
+              <code>draw → chooseCards → moveCards</code>, puis écriture des cas exact,
+              sibling, erreur contrôlée, contrat et quatre comportements moteur.
+            </td>
+          </tr>
+          <tr class="child loop">
+            <td class="order">2a</td>
+            <td class="step">Boucle du parseur<small>Compiler → lire l’erreur → corriger → rejouer</small></td>
+            <td class="time">
+              <div class="attempts">
+                <span class="attempt">30,200 s · échec</span><span class="dash">—</span>
+                <span class="attempt">37,373 s · succès</span><span class="dash">—</span>
+                <span class="attempt">0,057 s · rejeu chaud</span>
+              </div>
+            </td>
+            <td class="description">
+              Le premier build a révélé un import manquant et des correspondances Rust à rendre
+              exhaustives. Après correction, le runner stable a validé 3/3 cas. Le troisième temps
+              montre le gain : la même fixture se rejoue en 57 ms sans Cargo.
+            </td>
+          </tr>
+          <tr class="child loop">
+            <td class="order">2b</td>
+            <td class="step">Boucle du comportement moteur<small>Contrat + simulation réelle</small></td>
+            <td class="time">
+              <div class="attempts">
+                <span class="attempt">0,051 s · attente incorrecte</span><span class="dash">—</span>
+                <span class="attempt">0,081 s · 5/5 verts</span>
+              </div>
+            </td>
+            <td class="description">
+              Le moteur résout automatiquement une sélection vide; la fixture demandait à tort une
+              décision au joueur. Seul le JSON a changé. Aucun code Rust ni recompilation.
+            </td>
+          </tr>
+          <tr>
+            <td class="order">3</td>
+            <td class="step">Revue indépendante<small>Vérification par l’orchestrateur</small></td>
+            <td class="time">3 min 26,3 s</td>
+            <td class="description">
+              Lecture du raccord générique, recherche de branche par nom de carte ou regex nouvelle,
+              rejeu indépendant du parseur, du contrat et des quatre scénarios moteur, puis préparation
+              de la preuve officielle.
+            </td>
+          </tr>
+          <tr class="child loop">
+            <td class="order">3a</td>
+            <td class="step">Boucle de préparation du digest<small>Empreinte exacte de la règle produite</small></td>
+            <td class="time">
+              <div class="attempts">
+                <span class="attempt">0,227 s · option oubliée</span><span class="dash">—</span>
+                <span class="attempt">35,592 s · build autoritatif</span><span class="dash">—</span>
+                <span class="attempt">3,736 s · digest extrait</span>
+              </div>
+            </td>
+            <td class="description">
+              La première commande a été refusée avant compilation parce que la feature
+              <code>audit-cli</code> manquait. La seconde a construit l’outil, puis la troisième a
+              obtenu l’empreinte exacte utilisée par le manifeste de preuve.
+            </td>
+          </tr>
+          <tr>
+            <td class="order">4</td>
+            <td class="step">Certification de la file<small>Test de régression strict jusqu’à la prochaine carte</small></td>
+            <td class="time">25,268 s</td>
+            <td class="description">
+              Vérifie l’architecture, reparcourt la file prioritaire, associe les cinq preuves de
+              Growth Spiral et confirme que la carte est native, primitive et exécutable.
+            </td>
+          </tr>
+          <tr>
+            <td class="order">5</td>
+            <td class="step">Transitions et coordination<small>Temps entre les étapes</small></td>
+            <td class="time">19,403 s</td>
+            <td class="description">
+              Handoffs entre agent et orchestrateur, ouverture/fermeture du journal et préparation
+              des commandes. Ce temps est mesuré séparément pour ne pas le cacher dans les tests.
+            </td>
+          </tr>
+          <tr class="total">
+            <td class="order">∑</td>
+            <td class="step">Temps total observé</td>
+            <td class="time">12 min 53,4 s</td>
+            <td class="description">De l’ouverture du journal jusqu’à la certification complète de la carte.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      Les lignes 2a, 2b et 3a détaillent des sous-étapes déjà comprises dans les lignes 2 et 3.
+      Elles ne doivent donc pas être additionnées une deuxième fois.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Pourquoi Fabled Passage avait pris plus de temps</h2>
+    <div class="comparison">
+      <article class="compare">
+        <span class="tag green">Nouveau flux · Growth Spiral</span>
+        <h3>Carte avec un nouveau concept générique</h3>
+        <div class="big">12 min 53 s</div>
+        <ul>
+          <li>Analyse faite en parallèle.</li>
+          <li>Runner parseur piloté par JSON.</li>
+          <li>Rejeu chaud du parseur : 57 ms.</li>
+          <li>Aucun nouveau primitive moteur.</li>
+        </ul>
+      </article>
+      <article class="compare">
+        <span class="tag yellow">Cas perturbé · Fabled Passage</span>
+        <h3>Carte + incidents d’infrastructure</h3>
+        <div class="big">26 min 43 s</div>
+        <ul>
+          <li>Disque D: plein pendant la compilation.</li>
+          <li>30,07 GiB de cache incrémental à nettoyer.</li>
+          <li>Lock Cargo modifié en parallèle.</li>
+          <li>Digest de preuve corrigé après une première certification.</li>
+        </ul>
+      </article>
+    </div>
+    <div class="table-wrap" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th>Mesure comparable</th>
+            <th>Fabled Passage</th>
+            <th>Growth Spiral</th>
+            <th>Lecture</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="step">Temps total</td>
+            <td class="time">26 min 43,1 s</td>
+            <td class="time">12 min 53,4 s</td>
+            <td class="description">Le nouveau flux réduit le délai de 51,8 % sur cet échantillon.</td>
+          </tr>
+          <tr>
+            <td class="step">Compilation</td>
+            <td class="time">5 min 20,6 s</td>
+            <td class="time">1 min 45,6 s</td>
+            <td class="description">Le cache plein et les cibles froides expliquent l’essentiel de l’écart.</td>
+          </tr>
+          <tr>
+            <td class="step">Exécution réelle</td>
+            <td class="time">≈ 39,5 s de tests</td>
+            <td class="time">16,3 s</td>
+            <td class="description">Les tests sont rapides; compiler, diagnostiquer et coordonner coûte davantage.</td>
+          </tr>
+          <tr class="loop">
+            <td class="step">Boucles correctives</td>
+            <td class="time">
+              <div class="attempts">
+                <span class="attempt">lock</span><span class="dash">—</span>
+                <span class="attempt">disque</span><span class="dash">—</span>
+                <span class="attempt">diagnostic</span><span class="dash">—</span>
+                <span class="attempt">garde cible</span><span class="dash">—</span>
+                <span class="attempt">virgule</span><span class="dash">—</span>
+                <span class="attempt">digest</span>
+              </div>
+            </td>
+            <td class="time">
+              <div class="attempts">
+                <span class="attempt">exhaustivité Rust</span><span class="dash">—</span>
+                <span class="attempt">fixture vide</span><span class="dash">—</span>
+                <span class="attempt">option Cargo</span>
+              </div>
+            </td>
+            <td class="description">Fabled a subi quatre boucles d’infrastructure; Growth n’en a subi aucune.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>

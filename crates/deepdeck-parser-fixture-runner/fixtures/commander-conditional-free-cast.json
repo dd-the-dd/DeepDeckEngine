@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "alternative-cost/controlled-permanent-condition",
+  "cases": [
+    {
+      "id": "exact-fierce-guardianship",
+      "request": {
+        "cardName": "Fierce Guardianship",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "If you control a commander, you may cast this spell without paying its mana cost.\nCounter target noncreature spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "keywordAbility" },
+              { "pointer": "/ability/kind", "equals": "alternativeCost" },
+              { "pointer": "/ability/costs", "equals": [] },
+              { "pointer": "/ability/condition/kind", "equals": "compare" },
+              { "pointer": "/ability/condition/operator", "equals": ">=" },
+              { "pointer": "/ability/condition/left/kind", "equals": "countPermanents" },
+              { "pointer": "/ability/condition/left/where/kind", "equals": "isCommander" },
+              { "pointer": "/ability/condition/right/value", "equals": 1 }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "counterSpell" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-deadly-rollick",
+      "request": {
+        "cardName": "Deadly Rollick",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "If you control a commander, you may cast this spell without paying its mana cost.\nExile target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/ability/condition/left/where/kind", "equals": "isCommander" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "exilePermanent" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-controlled-legendary-creature-sibling",
+      "request": {
+        "cardName": "Conditional Casting Lesson",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "If you control a legendary creature, you may cast this spell without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "ruleAssertions": [
+            { "pointer": "/ability/condition/left/where/kind", "equals": "and" },
+            { "pointer": "/ability/condition/left/where/operands/0/kind", "equals": "isLegendary" },
+            { "pointer": "/ability/condition/left/where/operands/1/kind", "equals": "cardTypeContains" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-wrong-omitted-payment-action",
+      "request": {
+        "cardName": "Malformed Conditional Casting",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "If you control a commander, you may cast this spell without sacrificing its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "conditional-free-cast",
+          "state": "alternative-mana-cost.free-cast.payment",
+          "expectedContains": "costActionWord",
+          "found": "sacrificing"
+        }]
+      }
+    }
+  ]
+}

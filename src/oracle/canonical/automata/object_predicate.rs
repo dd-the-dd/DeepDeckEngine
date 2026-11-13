@@ -1,0 +1,167 @@
+use super::{
+    CardColor, CardSupertype, CharacteristicBatch, GrantedKeyword, ManaCostNode, NumericAtom,
+    NumericComparisonOperator, ObjectCardType, ObjectKind, SelectorNumericProperty,
+};
+
+/// A property predicate over an object selected by a surrounding query.
+///
+/// The surrounding grammar still owns the object domain, zone, controller,
+/// cardinality, and any binding. This node only composes reusable object
+/// characteristics.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectPredicate {
+    IsCommander,
+    IsToken,
+    CardType(ObjectCardType),
+    Subtype(String),
+    CharacteristicBatch(CharacteristicBatch),
+    Color(CardColor),
+    Supertype(CardSupertype),
+    ExactManaCost(ManaCostNode),
+    HasKeyword(GrantedKeyword),
+    ObjectKind(ObjectKind),
+    NumericComparison {
+        left: SelectorNumericProperty,
+        operator: NumericComparisonOperator,
+        right: NumericAtom,
+    },
+    Not(Box<ObjectPredicate>),
+    Intersection(Vec<ObjectPredicate>),
+    Union(Vec<ObjectPredicate>),
+}
+
+impl ObjectPredicate {
+    /// Returns whether every value accepted by this predicate has the requested
+    /// card type. Every union branch must preserve the type, while one
+    /// intersection member is enough to constrain the whole intersection.
+    pub(in crate::oracle::canonical) fn guarantees_card_type(
+        &self,
+        expected: ObjectCardType,
+    ) -> bool {
+        match self {
+            Self::CardType(actual) => *actual == expected,
+            Self::Intersection(operands) => operands
+                .iter()
+                .any(|operand| operand.guarantees_card_type(expected)),
+            Self::Union(operands) => {
+                !operands.is_empty()
+                    && operands
+                        .iter()
+                        .all(|operand| operand.guarantees_card_type(expected))
+            }
+            Self::IsCommander
+            | Self::IsToken
+            | Self::Subtype(_)
+            | Self::CharacteristicBatch(_)
+            | Self::Color(_)
+            | Self::Supertype(_)
+            | Self::ExactManaCost(_)
+            | Self::HasKeyword(_)
+            | Self::ObjectKind(_)
+            | Self::NumericComparison { .. }
+            | Self::Not(_) => false,
+        }
+    }
+
+    /// Returns whether every branch can be evaluated over `domain` without
+    /// crossing into a different explicit object domain.
+    ///
+    /// Card types are valid characteristics of cards and spells, while only
+    /// permanent card types are valid in the battlefield-permanent domain.
+    /// Empty Boolean nodes are rejected because they do not form predicates.
+    pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
+        match self {
+            Self::CardType(card_type) => {
+                domain != ObjectKind::Permanent || card_type.is_permanent_type()
+            }
+            Self::IsCommander
+            | Self::IsToken
+            | Self::Subtype(_)
+            | Self::CharacteristicBatch(_)
+            | Self::Color(_)
+            | Self::Supertype(_)
+            | Self::ExactManaCost(_)
+            | Self::HasKeyword(_)
+            | Self::NumericComparison { .. } => true,
+            Self::ObjectKind(actual) => *actual == domain,
+            Self::Not(operand) => operand.supports_domain(domain),
+            Self::Intersection(operands) | Self::Union(operands) => {
+                !operands.is_empty()
+                    && operands
+                        .iter()
+                        .all(|operand| operand.supports_domain(domain))
+            }
+        }
+    }
+
+    /// Returns whether this predicate establishes `domain`, rather than only
+    /// adding a characteristic that could apply within several domains.
+    ///
+    /// One intersection member may establish the domain. Every union branch
+    /// must establish it so no alternative can escape the requested domain.
+    /// Permanent card types establish the permanent domain directly; card
+    /// types alone do not establish the broader card or spell domains.
+    pub(in crate::oracle::canonical) fn has_domain(&self, domain: ObjectKind) -> bool {
+        match self {
+            Self::ObjectKind(actual) => *actual == domain,
+            Self::CardType(card_type) => {
+                domain == ObjectKind::Permanent && card_type.is_permanent_type()
+            }
+            Self::Not(operand) => operand.has_domain(domain),
+            Self::Intersection(operands) => {
+                operands.iter().any(|operand| operand.has_domain(domain))
+            }
+            Self::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(|operand| operand.has_domain(domain))
+            }
+            Self::IsCommander
+            | Self::IsToken
+            | Self::Subtype(_)
+            | Self::CharacteristicBatch(_)
+            | Self::Color(_)
+            | Self::Supertype(_)
+            | Self::ExactManaCost(_)
+            | Self::HasKeyword(_)
+            | Self::NumericComparison { .. } => false,
+        }
+    }
+
+    /// Returns whether the predicate contains a noun that can identify an
+    /// object, independently of the domain supplied by its parent grammar.
+    ///
+    /// Entry events supply the battlefield-permanent domain themselves, so a
+    /// real subtype such as `Beast` is a sufficient noun head. Adjectival
+    /// characteristics such as `green` or `legendary` are not. Intersections
+    /// need one noun-bearing operand, while every union branch needs its own
+    /// noun so no alternative degenerates into a bare adjective.
+    pub(in crate::oracle::canonical) fn has_nominal_head(&self) -> bool {
+        match self {
+            Self::IsCommander
+            | Self::IsToken
+            | Self::CardType(_)
+            | Self::Subtype(_)
+            | Self::ObjectKind(_) => true,
+            Self::Not(operand) => operand.has_nominal_head(),
+            Self::Intersection(operands) => {
+                !operands.is_empty() && operands.iter().any(Self::has_nominal_head)
+            }
+            Self::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(Self::has_nominal_head)
+            }
+            Self::CharacteristicBatch(_)
+            | Self::Color(_)
+            | Self::Supertype(_)
+            | Self::ExactManaCost(_)
+            | Self::HasKeyword(_)
+            | Self::NumericComparison { .. } => false,
+        }
+    }
+}
+
+/// Transitional name retained while the lexical selector automata migrate in
+/// a separate change. Both names denote the same semantic AST.
+pub(in crate::oracle::canonical) use ObjectPredicate as SelectorPredicate;
+
+#[cfg(test)]
+#[path = "object_predicate_tests.rs"]
+mod tests;

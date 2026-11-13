@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "spell-snare/exact-mana-value-counter-is-executable",
+  "cardName": "Spell Snare",
+  "oracleId": "38877c68-b69b-4ee1-8e8f-5137a184a8f7",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "compare",
+            "operator": "==",
+            "left": {
+              "kind": "manaValueOf",
+              "object": { "kind": "candidate" }
+            },
+            "right": { "kind": "integer", "value": 2 }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+    }]
+  }
+}

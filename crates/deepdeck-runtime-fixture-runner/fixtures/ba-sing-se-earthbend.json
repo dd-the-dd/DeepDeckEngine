@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ba-sing-se-earthbend-lowers-to-animation-counters-tracking-and-signal",
+  "seed": 114,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{2}{G}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "earthbendLand",
+        "kind": "chooseTargets",
+        "candidates": {
+          "kind": "permanents",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "cardTypeContains", "value": "Land" }
+        },
+        "minimum": 1,
+        "maximum": 1
+      }]
+    },
+    "activationCondition": { "kind": "sorceryTiming" },
+    "effects": [
+      {
+        "kind": "becomeCreature",
+        "object": { "kind": "chosenTarget", "id": "earthbendLand" },
+        "addTypes": ["Creature"],
+        "addSubtypes": [],
+        "basePower": { "kind": "integer", "value": 0 },
+        "baseToughness": { "kind": "integer", "value": 0 },
+        "retainExistingTypes": true,
+        "duration": { "kind": "permanent" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": { "kind": "chosenTarget", "id": "earthbendLand" },
+        "keyword": "haste",
+        "duration": { "kind": "permanent" }
+      },
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "chosenTarget", "id": "earthbendLand" },
+        "counter": "+1/+1",
+        "count": { "kind": "integer", "value": 2 }
+      },
+      {
+        "kind": "installDelayedZoneChangeTrigger",
+        "trackedObject": { "kind": "chosenTarget", "id": "earthbendLand" },
+        "controller": { "kind": "abilityController" },
+        "destinations": ["graveyard", "exile"],
+        "effects": [{
+          "kind": "moveTriggeringCard",
+          "from": { "kind": "triggeringDestination" },
+          "to": "battlefield",
+          "controller": { "kind": "abilityController" },
+          "tapped": true
+        }]
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "earthbend",
+        "player": { "kind": "abilityController" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ba Sing Se controller",
+        "battlefield": [{ "id": "ba-sing-se", "name": "Ba Sing Se", "typeLine": "Land" }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "ba-sing-se",
+    "targets": {
+      "earthbendLand": { "permanent": { "instanceId": "player-0:ba-sing-se:0" } }
+    }
+  },
+  "assertions": [
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "ba-sing-se", "value": "Creature", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "ba-sing-se", "keyword": "haste", "equals": true },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "ba-sing-se", "counter": "+1/+1", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "delayedZoneChangeTriggerInstalled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "abilityPerformed", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

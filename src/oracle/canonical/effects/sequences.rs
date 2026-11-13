@@ -1,5 +1,230 @@
 use super::super::*;
 
+fn parse_revealed_card_criteria(criteria: &str, face_name: &str) -> Option<Value> {
+    let criteria = criteria.trim();
+    if criteria.eq_ignore_ascii_case("permanent") {
+        return Some(json!({ "kind": "isPermanentCard" }));
+    }
+    parse_permanent_criteria(criteria, face_name)
+}
+
+struct EffectPhraseCursor<'a> {
+    remaining: &'a str,
+}
+
+impl<'a> EffectPhraseCursor<'a> {
+    fn new(text: &'a str) -> Self {
+        Self { remaining: text }
+    }
+
+    fn consume(&mut self, expected: &str) -> Option<()> {
+        self.remaining = strip_prefix_ascii_case(self.remaining, expected)?;
+        Some(())
+    }
+
+    fn consume_one_of(&mut self, alternatives: &[&str]) -> Option<()> {
+        for alternative in alternatives {
+            if let Some(remaining) = strip_prefix_ascii_case(self.remaining, alternative) {
+                self.remaining = remaining;
+                return Some(());
+            }
+        }
+        None
+    }
+
+    fn take_until(&mut self, delimiter: &str) -> Option<&'a str> {
+        let index = self
+            .remaining
+            .to_ascii_lowercase()
+            .find(&delimiter.to_ascii_lowercase())?;
+        let (value, remaining) = self.remaining.split_at(index);
+        if value.trim().is_empty() {
+            return None;
+        }
+        self.remaining = remaining;
+        Some(value.trim())
+    }
+
+    fn is_finished(&self) -> bool {
+        self.remaining.is_empty()
+    }
+}
+
+fn consume_target_object_anaphor(cursor: &mut EffectPhraseCursor<'_>) -> Option<()> {
+    cursor.consume_one_of(&["it", "him", "her", "them"])
+}
+
+fn consume_revealed_card_anaphor(cursor: &mut EffectPhraseCursor<'_>) -> Option<()> {
+    cursor.consume_one_of(&["it", "that card"])
+}
+
+fn filter_contains(filter: &Value, expected: &Value) -> bool {
+    filter == expected
+        || filter["kind"].as_str() == Some("and")
+            && filter["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .any(|operand| filter_contains(operand, expected))
+            })
+}
+
+fn parse_ability_loss_then_destroy_sequence(
+    instruction: &str,
+    face_name: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let mut cursor = EffectPhraseCursor::new(instruction);
+    cursor.consume("Each ")?;
+    let subject_text = cursor.take_until(" loses all abilities")?;
+    cursor.consume(" loses all abilities")?;
+    cursor.consume(" until end of turn")?;
+    cursor.consume(". ")?;
+    cursor.consume("Destroy ")?;
+    cursor.consume("those ")?;
+    let anaphor_text = cursor.take_until(".")?;
+    cursor.consume(".")?;
+    if !cursor.is_finished() {
+        return None;
+    }
+
+    let subject = parse_permanent_criteria(subject_text, face_name)?;
+    let anaphor = parse_permanent_criteria(&singular_card_term(anaphor_text), face_name)?;
+    if !filter_contains(&subject, &anaphor) {
+        return None;
+    }
+
+    let affected = bound_objects("affectedPermanents");
+    let current = json!({ "kind": "boundValue", "id": "affectedPermanent" });
+    let decisions = contains_rule_kind(&subject, "decisionResult")
+        .then(|| vec![x_value()])
+        .unwrap_or_default();
+    Some((
+        vec![
+            json!({
+                "kind": "bind",
+                "id": "affectedPermanents",
+                "value": {
+                    "kind": "eachPermanent",
+                    "where": subject,
+                },
+            }),
+            json!({
+                "kind": "forEachObject",
+                "objects": affected.clone(),
+                "bind": "affectedPermanent",
+                "effects": [{
+                    "kind": "installLoseAllAbilities",
+                    "object": current,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }],
+            }),
+            json!({
+                "kind": "destroyPermanent",
+                "permanent": affected,
+            }),
+        ],
+        decisions,
+    ))
+}
+
+fn parse_target_owner_shuffle_and_reveal<'a>(
+    cursor: &mut EffectPhraseCursor<'a>,
+) -> Option<&'a str> {
+    cursor.consume("The owner of target ")?;
+    let target_criteria = cursor.take_until(" shuffles ")?;
+    cursor.consume(" shuffles ")?;
+    consume_target_object_anaphor(cursor)?;
+    cursor.consume(" into their library")?;
+    cursor.consume(", then ")?;
+    cursor.consume("reveals ")?;
+    cursor.consume("the top card of their library")?;
+    cursor.consume(". ")?;
+    Some(target_criteria)
+}
+
+fn parse_revealed_card_conditional<'a>(cursor: &mut EffectPhraseCursor<'a>) -> Option<&'a str> {
+    cursor.consume("If ")?;
+    cursor.consume_one_of(&["it's ", "it is "])?;
+    cursor.consume_one_of(&["a ", "an "])?;
+    let revealed_criteria = cursor.take_until(" card, ")?;
+    cursor.consume(" card, ")?;
+    cursor.consume("they ")?;
+    cursor.consume("put ")?;
+    consume_revealed_card_anaphor(cursor)?;
+    cursor.consume(" onto the battlefield.")?;
+    Some(revealed_criteria)
+}
+
+fn parse_target_owner_library_reveal_sequence(
+    instruction: &str,
+    face_name: &str,
+) -> Option<(Vec<Value>, Vec<Value>)> {
+    let mut cursor = EffectPhraseCursor::new(instruction);
+    let target_criteria = parse_target_owner_shuffle_and_reveal(&mut cursor)?;
+    let revealed_criteria = parse_revealed_card_conditional(&mut cursor)?;
+    if !cursor.is_finished() {
+        return None;
+    }
+    let target_filter = parse_permanent_criteria(target_criteria, face_name)?;
+    let revealed_filter = parse_revealed_card_criteria(revealed_criteria, face_name)?;
+    let target = chosen_target("targetPermanent");
+    let target_owner = json!({ "kind": "boundValue", "id": "targetOwner" });
+    let revealed_top_card = bound_objects("revealedTopCard");
+
+    Some((
+        vec![
+            json!({
+                "kind": "bind",
+                "id": "targetOwner",
+                "value": {
+                    "kind": "ownerOf",
+                    "object": target.clone(),
+                },
+            }),
+            json!({
+                "kind": "putPermanentOnOwnerLibrary",
+                "permanent": target,
+                "position": "top",
+            }),
+            json!({
+                "kind": "shuffleZone",
+                "zone": library(target_owner.clone()),
+            }),
+            json!({
+                "kind": "lookAtTopCards",
+                "zone": library(target_owner.clone()),
+                "count": integer(1),
+                "bind": "revealedTopCard",
+            }),
+            json!({
+                "kind": "revealCards",
+                "cards": revealed_top_card.clone(),
+            }),
+            json!({
+                "kind": "moveCards",
+                "cards": {
+                    "kind": "filterObjects",
+                    "objects": revealed_top_card,
+                    "where": revealed_filter,
+                },
+                "to": {
+                    "kind": "battlefield",
+                    "player": target_owner,
+                    "tapped": false,
+                },
+            }),
+        ],
+        vec![target_decision(
+            "targetPermanent",
+            json!({
+                "kind": "permanents",
+                "where": target_filter,
+            }),
+            1,
+            1,
+        )],
+    ))
+}
+
 pub(in crate::oracle::canonical) fn parse_top_card_partition_sequence(
     instruction: &str,
     face_name: &str,
@@ -69,7 +294,7 @@ pub(in crate::oracle::canonical) fn parse_top_card_partition_sequence(
         ));
     }
     let optional_matching_to_battlefield_re = Regex::new(&format!(
-        r"(?i)^Look at the top ({}) cards? of your library\. You may put (?:a|an) (.+?) card from among them onto the battlefield( tapped)?\. Put the rest on the bottom of your library in (a random order|any order)\.$",
+        r"(?i)^Look at the top ({}) cards? of your library\. You may put (?:a|an) (.+?) card from among them onto the battlefield( tapped)?\.( If it(?:'s| is) a double-faced card, you may transform it\.)? Put the rest on the bottom of your library in (a random order|any order)\.$",
         count_word_pattern(),
     ))
     .expect("optional top-card creature deployment regex compiles");
@@ -106,7 +331,17 @@ pub(in crate::oracle::canonical) fn parse_top_card_partition_sequence(
                 },
             }),
         ];
-        if captures[4].eq_ignore_ascii_case("any order") {
+        if captures.get(4).is_some() {
+            effects.push(json!({
+                "kind": "optionalEffects",
+                "player": controller(),
+                "effects": [{
+                    "kind": "transformPermanent",
+                    "object": decision_result("cardForBattlefield"),
+                }],
+            }));
+        }
+        if captures[5].eq_ignore_ascii_case("any order") {
             effects.push(json!({
                 "kind": "chooseOrder",
                 "id": "remainderOrder",
@@ -383,63 +618,6 @@ pub(in crate::oracle::canonical) fn parse_top_card_partition_sequence(
         return Some((effects, Vec::new()));
     }
 
-    let conditional_count_re = Regex::new(&format!(
-        r"(?i)^Look at the top ({}) cards? of your library\. Put one of them into your hand and the rest on the bottom of your library in any order\. If (.+?), instead put two of them into your hand and the rest on the bottom of your library in any order\.$",
-        count_word_pattern(),
-    ))
-    .expect("conditional top-card partition sequence regex compiles");
-    if let Some(captures) = conditional_count_re.captures(instruction) {
-        let selection_count = json!({
-            "kind": "conditionalValue",
-            "condition": parse_condition_text(&captures[2])?,
-            "ifTrue": minimum(vec![integer(2), count_bound_objects("lookedCards")]),
-            "ifFalse": minimum(vec![integer(1), count_bound_objects("lookedCards")]),
-        });
-        return Some((
-            vec![
-                json!({
-                    "kind": "lookAtTopCards",
-                    "zone": library(controller()),
-                    "count": integer(parse_number_word(&captures[1])?),
-                    "bind": "lookedCards",
-                }),
-                json!({
-                    "kind": "chooseCards",
-                    "id": "cardsForHand",
-                    "player": controller(),
-                    "from": bound_objects("lookedCards"),
-                    "count": selection_count,
-                }),
-                json!({
-                    "kind": "moveCards",
-                    "cards": decision_result("cardsForHand"),
-                    "to": hand(controller()),
-                }),
-                json!({
-                    "kind": "chooseOrder",
-                    "id": "remainderOrder",
-                    "player": controller(),
-                    "objects": {
-                        "kind": "setDifference",
-                        "left": bound_objects("lookedCards"),
-                        "right": decision_result("cardsForHand"),
-                    },
-                }),
-                json!({
-                    "kind": "moveCards",
-                    "cards": decision_result("remainderOrder"),
-                    "to": {
-                        "kind": "library",
-                        "player": controller(),
-                        "position": "bottom",
-                    },
-                    "order": { "kind": "decisionOrder", "decisionId": "remainderOrder" },
-                }),
-            ],
-            Vec::new(),
-        ));
-    }
-
     None
 }
 
@@ -500,6 +678,627 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
     instruction: &str,
     face_name: &str,
 ) -> Option<(Vec<Value>, Vec<Value>)> {
+    if let Some(parsed) = parse_ability_loss_then_destroy_sequence(instruction, face_name) {
+        return Some(parsed);
+    }
+    if let Some(parsed) = parse_target_owner_library_reveal_sequence(instruction, face_name) {
+        return Some(parsed);
+    }
+
+    let source_attacking_additional_combat_re = Regex::new(
+        r"(?i)^(.+?\.) If (?:it is|it's|he is|he's|she is|she's|they are|they're|this creature is) attacking, untap (?:it|him|her|them|this creature) and there is an additional combat phase after this phase\.$",
+    )
+    .expect("source-attacking additional combat sequence regex compiles");
+    if let Some(captures) = source_attacking_additional_combat_re.captures(instruction) {
+        let (mut effects, decisions) =
+            parse_general_effect_instruction(captures.get(1)?.as_str(), face_name)?;
+        effects.push(json!({
+            "kind": "conditionalEffect",
+            "condition": { "kind": "isAttacking", "object": self_ref() },
+            "then": [
+                { "kind": "untapPermanent", "permanent": self_ref() },
+                { "kind": "addCombatPhase" },
+            ],
+            "else": [],
+        }));
+        return Some((effects, decisions));
+    }
+
+    let optional_hand_deployment_otherwise_re = Regex::new(
+        r"(?i)^(You may put (?:a|an) .+? from your hand onto the battlefield(?: tapped)?\.) If you don't, (.+)$",
+    )
+    .expect("optional hand deployment with fallback regex compiles");
+    if let Some(captures) = optional_hand_deployment_otherwise_re.captures(instruction) {
+        let optional_clause = captures.get(1)?.as_str();
+        let mut mandatory_clause =
+            strip_prefix_ascii_case(optional_clause, "You may ")?.to_string();
+        if let Some(first) = mandatory_clause.get_mut(..1) {
+            first.make_ascii_uppercase();
+        }
+        let (mut effects, mut decisions) =
+            parse_general_effect_instruction(&mandatory_clause, face_name)?;
+        if decisions.len() != 1
+            || decisions[0]["kind"].as_str() != Some("chooseTargets")
+            || decisions[0]["maximum"].as_i64() != Some(1)
+        {
+            return None;
+        }
+        decisions[0]["minimum"] = Value::from(0);
+        let decision_id = decisions[0]["id"].as_str()?;
+        let fallback = captures.get(2)?.as_str();
+        let fallback = if fallback.ends_with('.') {
+            fallback.to_string()
+        } else {
+            format!("{fallback}.")
+        };
+        let (fallback_effects, fallback_decisions) =
+            parse_general_effect_instruction(&fallback, face_name)
+                .or_else(|| parse_general_effect_sequence(&fallback, face_name))?;
+        if !fallback_decisions.is_empty() {
+            return None;
+        }
+        effects.push(json!({
+            "kind": "ifTargetWasChosen",
+            "target": chosen_target(decision_id),
+            "then": [],
+            "else": fallback_effects,
+        }));
+        return Some((effects, decisions));
+    }
+
+    let draw_then_discard_unless_matching_re = Regex::new(&format!(
+        r"(?i)^Draw ({}) cards?\. Then discard ({}) cards? unless you discard (?:a|an|one) (.+?) card\.$",
+        count_word_pattern(),
+        count_word_pattern(),
+    ))
+    .expect("draw then alternative filtered-discard regex compiles");
+    if let Some(captures) = draw_then_discard_unless_matching_re.captures(instruction) {
+        let draw_count = parse_number_word(captures.get(1)?.as_str())?;
+        let default_discard_count = parse_number_word(captures.get(2)?.as_str())?;
+        if draw_count <= 0 || default_discard_count <= 0 {
+            return None;
+        }
+        let alternative_filter = parse_permanent_criteria(captures.get(3)?.as_str(), face_name)?;
+        return Some((
+            vec![
+                json!({
+                    "kind": "drawCards",
+                    "player": controller(),
+                    "count": integer(draw_count),
+                }),
+                json!({
+                    "kind": "chooseOneEffect",
+                    "player": controller(),
+                    "options": [
+                        {
+                            "label": "Discard a matching card",
+                            "availableIf": compare(
+                                ">=",
+                                json!({
+                                    "kind": "countCards",
+                                    "zone": hand(controller()),
+                                    "where": alternative_filter.clone(),
+                                }),
+                                integer(1),
+                            ),
+                            "effects": [{
+                                "kind": "discardCards",
+                                "player": controller(),
+                                "count": integer(1),
+                                "where": alternative_filter,
+                            }],
+                        },
+                        {
+                            "label": format!("Discard {default_discard_count} cards"),
+                            "effects": [{
+                                "kind": "discardCards",
+                                "player": controller(),
+                                "count": integer(default_discard_count),
+                            }],
+                        },
+                    ],
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    let tap_then_linked_ability_loss_re = Regex::new(
+        r"(?i)^Tap (up to one )?target (.+?)\. (?:It|That (?:creature|permanent)) loses all abilities for as long as (.+?) remains on the battlefield\.$",
+    )
+    .expect("tap then linked ability-loss regex compiles");
+    if let Some(captures) = tap_then_linked_ability_loss_re.captures(instruction)
+        && source_reference_matches(captures.get(3)?.as_str(), face_name)
+    {
+        let target = chosen_target("targetPermanent");
+        return Some((
+            vec![
+                json!({ "kind": "tapPermanent", "permanent": target.clone() }),
+                json!({
+                    "kind": "installLinkedAbilityLoss",
+                    "object": target,
+                    "duration": { "kind": "whileSourceOnBattlefield" },
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
+                if captures.get(1).is_some() { 0 } else { 1 },
+                1,
+            )],
+        ));
+    }
+    let source_damage_group_and_opponents_re = Regex::new(&format!(
+        r"(?i)^(.+?) deals ({}) damage to each (.+?) and each opponent\.$",
+        count_word_pattern(),
+    ))
+    .expect("source damage to a permanent group and each opponent regex compiles");
+    if let Some(captures) = source_damage_group_and_opponents_re.captures(instruction)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        let amount = parse_numeric_expression_text(captures.get(2)?.as_str())?;
+        return Some((
+            vec![
+                json!({
+                    "kind": "dealDamage",
+                    "source": self_ref(),
+                    "amount": amount.clone(),
+                    "recipient": {
+                        "kind": "eachPermanent",
+                        "where": parse_permanent_criteria(captures.get(3)?.as_str(), face_name)?,
+                    },
+                }),
+                json!({
+                    "kind": "dealDamageToEachOpponent",
+                    "amount": amount,
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    let created_token_scaled_counter_then_source_counter_re = Regex::new(
+        r#"(?i)^(Create .+?(?:\.|\")) Put (?:a|an|one) ([A-Za-z0-9+/-]+) counter on it for each ([A-Za-z0-9+/-]+) counter on (.+?), then put (?:a|an|one) ([A-Za-z0-9+/-]+) counter on (.+?)\.$"#,
+    )
+    .expect("created token scaled counter then source counter regex compiles");
+    if let Some(captures) =
+        created_token_scaled_counter_then_source_counter_re.captures(instruction)
+        && source_reference_matches(captures.get(4)?.as_str(), face_name)
+        && source_reference_matches(captures.get(6)?.as_str(), face_name)
+    {
+        let mut create = create_token_effect(captures.get(1)?.as_str())?;
+        create["bind"] = Value::String("createdTokens".to_string());
+        return Some((
+            vec![
+                create,
+                json!({
+                    "kind": "putCounters",
+                    "permanent": bound_objects("createdTokens"),
+                    "counter": captures.get(2)?.as_str().to_ascii_lowercase(),
+                    "count": {
+                        "kind": "countCounters",
+                        "object": self_ref(),
+                        "counter": captures.get(3)?.as_str().to_ascii_lowercase(),
+                    },
+                }),
+                json!({
+                    "kind": "putCounters",
+                    "permanent": self_ref(),
+                    "counter": captures.get(5)?.as_str().to_ascii_lowercase(),
+                    "count": integer(1),
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
+    let recent_graveyard_card_to_hand_re = Regex::new(
+        r"(?i)^Choose target (.+?) card in your graveyard that was put there from anywhere this turn\. Return it to your hand\.$",
+    )
+    .expect("recent graveyard-card return sequence regex compiles");
+    if let Some(captures) = recent_graveyard_card_to_hand_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "moveTargetCard",
+                "card": chosen_target("targetGraveyardCard"),
+                "to": "hand",
+                "tapped": false,
+            })],
+            vec![target_decision(
+                "targetGraveyardCard",
+                json!({
+                    "kind": "cards",
+                    "zone": graveyard(controller()),
+                    "where": and(vec![
+                        parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                        json!({ "kind": "enteredGraveyardThisTurn" }),
+                    ]),
+                }),
+                1,
+                1,
+            )],
+        ));
+    }
+    let inline_condition_otherwise_re = Regex::new(r"(?i)^(.+?) if (.+?)\. Otherwise, (.+)$")
+        .expect("inline condition with otherwise regex compiles");
+    if let Some(captures) = inline_condition_otherwise_re.captures(instruction) {
+        let then_branch = parse_general_effect_instruction(captures.get(1)?.as_str(), face_name)
+            .or_else(|| parse_general_effect_sequence(captures.get(1)?.as_str(), face_name));
+        let else_branch = parse_general_effect_instruction(captures.get(3)?.as_str(), face_name)
+            .or_else(|| parse_general_effect_sequence(captures.get(3)?.as_str(), face_name));
+        let condition = parse_condition_text(captures.get(2)?.as_str());
+        // This is deliberately speculative: the same words also occur inside
+        // specialized multi-sentence instructions (for example reveal-until
+        // partitions). Only claim the instruction when all three reusable
+        // components parsed successfully, otherwise let the later grammar
+        // productions inspect the original text.
+        if let (
+            Some((then_effects, mut decisions)),
+            Some((else_effects, else_decisions)),
+            Some(condition),
+        ) = (then_branch, else_branch, condition)
+        {
+            decisions.extend(else_decisions);
+            return Some((
+                vec![json!({
+                    "kind": "conditionalEffect",
+                    "condition": condition,
+                    "then": then_effects,
+                    "else": else_effects,
+                })],
+                decisions,
+            ));
+        }
+    }
+    let reveal_top_then_conditional_re = Regex::new(
+        r"(?i)^Reveal the top card of your library\. If it's (?:a|an) (.+?) card, (.+)$",
+    )
+    .expect("reveal top card then conditional instruction regex compiles");
+    if let Some(captures) = reveal_top_then_conditional_re.captures(instruction) {
+        let (nested_effects, decisions) =
+            parse_general_effect_instruction(captures.get(2)?.as_str(), face_name)?;
+        return Some((
+            vec![
+                json!({
+                    "kind": "lookAtTopCards",
+                    "zone": library(controller()),
+                    "count": integer(1),
+                    "bind": "revealedTopCard",
+                }),
+                json!({
+                    "kind": "revealCards",
+                    "cards": bound_objects("revealedTopCard"),
+                }),
+                json!({
+                    "kind": "forEachObject",
+                    "objects": {
+                        "kind": "filterObjects",
+                        "objects": bound_objects("revealedTopCard"),
+                        "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                    },
+                    "bind": "matchingRevealedTopCard",
+                    "effects": nested_effects,
+                }),
+            ],
+            decisions,
+        ));
+    }
+    let teamwork_paid = || {
+        json!({
+            "kind": "decisionWas",
+            "decisionId": "teamworkPaid",
+            "value": true,
+        })
+    };
+    let teamwork_keyword_re = Regex::new(
+        r"(?i)^Target (.+?) gains (flying|deathtouch|double strike|first strike|haste|lifelink|reach|trample|vigilance) until end of turn\. If this spell was cast using teamwork, that (?:creature|permanent) also gains (flying|deathtouch|double strike|first strike|haste|lifelink|reach|trample|vigilance) until end of turn\.$",
+    )
+    .expect("teamwork additional keyword regex compiles");
+    if let Some(captures) = teamwork_keyword_re.captures(instruction) {
+        let target = chosen_target("targetPermanent");
+        let base_keyword = oracle_keyword_list(captures.get(2)?.as_str())?
+            .into_iter()
+            .next()?;
+        let bonus_keyword = oracle_keyword_list(captures.get(3)?.as_str())?
+            .into_iter()
+            .next()?;
+        return Some((
+            vec![
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target.clone(),
+                    "keyword": base_keyword,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "conditional",
+                    "condition": teamwork_paid(),
+                    "then": [{
+                        "kind": "grantKeyword",
+                        "object": target,
+                        "keyword": bonus_keyword,
+                        "duration": { "kind": "untilEndOfCurrentTurn" },
+                    }],
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(1)?.as_str(), face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
+    let teamwork_damage_instead_re = Regex::new(&format!(
+        r"(?i)^(?:This spell|[A-Z][^.,]+?) deals ({}) damage to target (.+?)\. If this spell was cast using teamwork, it deals ({}) damage to that (?:creature|permanent) instead\.$",
+        count_word_pattern(),
+        count_word_pattern(),
+    ))
+    .expect("teamwork replacement damage regex compiles");
+    if let Some(captures) = teamwork_damage_instead_re.captures(instruction) {
+        return Some((
+            vec![json!({
+                "kind": "dealDamage",
+                "source": self_ref(),
+                "amount": {
+                    "kind": "conditionalValue",
+                    "condition": teamwork_paid(),
+                    "ifTrue": integer(parse_number_word(captures.get(3)?.as_str())?),
+                    "ifFalse": integer(parse_number_word(captures.get(1)?.as_str())?),
+                },
+                "recipient": chosen_target("targetPermanent"),
+            })],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
+    let teamwork_additional_controller_damage_re = Regex::new(&format!(
+        r"(?i)^(?:This spell|[A-Z][^.,]+?) deals ({}) damage to target (.+?)\. If this spell was cast using teamwork, it also deals ({}) damage to that (?:creature|permanent)'s controller\.$",
+        count_word_pattern(),
+        count_word_pattern(),
+    ))
+    .expect("teamwork additional controller damage regex compiles");
+    if let Some(captures) = teamwork_additional_controller_damage_re.captures(instruction) {
+        let target = chosen_target("targetPermanent");
+        return Some((
+            vec![
+                json!({
+                    "kind": "dealDamage",
+                    "source": self_ref(),
+                    "amount": integer(parse_number_word(captures.get(1)?.as_str())?),
+                    "recipient": target.clone(),
+                }),
+                json!({
+                    "kind": "conditional",
+                    "condition": teamwork_paid(),
+                    "then": [{
+                        "kind": "dealDamage",
+                        "source": self_ref(),
+                        "amount": integer(parse_number_word(captures.get(3)?.as_str())?),
+                        "recipient": {
+                            "kind": "controllerOf",
+                            "object": target,
+                        },
+                    }],
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(2)?.as_str(), face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
+    let teamwork_counter_unless_re = Regex::new(
+        r"(?i)^Counter target spell unless its controller pays ((?:\{[^}]+\})+)\. Counter that spell unless its controller pays ((?:\{[^}]+\})+) instead if this spell was cast using teamwork\.$",
+    )
+    .expect("teamwork counter-unless replacement regex compiles");
+    if let Some(captures) = teamwork_counter_unless_re.captures(instruction) {
+        let counter_effect = |mana_cost: &str| {
+            json!({
+                "kind": "counterStackObjectUnlessPays",
+                "spell": chosen_target("targetStackObject"),
+                "manaCost": mana_cost,
+            })
+        };
+        return Some((
+            vec![json!({
+                "kind": "conditional",
+                "condition": teamwork_paid(),
+                "then": [counter_effect(captures.get(2)?.as_str())],
+                "else": [counter_effect(captures.get(1)?.as_str())],
+            })],
+            vec![target_decision(
+                "targetStackObject",
+                json!({ "kind": "spells", "where": null }),
+                1,
+                1,
+            )],
+        ));
+    }
+    let choose_double_and_keyword_re = Regex::new(
+        r"(?i)^Choose target (.+?)\. Until end of turn, double its power and toughness and it gains (flying|deathtouch|double strike|first strike|haste|lifelink|reach|trample|vigilance)\.$",
+    )
+    .expect("choose, double, and grant keyword regex compiles");
+    if let Some(captures) = choose_double_and_keyword_re.captures(instruction) {
+        let target = chosen_target("targetPermanent");
+        let keyword = oracle_keyword_list(captures.get(2)?.as_str())?
+            .into_iter()
+            .next()?;
+        return Some((
+            vec![
+                json!({
+                    "kind": "modifyPowerToughness",
+                    "object": target.clone(),
+                    "power": { "kind": "powerOf", "object": target.clone() },
+                    "toughness": { "kind": "toughnessOf", "object": target.clone() },
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+                json!({
+                    "kind": "grantKeyword",
+                    "object": target,
+                    "keyword": keyword,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                }),
+            ],
+            vec![target_decision(
+                "targetPermanent",
+                permanent_target_candidates(captures.get(1)?.as_str(), face_name)?,
+                1,
+                1,
+            )],
+        ));
+    }
+    let three_effect_list_re = Regex::new(r"(?is)^([^,]+), ([^,]+), and ([^,]+)\.$")
+        .expect("three-effect coordinated list regex compiles");
+    if let Some(captures) = three_effect_list_re.captures(instruction) {
+        let shares_you = captures
+            .get(1)?
+            .as_str()
+            .trim_start()
+            .to_ascii_lowercase()
+            .starts_with("you ");
+        let mut effects = Vec::new();
+        let mut decisions = Vec::new();
+        let mut decision_ids = BTreeSet::new();
+        for clause_index in 1..=3 {
+            let clause = captures.get(clause_index)?.as_str().trim();
+            let normalized = format!(
+                "{}{}.",
+                if clause_index > 1
+                    && shares_you
+                    && !clause.eq_ignore_ascii_case("you")
+                    && !clause.to_ascii_lowercase().starts_with("you ")
+                {
+                    "You "
+                } else {
+                    ""
+                },
+                clause,
+            );
+            let (clause_effects, clause_decisions) =
+                parse_general_effect_instruction(&normalized, face_name)?;
+            for decision in &clause_decisions {
+                let id = decision["id"].as_str()?;
+                if !decision_ids.insert(id.to_string()) {
+                    return None;
+                }
+            }
+            effects.extend(clause_effects);
+            decisions.extend(clause_decisions);
+        }
+        return Some((effects, decisions));
+    }
+    let coordinated_create_re = Regex::new(r"(?is)^(.+?) and (create .+)\.$")
+        .expect("coordinated effect and token creation regex compiles");
+    if let Some(captures) = coordinated_create_re.captures(instruction) {
+        let first = format!("{}.", captures.get(1)?.as_str().trim_end_matches('.'));
+        let second = format!("{}.", captures.get(2)?.as_str().trim_end_matches('.'));
+        let (mut effects, mut decisions) = parse_general_effect_instruction(&first, face_name)?;
+        let (second_effects, second_decisions) =
+            parse_general_effect_instruction(&second, face_name)?;
+        let mut decision_ids = decisions
+            .iter()
+            .filter_map(|decision| decision["id"].as_str().map(ToOwned::to_owned))
+            .collect::<BTreeSet<_>>();
+        if second_decisions.iter().any(|decision| {
+            decision["id"]
+                .as_str()
+                .is_some_and(|id| !decision_ids.insert(id.to_string()))
+        }) {
+            return None;
+        }
+        effects.extend(second_effects);
+        decisions.extend(second_decisions);
+        return Some((effects, decisions));
+    }
+    let extra_turn_with_prohibition_re = Regex::new(
+        r"(?is)^(.+?)\. Take an extra turn after this one\. During that turn, ([a-z][a-z-]*) abilities can't be activated\.$",
+    )
+    .expect("extra turn with ability-class prohibition regex compiles");
+    if let Some(captures) = extra_turn_with_prohibition_re.captures(instruction) {
+        let first = format!("{}.", captures.get(1)?.as_str().trim_end_matches('.'));
+        let (mut effects, decisions) = parse_general_effect_instruction(&first, face_name)?;
+        effects.extend([
+            json!({
+                "kind": "grantExtraTurn",
+                "player": controller(),
+            }),
+            json!({
+                "kind": "prohibitAbilityClassDuringGrantedExtraTurn",
+                "player": controller(),
+                "abilityClass": normalize_ability_class(captures.get(2)?.as_str())?,
+            }),
+        ]);
+        return Some((effects, decisions));
+    }
+    let parity_destruction_re = Regex::new(
+        r"(?is)^(.+?)\. Choose odd or even\. Destroy each other creature with mana value of the chosen quality\.$",
+    )
+    .expect("mana-value parity destruction regex compiles");
+    if let Some(captures) = parity_destruction_re.captures(instruction) {
+        let first = format!("{}.", captures.get(1)?.as_str().trim_end_matches('.'));
+        let (mut effects, mut decisions) = parse_general_effect_instruction(&first, face_name)?;
+        decisions.push(json!({
+            "kind": "chooseOption",
+            "id": "manaValueParity",
+            "options": ["odd", "even"],
+        }));
+        effects.push(json!({
+            "kind": "destroyPermanent",
+            "permanent": {
+                "kind": "eachPermanent",
+                "where": and(vec![
+                    card_type("Creature"),
+                    json!({
+                        "kind": "manaValueParity",
+                        "parity": decision_result("manaValueParity"),
+                    }),
+                ]),
+                "excludeSource": true,
+            },
+        }));
+        return Some((effects, decisions));
+    }
+    let sacrifice_then_reflexive_re = Regex::new(
+        r"(?is)^Sacrifice (?:it|this (?:artifact|creature|enchantment|land|permanent))\. When you do, (.+)$",
+    )
+    .expect("source sacrifice then reflexive continuation regex compiles");
+    if let Some(captures) = sacrifice_then_reflexive_re.captures(instruction) {
+        let followup = captures.get(1)?.as_str();
+        let (followup_effects, followup_decisions) =
+            parse_general_effect_sequence(followup, face_name)
+                .or_else(|| parse_general_effect_instruction(followup, face_name))?;
+        let mut ability = json!({
+            "kind": "triggeredAbility",
+            "source": self_ref(),
+            "event": { "kind": "reflexiveTriggerCreated", "object": self_ref() },
+            "effects": followup_effects,
+        });
+        if !followup_decisions.is_empty() {
+            ability["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": followup_decisions,
+            });
+        }
+        return Some((
+            vec![
+                json!({
+                    "kind": "sacrificePermanent",
+                    "permanent": self_ref(),
+                }),
+                json!({
+                    "kind": "createReflexiveTrigger",
+                    "source": self_ref(),
+                    "controller": controller(),
+                    "ability": ability,
+                }),
+            ],
+            Vec::new(),
+        ));
+    }
     let promised_gift_followup_re = Regex::new(r"(?is)^(.+?\.) If the gift was promised, (.+)$")
         .expect("promised gift follow-up regex compiles");
     if let Some(captures) = promised_gift_followup_re.captures(instruction) {
@@ -519,36 +1318,44 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
         return Some((effects, decisions));
     }
     let mill_then_optional_return_re = Regex::new(&format!(
-        r"(?i)^Mill ({}) cards?, then you may return (?:a|an) (.+?) card from among them to your hand\.(?: \(.+\))?$",
+        r"(?is)^Mill ({}) cards?(?:, then you may|\. You may) (?:return|put) (?:a|an) (.+?) card from among (?:them|the milled cards|those cards) (?:to|into) your hand\.(?: (.+?\.))?(?: \(.+\))?$",
         count_word_pattern(),
     ))
     .expect("mill then optionally return a matching card regex compiles");
     if let Some(captures) = mill_then_optional_return_re.captures(instruction) {
-        return Some((
-            vec![
-                json!({
-                    "kind": "mill",
-                    "player": controller(),
-                    "count": integer(parse_number_word(captures.get(1)?.as_str())?),
-                    "bind": "milledCards",
-                }),
-                json!({
-                    "kind": "chooseCards",
-                    "id": "milledCardForHand",
-                    "player": controller(),
-                    "from": bound_objects("milledCards"),
-                    "where": parse_permanent_criteria(captures.get(2)?.as_str(), face_name)?,
-                    "minimum": integer(0),
-                    "maximum": integer(1),
-                }),
-                json!({
-                    "kind": "moveCards",
-                    "cards": decision_result("milledCardForHand"),
-                    "to": hand(controller()),
-                }),
-            ],
-            Vec::new(),
-        ));
+        let where_filter = card_qualifier_list_filter(captures.get(2)?.as_str(), face_name)
+            .or_else(|| parse_permanent_criteria(captures.get(2)?.as_str(), face_name))?;
+        let mut effects = vec![
+            json!({
+                "kind": "mill",
+                "player": controller(),
+                "count": integer(parse_number_word(captures.get(1)?.as_str())?),
+                "bind": "milledCards",
+            }),
+            json!({
+                "kind": "chooseCards",
+                "id": "milledCardForHand",
+                "player": controller(),
+                "from": bound_objects("milledCards"),
+                "where": where_filter,
+                "minimum": integer(0),
+                "maximum": integer(1),
+            }),
+            json!({
+                "kind": "moveCards",
+                "cards": decision_result("milledCardForHand"),
+                "to": hand(controller()),
+            }),
+        ];
+        let mut decisions = Vec::new();
+        if let Some(trailing) = captures.get(3) {
+            let (trailing_effects, trailing_decisions) =
+                parse_general_effect_sequence(trailing.as_str(), face_name)
+                    .or_else(|| parse_general_effect_instruction(trailing.as_str(), face_name))?;
+            effects.extend(trailing_effects);
+            decisions.extend(trailing_decisions);
+        }
+        return Some((effects, decisions));
     }
     let optional_pay_life_re = Regex::new(&format!(
         r"(?i)^You may pay ({}) life\. If you do, (.+)$",
@@ -1900,6 +2707,47 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
             Vec::new(),
         ));
     }
+    let optional_sacrifice_reflexive_re =
+        Regex::new(r"(?is)^You may sacrifice (another )?(.+?)\. When you do, (.+)$")
+            .expect("optional sacrifice reflexive continuation regex compiles");
+    if let Some(captures) = optional_sacrifice_reflexive_re.captures(instruction) {
+        let followup = captures.get(3)?.as_str().trim();
+        let (followup_effects, followup_decisions) =
+            parse_general_effect_sequence(followup, face_name)
+                .or_else(|| parse_general_effect_instruction(followup, face_name))?;
+        let mut reflexive_ability = json!({
+            "kind": "triggeredAbility",
+            "source": self_ref(),
+            "event": { "kind": "reflexiveTriggerCreated", "object": self_ref() },
+            "effects": followup_effects,
+        });
+        if !followup_decisions.is_empty() {
+            reflexive_ability["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": followup_decisions,
+            });
+        }
+        return Some((
+            vec![json!({
+                "kind": "optionalAction",
+                "player": controller(),
+                "action": {
+                    "kind": "sacrificePermanents",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(2)?.as_str(), face_name)?,
+                    "count": integer(1),
+                    "excludeSource": captures.get(1).is_some(),
+                },
+                "onPerformed": [{
+                    "kind": "createReflexiveTrigger",
+                    "source": self_ref(),
+                    "controller": controller(),
+                    "ability": reflexive_ability,
+                }],
+            })],
+            Vec::new(),
+        ));
+    }
     let optional_sacrifice_followup_re =
         Regex::new(r"(?is)^You may sacrifice (another )?(.+?)\. If you do, (.+)$")
             .expect("optional sacrifice followed by effects regex compiles");
@@ -1980,6 +2828,33 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
             }));
             decisions.extend(trailing_decisions);
             return Some((effects, decisions));
+        }
+    }
+    let optional_action_followup_re = Regex::new(r"(?is)^You may (.+?)\. If you do, (.+)$")
+        .expect("generic optional action followed by effects regex compiles");
+    if let Some(captures) = optional_action_followup_re.captures(instruction) {
+        let action_instruction = format!("{}.", captures.get(1)?.as_str().trim());
+        let followup_instruction = captures.get(2)?.as_str().trim();
+        let action = parse_general_effect_instruction(&action_instruction, face_name);
+        let followup = parse_general_effect_sequence(followup_instruction, face_name)
+            .or_else(|| parse_general_effect_instruction(followup_instruction, face_name));
+        if let (
+            Some((action_effects, action_decisions)),
+            Some((followup_effects, followup_decisions)),
+        ) = (action, followup)
+            && action_effects.len() == 1
+            && action_decisions.is_empty()
+            && followup_decisions.is_empty()
+        {
+            return Some((
+                vec![json!({
+                    "kind": "optionalAction",
+                    "player": controller(),
+                    "action": action_effects[0],
+                    "onPerformed": followup_effects,
+                })],
+                Vec::new(),
+            ));
         }
     }
     let targeted_effect_death_exile_re = Regex::new(
@@ -2534,7 +3409,8 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
             let second = format!("{second_clause}.");
             if let (Some((mut effects, mut decisions)), Some((second_effects, second_decisions))) = (
                 parse_general_effect_instruction(&first, face_name),
-                parse_general_effect_instruction(&second, face_name),
+                parse_general_effect_instruction(&second, face_name)
+                    .or_else(|| parse_general_effect_sequence(&second, face_name)),
             ) {
                 let mut decision_ids = decisions
                     .iter()
@@ -2551,52 +3427,6 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
                 }
             }
         }
-    }
-    let variable_counter_sweep_re = Regex::new(&format!(
-        r"(?i)^You get (X|{}) \{{E\}}(?: \((?:an? )?energy counters?\))?, then you may pay any amount of \{{E\}}\. Destroy each (.+?) with mana value less than or equal to the amount of \{{E\}} paid this way\.$",
-        count_word_pattern(),
-    ))
-    .expect("variable player-counter sweep regex compiles");
-    if let Some(captures) = variable_counter_sweep_re.captures(instruction) {
-        let gained = if captures[1].eq_ignore_ascii_case("X") {
-            decision_result("xValue")
-        } else {
-            integer(parse_number_word(&captures[1])?)
-        };
-        let paid = decision_result("paidPlayerCounters");
-        return Some((
-            vec![
-                json!({
-                    "kind": "addPlayerCounters",
-                    "player": controller(),
-                    "counter": "energy",
-                    "count": gained,
-                }),
-                json!({
-                    "kind": "chooseNumber",
-                    "id": "paidPlayerCounters",
-                    "player": controller(),
-                    "minimum": integer(0),
-                    "maximum": {
-                        "kind": "countPlayerCounters",
-                        "player": controller(),
-                        "counter": "energy",
-                    },
-                }),
-                json!({
-                    "kind": "removePlayerCounters",
-                    "player": controller(),
-                    "counter": "energy",
-                    "count": paid.clone(),
-                }),
-                json!({
-                    "kind": "destroyPermanentsByManaValue",
-                    "where": parse_permanent_criteria(&captures[2], face_name)?,
-                    "maximum": paid,
-                }),
-            ],
-            Vec::new(),
-        ));
     }
     let reveal_put_countered_permanent_re = Regex::new(&format!(
         r"(?i)^Reveal the top ({}) cards? of your library\. Put (?:a|an) (.+?) card from among them onto the battlefield with ({}) ([^ ]+) counters? on it\. It gains (.+?) until your next turn\. Then shuffle\.$",
@@ -3207,6 +4037,19 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
         }));
         return Some((effects, decisions));
     }
+    let target_modifier_then_untap_re =
+        Regex::new(r"(?is)^(Target [^.]+ until end of turn\.) Untap it\.$")
+            .expect("target modifier then untap regex compiles");
+    if let Some(captures) = target_modifier_then_untap_re.captures(instruction) {
+        let (mut effects, decisions) =
+            parse_general_effect_instruction(captures.get(1)?.as_str(), face_name)?;
+        let target_id = sole_target_decision_id(&decisions)?;
+        effects.push(json!({
+            "kind": "untapPermanent",
+            "permanent": chosen_target(target_id),
+        }));
+        return Some((effects, decisions));
+    }
     let mut quoted = false;
     let mut start = 0;
     let mut sentences = Vec::new();
@@ -3238,7 +4081,7 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
     }
 
     let mut effects = Vec::new();
-    let mut decisions = Vec::new();
+    let mut decisions: Vec<Value> = Vec::new();
     let mut decision_ids = BTreeSet::new();
     fn rename_exact_string(value: &mut Value, from: &str, to: &str) {
         match value {
@@ -3257,12 +4100,89 @@ pub(in crate::oracle::canonical) fn parse_general_effect_sequence(
         }
     }
 
+    fn criteria_guarantees_card_type(criteria: &Value, expected: &str) -> bool {
+        match criteria["kind"].as_str() {
+            Some("cardTypeContains") => criteria["value"]
+                .as_str()
+                .is_some_and(|value| value.eq_ignore_ascii_case(expected)),
+            Some("and") => criteria["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .any(|operand| criteria_guarantees_card_type(operand, expected))
+            }),
+            Some("or") => criteria["operands"].as_array().is_some_and(|operands| {
+                !operands.is_empty()
+                    && operands
+                        .iter()
+                        .all(|operand| criteria_guarantees_card_type(operand, expected))
+            }),
+            _ => false,
+        }
+    }
+
     for (sentence_index, sentence) in sentences.into_iter().enumerate() {
         let sentence = sentence
             .strip_prefix("Then ")
             .or_else(|| sentence.strip_prefix("then "))
             .unwrap_or(&sentence);
         let lower = sentence.to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            "untap it." | "untap that creature." | "untap that permanent."
+        ) {
+            let last_decision = decisions.last()?;
+            if last_decision["kind"] != "chooseTargets"
+                || last_decision["candidates"]["kind"] != "permanents"
+            {
+                return None;
+            }
+            if lower == "untap that creature."
+                && !criteria_guarantees_card_type(&last_decision["candidates"]["where"], "Creature")
+            {
+                return None;
+            }
+            let target_id = last_decision.get("id")?.as_str()?;
+            effects.push(json!({
+                "kind": "untapPermanent",
+                "permanent": chosen_target(target_id),
+            }));
+            continue;
+        }
+        let referenced_keyword = [
+            ("That creature gains ", Some("Creature")),
+            ("That permanent gains ", None),
+        ]
+        .into_iter()
+        .find_map(|(prefix, required_type)| {
+            strip_prefix_ascii_case(sentence, prefix)
+                .and_then(|value| strip_suffix_ascii_case(value, " until end of turn."))
+                .map(|keyword| (required_type, keyword))
+        });
+        if let Some((required_type, keyword_text)) = referenced_keyword {
+            let last_decision = decisions.last()?;
+            if last_decision["kind"] != "chooseTargets"
+                || last_decision["candidates"]["kind"] != "permanents"
+                || required_type.is_some_and(|card_type| {
+                    !criteria_guarantees_card_type(&last_decision["candidates"]["where"], card_type)
+                })
+            {
+                return None;
+            }
+            let target_id = last_decision.get("id")?.as_str()?;
+            let keywords = oracle_keyword_list(keyword_text)?;
+            if keywords.is_empty() {
+                return None;
+            }
+            effects.extend(keywords.into_iter().map(|keyword| {
+                json!({
+                    "kind": "grantKeyword",
+                    "object": chosen_target(target_id),
+                    "keyword": keyword,
+                    "duration": { "kind": "untilEndOfCurrentTurn" },
+                })
+            }));
+            continue;
+        }
         if [
             "if ",
             "otherwise",

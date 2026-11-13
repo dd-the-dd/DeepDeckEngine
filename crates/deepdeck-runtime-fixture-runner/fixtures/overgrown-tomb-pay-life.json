@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "overgrown-tomb-pays-life-and-enters-untapped",
+  "seed": 107,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "decisions": [{
+      "id": "optionalLifePayment",
+      "kind": "chooseWhetherToPay",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+    }],
+    "replacement": [{
+      "kind": "conditional",
+      "condition": {
+        "kind": "not",
+        "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+      },
+      "then": [{
+        "kind": "setEnteringState",
+        "object": { "kind": "self" },
+        "tapped": true
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Overgrown Tomb pilot",
+        "life": 20,
+        "hand": [{
+          "id": "overgrown-tomb",
+          "name": "Overgrown Tomb",
+          "typeLine": "Land - Swamp Forest",
+          "rules": [{
+            "kind": "replacementEffect",
+            "source": { "kind": "self" },
+            "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+            "decisions": [{
+              "id": "optionalLifePayment",
+              "kind": "chooseWhetherToPay",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+            }],
+            "replacement": [{
+              "kind": "conditional",
+              "condition": {
+                "kind": "not",
+                "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+              },
+              "then": [{
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }]
+            }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 1 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "overgrown-tomb", "equals": true },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "overgrown-tomb", "equals": false },
+    { "kind": "eventCount", "eventKind": "landPlayed", "equals": 1 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

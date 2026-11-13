@@ -1,0 +1,2630 @@
+{
+    "inventorySchemaVersion":  "deepdeck-ability-inventory/v1",
+    "inventoryVersion":  "2026.11.10-c11",
+    "generatedAgainstCatalogVersion":  "2026.11.10-c11",
+    "rulesEffectiveDate":  "2026-11-06",
+    "sources":  [
+                    {
+                        "kind":  "tokenizerVocabulary",
+                        "path":  "src/oracle/syntax/tokenizer.rs"
+                    },
+                    {
+                        "kind":  "canonicalKeywordParser",
+                        "path":  "src/oracle/canonical/abilities/keyword.rs"
+                    },
+                    {
+                        "kind":  "sharedCostParser",
+                        "path":  "src/oracle/canonical/costs.rs"
+                    },
+                    {
+                        "kind":  "staticCostParser",
+                        "path":  "src/oracle/canonical/abilities/static.rs"
+                    },
+                    {
+                        "kind":  "abilityCatalog",
+                        "path":  "data/ability-catalog/ability-catalog-v1.json"
+                    },
+                    {
+                        "kind":  "officialRules",
+                        "url":  "https://magic.wizards.com/en/rules",
+                        "effectiveDate":  "2026-11-06"
+                    },
+                    {
+                        "kind":  "localOracleFrequency",
+                        "path":  "fixtures/**/*.json",
+                        "fileCount":  51
+                    }
+                ],
+    "coverage":  {
+                     "detected":  101,
+                     "catalogued":  101,
+                     "uncatalogued":  0,
+                     "catalogCoveragePercent":  100
+                 },
+    "entries":  [
+                    {
+                        "inventoryId":  "affinity",
+                        "name":  "Affinity",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.41",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "affinity",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "staticCostParser",
+                                               "path":  "src/oracle/canonical/abilities/static.rs",
+                                               "detail":  "affinity cost reduction"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "affinity"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "annihilator",
+                        "name":  "Annihilator",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.86",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "annihilator",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "annihilator"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "ascend",
+                        "name":  "Ascend",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.131",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "ascend",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "ascend"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "awaken",
+                        "name":  "Awaken",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.113",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "awaken",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "awaken"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "basic-landcycling",
+                        "name":  "Basic landcycling",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.29",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "basic-landcycling",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "basic-landcycling"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "blight",
+                        "name":  "blight",
+                        "category":  "keywordAction",
+                        "rulesSection":  "701.68",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "blight",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "blight"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "blitz",
+                        "name":  "Blitz",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.152",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "blitz",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "blitz"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "buyback",
+                        "name":  "Buyback",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.27",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "buyback",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "sharedCostParser",
+                                               "path":  "src/oracle/canonical/costs.rs",
+                                               "detail":  "parse_buyback_ability"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "buyback"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "cascade",
+                        "name":  "cascade",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.85",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "cascade",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "cascade"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "changeling",
+                        "name":  "Changeling",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.73",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "changeling",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "changeling"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "channel",
+                        "name":  "channel",
+                        "category":  "abilityWord",
+                        "rulesSection":  "207.2",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "channel",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "abilityWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "channel"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "companion",
+                        "name":  "Companion",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.139",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "companion",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "companion"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "connive",
+                        "name":  "Connive",
+                        "category":  "keywordAction",
+                        "rulesSection":  "701.50",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "connive",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "connive"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "conspire",
+                        "name":  "Conspire",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.78",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "conspire",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "conspire"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "convoke",
+                        "name":  "Convoke",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.51",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "convoke",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "convoke"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "cycling",
+                        "name":  "Cycling",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.29",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "cycling",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "cycling"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "dash",
+                        "name":  "Dash",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.109",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "dash",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "dash"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "deathtouch",
+                        "name":  "deathtouch",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.2",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "deathtouch",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  4,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "deathtouch"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "defender",
+                        "name":  "defender",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.3",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "defender",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  1,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "defender"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "delve",
+                        "name":  "delve",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.66",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "delve",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "delve"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "devoid",
+                        "name":  "Devoid",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.114",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "devoid",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "devoid"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "double-strike",
+                        "name":  "Double strike",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.4",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "double-strike",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "compound keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "double-strike"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "dredge",
+                        "name":  "Dredge",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.52",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "dredge",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "dredge"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "echo",
+                        "name":  "Echo",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.30",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "echo",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "echo"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "encore",
+                        "name":  "Encore",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.141",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "encore",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "encore"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "equip",
+                        "name":  "equip",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.6",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "equip",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  4,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "equip"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "escalate",
+                        "name":  "Escalate",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.120",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "escalate",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "escalate"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "escape",
+                        "name":  "Escape",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.138",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "escape",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "escape"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "evolve",
+                        "name":  "Evolve",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.100",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "evolve",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "evolve"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "exalted",
+                        "name":  "exalted",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.83",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "exalted",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "exalted"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "exploit",
+                        "name":  "Exploit",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.110",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "exploit",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "exploit"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "fear",
+                        "name":  "fear",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.36",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "fear",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "fear"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "firebending",
+                        "name":  "Firebending",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.189",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "firebending",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  5,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "firebending"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "first-strike",
+                        "name":  "First strike",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.7",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "first-strike",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "compound keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "first-strike"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "flanking",
+                        "name":  "Flanking",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.25",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "flanking",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "flanking"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "flash",
+                        "name":  "flash",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.8",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "flash",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  3,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "flash"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "flashback",
+                        "name":  "Flashback",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.34",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "flashback",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  16,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "flashback"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "flying",
+                        "name":  "flying",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.9",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "flying",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  9,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "flying"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "forestwalk",
+                        "name":  "forestwalk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.14",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "forestwalk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "forestwalk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "foretell",
+                        "name":  "Foretell",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.143",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "foretell",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "foretell"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "fuse",
+                        "name":  "Fuse",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.102",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "fuse",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "fuse"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "gift",
+                        "name":  "Gift",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.174",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "gift",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "gift"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "graft",
+                        "name":  "Graft",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.58",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "graft",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "graft"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "gravestorm",
+                        "name":  "Gravestorm",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.69",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "gravestorm",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "gravestorm"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "haste",
+                        "name":  "haste",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.10",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "haste",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  3,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "haste"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "hexproof",
+                        "name":  "hexproof",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.11",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "hexproof",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  3,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "hexproof"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "horsemanship",
+                        "name":  "horsemanship",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.31",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "horsemanship",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "horsemanship"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "impending",
+                        "name":  "Impending",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.176",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "impending",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "impending"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "improvise",
+                        "name":  "Improvise",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.126",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "improvise",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "improvise"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "indestructible",
+                        "name":  "indestructible",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.12",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "indestructible",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "indestructible"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "infect",
+                        "name":  "infect",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.90",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "infect",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "infect"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "intimidate",
+                        "name":  "intimidate",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.13",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "intimidate",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "intimidate"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "islandwalk",
+                        "name":  "islandwalk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.14",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "islandwalk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "islandwalk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "kicker",
+                        "name":  "kicker",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.33",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "kicker",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  6,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "kicker"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "lifelink",
+                        "name":  "lifelink",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.15",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "lifelink",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  1,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "lifelink"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "living-weapon",
+                        "name":  "Living weapon",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.92",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "living-weapon",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "living-weapon"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "mayhem",
+                        "name":  "Mayhem",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.187",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "mayhem",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "mayhem"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "menace",
+                        "name":  "menace",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.111",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "menace",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "menace"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "miracle",
+                        "name":  "Miracle",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.94",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "miracle",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "miracle"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "mobilize",
+                        "name":  "Mobilize",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.181",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "mobilize",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "mobilize"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "morph",
+                        "name":  "Morph",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.37",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "morph",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "morph"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "mountainwalk",
+                        "name":  "mountainwalk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.14",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "mountainwalk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "mountainwalk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "myriad",
+                        "name":  "Myriad",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.116",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "myriad",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "myriad"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "ninjutsu",
+                        "name":  "Ninjutsu",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.49",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "ninjutsu",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "ninjutsu"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "offspring",
+                        "name":  "Offspring",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.175",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "offspring",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "offspring"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "paradigm",
+                        "name":  "Paradigm",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.192",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "paradigm",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  3,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "paradigm"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "persist",
+                        "name":  "persist",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.79",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "persist",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "persist"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "plainswalk",
+                        "name":  "plainswalk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.14",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "plainswalk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "plainswalk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "plot",
+                        "name":  "Plot",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.170",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "plot",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "plot"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "protection",
+                        "name":  "Protection",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.16",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "protection",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "protection"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "prototype",
+                        "name":  "Prototype",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.160",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "prototype",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "prototype"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "prowess",
+                        "name":  "prowess",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.108",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "prowess",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  3,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "prowess"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "reach",
+                        "name":  "reach",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.17",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "reach",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "reach"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "read-ahead",
+                        "name":  "Read ahead",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.155",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "read-ahead",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "read-ahead"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "rebound",
+                        "name":  "Rebound",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.88",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "rebound",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "rebound"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "renewal",
+                        "name":  "renewal",
+                        "category":  "abilityWord",
+                        "rulesSection":  "207.2",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "renewal",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "abilityWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "renewal"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "replicate",
+                        "name":  "replicate",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.56",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "replicate",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "replicate"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "revolt",
+                        "name":  "revolt",
+                        "category":  "abilityWord",
+                        "rulesSection":  "207.2",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "revolt",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "abilityWord"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "revolt"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "riot",
+                        "name":  "Riot",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.136",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "riot",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "riot"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "scry",
+                        "name":  "Scry",
+                        "category":  "keywordAction",
+                        "rulesSection":  "701.18",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "scry",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "scry"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "shadow",
+                        "name":  "shadow",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.28",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "shadow",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "shadow"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "shroud",
+                        "name":  "shroud",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.18",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "shroud",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "shroud"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "skulk",
+                        "name":  "skulk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.118",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "skulk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "skulk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "splice",
+                        "name":  "Splice",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.47",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "splice",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "splice"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "split-second",
+                        "name":  "Split second",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.61",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "split-second",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "split-second"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "storm",
+                        "name":  "Storm",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.40",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "storm",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "storm"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "surveil",
+                        "name":  "Surveil",
+                        "category":  "keywordAction",
+                        "rulesSection":  "701.42",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "surveil",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "surveil"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "suspend",
+                        "name":  "Suspend",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.62",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "suspend",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "suspend"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "swampwalk",
+                        "name":  "swampwalk",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.14",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "swampwalk",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "swampwalk"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "teamwork",
+                        "name":  "Teamwork",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.194",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "teamwork",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "teamwork"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "toxic",
+                        "name":  "Toxic",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.164",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "toxic",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "toxic"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "trample",
+                        "name":  "trample",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.19",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "trample",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "trample"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "typecycling",
+                        "name":  "Typecycling",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.29",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "typecycling",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "typecycling"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "umbra-armor",
+                        "name":  "Umbra armor",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.89",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "umbra-armor",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "umbra-armor"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "undying",
+                        "name":  "undying",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.93",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "undying",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "undying"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "unearth",
+                        "name":  "Unearth",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.84",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "unearth",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "unearth"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "vigilance",
+                        "name":  "vigilance",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.20",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "vigilance",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "vigilance"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "ward",
+                        "name":  "ward",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.21",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "ward",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  4,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "tokenizerVocabulary",
+                                               "path":  "src/oracle/syntax/tokenizer.rs",
+                                               "detail":  "keywordWord"
+                                           },
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "ward"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "warp",
+                        "name":  "Warp",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.185",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "warp",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "warp"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "waterbend",
+                        "name":  "Waterbend",
+                        "category":  "keywordAction",
+                        "rulesSection":  "701.67",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "waterbend",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "dedicatedKeywordParser",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "dedicated branch"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "waterbend"
+                                           }
+                                       ]
+                    },
+                    {
+                        "inventoryId":  "wither",
+                        "name":  "Wither",
+                        "category":  "keywordAbility",
+                        "rulesSection":  "702.80",
+                        "catalogStatus":  "catalogued",
+                        "catalogId":  "wither",
+                        "localFrequency":  {
+                                               "fixtureOracleMentions":  0,
+                                               "basis":  "case-insensitive lexical mentions in fixtures/**/*.json; not card or play frequency"
+                                           },
+                        "detectedBy":  [
+                                           {
+                                               "kind":  "simpleKeywordRegistry",
+                                               "path":  "src/oracle/canonical/abilities/keyword.rs",
+                                               "detail":  "simple_keywords"
+                                           },
+                                           {
+                                               "kind":  "catalog",
+                                               "path":  "data/ability-catalog/ability-catalog-v1.json",
+                                               "detail":  "wither"
+                                           }
+                                       ]
+                    }
+                ]
+}

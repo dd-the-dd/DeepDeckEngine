@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "austere-command/generic-effect-sequence-modal-is-executable",
+  "cardName": "Austere Command",
+  "oracleId": "09cc8709-fe10-472a-b05c-e89f3523018d",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "chosenModes",
+        "kind": "chooseModes",
+        "minimum": 2,
+        "maximum": { "kind": "integer", "value": 2 },
+        "options": ["mode1", "mode2", "mode3", "mode4"],
+        "allowRepeated": false
+      }]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode1"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": { "kind": "cardTypeContains", "value": "Artifact" }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode2"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": { "kind": "cardTypeContains", "value": "Enchantment" }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode3"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "operator": "<=",
+                  "right": { "kind": "integer", "value": 3 }
+                }
+              ]
+            }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode4"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "operator": ">=",
+                  "right": { "kind": "integer", "value": 4 }
+                }
+              ]
+            }
+          }
+        }]
+      }
+    ]
+  }
+}

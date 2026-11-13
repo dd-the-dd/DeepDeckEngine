@@ -1,0 +1,39 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/c7ca25f3-7a22-477b-8546-4c2597d5d1ff/complete-rule-set",
+    "cardName":  "Extinguish All Hope",
+    "oracleId":  "c7ca25f3-7a22-477b-8546-4c2597d5d1ff",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "not",
+                                                                                               "operand":  {
+                                                                                                               "kind":  "cardTypeContains",
+                                                                                                               "value":  "Enchantment"
+                                                                                                           }
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

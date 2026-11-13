@@ -7,20 +7,27 @@ pub(in crate::oracle::canonical) fn permanent_target_candidates(
     let mut description = description.trim().trim_end_matches('.').trim();
     let mut controller_filter = None;
     let mut ownership_filter = None;
+    if let Some(rest) = strip_suffix_ascii_case(description, " defending player controls") {
+        description = rest.trim();
+        controller_filter = Some(json!({ "kind": "triggeringPlayer" }));
+    }
     let embedded_controller_re =
         Regex::new(r"(?i)^(.+?) (you don't control|an opponent controls)(.*)$")
             .expect("embedded target-controller qualifier regex compiles");
     let reconstructed_description;
-    if let Some(captures) = embedded_controller_re.captures(description) {
+    if controller_filter.is_none()
+        && let Some(captures) = embedded_controller_re.captures(description)
+    {
         reconstructed_description = format!("{}{}", &captures[1], &captures[3]);
         description = reconstructed_description.trim();
         controller_filter = Some(json!({
             "kind": "opponentsOf",
             "player": controller(),
         }));
-    } else if let Some(captures) = Regex::new(r"(?i)^(.+?) you control(.*)$")
-        .expect("embedded controller qualifier regex compiles")
-        .captures(description)
+    } else if controller_filter.is_none()
+        && let Some(captures) = Regex::new(r"(?i)^(.+?) you control(.*)$")
+            .expect("embedded controller qualifier regex compiles")
+            .captures(description)
     {
         reconstructed_description = format!("{}{}", &captures[1], &captures[2]);
         description = reconstructed_description.trim();

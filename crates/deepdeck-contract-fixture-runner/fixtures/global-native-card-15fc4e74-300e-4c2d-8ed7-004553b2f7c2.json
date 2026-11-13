@@ -1,0 +1,77 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/15fc4e74-300e-4c2d-8ed7-004553b2f7c2/complete-rule-set",
+    "cardName":  "Ondu Inversion // Ondu Skyruins",
+    "oracleId":  "15fc4e74-300e-4c2d-8ed7-004553b2f7c2",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "not",
+                                                                          "operand":  {
+                                                                                          "kind":  "cardTypeContains",
+                                                                                          "value":  "Land"
+                                                                                      }
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  },
+                  {
+                      "event":  {
+                                    "kind":  "wouldEnterBattlefield",
+                                    "object":  {
+                                                   "kind":  "self"
+                                               }
+                                },
+                      "kind":  "replacementEffect",
+                      "replacement":  [
+                                          {
+                                              "kind":  "setEnteringState",
+                                              "object":  {
+                                                             "kind":  "self"
+                                                         },
+                                              "tapped":  true
+                                          }
+                                      ],
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  },
+                  {
+                      "costs":  [
+                                    {
+                                        "kind":  "tap",
+                                        "object":  {
+                                                       "kind":  "self"
+                                                   }
+                                    }
+                                ],
+                      "effects":  [
+                                      {
+                                          "kind":  "addMana",
+                                          "mana":  "{W}",
+                                          "player":  {
+                                                         "kind":  "controllerOf",
+                                                         "object":  {
+                                                                        "kind":  "self"
+                                                                    }
+                                                     }
+                                      }
+                                  ],
+                      "kind":  "manaAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

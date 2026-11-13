@@ -46,6 +46,9 @@ pub struct RecognizedEntity {
     pub category: String,
     pub index: usize,
     pub raw: String,
+    /// Half-open byte span in the original Oracle ability text.
+    pub span_start: usize,
+    pub span_end: usize,
     pub token_type: String,
 }
 
@@ -63,10 +66,48 @@ pub struct SimplificationIteration {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ParserTransitionDiagnostic {
+    pub state: String,
+    pub token_index: usize,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ParserDiagnostic {
     pub code: String,
     pub message: String,
     pub severity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub automaton: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_start: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span_end: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub found: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trace: Vec<ParserTransitionDiagnostic>,
+}
+
+/// Identifies which recognition boundary produced (or committed to) an
+/// Oracle ability result. This is deliberately independent from semantic IR
+/// and runtime executability: a correct primitive rule can still be legacy
+/// recognition debt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RecognizerProvenance {
+    /// A promoted token-driven local automaton with no legacy fallback.
+    Native,
+    /// The pre-migration canonical parser path.
+    Legacy,
+    /// No recognizer claimed the ability.
+    Unclaimed,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -75,6 +116,7 @@ pub struct ParsedOracleAbility {
     pub source: AbilitySource,
     pub ability_type: String,
     pub status: String,
+    pub recognizer: RecognizerProvenance,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rule: Option<Value>,
     pub entities: Vec<RecognizedEntity>,

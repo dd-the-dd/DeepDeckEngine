@@ -29,27 +29,7 @@ pub(in crate::oracle::canonical) fn parse_global_destruction(
             ],
         ));
     }
-    let where_filter = match text {
-        "Destroy all creatures." => card_type("Creature"),
-        _ => return None,
-    };
-    Some(draft(
-        json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "effects": [{
-                "kind": "destroyPermanent",
-                "permanent": {
-                    "kind": "eachPermanent",
-                    "where": where_filter,
-                },
-            }],
-        }),
-        &[
-            "Resolve untargeted creature set",
-            "Destroy every matching permanent",
-        ],
-    ))
+    None
 }
 
 pub(in crate::oracle::canonical) fn parse_counter_unless_paid(
@@ -281,13 +261,6 @@ pub(in crate::oracle::canonical) fn parse_counter_spell(text: &str) -> Option<Ca
             ],
         ));
     }
-    let counter_exile_re = Regex::new(
-        r"(?i)^Counter target (.+?) spell\. If that spell is countered this way, exile it instead of putting it into its owner's graveyard\.$",
-    )
-    .expect("counter-with-exile-replacement regex compiles");
-    if let Some(captures) = counter_exile_re.captures(text) {
-        return counter_rule(Some(&captures[1]), json!({ "exileInstead": true }));
-    }
     let post_spell_qualified_re = Regex::new(r"(?i)^Counter target (.+?) spell with (.+?)\.$")
         .expect("post-spell qualified counterspell target regex compiles");
     if let Some(captures) = post_spell_qualified_re.captures(text) {
@@ -332,53 +305,6 @@ pub(in crate::oracle::canonical) fn parse_counter_spell(text: &str) -> Option<Ca
             &[
                 "Extract required spell target",
                 "Reduce spell-type predicate",
-                "Resolve counter vocabulary",
-            ],
-        ));
-    }
-
-    let mana_re = Regex::new(r"^Counter target spell with mana value (\d+)( or greater)?\.$")
-        .expect("counter mana value regex compiles");
-    if let Some(captures) = mana_re.captures(text) {
-        let value = captures[1].parse::<i64>().ok()?;
-        let operator = if captures.get(2).is_some() {
-            ">="
-        } else {
-            "=="
-        };
-        return Some(draft(
-            json!({
-                "kind": "spellAbility",
-                "source": self_ref(),
-                "declaration": {
-                    "kind": "castingDeclaration",
-                    "decisions": [
-                        target_decision(
-                            "targetSpell",
-                            json!({
-                                "kind": "spells",
-                                "where": compare(
-                                    operator,
-                                    json!({
-                                        "kind": "manaValueOf",
-                                        "object": { "kind": "candidate" },
-                                    }),
-                                    integer(value),
-                                ),
-                            }),
-                            1,
-                            1,
-                        ),
-                    ],
-                },
-                "effects": [{
-                    "kind": "counterSpell",
-                    "spell": chosen_target("targetSpell"),
-                }],
-            }),
-            &[
-                "Extract required spell target",
-                "Reduce mana-value predicate",
                 "Resolve counter vocabulary",
             ],
         ));

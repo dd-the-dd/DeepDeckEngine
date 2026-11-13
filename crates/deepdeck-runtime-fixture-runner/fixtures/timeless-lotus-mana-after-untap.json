@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "timeless-lotus-untapped-produces-all-five-colors-with-full-native-rules",
+  "seed": 143,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Timeless Lotus pilot",
+        "manaPool": [],
+        "battlefield": [
+          {
+            "id": "timeless-lotus",
+            "name": "Timeless Lotus",
+            "typeLine": "Legendary Artifact",
+            "manaCost": "{5}",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ]
+              },
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{W}{U}{B}{R}{G}"
+                  }
+                ]
+              }
+            ],
+            "tapped": false
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "timeless-lotus"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "W",
+        "U",
+        "B",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "timeless-lotus",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

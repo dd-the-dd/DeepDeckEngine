@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "terminate/destroy-regeneration-prohibition-is-executable",
+  "cardName": "Terminate",
+  "oracleId": "6257c2fd-005f-41e3-8a72-af76df1eb134",
+  "expectedExecutable": true,
+  "rules": [{
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "cannotRegenerate": true
+    }]
+  }]
+}

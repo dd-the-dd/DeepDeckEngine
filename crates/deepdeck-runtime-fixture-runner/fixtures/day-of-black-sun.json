@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "day-of-black-sun-loses-abilities-before-destroying-the-bound-set",
+  "seed": 61,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{ "id": "xValue", "kind": "chooseNumber", "minimum": 0 }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "affectedPermanents",
+        "value": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              {
+                "kind": "compare",
+                "operator": "<=",
+                "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                "right": { "kind": "decisionResult", "decisionId": "xValue" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "forEachObject",
+        "objects": { "kind": "boundObjects", "binding": "affectedPermanents" },
+        "bind": "affectedPermanent",
+        "effects": [{
+          "kind": "installLoseAllAbilities",
+          "object": { "kind": "boundValue", "id": "affectedPermanent" },
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        }]
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "boundObjects", "binding": "affectedPermanents" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Black Sun caster",
+        "hand": [{
+          "id": "day-of-black-sun",
+          "name": "Day of Black Sun",
+          "typeLine": "Sorcery",
+          "manaCost": "{X}{B}{B}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected player",
+        "battlefield": [
+          {
+            "id": "small-indestructible",
+            "name": "Small Indestructible",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [{
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "indestructible" }
+            }]
+          },
+          {
+            "id": "small-creature",
+            "name": "Small Creature",
+            "typeLine": "Creature",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "large-creature",
+            "name": "Large Creature",
+            "typeLine": "Creature",
+            "manaCost": "{3}",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "small-artifact",
+            "name": "Small Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{1}"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "day-of-black-sun",
+    "decisions": { "xValue": 2 }
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "small-indestructible", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "small-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "large-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "small-artifact", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

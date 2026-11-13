@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "soulstone-sanctuary/all-native-rules-are-executable",
+  "cardName": "Soulstone Sanctuary",
+  "oracleId": "3c0f99b8-0222-4fac-932a-eb5d77826564",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": {
+        "kind": "self"
+      },
+      "costs": [
+        {
+          "kind": "tap",
+          "object": {
+            "kind": "self"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "mana": "{C}"
+        }
+      ]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": {
+        "kind": "self"
+      },
+      "costs": [
+        {
+          "kind": "payMana",
+          "manaCost": "{4}"
+        }
+      ],
+      "effects": [
+        {
+          "kind": "becomeCreature",
+          "object": {
+            "kind": "self"
+          },
+          "addTypes": [
+            "Creature"
+          ],
+          "addSubtypes": [],
+          "addColors": [],
+          "basePower": {
+            "kind": "integer",
+            "value": 3
+          },
+          "baseToughness": {
+            "kind": "integer",
+            "value": 3
+          },
+          "retainExistingTypes": true,
+          "duration": {
+            "kind": "permanent"
+          }
+        },
+        {
+          "kind": "grantKeyword",
+          "object": {
+            "kind": "self"
+          },
+          "keyword": "vigilance",
+          "duration": {
+            "kind": "permanent"
+          }
+        },
+        {
+          "kind": "modifySubtypeSet",
+          "object": {
+            "kind": "self"
+          },
+          "subtypeClass": "creature",
+          "mode": "all",
+          "duration": {
+            "kind": "permanent"
+          }
+        }
+      ]
+    }
+  ]
+}

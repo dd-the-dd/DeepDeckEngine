@@ -1,0 +1,1360 @@
+//! Typed local recognizers for composable Oracle grammar concepts.
+//!
+//! These machines borrow one immutable token stream. They never reconstruct
+//! or rematch an Oracle sentence and they emit typed semantic values rather
+//! than card-shaped JSON.
+
+mod ability_loss;
+mod activated;
+mod activated_effect_sequence;
+mod activated_library_search;
+mod activated_top_card_delayed_draw;
+mod activated_zone_change;
+mod activation_reduction;
+mod additional_cost;
+mod alternative_additional_cost;
+mod alternative_cost;
+mod alternative_return_cost;
+mod amass;
+mod arithmetic_expression;
+mod attached_keyword_grant;
+mod attack_tax;
+mod block_restriction;
+mod boolean_condition;
+mod bound_collection_untap;
+mod bound_object_condition;
+mod card_type_partition;
+mod cast_prohibition;
+mod casting_reduction;
+mod characteristic;
+mod chosen_card_name;
+mod chosen_creature_type;
+mod chosen_land_type;
+mod collection;
+mod color;
+mod color_set;
+mod combat_restriction;
+mod compound_activated;
+mod compound_exile;
+mod condition;
+mod conditional;
+mod conditional_activation;
+mod conditional_entry;
+mod conditional_zone_change;
+mod conditional_zone_change_amendment;
+mod connector;
+mod contextual_list;
+mod controlled_count_entry;
+mod cost;
+mod counter_delayed_draw;
+mod counter_descriptive_token;
+mod counter_name;
+mod counter_named_token;
+mod counter_prohibition;
+mod counter_unless_paid;
+mod delayed_blink;
+mod delayed_draw;
+mod delayed_step;
+mod delve;
+mod destroy_collection;
+mod destroy_regeneration;
+mod draw_move;
+mod duration;
+mod early_turn_entry;
+mod earthbend;
+mod effects;
+mod emblem;
+mod entry_or_repeat_trigger;
+pub(in crate::oracle::canonical) mod entry_replacement;
+mod equip;
+mod event_bound_payment;
+mod graveyard_card_entry_life;
+mod graveyard_card_return;
+mod graveyard_characteristic;
+mod graveyard_destination;
+mod hand_disruption;
+mod investigate;
+mod keyword;
+mod keyword_grant;
+mod labeled_activated_effect_sequence;
+mod landfall_reflexive_counter;
+mod library_search;
+mod library_search_partition;
+mod linked_entry_exile;
+mod linked_exile_return;
+mod loyalty;
+mod loyalty_ability;
+mod mana;
+mod mana_spend_constraint;
+mod mandatory_additional_cost_header;
+mod mandatory_additional_discard;
+mod mandatory_additional_sacrifice;
+mod mill;
+mod mobilize;
+mod modal_color_guard;
+mod modal_spell;
+mod numeric;
+mod numeric_object_property;
+mod object_predicate;
+mod object_set;
+mod opening_hand_battlefield;
+mod opponent_library_search;
+mod optional_bound_mill;
+mod optional_card_deployment;
+mod optional_draw;
+mod optional_life_entry;
+mod optional_zone_action;
+mod ordinal_spell_tax_draw;
+mod overload;
+mod owner_library_reveal;
+mod parenthetical;
+mod permanent_died;
+mod permanent_died_effect_sequence;
+mod permanent_entered_effect_sequence;
+mod phase_trigger_sequence;
+mod phyrexian_mana;
+mod player_counter_sweep;
+mod player_spell_tax_draw;
+mod power_toughness;
+mod protected_attack_trigger;
+mod put_counters;
+mod qualified_effect;
+mod reference;
+mod replicate;
+mod restricted_mana;
+mod riot;
+mod saga;
+mod same_name_search;
+mod scoped_mana;
+mod scry;
+mod selected_sacrifice_cost;
+mod selector;
+mod selector_atom;
+mod sequence;
+mod set_anaphora;
+mod simple_keyword;
+mod source_cast_x_entry;
+mod source_entry;
+mod source_entry_card_zone_change;
+mod source_entry_effect_sequence;
+mod source_sacrifice;
+mod source_state;
+mod source_zone_move;
+mod spell_cost_increase;
+mod static_keyword_grant;
+mod static_spell_reduction;
+mod surveil;
+mod target_card_zone_change;
+mod target_list;
+mod target_player_draw;
+mod target_untap;
+mod targeting_event;
+mod temporary_animation;
+mod temporary_power_toughness;
+mod token;
+mod token_characteristic;
+mod token_subtype_list;
+mod top_cards;
+mod top_cards_reorder;
+mod transform;
+mod trigger_event;
+mod trigger_suppression;
+mod turn_step_event;
+
+pub(super) use ability_loss::*;
+pub(super) use activated::*;
+pub(super) use activated_effect_sequence::*;
+pub(super) use activated_library_search::*;
+pub(super) use activated_top_card_delayed_draw::*;
+pub(super) use activated_zone_change::*;
+pub(super) use activation_reduction::*;
+pub(super) use additional_cost::*;
+pub(super) use alternative_additional_cost::*;
+pub(super) use alternative_cost::*;
+pub(super) use alternative_return_cost::*;
+pub(super) use amass::*;
+pub(super) use attached_keyword_grant::*;
+pub(super) use attack_tax::*;
+pub(super) use block_restriction::*;
+pub(super) use bound_collection_untap::*;
+pub(super) use bound_object_condition::*;
+pub(super) use card_type_partition::*;
+pub(super) use cast_prohibition::*;
+pub(super) use casting_reduction::*;
+pub(super) use characteristic::*;
+pub(super) use chosen_card_name::*;
+pub(super) use chosen_creature_type::*;
+pub(super) use chosen_land_type::*;
+pub(super) use collection::*;
+pub(super) use color::*;
+pub(super) use color_set::*;
+pub(super) use combat_restriction::*;
+pub(super) use compound_activated::*;
+pub(super) use compound_exile::*;
+pub(super) use condition::*;
+pub(super) use conditional::*;
+pub(super) use conditional_activation::*;
+pub(super) use conditional_entry::*;
+pub(super) use conditional_zone_change::*;
+pub(super) use conditional_zone_change_amendment::*;
+pub(super) use connector::*;
+pub(super) use contextual_list::*;
+pub(super) use controlled_count_entry::*;
+pub(super) use cost::*;
+pub(super) use counter_delayed_draw::*;
+pub(super) use counter_descriptive_token::*;
+pub(super) use counter_name::*;
+pub(super) use counter_named_token::*;
+pub(super) use counter_prohibition::*;
+pub(super) use counter_unless_paid::*;
+pub(super) use delayed_blink::*;
+pub(super) use delayed_draw::*;
+pub(super) use delayed_step::*;
+pub(super) use delve::*;
+pub(super) use destroy_collection::*;
+pub(super) use destroy_regeneration::*;
+pub(super) use draw_move::*;
+pub(super) use duration::*;
+pub(super) use early_turn_entry::*;
+pub(super) use earthbend::*;
+pub(super) use effects::*;
+pub(super) use emblem::*;
+pub(super) use entry_or_repeat_trigger::*;
+pub(super) use equip::*;
+pub(super) use event_bound_payment::*;
+pub(super) use graveyard_card_entry_life::*;
+pub(super) use graveyard_card_return::*;
+pub(super) use graveyard_characteristic::*;
+pub(super) use graveyard_destination::*;
+pub(super) use hand_disruption::*;
+pub(super) use investigate::*;
+pub(super) use keyword::*;
+pub(super) use keyword_grant::*;
+pub(super) use labeled_activated_effect_sequence::*;
+pub(super) use landfall_reflexive_counter::*;
+pub(super) use library_search::*;
+pub(super) use library_search_partition::*;
+pub(super) use linked_entry_exile::*;
+pub(super) use linked_exile_return::*;
+pub(super) use loyalty::*;
+pub(super) use loyalty_ability::*;
+pub(super) use mana::*;
+pub(super) use mana_spend_constraint::*;
+pub(super) use mandatory_additional_cost_header::*;
+pub(super) use mandatory_additional_discard::*;
+pub(super) use mandatory_additional_sacrifice::*;
+pub(super) use mill::*;
+pub(super) use mobilize::*;
+pub(super) use modal_color_guard::*;
+pub(super) use modal_spell::*;
+pub(super) use numeric::*;
+pub(super) use numeric_object_property::*;
+pub(super) use object_predicate::*;
+pub(super) use object_set::*;
+pub(super) use opening_hand_battlefield::*;
+pub(super) use opponent_library_search::*;
+pub(super) use optional_bound_mill::*;
+pub(super) use optional_card_deployment::*;
+pub(super) use optional_draw::*;
+pub(super) use optional_life_entry::*;
+pub(super) use optional_zone_action::*;
+pub(super) use ordinal_spell_tax_draw::*;
+pub(super) use overload::*;
+pub(super) use owner_library_reveal::*;
+pub(super) use parenthetical::*;
+pub(super) use permanent_died::*;
+pub(super) use permanent_died_effect_sequence::*;
+pub(super) use permanent_entered_effect_sequence::*;
+pub(super) use phase_trigger_sequence::*;
+pub(super) use phyrexian_mana::*;
+pub(super) use player_counter_sweep::*;
+pub(super) use player_spell_tax_draw::*;
+pub(super) use power_toughness::*;
+pub(super) use protected_attack_trigger::*;
+pub(super) use put_counters::*;
+pub(super) use qualified_effect::*;
+pub(super) use reference::*;
+pub(super) use replicate::*;
+pub(super) use restricted_mana::*;
+pub(super) use riot::*;
+pub(super) use saga::*;
+pub(super) use same_name_search::*;
+pub(super) use scoped_mana::*;
+pub(super) use scry::*;
+pub(super) use selected_sacrifice_cost::*;
+pub(super) use selector::*;
+pub(super) use selector_atom::*;
+pub(super) use sequence::*;
+pub(super) use set_anaphora::*;
+pub(super) use simple_keyword::*;
+pub(super) use source_cast_x_entry::*;
+pub(super) use source_entry::*;
+pub(super) use source_entry_card_zone_change::*;
+pub(super) use source_entry_effect_sequence::*;
+pub(super) use source_sacrifice::*;
+pub(super) use source_state::*;
+pub(super) use source_zone_move::*;
+pub(super) use spell_cost_increase::*;
+pub(super) use static_keyword_grant::*;
+pub(super) use static_spell_reduction::*;
+pub(super) use surveil::*;
+pub(super) use target_card_zone_change::*;
+pub(super) use target_list::*;
+pub(super) use target_player_draw::*;
+pub(super) use target_untap::*;
+pub(super) use targeting_event::*;
+pub(super) use temporary_animation::*;
+pub(super) use temporary_power_toughness::*;
+pub(super) use token::*;
+pub(super) use token_characteristic::*;
+pub(super) use top_cards::*;
+pub(super) use top_cards_reorder::*;
+pub(super) use transform::*;
+pub(super) use trigger_event::*;
+pub(super) use trigger_suppression::*;
+pub(super) use turn_step_event::*;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum LocalObjectReference {
+    SourceSelf,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ReplacementObjectBinding {
+    EventObject,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct WouldEnterBattlefieldEventNode {
+    pub object: ObjectPredicate,
+    pub binding: ReplacementObjectBinding,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectCastStatus {
+    NotCast,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectCastConditionNode {
+    pub object: ReplacementObjectBinding,
+    pub status: ObjectCastStatus,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ReplacementDestination {
+    Exile,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ZoneReplacementNode {
+    pub object: ReplacementObjectBinding,
+    pub destination: ReplacementDestination,
+}
+
+/// Parent-owned bindings available while recognizing an independent effect.
+///
+/// The default context preserves the historical effect-sequence grammar. A
+/// triggered-ability envelope can opt into source anaphora and the value of X
+/// retained from casting that source without teaching either atomic effect
+/// about the surrounding trigger.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EffectRecognitionContext {
+    pub source: Option<LocalObjectReference>,
+    pub source_cast_x: bool,
+}
+
+/// A typed child-machine result together with the first token position not
+/// owned by that child. Sentence punctuation and full-stream consumption stay
+/// with the parent sequence machine.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct RecognizedEffectFragment<T> {
+    pub node: T,
+    pub end_position: usize,
+}
+
+impl EffectRecognitionContext {
+    pub(in crate::oracle::canonical) fn for_source(source: LocalObjectReference) -> Self {
+        Self {
+            source: Some(source),
+            source_cast_x: false,
+        }
+    }
+
+    pub(in crate::oracle::canonical) fn for_source_cast_x(source: LocalObjectReference) -> Self {
+        Self {
+            source: Some(source),
+            source_cast_x: true,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum LocalPlayerReference {
+    Controller,
+    ControllerOf(TargetBinding),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NumericAtom {
+    Integer(i64),
+    VariableX,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NumericComparisonOperator {
+    Equal,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum NumericObjectProperty {
+    Power,
+    Toughness,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SelectorNumericProperty {
+    ManaValue,
+    Power,
+    Toughness,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct TargetBinding {
+    pub effect_index: usize,
+    pub slot_index: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerTargetBinding {
+    pub effect_index: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct BoundObjectConditionNode {
+    pub object: TargetBinding,
+    pub predicate: ObjectPredicate,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ConditionalZoneChangeNode {
+    pub zone_change: ZoneChangeEffectNode,
+    pub condition: BoundObjectConditionNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ConditionalZoneChangeAmendmentNode {
+    pub action: ZoneChangeAction,
+    pub target_condition: BoundObjectConditionNode,
+    pub amendment_condition: LocalConditionNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum NumericExpression {
+    Atom(NumericAtom),
+    ObjectProperty {
+        object: LocalObjectReference,
+        property: NumericObjectProperty,
+    },
+    PowerOf(TargetBinding),
+    ManaValueOf(TargetBinding),
+    SourceCastX,
+    EventValue(EventNumericBinding),
+    CountDistinctCardTypes {
+        zone: GraveyardScope,
+    },
+    Add {
+        left: Box<NumericExpression>,
+        right: Box<NumericExpression>,
+    },
+    Subtract {
+        left: Box<NumericExpression>,
+        right: Box<NumericExpression>,
+    },
+    Multiply {
+        left: Box<NumericExpression>,
+        right: Box<NumericExpression>,
+    },
+    CardsInZone {
+        player: LocalPlayerReference,
+        zone: LocalZone,
+    },
+    Divide {
+        left: Box<NumericExpression>,
+        right: Box<NumericExpression>,
+        rounding: NumericRounding,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum EventNumericBinding {
+    DamageAmount,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum GraveyardScope {
+    Controller,
+    AllPlayers,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum NumericRounding {
+    Down,
+    Up,
+}
+
+impl NumericExpression {
+    pub(super) fn add(left: Self, right: Self) -> Self {
+        Self::Add {
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub(super) fn subtract(left: Self, right: Self) -> Self {
+        Self::Subtract {
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub(super) fn multiply(left: Self, right: Self) -> Self {
+        Self::Multiply {
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub(super) fn divide(
+        left: Self,
+        right: impl Into<Self>,
+        rounding: NumericRounding,
+    ) -> Option<Self> {
+        let right = right.into();
+        if matches!(right, Self::Atom(NumericAtom::Integer(value)) if value <= 0) {
+            return None;
+        }
+        Some(Self::Divide {
+            left: Box::new(left),
+            right: Box::new(right),
+            rounding,
+        })
+    }
+
+    pub(super) fn divide_rounded_down(left: Self, right: impl Into<Self>) -> Option<Self> {
+        Self::divide(left, right, NumericRounding::Down)
+    }
+
+    pub(super) fn uses_x(&self) -> bool {
+        match self {
+            Self::Atom(NumericAtom::VariableX) => true,
+            Self::Add { left, right }
+            | Self::Subtract { left, right }
+            | Self::Multiply { left, right }
+            | Self::Divide { left, right, .. } => left.uses_x() || right.uses_x(),
+            Self::Atom(NumericAtom::Integer(_))
+            | Self::ObjectProperty { .. }
+            | Self::PowerOf(_)
+            | Self::ManaValueOf(_)
+            | Self::SourceCastX
+            | Self::EventValue(_)
+            | Self::CountDistinctCardTypes { .. }
+            | Self::CardsInZone { .. } => false,
+        }
+    }
+}
+
+impl From<i64> for NumericExpression {
+    fn from(value: i64) -> Self {
+        Self::Atom(NumericAtom::Integer(value))
+    }
+}
+
+pub(super) use crate::oracle::characteristic_vocabulary::{
+    AmassArmySubtype, CardSupertype, CardType as ObjectCardType, CreatureSubtype,
+    ObjectDomain as ObjectKind,
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CharacteristicBatch {
+    Outlaw,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct CharacteristicBatchReminderNode {
+    pub batch: CharacteristicBatch,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PlayerPredicate {
+    Any,
+    Opponent,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ObjectControllerScope {
+    AbilityController,
+    NotAbilityController,
+    OpponentOfAbilityController,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ObjectQueryNode {
+    pub predicate: ObjectPredicate,
+    pub controller: Option<ObjectControllerScope>,
+}
+
+/// The player relation carried by an Oracle spell-casting subject. This is
+/// deliberately distinct from [`ObjectControllerScope`]: a spell's caster and
+/// its current controller can differ after the spell changes control on the
+/// stack.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SpellCasterScope {
+    AbilityController,
+    NotAbilityController,
+    OpponentOfAbilityController,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct SpellCastQueryNode {
+    pub predicate: ObjectPredicate,
+    pub caster: Option<SpellCasterScope>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ObjectSetNode {
+    pub predicate: ObjectPredicate,
+    pub controller: ObjectControllerScope,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct DestroyPermanentCollectionEffectNode {
+    pub objects: ObjectQueryNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum GrantedKeyword {
+    Cascade,
+    CantAttack,
+    CantBeBlocked,
+    CantBlock,
+    Deathtouch,
+    Defender,
+    DoubleStrike,
+    Exalted,
+    Fear,
+    FirstStrike,
+    Flash,
+    Flying,
+    Forestwalk,
+    Haste,
+    Hexproof,
+    Horsemanship,
+    Indestructible,
+    Infect,
+    Intimidate,
+    Islandwalk,
+    Lifelink,
+    Menace,
+    Mountainwalk,
+    Persist,
+    Plainswalk,
+    Prowess,
+    Reach,
+    Shadow,
+    Shroud,
+    Skulk,
+    Swampwalk,
+    Trample,
+    Undying,
+    Vigilance,
+}
+
+impl GrantedKeyword {
+    pub(super) fn canonical_name(self) -> &'static str {
+        match self {
+            Self::Cascade => "cascade",
+            Self::CantAttack => "cantAttack",
+            Self::CantBeBlocked => "cantBeBlocked",
+            Self::CantBlock => "cantBlock",
+            Self::Deathtouch => "deathtouch",
+            Self::Defender => "defender",
+            Self::DoubleStrike => "doubleStrike",
+            Self::Exalted => "exalted",
+            Self::Fear => "fear",
+            Self::FirstStrike => "firstStrike",
+            Self::Flash => "flash",
+            Self::Flying => "flying",
+            Self::Forestwalk => "forestwalk",
+            Self::Haste => "haste",
+            Self::Hexproof => "hexproof",
+            Self::Horsemanship => "horsemanship",
+            Self::Indestructible => "indestructible",
+            Self::Infect => "infect",
+            Self::Intimidate => "intimidate",
+            Self::Islandwalk => "islandwalk",
+            Self::Lifelink => "lifelink",
+            Self::Menace => "menace",
+            Self::Mountainwalk => "mountainwalk",
+            Self::Persist => "persist",
+            Self::Plainswalk => "plainswalk",
+            Self::Prowess => "prowess",
+            Self::Reach => "reach",
+            Self::Shadow => "shadow",
+            Self::Shroud => "shroud",
+            Self::Skulk => "skulk",
+            Self::Swampwalk => "swampwalk",
+            Self::Trample => "trample",
+            Self::Undying => "undying",
+            Self::Vigilance => "vigilance",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum EffectDurationNode {
+    UntilEndOfCurrentTurn,
+    UntilNextTurn { player: LocalPlayerReference },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ControlledKeywordGrantNode {
+    pub objects: ObjectSetNode,
+    pub keywords: Vec<GrantedKeyword>,
+    pub duration: EffectDurationNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum TargetSelector {
+    Any,
+    Union(Vec<TargetSelector>),
+    Object(ObjectPredicate),
+    ControlledObject {
+        predicate: ObjectPredicate,
+        controller: ObjectControllerScope,
+    },
+    Player(PlayerPredicate),
+    StackItem(StackItemPredicate),
+}
+
+impl TargetSelector {
+    pub(in crate::oracle::canonical) fn guarantees_card_type(
+        &self,
+        expected: ObjectCardType,
+    ) -> bool {
+        match self {
+            Self::Object(predicate) | Self::ControlledObject { predicate, .. } => {
+                predicate.guarantees_card_type(expected)
+            }
+            Self::Union(branches) => {
+                !branches.is_empty()
+                    && branches
+                        .iter()
+                        .all(|branch| branch.guarantees_card_type(expected))
+            }
+            Self::Any | Self::Player(_) | Self::StackItem(_) => false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum StackAbilityKind {
+    Activated,
+    Triggered,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum StackItemPredicate {
+    Ability(StackAbilityKind),
+    Spell,
+    Colorless,
+    Intersection(Vec<StackItemPredicate>),
+    Union(Vec<StackItemPredicate>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct TargetCardinality {
+    pub minimum: u32,
+    pub maximum: u32,
+}
+
+/// A target collection whose bounds are Oracle numeric expressions rather
+/// than compile-time integers. This stays distinct from `TargetCardinality`
+/// while older target consumers still require literal bounds; new grammars
+/// can share `X` without baking the variable into an effect-specific parser.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ExpressedTargetCardinality {
+    pub minimum: NumericAtom,
+    pub maximum: NumericAtom,
+}
+
+impl ExpressedTargetCardinality {
+    pub(super) const EXACTLY_ONE: Self = Self {
+        minimum: NumericAtom::Integer(1),
+        maximum: NumericAtom::Integer(1),
+    };
+
+    pub(super) fn uses_x(&self) -> bool {
+        self.minimum == NumericAtom::VariableX || self.maximum == NumericAtom::VariableX
+    }
+}
+
+impl TargetCardinality {
+    pub(super) const EXACTLY_ONE: Self = Self {
+        minimum: 1,
+        maximum: 1,
+    };
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TargetSlot {
+    pub selector: TargetSelector,
+    pub cardinality: TargetCardinality,
+    pub exclude_source: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TargetListNode {
+    pub slots: Vec<TargetSlot>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum DamageRecipientNode {
+    Targets(TargetListNode),
+    Player(LocalPlayerReference),
+    EachPermanent(SelectorPredicate),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct DamageEffectNode {
+    pub source: LocalObjectReference,
+    pub amount: NumericAtom,
+    pub recipient: DamageRecipientNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CastingCostReductionNode {
+    pub generic_reduction_per_permanent: i64,
+    pub selector: SelectorPredicate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct EarlyTurnEntryNode {
+    pub maximum_controller_turn: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CounterEffectNode {
+    pub target: TargetListNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct OptionalDrawCardsEffectNode {
+    pub player: LocalPlayerReference,
+    pub maximum: NumericExpression,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct GainLifeEffectNode {
+    pub player: LocalPlayerReference,
+    pub amount: NumericExpression,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
+    pub permanent: LocalObjectReference,
+    pub counter: crate::oracle::counter_name::CounterName,
+    pub count: NumericExpression,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct AmassEffectNode {
+    pub player: LocalPlayerReference,
+    pub army_subtype: AmassArmySubtype,
+    pub count: NumericExpression,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct InvestigateEffectNode {
+    pub player: LocalPlayerReference,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SurveilEffectNode {
+    pub player: LocalPlayerReference,
+    pub count: NumericExpression,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TransformPermanentEffectNode {
+    pub permanent: LocalObjectReference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SourceZone {
+    Battlefield,
+    Exile,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SourceFaceChange {
+    Preserve,
+    Transform,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SourceMoveController {
+    Preserve,
+    Owner,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
+    pub source: LocalObjectReference,
+    pub from: SourceZone,
+    pub to: SourceZone,
+    pub face_change: SourceFaceChange,
+    pub controller: SourceMoveController,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LoseLifeEffectNode {
+    pub player: LocalPlayerReference,
+    pub amount: NumericExpression,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TargetPlayerLifeAction {
+    Gain,
+    Lose,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TargetPlayerLifeEffectNode {
+    pub player: PlayerTargetBinding,
+    pub declares_target: bool,
+    pub action: TargetPlayerLifeAction,
+    pub amount: NumericExpression,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct TapSelfCostNode;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct PayLifeCostNode {
+    pub amount: i64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct LoyaltyCostNode {
+    pub delta: i64,
+}
+
+pub(super) use crate::oracle::characteristic_vocabulary::CardColor;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct ExileQualifiedCardFromHandCostNode {
+    pub color: CardColor,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CompoundCostNode {
+    PayLife(PayLifeCostNode),
+    ExileQualifiedCardFromHand(ExileQualifiedCardFromHandCostNode),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CostConnector {
+    And,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CostSequenceNode {
+    pub costs: Vec<CompoundCostNode>,
+    pub connectors: Vec<CostConnector>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct CurrentSpellManaCostReferenceNode;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AlternativeManaCostEnvelopeNode {
+    pub condition: Option<LocalConditionNode>,
+    pub costs: CostSequenceNode,
+    pub replaces: CurrentSpellManaCostReferenceNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CounterDestinationReplacement {
+    Exile,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CounterReplacementSequenceNode {
+    pub counter: CounterEffectNode,
+    pub destination: CounterDestinationReplacement,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddFixedManaEffectNode {
+    pub mana: ManaCostNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct AddAnyColorManaEffectNode {
+    pub amount: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddManaChoiceEffectNode {
+    pub options: Vec<ManaCostNode>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum AddManaEffectNode {
+    Fixed(AddFixedManaEffectNode),
+    Choice(AddManaChoiceEffectNode),
+    AnyColor(AddAnyColorManaEffectNode),
+    ScopedColor(AddScopedManaEffectNode),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ActivatedManaAbilityNode {
+    pub costs: ActivationCostSequenceNode,
+    pub effect: AddManaEffectNode,
+    pub followup: Option<EffectSequenceNode>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ZoneChangeAction {
+    Exile,
+    Destroy,
+    Move(ZoneChangeDestination),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ZoneChangeDestination {
+    OwnerHand,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ZoneChangeRegenerationPolicy {
+    Allowed,
+    Prohibited {
+        referenced_type: Option<ObjectCardType>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ZoneChangeEffectNode {
+    pub action: ZoneChangeAction,
+    pub target: TargetListNode,
+    pub regeneration: ZoneChangeRegenerationPolicy,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CreatureTokenSpecNode {
+    pub power: i64,
+    pub toughness: i64,
+    pub colors: Vec<CardColor>,
+    pub subtypes: Vec<CreatureSubtype>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CreateTokensEffectNode {
+    pub player: LocalPlayerReference,
+    pub quantity: NumericAtom,
+    pub token: CreatureTokenSpecNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SearchDestination {
+    Battlefield { tapped: bool },
+    Hand,
+    LibraryTop,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum SearchShuffleOrder {
+    MoveThenShuffle,
+    ShuffleThenMove,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LibrarySearchEffectNode {
+    pub player: LocalPlayerReference,
+    pub filter: ObjectPredicate,
+    pub minimum: u32,
+    pub maximum: u32,
+    pub destination: SearchDestination,
+    pub reveal: bool,
+    pub shuffle_order: SearchShuffleOrder,
+    pub binding: CollectionBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LibrarySearchCollectionNode {
+    pub player: LocalPlayerReference,
+    pub zone: LocalZone,
+    pub minimum: u32,
+    pub maximum: u32,
+    pub filter: ObjectPredicate,
+    pub binding: CollectionBinding,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RevealCollectionNode {
+    pub binding: CollectionBinding,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CollectionDestination {
+    Battlefield { tapped: bool },
+    Hand,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct SearchCollectionPartitionNode {
+    pub binding: CollectionBinding,
+    pub selected_count: u32,
+    pub selected_destination: CollectionDestination,
+    pub remainder_destination: CollectionDestination,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ShuffleCollectionZoneNode {
+    pub player: LocalPlayerReference,
+    pub zone: LocalZone,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LibrarySearchPartitionSequenceNode {
+    pub search: LibrarySearchCollectionNode,
+    pub reveal: RevealCollectionNode,
+    pub partition: SearchCollectionPartitionNode,
+    pub shuffle: ShuffleCollectionZoneNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum EntryObjectKind {
+    Land,
+    Permanent,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ChoiceBinding {
+    BasicLandType,
+    CardName,
+    OptionalLifePayment,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct BasicLandTypeChoiceNode {
+    pub player: LocalPlayerReference,
+    pub binding: ChoiceBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct OptionalLifePaymentNode {
+    pub player: LocalPlayerReference,
+    pub amount: i64,
+    pub binding: ChoiceBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct SetEnteringStateNode {
+    pub object: LocalObjectReference,
+    pub tapped: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ConditionalEnteringStateNode {
+    pub condition: LocalConditionNode,
+    pub effect: SetEnteringStateNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ChosenLandTypeEntryNode {
+    pub object_kind: EntryObjectKind,
+    pub choice: BasicLandTypeChoiceNode,
+    pub payment: OptionalLifePaymentNode,
+    pub unpaid_entry: ConditionalEnteringStateNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct OptionalLifeEntryNode {
+    pub object_kind: EntryObjectKind,
+    pub payment: OptionalLifePaymentNode,
+    pub unpaid_entry: ConditionalEnteringStateNode,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct RetainChosenLandTypeNode {
+    pub object_kind: EntryObjectKind,
+    pub choice: ChoiceBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum LocalEffectNode {
+    CounterSpell(CounterEffectNode),
+    TemporaryKeywordGrant(TemporaryKeywordGrantNode),
+    AddMana(AddManaEffectNode),
+    DealDamage(DamageEffectNode),
+    DrawCards(DrawCardsEffectNode),
+    OptionalDrawCards(OptionalDrawCardsEffectNode),
+    MillCards(MillCardsEffectNode),
+    AnimateSource(TemporaryAnimationEffectNode),
+    Amass(AmassEffectNode),
+    Investigate(InvestigateEffectNode),
+    Surveil(SurveilEffectNode),
+    Earthbend(EarthbendActionNode),
+    TransformPermanent(TransformPermanentEffectNode),
+    PutCounters(PutCountersOnObjectEffectNode),
+    MoveSource(MoveSourceEffectNode),
+    MoveCards(MoveCardsEffectNode),
+    ZoneBatch(ZoneBatchEffectNode),
+    ZoneChange(ZoneChangeEffectNode),
+    TargetCardZoneChange(TargetCardZoneChangeEffectNode),
+    CreateTokens(CreateTokensEffectNode),
+    CreateNamedTokens(CreateNamedTokensEffectNode),
+    OptionalLibrarySearch(LibrarySearchEffectNode),
+    ControllerLibrarySearch(LibrarySearchEffectNode),
+    OptionalCardDeployment(OptionalCardDeploymentEffectNode),
+    GainLife(GainLifeEffectNode),
+    LoseLife(LoseLifeEffectNode),
+    TargetPlayerLife(TargetPlayerLifeEffectNode),
+    LoseAbilities(SetAbilityLossEffectNode),
+    DestroyReferencedSet(DestroyReferencedSetEffectNode),
+    DestroyCollection(DestroyPermanentCollectionEffectNode),
+    SacrificeSource(SacrificeSourceEffectNode),
+    ModifyStats(TemporaryPowerToughnessNode),
+    UntapTarget(UntapTargetEffectNode),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum EffectConnector {
+    And,
+    Then,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct EffectSequenceNode {
+    pub effects: Vec<LocalEffectNode>,
+    pub connectors: Vec<EffectConnector>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum LocalZone {
+    Library,
+    Hand,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct CollectionBinding(pub usize);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ControlledCountDirection {
+    OrMore,
+    OrFewer,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ControlledPermanentCountConditionNode {
+    pub player: LocalPlayerReference,
+    pub threshold: i64,
+    pub direction: ControlledCountDirection,
+    pub predicate: ObjectPredicate,
+    pub exclude_source: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct BoundCollectionUntapEffectNode {
+    pub binding: CollectionBinding,
+    pub object_type: ObjectCardType,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CollectionOrder {
+    Chosen,
+    Random,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TopCardsEffectNode {
+    pub count: i64,
+    pub zone: LocalZone,
+    pub owner: TopCardsLibraryOwnerNode,
+    pub binding: CollectionBinding,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct PartitionCollectionNode {
+    pub binding: CollectionBinding,
+    pub chosen_count: i64,
+    pub chosen_destination: LocalZone,
+    pub remainder_destination: LocalZone,
+    pub order: CollectionOrder,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TopCardsPartitionSequenceNode {
+    pub top: TopCardsEffectNode,
+    pub partition: PartitionCollectionNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ReorderBoundCollectionNode {
+    pub binding: CollectionBinding,
+    pub destination: LocalZone,
+    pub position: LibraryPosition,
+    pub order: CollectionOrder,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct OptionalShuffleCollectionNode {
+    pub player: LocalPlayerReference,
+    pub zone: LocalZone,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct TopCardsReorderSequenceNode {
+    pub top: TopCardsEffectNode,
+    pub reorder: ReorderBoundCollectionNode,
+    pub shuffle: OptionalShuffleCollectionNode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ControlledPermanentChoiceNode {
+    pub player: TargetBinding,
+    pub predicate: SelectorPredicate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PlayerZoneKind {
+    Graveyard,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct PossessivePlayerZoneNode {
+    pub player: TargetBinding,
+    pub zone: PlayerZoneKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CompoundObjectConnector {
+    And,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct PlayerCompoundExileNode {
+    pub subject: TargetListNode,
+    pub subject_binding: TargetBinding,
+    pub permanent: ControlledPermanentChoiceNode,
+    pub zone: PossessivePlayerZoneNode,
+    pub connector: CompoundObjectConnector,
+}

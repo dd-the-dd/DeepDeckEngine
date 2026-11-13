@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "kozileks-command/exact-two-modal-primitives-are-executable",
+  "cardName": "Kozilek's Command",
+  "oracleId": "2f2c549d-0293-4b9d-b9a8-ff392800f3a5",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "minimum": 2,
+          "maximum": { "kind": "integer", "value": 2 },
+          "options": ["mode1", "mode2", "mode3", "mode4"],
+          "allowRepeated": false
+        },
+        { "id": "xValue", "kind": "chooseNumber", "minimum": 0 },
+        {
+          "id": "mode1:targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "players" },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" }
+        },
+        {
+          "id": "mode2:targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "players" },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode2" }
+        },
+        {
+          "id": "mode3:targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "compare", "operator": "<=", "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } }, "right": { "kind": "decisionResult", "decisionId": "xValue" } }
+              ]
+            }
+          },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" }
+        },
+        {
+          "id": "mode4:targetCards",
+          "kind": "chooseTargets",
+          "minimum": 0,
+          "maximum": { "kind": "decisionResult", "decisionId": "xValue" },
+          "candidates": { "kind": "cards", "zone": { "kind": "anyGraveyard" }, "where": null },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode4" }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" },
+        "then": [{
+          "kind": "createTokens",
+          "controller": { "kind": "chosenTarget", "id": "mode1:targetPlayer" },
+          "quantity": { "kind": "decisionResult", "decisionId": "xValue" },
+          "token": {
+            "colors": [],
+            "types": ["Creature"],
+            "subtypes": ["Eldrazi", "Spawn"],
+            "power": 0,
+            "toughness": 1,
+            "abilities": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "sacrificePermanent", "permanent": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": "{C}" }]
+            }]
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode2" },
+        "then": [
+          { "kind": "lookAtTopCards", "zone": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" } }, "count": { "kind": "decisionResult", "decisionId": "xValue" }, "bind": "mode2:scryLookedCards" },
+          { "kind": "chooseCards", "id": "mode2:scryBottomCards", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "from": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" }, "minimum": { "kind": "integer", "value": 0 }, "maximum": { "kind": "countObjects", "objects": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" } } },
+          { "kind": "chooseOrder", "id": "mode2:scryBottomOrder", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "objects": { "kind": "decisionResult", "decisionId": "mode2:scryBottomCards" } },
+          { "kind": "moveCards", "cards": { "kind": "decisionResult", "decisionId": "mode2:scryBottomOrder" }, "to": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "position": "bottom" }, "order": { "kind": "decisionOrder", "decisionId": "mode2:scryBottomOrder" } },
+          { "kind": "chooseOrder", "id": "mode2:scryTopOrder", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "objects": { "kind": "setDifference", "left": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" }, "right": { "kind": "decisionResult", "decisionId": "mode2:scryBottomCards" } } },
+          { "kind": "moveCards", "cards": { "kind": "decisionResult", "decisionId": "mode2:scryTopOrder" }, "to": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "position": "top" }, "order": { "kind": "decisionOrder", "decisionId": "mode2:scryTopOrder" } },
+          { "kind": "conditional", "condition": { "kind": "compare", "operator": ">=", "left": { "kind": "decisionResult", "decisionId": "xValue" }, "right": { "kind": "integer", "value": 1 } }, "then": [{ "kind": "emitAbilitySignal", "abilityId": "scry", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" } }], "else": [] },
+          { "kind": "drawCards", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "count": { "kind": "integer", "value": 1 } }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" },
+        "then": [{ "kind": "exilePermanent", "permanent": { "kind": "chosenTarget", "id": "mode3:targetPermanent" } }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode4" },
+        "then": [{ "kind": "exileTargetCards", "cards": { "kind": "chosenTargets", "id": "mode4:targetCards" } }]
+      }
+    ]
+  }
+}

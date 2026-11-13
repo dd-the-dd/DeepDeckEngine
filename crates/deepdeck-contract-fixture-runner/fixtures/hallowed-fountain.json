@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "hallowed-fountain/all-native-rules-are-executable",
+  "cardName": "Hallowed Fountain",
+  "oracleId": "f1750962-a87c-49f6-b731-02ae971ac6ea",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{W}", "{U}"] }
+      }]
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "decisions": [{
+        "id": "optionalLifePayment",
+        "kind": "chooseWhetherToPay",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+      }],
+      "replacement": [{
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+        },
+        "then": [{
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }]
+      }]
+    }
+  ]
+}

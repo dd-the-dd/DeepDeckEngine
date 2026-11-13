@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "growth-spiral/resolution-time-optional-deployment-is-primitive",
+  "cardName": "Growth Spiral",
+  "oracleId": "34bcc217-dd91-45a0-90d7-a94d02f1f317",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": { "kind": "integer", "value": 1 }
+        },
+        {
+          "kind": "chooseCards",
+          "id": "optionalCardDeployment",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "minimum": { "kind": "integer", "value": 0 },
+          "maximum": { "kind": "integer", "value": 1 },
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "hand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": { "kind": "cardTypeContains", "value": "Land" }
+          }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "decisionResult", "decisionId": "optionalCardDeployment" },
+          "to": {
+            "kind": "battlefield",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "tapped": false
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -63,6 +63,49 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability(
     parse_simple_activated_ability_for_face(text, "")
 }
 
+pub(in crate::oracle::canonical) fn parse_power_up_activated_ability(
+    text: &str,
+    face_name: &str,
+) -> Option<CanonicalRuleDraft> {
+    let body = text
+        .strip_prefix("Power-up — ")
+        .or_else(|| text.strip_prefix("Power-up â€” "))
+        .or_else(|| text.strip_prefix("Power-up Ã¢â‚¬â€ "))?;
+    let (activation, reminder) = body.split_once(" (Activate each power-up ability only once.")?;
+    if !reminder.contains("Reduce the cost by ")
+        || !reminder.contains(" mana cost if ")
+        || !reminder.contains(" entered this turn.")
+        || !reminder.ends_with(')')
+    {
+        return None;
+    }
+
+    let mut parsed = parse_simple_activated_ability_for_face(activation, face_name)
+        .or_else(|| parse_common_activated_ability(activation))?;
+    parsed.rule["abilityClass"] = Value::String("powerUp".to_string());
+    parsed.rule["activationLimit"] = json!({
+        "kind": "oncePerGameObjectAbility",
+        "id": "powerUp",
+    });
+    parsed.rule["activationCostModifiers"] = json!([{
+        "kind": "reduceManaCost",
+        "amount": {
+            "kind": "manaCostOf",
+            "object": self_ref(),
+        },
+        "condition": {
+            "kind": "sourceFlagSet",
+            "flag": "enteredThisTurn",
+        },
+    }]);
+    parsed.operations.extend([
+        "Classify the activated ability as power-up".to_string(),
+        "Limit this power-up ability to one activation per game object".to_string(),
+        "Subtract the source mana cost when it entered this turn".to_string(),
+    ]);
+    Some(parsed)
+}
+
 pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
     text: &str,
     face_name: &str,
@@ -85,6 +128,30 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
         .or_else(|| text.strip_prefix("Crown of Madness â€” "))
         .unwrap_or(text);
     let normalized = strip_short_oracle_label(normalized);
+
+    let target_based_activation_reduction_re = Regex::new(
+        r"(?is)^(.+?\.) This ability costs \{(\d+)\} less to activate if it targets (?:a|an) (.+?)\.$",
+    )
+    .expect("target-based activation reduction regex compiles");
+    if let Some(captures) = target_based_activation_reduction_re.captures(normalized) {
+        let mut parsed =
+            parse_simple_activated_ability_for_face(captures.get(1)?.as_str(), face_name)?;
+        let decisions = parsed.rule["declaration"]["decisions"].as_array()?;
+        let target_id = sole_target_decision_id(decisions)?;
+        parsed.rule["activationCostModifiers"] = json!([{
+            "kind": "reduceManaCost",
+            "amount": integer(captures.get(2)?.as_str().parse::<i64>().ok()?),
+            "targetCondition": {
+                "decisionId": target_id,
+                "where": parse_permanent_criteria(captures.get(3)?.as_str(), face_name)?,
+            },
+        }]);
+        parsed.operations.push(
+            "Reduce the activation cost when the selected target matches reusable criteria"
+                .to_string(),
+        );
+        return Some(parsed);
+    }
 
     if normalized
         == "Tap two untapped creatures you control: Copy target triggered ability you control. You may choose new targets for the copy. Activate only once each turn."
@@ -1135,21 +1202,6 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
             "card": chosen_target("targetGraveyardCard"),
             "source": self_ref(),
         }));
-    } else if instruction == "Draw a card, then discard a card. Put a quest counter on Arcade Gannon." {
-        effects.extend([
-            json!({
-                "kind": "drawThenDiscard",
-                "player": controller(),
-                "drawCount": integer(1),
-                "discardCount": integer(1),
-            }),
-            json!({
-                "kind": "putCounters",
-                "permanent": self_ref(),
-                "counter": "quest",
-                "count": integer(1),
-            }),
-        ]);
     } else if instruction == "Each player draws a card." {
         effects.push(json!({
             "kind": "drawEachPlayer",
@@ -1160,13 +1212,6 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
             "kind": "drawCards",
             "player": controller(),
             "count": integer(1),
-        }));
-    } else if instruction == "Draw a card, then discard a card." {
-        effects.push(json!({
-            "kind": "drawThenDiscard",
-            "player": controller(),
-            "drawCount": integer(1),
-            "discardCount": integer(1),
         }));
     } else if let Some(count) = parse_counted_draw(&instruction) {
         effects.push(json!({
@@ -1422,23 +1467,6 @@ pub(in crate::oracle::canonical) fn parse_simple_activated_ability_for_face(
             "kind": "installSokratesDialogue",
             "permanent": chosen_target("targetCreature"),
             "duration": { "kind": "untilEndOfCurrentTurn" },
-        }));
-    } else if instruction == "Destroy target nonbasic land." {
-        decisions.push(target_decision(
-            "targetLand",
-            json!({
-                "kind": "permanents",
-                "where": and(vec![
-                    card_type("Land"),
-                    not(json!({ "kind": "typeLineContains", "value": "Basic" })),
-                ]),
-            }),
-            1,
-            1,
-        ));
-        effects.push(json!({
-            "kind": "destroyPermanent",
-            "permanent": chosen_target("targetLand"),
         }));
     } else if instruction == "Exile target player's graveyard." {
         decisions.push(target_decision(
@@ -2160,18 +2188,6 @@ pub(in crate::oracle::canonical) fn parse_common_activated_ability(
             });
         }
         return Some(result);
-    }
-    if instruction
-        == "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land."
-    {
-        return Some(activated(
-            costs,
-            decisions,
-            vec![json!({
-                "kind": "resolveTriggeredInstruction",
-                "operation": "resolveFabledPassage",
-            })],
-        ));
     }
     if instruction == "Put your commander into your hand from the command zone." {
         return Some(activated(
@@ -3547,44 +3563,6 @@ pub(in crate::oracle::canonical) fn parse_special_activated_ability(
                     "abilities": [{ "kind": "cantBlock" }],
                 },
             })],
-        ));
-    }
-
-    if let Some((cost_text, instruction)) = text.split_once(':')
-        && let Some((costs, decisions)) = parse_activation_costs(cost_text)
-        && costs.iter().any(|cost| cost["kind"] == "tap")
-        && costs
-            .iter()
-            .any(|cost| cost["kind"] == "sacrificePermanent" && cost["permanent"]["kind"] == "self")
-        && let Some((filter_text, tapped)) = parse_library_search_to_battlefield(instruction.trim())
-    {
-        let filter = if filter_text == "a basic land" {
-            json!({ "kind": "typeLineContains", "value": "Basic Land" })
-        } else if let Some(types) = filter_text.strip_prefix("a basic ") {
-            or(types
-                .split(", ")
-                .flat_map(|part| part.split(", or "))
-                .flat_map(|part| part.split(" or "))
-                .map(|value| subtype(value.trim()))
-                .collect())
-        } else {
-            or(filter_text
-                .split(", ")
-                .flat_map(|part| part.split(", or "))
-                .flat_map(|part| part.split(" or "))
-                .map(|value| subtype(strip_leading_article(value.trim())))
-                .collect())
-        };
-        let declaration = (!decisions.is_empty()).then(|| {
-            json!({
-                "kind": "castingDeclaration",
-                "decisions": decisions,
-            })
-        });
-        return Some(activated_rule(
-            costs,
-            declaration,
-            search_library_effects(filter, 1, "battlefield", tapped),
         ));
     }
 

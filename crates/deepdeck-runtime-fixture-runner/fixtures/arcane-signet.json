@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "arcane-signet-adds-only-a-commander-identity-color",
+  "seed": 1,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": {
+          "kind": "chooseCommanderColor",
+          "amount": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Arcane Signet pilot",
+        "library": [
+          {
+            "id": "red-blue-commander",
+            "name": "Red-Blue Commander",
+            "typeLine": "Legendary Creature",
+            "manaCost": "{U}{R}",
+            "isCommander": true
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "arcane-signet",
+            "name": "Arcane Signet",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "arcane-signet",
+      "manaSymbols": ["R"]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": ["R"]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "arcane-signet",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

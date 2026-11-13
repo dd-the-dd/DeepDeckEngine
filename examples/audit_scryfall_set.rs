@@ -2,7 +2,7 @@ use mtg_engine::engine::rule_is_executable;
 use mtg_engine::model::{PlayableCardInput, compile_playable_card};
 use mtg_engine::oracle::{OracleCardFace, OracleCardParseRequest};
 use serde::Deserialize;
-use std::{env, ffi::OsStr, fs, process, thread};
+use std::{env, ffi::OsStr, fs, process, thread, time::Instant};
 
 #[derive(Clone, Debug, Deserialize)]
 struct ScryfallFace {
@@ -53,6 +53,7 @@ struct ScryfallList {
 #[derive(Debug)]
 struct AuditOutcome {
     index: usize,
+    pipeline_micros: u128,
     parser_canonical: bool,
     engine_executable: bool,
     parser_failures: Vec<String>,
@@ -88,6 +89,7 @@ fn request(card: &ScryfallCard) -> OracleCardParseRequest {
 }
 
 fn audit_card(index: usize, card: &ScryfallCard) -> AuditOutcome {
+    let pipeline_started = Instant::now();
     let oracle = request(card);
     let face_id = oracle.faces.first().map(|face| face.id.clone());
     let power = oracle
@@ -184,6 +186,7 @@ fn audit_card(index: usize, card: &ScryfallCard) -> AuditOutcome {
     };
     AuditOutcome {
         index,
+        pipeline_micros: pipeline_started.elapsed().as_micros(),
         parser_canonical,
         engine_executable,
         parser_failures,
@@ -195,7 +198,7 @@ fn load_cards(input: &OsStr) -> Vec<ScryfallCard> {
     let input = input.to_string_lossy();
     if let Some(set_code) = input.strip_prefix("set:") {
         let mut url = format!(
-            "https://api.scryfall.com/cards/search?q=set%3A{}&order=set&unique=prints",
+            "https://api.scryfall.com/cards/search?q=set%3A{}&order=set&unique=cards",
             set_code.trim().to_ascii_lowercase()
         );
         let mut cards = Vec::new();
@@ -237,6 +240,42 @@ fn load_cards(input: &OsStr) -> Vec<ScryfallCard> {
     })
 }
 
+fn audit_card_by_card(cards: &[ScryfallCard]) {
+    eprintln!(
+        "checking {} cards sequentially in Scryfall set order",
+        cards.len()
+    );
+    for (index, card) in cards.iter().enumerate() {
+        let outcome = audit_card(index, card);
+        if outcome.engine_executable {
+            println!(
+                "CARD\t{}\tcovered\t{}\t{}us",
+                card.collector_number, card.name, outcome.pipeline_micros
+            );
+            continue;
+        }
+
+        let status = if outcome.parser_canonical {
+            "engine-unsupported"
+        } else {
+            "parser-unsupported"
+        };
+        println!(
+            "FIRST_UNCOVERED\t{}\t{}\t{}\t{}us",
+            card.collector_number, status, card.name, outcome.pipeline_micros
+        );
+        for failure in outcome
+            .parser_failures
+            .iter()
+            .chain(outcome.engine_failures.iter())
+        {
+            println!("ABILITY\t{failure}");
+        }
+        return;
+    }
+    println!("SET_COMPLETE\t{}", cards.len());
+}
+
 fn audit() {
     let Some(input) = env::args_os().nth(1) else {
         eprintln!(
@@ -253,6 +292,10 @@ fn audit() {
             .collect::<std::collections::BTreeSet<_>>();
         cards.retain(|card| collectors.contains(card.collector_number.as_str()));
     }
+    if env::var_os("AUDIT_CARD_BY_CARD").is_some() {
+        audit_card_by_card(&cards);
+        return;
+    }
 
     let worker_count = env::var("AUDIT_WORKERS")
         .ok()
@@ -265,6 +308,7 @@ fn audit() {
         })
         .min(cards.len().max(1));
     eprintln!("auditing {} cards with {worker_count} workers", cards.len());
+    let audit_started = Instant::now();
     let mut outcomes = thread::scope(|scope| {
         let mut handles = Vec::new();
         for worker in 0..worker_count {
@@ -290,7 +334,27 @@ fn audit() {
             .flat_map(|handle| handle.join().expect("set audit worker completes"))
             .collect::<Vec<_>>()
     });
+    let audit_micros = audit_started.elapsed().as_micros();
     outcomes.sort_by_key(|outcome| outcome.index);
+
+    let mut pipeline_latencies = outcomes
+        .iter()
+        .map(|outcome| outcome.pipeline_micros)
+        .collect::<Vec<_>>();
+    pipeline_latencies.sort_unstable();
+    let percentile = |percent: usize| -> u128 {
+        if pipeline_latencies.is_empty() {
+            return 0;
+        }
+        let numerator = percent * (pipeline_latencies.len() - 1);
+        pipeline_latencies[(numerator + 99) / 100]
+    };
+    let maximum_pipeline_micros = pipeline_latencies.last().copied().unwrap_or_default();
+    let cards_per_second = if audit_micros == 0 {
+        0.0
+    } else {
+        cards.len() as f64 * 1_000_000.0 / audit_micros as f64
+    };
 
     let parser_canonical = outcomes
         .iter()
@@ -310,10 +374,15 @@ fn audit() {
         .collect::<Vec<_>>();
 
     let mut report = format!(
-        "total={}\nparser_canonical={parser_canonical}\nengine_executable={engine_executable}\nparser_failure_cards={}\nengine_failure_cards={}\n\nPARSER FAILURES\n",
+        "total={}\nparser_canonical={parser_canonical}\nengine_executable={engine_executable}\nparser_failure_cards={}\nengine_failure_cards={}\naudit_elapsed_ms={:.3}\ncards_per_second={cards_per_second:.3}\npipeline_latency_us_p50={}\npipeline_latency_us_p95={}\npipeline_latency_us_p99={}\npipeline_latency_us_max={}\n\nPARSER FAILURES\n",
         cards.len(),
         cards.len() - parser_canonical,
         cards.len() - engine_executable,
+        audit_micros as f64 / 1_000.0,
+        percentile(50),
+        percentile(95),
+        percentile(99),
+        maximum_pipeline_micros,
     );
     for failure in &parser_failures {
         report.push_str(failure);
@@ -333,10 +402,15 @@ fn audit() {
             process::exit(2);
         });
         print!(
-            "total={}\nparser_canonical={parser_canonical}\nengine_executable={engine_executable}\nparser_failure_cards={}\nengine_failure_cards={}\nreport={}\n",
+            "total={}\nparser_canonical={parser_canonical}\nengine_executable={engine_executable}\nparser_failure_cards={}\nengine_failure_cards={}\naudit_elapsed_ms={:.3}\ncards_per_second={cards_per_second:.3}\npipeline_latency_us_p50={}\npipeline_latency_us_p95={}\npipeline_latency_us_p99={}\npipeline_latency_us_max={}\nreport={}\n",
             cards.len(),
             cards.len() - parser_canonical,
             cards.len() - engine_executable,
+            audit_micros as f64 / 1_000.0,
+            percentile(50),
+            percentile(95),
+            percentile(99),
+            maximum_pipeline_micros,
             path.to_string_lossy(),
         );
     } else {

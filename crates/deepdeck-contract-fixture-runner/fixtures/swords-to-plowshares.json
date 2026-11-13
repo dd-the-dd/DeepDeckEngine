@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "swords-to-plowshares/snapshot-exile-and-life-is-executable",
+  "cardName": "Swords to Plowshares",
+  "oracleId": "b1544f21-7e98-461b-aed5-e748b0168c52",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "id": "exiledPermanentController",
+        "kind": "bind",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "id": "exiledPermanentPower",
+        "kind": "bind",
+        "value": {
+          "kind": "maximum",
+          "operands": [
+            {
+              "kind": "powerOf",
+              "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+            },
+            { "kind": "integer", "value": 0 }
+          ]
+        }
+      },
+      {
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "gainLife",
+        "player": { "kind": "boundValue", "id": "exiledPermanentController" },
+        "amount": { "kind": "boundValue", "id": "exiledPermanentPower" }
+      }
+    ]
+  }
+}

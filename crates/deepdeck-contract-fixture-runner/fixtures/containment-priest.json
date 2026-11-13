@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "containment-priest/all-native-rules-are-executable",
+  "cardName": "Containment Priest",
+  "oracleId": "8a76a9b9-3127-45fe-b20f-a8f643276281",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flash" }
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [
+        {
+          "kind": "prohibitUncastBattlefieldEntry",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "not", "operand": { "kind": "isToken" } },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          },
+          "destination": "exile"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "swiftfoot-boots/attached-keywords-and-equip-are-executable",
+  "cardName": "Swiftfoot Boots",
+  "oracleId": "c8b143ad-43ec-4e0d-a440-e348daa31391",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "attachedPermanent",
+            "attachment": { "kind": "self" }
+          },
+          "keyword": "hexproof"
+        },
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "attachedPermanent",
+            "attachment": { "kind": "self" }
+          },
+          "keyword": "haste"
+        }
+      ]
+    },
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": {
+        "kind": "equip",
+        "costs": [{ "kind": "payMana", "manaCost": "{1}" }]
+      }
+    }
+  ]
+}
+

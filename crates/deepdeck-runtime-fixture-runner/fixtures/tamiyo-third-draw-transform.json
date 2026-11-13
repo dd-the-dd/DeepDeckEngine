@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tamiyo-third-draw-returns-transformed-under-owner-control",
+  "seed": 7102,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "drawCards",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "count": { "kind": "integer", "value": 3 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tamiyo owner",
+        "battlefield": [{
+          "id": "tamiyo",
+          "name": "Tamiyo, Inquisitive Student",
+          "typeLine": "Legendary Creature - Moonfolk Wizard",
+          "manaCost": "{U}",
+          "power": "0",
+          "toughness": "3",
+          "controllerId": "player-1",
+          "rules": [
+            {
+              "kind": "triggeredAbility",
+              "activeFaceIndex": 0,
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "cardDrawn",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "drawOrdinal": { "kind": "integer", "value": 3 }
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": { "kind": "self" },
+                  "bind": "exiledSource",
+                  "to": {
+                    "kind": "exile",
+                    "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+                    "faceDown": false
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": { "kind": "boundObjects", "binding": "exiledSource" },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+                    "tapped": false,
+                    "faceChange": { "kind": "transformFace" }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "rulesMarker",
+              "text": "Transformable card faces.",
+              "transformFaces": [
+                {
+                  "name": "Tamiyo, Inquisitive Student",
+                  "typeLine": "Legendary Creature - Moonfolk Wizard",
+                  "manaCost": "{U}",
+                  "power": "0",
+                  "toughness": "3"
+                },
+                {
+                  "name": "Tamiyo, Seasoned Scholar",
+                  "typeLine": "Legendary Planeswalker - Tamiyo",
+                  "manaCost": "",
+                  "loyalty": "2",
+                  "power": null,
+                  "toughness": null
+                }
+              ]
+            }
+          ]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Tamiyo controller",
+        "hand": [{
+          "id": "draw-driver",
+          "name": "Draw Driver",
+          "typeLine": "Sorcery",
+          "manaCost": ""
+        }],
+        "library": [
+          { "id": "draw-card-1", "name": "Draw Card 1", "typeLine": "Instant" },
+          { "id": "draw-card-2", "name": "Draw Card 2", "typeLine": "Instant" },
+          { "id": "draw-card-3", "name": "Draw Card 3", "typeLine": "Instant" }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-1",
+    "sourceDefinitionId": "draw-driver"
+  },
+  "actions": [
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "tamiyo", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "tamiyo", "equals": false },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "tamiyo", "value": "Planeswalker", "equals": true },
+    { "kind": "permanentController", "playerId": "player-0", "definitionId": "tamiyo", "equals": "player-0" },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "equals": 3 },
+    { "kind": "eventCount", "eventKind": "permanentExiled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "anguished-unmaking/nonland-permanent-exile-and-life-loss-is-executable",
+  "cardName": "Anguished Unmaking",
+  "oracleId": "ad09b3c3-c8e7-481c-8c45-e7f234935117",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 3 }
+      }
+    ]
+  }
+}

@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 7,
+  "generatedDate": "2026-11-12",
+  "status": "certified",
+  "concept": "nonTargetingCollectionDestroy",
+  "diagnosticParserFingerprint": "72FA7786C2D0C74D532BBD733E03A4E901D307458DB6801CD2A3F9547B963422",
+  "finalParserFingerprint": "047577BD11A655EF873ED0B6AE60710D14D56638D291D7BD65CFBFBDC2DB57FB",
+  "acceptedCorrections": [
+    "Necrologia Draw X cards is rejected because xValue has no declaration or same-face {X} mana cost",
+    "Vicious Rivalry is rejected by the same contextual binding gate",
+    "Punishment groups its three types before applying the shared numeric comparison"
+  ],
+  "architecture": {
+    "primitive": "destroyPermanent",
+    "collection": "eachPermanent",
+    "newEngineOperation": false,
+    "selectorScope": "AND(OR(coordinated types), shared trailing numeric comparison)",
+    "localQualifierGuard": true,
+    "intermediateControllerRejected": true,
+    "contextualXGate": {
+      "automaton": "card-context-binding",
+      "state": "binding.x-value.source",
+      "acceptedSources": [
+        "xValue declaration in the rule",
+        "{X} in the same spell face mana cost"
+      ]
+    }
+  },
+  "proofs": {
+    "finalParser": {
+      "passed": 125,
+      "total": 125,
+      "fixtures": 28,
+      "buildSeconds": 14.565,
+      "executionSeconds": 0.666,
+      "path": ".tmp/collection-bindings-and-source-entry-parser-final-build.json"
+    },
+    "runtime": {
+      "passed": 360,
+      "total": 360,
+      "assertions": 2244,
+      "buildSeconds": 50.457,
+      "executionSeconds": 1.393,
+      "path": ".tmp/collection-and-source-entry-runtime-regression.json"
+    },
+    "engineUnits": {
+      "passed": 4,
+      "total": 4,
+      "compileSeconds": 25.941,
+      "executionSeconds": 0.871,
+      "path": ".tmp/collection-destroy-unit-timing.json"
+    },
+    "repositoryContracts": {
+      "passed": 216,
+      "total": 216,
+      "relinkSeconds": 2.42,
+      "path": ".tmp/collection-and-source-entry-contract-regression.jsonl"
+    },
+    "finalGeneratedAbilityContracts": {
+      "passed": 80,
+      "total": 80,
+      "executionSeconds": 0.05,
+      "path": ".tmp/collection-destroy-80-ability-contracts-047577BD.jsonl"
+    },
+    "finalGeneratedFullCardContracts": {
+      "passed": 35,
+      "total": 35,
+      "executionSeconds": 0.022,
+      "path": ".tmp/collection-destroy-35-full-card-contracts-047577BD.jsonl"
+    },
+    "meltdownX": {
+      "passed": true,
+      "assertions": 7,
+      "path": ".tmp/collection-destroy-meltdown-x-runtime.jsonl"
+    },
+    "punishmentGroupedTypes": {
+      "passed": true,
+      "assertions": 11,
+      "path": ".tmp/punishment-grouped-types-runtime-proof.json"
+    },
+    "independentGlobalVerification": {
+      "passed": true,
+      "path": ".tmp/collection-bindings-source-entry-global-root-verification.json",
+      "sha256": "4E9D018B5C363802D21E0E549C1FA7B65EA5A6220DD9122BD86C59D1B3A11506",
+      "auditSha256": "C4B50048A0152D74E322DCBF37CF7A91851BC6ADA2BE2D9CB518A9C59E93E636"
+    },
+    "finalComparisonMatrix": {
+      "accepted": true,
+      "path": ".tmp/collection-destroy-comparisons-047577BD-final.json"
+    },
+    "nativeApi": {
+      "passed": 5,
+      "total": 5,
+      "compileSeconds": 2.699,
+      "executionSeconds": 1.613,
+      "path": ".tmp/collection-source-entry-native-api-test-timing.json"
+    },
+    "architecture": {
+      "violations": 0,
+      "historicalWarnings": 4,
+      "path": ".tmp/collection-bindings-source-entry-architecture.json"
+    }
+  },
+  "finalCoverage0475": {
+    "round6": {
+      "cards": 100,
+      "previousNativeAbilities": 29,
+      "preservedNativeAbilities": 29,
+      "gainedNativeAbilities": 3,
+      "gainedFullyNativeCards": 3,
+      "unexpectedRegressions": 0
+    },
+    "queue450": {
+      "cards": 450,
+      "previousNativeAbilities": 247,
+      "preservedNativeAbilities": 247,
+      "gainedNativeAbilities": 3,
+      "gainedFullyNativeCards": 3,
+      "unexpectedRegressions": 0
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "previousNativeAbilities": 1126,
+      "preservedNativeAbilities": 1126,
+      "gainedNativeAbilities": 2,
+      "gainedFullyNativeCards": 2,
+      "unexpectedRegressions": 0
+    },
+    "global": {
+      "cards": 39288,
+      "abilities": 67420,
+      "previousNativeAbilities": 14412,
+      "preservedNativeAbilities": 14411,
+      "gainedNativeAbilities": 80,
+      "gainedFullyNativeCards": 35,
+      "justifiedWithdrawals": 1,
+      "unexpectedRegressions": 0,
+      "attribution": {
+        "collectionDestroy": {
+          "abilities": 53,
+          "fullCards": 32,
+          "population": {
+            "ordinary": 32,
+            "variant": 0,
+            "auxiliary": 0,
+            "layoutBreakdown": {
+              "normal": 31,
+              "modal_dfc": 1
+            }
+          }
+        },
+        "sourceEntryState": {
+          "abilities": 27,
+          "fullCards": 3
+        }
+      }
+    }
+  },
+  "diagnosticCoverage72FA": {
+    "round6": {
+      "cards": 100,
+      "previousNativeAbilities": 29,
+      "preservedNativeAbilities": 29,
+      "gainedNativeAbilities": 2,
+      "gainedFullyNativeCards": 2,
+      "regressions": 0
+    },
+    "queue450": {
+      "cards": 450,
+      "previousNativeAbilities": 247,
+      "preservedNativeAbilities": 247,
+      "gainedNativeAbilities": 2,
+      "gainedFullyNativeCards": 2,
+      "regressions": 0
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "previousNativeAbilities": 1126,
+      "preservedNativeAbilities": 1126,
+      "gainedNativeAbilities": 2,
+      "gainedFullyNativeCards": 2,
+      "regressions": 0
+    },
+    "global": {
+      "cards": 39288,
+      "abilities": 67420,
+      "previousNativeAbilities": 14412,
+      "preservedNativeAbilities": 14412,
+      "gainedNativeAbilities": 54,
+      "gainedFullyNativeCards": 32,
+      "regressions": 0,
+      "abilityPopulation": {
+        "fullCard": 32,
+        "partialCard": 22
+      },
+      "fullCardPopulation": {
+        "ordinary": 32,
+        "layoutBreakdown": {
+          "normal": 31,
+          "modal_dfc": 1
+        },
+        "variant": [],
+        "auxiliary": []
+      },
+      "provisionalInvalidAbility": {
+        "name": "Vicious Rivalry",
+        "oracleId": "90898c76-21f9-4597-88fe-dc9179911cde",
+        "reason": "xValue has no declaration and the spell face mana cost is {2}{B}{G}",
+        "expectedFinalStatus": "unsupported"
+      }
+    }
+  },
+  "timings": {
+    "runtimeAuditSeconds": 311.881,
+    "parserPreauditSeconds": 0.013,
+    "implementationWindowSeconds": 945.566,
+    "diagnosticParserBuildSeconds": 39.097,
+    "diagnosticParserExecutionSeconds": 0.93,
+    "finalParserBuildSeconds": 14.565,
+    "finalParserExecutionSeconds": 0.666,
+    "runtimeBuildSeconds": 50.457,
+    "runtimeExecutionSeconds": 1.393,
+    "engineUnitCompileSeconds": 25.941,
+    "engineUnitExecutionSeconds": 0.871,
+    "contractRelinkSeconds": 2.42,
+    "finalAnalyzerLinkSeconds": 1.5504213,
+    "round6AuditSeconds": 0.1686214,
+    "queue450AuditSeconds": 0.62344,
+    "sevenSetsAuditSeconds": 2.6679227,
+    "globalAuditSeconds": 29.7104253,
+    "generatedAbilityContractsSeconds": 0.0495576,
+    "generatedFullCardContractsSeconds": 0.0216997,
+    "nativeApiCompileSeconds": 2.699,
+    "nativeApiExecutionSeconds": 1.613
+  },
+  "trackers": [
+    ".tmp/card-migration-timings/round6-ruinous-ultimatum-mass-destruction.json",
+    ".tmp/card-migration-timings/round6-supreme-verdict-mass-destruction.json"
+  ],
+  "reviewedTimingNotes": {
+    "intermediateParserCheckpoint": {
+      "fingerprint": "90A6FCF5C770451F09C75217410429F1F1B5AF13F44F23273C7AB81343405941",
+      "buildSeconds": 25.221,
+      "executionSeconds": 0.752,
+      "passedCases": 121,
+      "invalidFixtures": 1,
+      "reasonForNextLoop": "Full-mode multi-sentence claim collision and JSON fixture schema correction"
+    },
+    "recordedCargoCompileAndLinkSeconds": 160.4,
+    "parserHandoffRegistrationSeconds": 0.013,
+    "parserAnalysisDurationMeasuredSeparately": false,
+    "developmentWindowsAreNotActiveCodingTime": true
+  },
+  "repositoryContractCountCorrection": "Root re-read the actual replay summary: 216/216, including 32 generated card contracts and seven representative contracts. The earlier 177 count was copied from an incomplete inventory; no failing contract was hidden."
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "talisman-of-indulgence-adds-red-and-damages-controller",
+  "seed": 56,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{B}", "{R}"] }
+      },
+      {
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 1 },
+        "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Talisman pilot",
+        "battlefield": [{
+          "id": "talisman-of-indulgence",
+          "name": "Talisman of Indulgence",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "talisman-of-indulgence",
+    "manaSymbols": ["R"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["R"] },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 19 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 1 },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "talisman-of-indulgence", "equals": true },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

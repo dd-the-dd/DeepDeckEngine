@@ -1,0 +1,1327 @@
+{
+    "lexiconSchemaVersion":  "deepdeck-ability-lexicon/v2",
+    "catalogVersion":  "2026.11.10-c23",
+    "rulesEffectiveDate":  "2026-11-06",
+    "entries":  [
+                    {
+                        "canonicalId":  "adamant",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "adamant"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "addendum",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "addendum"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "affinity",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Affinity"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "alliance",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "alliance"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "annihilator",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Annihilator"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "ascend",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Ascend"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "awaken",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Awaken",
+                                        "awakened"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "basic-landcycling",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Basic landcycling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "battalion",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "battalion"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "battlefront",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "battlefront"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "blight",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Blight",
+                                        "blights",
+                                        "blighted",
+                                        "blighting"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "blitz",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Blitz",
+                                        "blitzed"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "bloodrush",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "bloodrush"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "buyback",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Buyback"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "cascade",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Cascade"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "celebration",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "celebration"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "changeling",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Changeling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "channel",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "Channel"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "chroma",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "chroma"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "cohort",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "cohort"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "companion",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Companion"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "connive",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Connive",
+                                        "connives",
+                                        "connived",
+                                        "conniving"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "conspire",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Conspire",
+                                        "conspired"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "constellation",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "constellation"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "converge",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "converge"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "convoke",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Convoke"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "councils-dilemma",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "council’s dilemma"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "coven",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "coven"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "cycling",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Cycling",
+                                        "cycled"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "dash",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Dash",
+                                        "dashed"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "deathtouch",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Deathtouch"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "defender",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Defender"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "delirium",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "delirium"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "delve",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Delve"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "descend-4",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "descend 4"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "descend-8",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "descend 8"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "destroy",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Destroy",
+                                        "Destroys",
+                                        "Destroyed",
+                                        "Destroying"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "devoid",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Devoid"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "disappear",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "disappear"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "discard",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Discard",
+                                        "Discards",
+                                        "Discarded",
+                                        "Discarding"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "domain",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "domain"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "double-strike",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Double Strike"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "dredge",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Dredge"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "earthbend",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Earthbend"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "echo",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Echo"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "eerie",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "eerie"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "eminence",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "eminence"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "encore",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Encore"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "enrage",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "enrage"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "equip",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Equip"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "escalate",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Escalate",
+                                        "escalated"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "escape",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Escape",
+                                        "escaped"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "evolve",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Evolve",
+                                        "evolves",
+                                        "evolved"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "exalted",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Exalted"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "exile",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Exile",
+                                        "Exiles",
+                                        "Exiled",
+                                        "Exiling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "exploit",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Exploit",
+                                        "exploits",
+                                        "exploited"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "fateful-hour",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "fateful hour"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "fathomless-descent",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "fathomless descent"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "fear",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Fear"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "federation",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "federation"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "ferocious",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "ferocious"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "firebending",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Firebending",
+                                        "firebends",
+                                        "firebent"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "first-strike",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "First Strike"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "flanking",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Flanking"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "flash",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Flash"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "flashback",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Flashback"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "flurry",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "flurry"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "flying",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Flying"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "forestwalk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Forestwalk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "foretell",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Foretell",
+                                        "foretold",
+                                        "foretelling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "formidable",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "formidable"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "fuse",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Fuse",
+                                        "fused"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "gift",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Gift",
+                                        "gifted",
+                                        "promised"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "graft",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Graft"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "grandeur",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "grandeur"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "gravestorm",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Gravestorm"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "harness",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Harness"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "haste",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Haste"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "hellbent",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "hellbent"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "heroic",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "heroic"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "hexproof",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Hexproof"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "horsemanship",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Horsemanship"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "impending",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Impending"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "imprint",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "imprint"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "improvise",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Improvise"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "indestructible",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Indestructible"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "infect",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Infect"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "infusion",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "infusion"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "inspired",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "inspired"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "intimidate",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Intimidate"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "investigate",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Investigate",
+                                        "investigates"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "islandwalk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Islandwalk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "join-forces",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "join forces"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "kicker",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Kicker",
+                                        "kicked",
+                                        "multikicker"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "kinship",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "kinship"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "landfall",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "landfall"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "lieutenant",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "lieutenant"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "lifelink",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Lifelink"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "living-weapon",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Living Weapon"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "magecraft",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "magecraft"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "mayhem",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Mayhem"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "menace",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Menace"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "metalcraft",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "metalcraft"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "mill",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Mill",
+                                        "mills",
+                                        "milled"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "miracle",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Miracle"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "mobilize",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Mobilize"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "morbid",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "morbid"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "morph",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Morph"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "mountainwalk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Mountainwalk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "myriad",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Myriad"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "ninjutsu",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Ninjutsu"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "offspring",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Offspring"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "opus",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "opus"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "overload",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Overload"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "pack-tactics",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "pack tactics"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "paradigm",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Paradigm"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "paradox",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "paradox"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "parley",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "parley"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "persist",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Persist"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "plainswalk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Plainswalk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "plot",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Plot",
+                                        "plotted",
+                                        "plotting"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "protection",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Protection"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "prototype",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Prototype",
+                                        "prototyped"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "prowess",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Prowess"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "radiance",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "radiance"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "raid",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "raid"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "rally",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "rally"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "reach",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Reach"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "read-ahead",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Read Ahead"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "rebound",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Rebound",
+                                        "rebounded"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "renewal",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "Renewal",
+                                        "Renew"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "repartee",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "repartee"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "replicate",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Replicate",
+                                        "replicated"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "reveal",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Reveal",
+                                        "Reveals",
+                                        "Revealed",
+                                        "Revealing",
+                                        "Look",
+                                        "Looks",
+                                        "Looked",
+                                        "Looking"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "revolt",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "Revolt"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "riot",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Riot"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "rulebreaker",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "rulebreaker"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "sacrifice",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Sacrifice",
+                                        "Sacrifices",
+                                        "Sacrificed",
+                                        "Sacrificing"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "scry",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Scry",
+                                        "scries",
+                                        "scried",
+                                        "scrying"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "search",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Search"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "secret-council",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "secret council"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "seek-out",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "seek out"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "shadow",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Shadow"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "shroud",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Shroud"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "shuffle",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Shuffle"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "skulk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Skulk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "spell-mastery",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "spell mastery"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "splice",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Splice",
+                                        "spliced"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "split-second",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Split Second"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "storm",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Storm"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "strange-new-worlds",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "strange new worlds"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "strive",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "strive"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "surveil",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Surveil",
+                                        "surveils",
+                                        "surveilled",
+                                        "surveilling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "survival",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "survival"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "suspend",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Suspend",
+                                        "suspended"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "swampwalk",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Swampwalk"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "sweep",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "sweep"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "tap-and-untap",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Tap and Untap",
+                                        "Tap",
+                                        "Untap",
+                                        "Taps",
+                                        "Untaps"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "teamwork",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Teamwork"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "tempting-offer",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "tempting offer"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "threshold",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "threshold"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "toxic",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Toxic"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "trample",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Trample"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "transform",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Transform",
+                                        "Transforms",
+                                        "Transformed",
+                                        "Transforming"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "typecycling",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Typecycling"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "umbra-armor",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Umbra Armor",
+                                        "totem armor"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "undergrowth",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "undergrowth"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "undying",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Undying"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "unearth",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Unearth",
+                                        "unearthed"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "valiant",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "valiant"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "vigilance",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Vigilance"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "vivid",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "vivid"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "void",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "void"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "ward",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Ward"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "warp",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Warp",
+                                        "warped"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "waterbend",
+                        "category":  "keywordAction",
+                        "lexemes":  [
+                                        "Waterbend",
+                                        "waterbends",
+                                        "waterbent"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "will-of-the-council",
+                        "category":  "abilityWord",
+                        "lexemes":  [
+                                        "will of the council"
+                                    ]
+                    },
+                    {
+                        "canonicalId":  "wither",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Wither"
+                                    ]
+                    }
+                ]
+}

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 8,
+  "generatedDate": "2026-11-12",
+  "status": "complete",
+  "concept": "resolvedCurrentSourceEntryState",
+  "card": {
+    "name": "Timeless Lotus",
+    "oracleId": "fec77e0a-433e-4d32-9260-e26a37f6ad23",
+    "oracleAbility": "Timeless Lotus enters tapped."
+  },
+  "architecture": {
+    "nameResolution": "ResolvedNameLink(CurrentCard|CurrentFace)",
+    "automaton": "replacement.source-entry-state",
+    "eventPrimitive": "wouldEnterBattlefield",
+    "operationPrimitive": "setEnteringState",
+    "newEngineOperation": false,
+    "requiresPermanentFace": true,
+    "unconditionalBoundary": "terminal period after tapped; prepared additionally permits only its complete canonical parenthesized reminder",
+    "conditionalFamiliesIntercepted": false
+  },
+  "proofs": {
+    "runtime": {
+      "status": "passed",
+      "fixturesPassed": 2,
+      "fixturesTotal": 2,
+      "assertions": 11,
+      "executionSeconds": 0.058,
+      "path": ".tmp/timeless-lotus-runtime-root.jsonl"
+    },
+    "parser": {
+      "status": "passed",
+      "passed": 125,
+      "total": 125,
+      "fingerprintPrefix": "047577BD",
+      "compileSeconds": 14.565,
+      "executionSeconds": 0.666
+    },
+    "contract": {
+      "status": "passed",
+      "generatedAbilityContracts": {
+        "passed": 80,
+        "total": 80
+      },
+      "generatedFullCardContracts": {
+        "passed": 35,
+        "total": 35
+      },
+      "repositoryContracts": {
+        "passed": 216,
+        "total": 216,
+        "path": ".tmp/collection-and-source-entry-contract-regression.jsonl"
+      }
+    },
+    "strictRuleEquality": {
+      "status": "passed",
+      "rules": 2,
+      "path": ".tmp/collection-bindings-source-entry-global-root-verification.json"
+    },
+    "coverageAudits": {
+      "status": "partial",
+      "global": {
+        "status": "passed",
+        "gainedNativeAbilities": 27,
+        "gainedFullyNativeCards": 3,
+        "fullyNativeCards": [
+          {
+            "name": "Enchanted Prairie",
+            "oracleId": "60b45aa2-42cb-4eda-bdd6-20128fb0c530"
+          },
+          {
+            "name": "Winter Soldier, Bucky Barnes",
+            "oracleId": "874bbeb2-aa15-41e8-afad-122ab9b555fd"
+          },
+          {
+            "name": "Timeless Lotus",
+            "oracleId": "fec77e0a-433e-4d32-9260-e26a37f6ad23"
+          }
+        ]
+      }
+    },
+    "apiTests": {
+      "status": "passed",
+      "passed": 5,
+      "total": 5
+    },
+    "architectureGuard": {
+      "status": "passed",
+      "violations": 0
+    }
+  },
+  "pending": [],
+  "runtimeProofScope": {
+    "exactCard": "Timeless Lotus",
+    "fixtures": 2,
+    "assertions": 11,
+    "otherFullyNativeCardsHaveNewIndividualRuntimeFixtures": false
+  },
+  "timings": {
+    "runtimeAnalysisSeconds": 278.188,
+    "implementationSeconds": 320.375,
+    "correctiveLoops": 2,
+    "parserCompileSeconds": 14.565,
+    "parserExecutionSeconds": 0.666,
+    "runtimeExecutionSeconds": 0.058
+  },
+  "tracker": ".tmp/card-migration-timings/round6-timeless-lotus-entry-tapped.json",
+  "repositoryContractCountCorrection": "Root re-read the actual replay summary: 216/216, including 32 generated card contracts and seven representative contracts. The earlier 177 count was copied from an incomplete inventory; no failing contract was hidden."
+}

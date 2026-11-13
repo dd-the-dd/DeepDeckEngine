@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cant-be-sacrificed-makes-activated-cost-unavailable-before-mutation",
+  "seed": 10203,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Protected payer",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "protected-sacrifice-source",
+            "name": "Protected Sacrifice Source",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "sacrifice-lock",
+            "name": "Sacrifice Lock",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "cantBeSacrificed",
+                    "objects": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": { "kind": "self" }
+                      },
+                      "where": { "kind": "cardTypeContains", "value": "Artifact" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "protected-sacrifice-source",
+      "abilityRuleIndex": 0,
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "protected-sacrifice-source",
+      "equals": true
+    },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "eventCount", "eventKind": "permanentSacrificed", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

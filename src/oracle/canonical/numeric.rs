@@ -1,7 +1,10 @@
-use regex::Regex;
+use crate::oracle::regex_cache::Regex;
 use serde_json::{Value, json};
 
-use super::{compare, controller, decision_result, integer, x_variable_expression};
+use super::{
+    compare, controller, decision_result, integer, parse_permanent_criteria, self_ref,
+    x_variable_expression,
+};
 
 pub(super) fn count_word_pattern() -> &'static str {
     r"a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|\d+"
@@ -161,6 +164,17 @@ pub(super) fn parse_signed_stat_expression(value: &str) -> Option<Value> {
 
 pub(super) fn parse_numeric_expression_text(value: &str) -> Option<Value> {
     let value = value.trim().trim_end_matches('.').trim();
+    let source_attachment_count_re = Regex::new(
+        r"(?i)^the number of (.+?) attached to (?:this creature|this permanent|it|him|her|them)$",
+    )
+    .expect("source attachment-count numeric expression regex compiles");
+    if let Some(captures) = source_attachment_count_re.captures(value) {
+        return Some(json!({
+            "kind": "countAttachments",
+            "object": self_ref(),
+            "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
+        }));
+    }
     if value.eq_ignore_ascii_case("the number of colors among permanents you control") {
         return Some(json!({
             "kind": "countDistinctColors",

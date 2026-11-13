@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "Morningtide/exact-global-exile-not-source-marker",
+  "cardName": "Morningtide",
+  "oracleId": "a8432372-672b-4bf7-9000-17e43356f149",
+  "cases": [
+    {
+      "id": "exact-original-oracle",
+      "request": {
+        "cardName": "Morningtide",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Exile all graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "kind": "exileAllGraveyards"
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

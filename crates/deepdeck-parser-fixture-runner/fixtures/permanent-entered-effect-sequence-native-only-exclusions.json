@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger/permanent-entered-effect-sequence-native-only-exclusions",
+  "cases": [
+    {
+      "id": "event-object-anaphora-is-not-source-anaphora",
+      "request": {
+        "cardName": "Event Anaphora Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature enters, put a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "permanent-entered-effect-sequence",
+          "state": "reference.source-or-anaphor.start",
+          "found": "it"
+        }]
+      }
+    },
+    {
+      "id": "compound-source-subject-is-not-claimed",
+      "request": {
+        "cardName": "Compound Subject Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever this creature or another creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "unsupported_oracle_ability"
+        }]
+      }
+    },
+    {
+      "id": "one-or-more-quantifier-is-not-claimed",
+      "request": {
+        "cardName": "Wide Quantifier Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever one or more creatures enter, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "unsupported_oracle_ability"
+        }]
+      }
+    },
+    {
+      "id": "compound-event-is-rejected-after-entered-event",
+      "request": {
+        "cardName": "Compound Event Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a land enters or attacks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "permanent-entered-effect-sequence",
+          "state": "trigger.permanent-entered.separator",
+          "found": "or"
+        }]
+      }
+    },
+    {
+      "id": "team-controller-is-not-approximated",
+      "request": {
+        "cardName": "Team Controller Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature your team controls enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "unsupported_oracle_ability"
+        }]
+      }
+    },
+    {
+      "id": "bare-supertype-has-no-nominal-head",
+      "request": {
+        "cardName": "Bare Supertype Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a legendary you control enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "unsupported_oracle_ability"
+        }]
+      }
+    },
+    {
+      "id": "optional-scope-is-one-atomic-effect",
+      "request": {
+        "cardName": "Wide Optional Scope Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature enters, you may draw a card and gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "permanent-entered-effect-sequence",
+          "state": "trigger.permanent-entered.optional-scope",
+          "expected": "exactly one atomic effect governed by `you may`"
+        }]
+      }
+    }
+  ]
+}

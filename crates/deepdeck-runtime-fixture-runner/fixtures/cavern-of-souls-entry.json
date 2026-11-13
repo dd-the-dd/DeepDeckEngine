@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cavern-of-souls-chooses-and-stores-a-creature-type",
+  "seed": 57,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "decisions": [{ "id": "chosenCreatureType", "kind": "chooseCreatureType" }],
+    "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCreatureType" }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cavern pilot",
+        "library": [{
+          "id": "eldrazi-drone",
+          "name": "Eldrazi Drone",
+          "typeLine": "Creature — Eldrazi Drone"
+        }],
+        "hand": [{
+          "id": "cavern-of-souls",
+          "name": "Cavern of Souls",
+          "typeLine": "Land",
+          "rules": [{
+            "kind": "replacementEffect",
+            "source": { "kind": "self" },
+            "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+            "decisions": [{ "id": "chosenCreatureType", "kind": "chooseCreatureType" }],
+            "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCreatureType" }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 1 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "cavern-of-souls",
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "landPlayed", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "starting-town-enters-untapped-on-first-controller-turn",
+  "seed": 28,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "and",
+        "operands": [
+          {
+            "kind": "duringControllerTurn",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          {
+            "kind": "compare",
+            "operator": "<=",
+            "left": {
+              "kind": "countTurnsTaken",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "right": { "kind": "integer", "value": 3 }
+          }
+        ]
+      }
+    },
+    "replacement": [
+      { "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Starting Town pilot",
+        "hand": [
+          {
+            "id": "starting-town",
+            "name": "Starting Town",
+            "typeLine": "Land — Town",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": { "kind": "self" },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": { "kind": "self" }
+                },
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "duringControllerTurn",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": { "kind": "self" }
+                        }
+                      },
+                      {
+                        "kind": "compare",
+                        "operator": "<=",
+                        "left": {
+                          "kind": "countTurnsTaken",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": { "kind": "self" }
+                          }
+                        },
+                        "right": { "kind": "integer", "value": 3 }
+                      }
+                    ]
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": { "kind": "self" },
+                    "tapped": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 1 }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "starting-town", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "starting-town", "equals": false },
+    { "kind": "eventCount", "eventKind": "landPlayed", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

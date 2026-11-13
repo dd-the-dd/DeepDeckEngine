@@ -265,6 +265,23 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
             ],
         ));
     }
+    let improvise_re = Regex::new(
+        r"(?i)^Improvise(?: \(Your artifacts can help cast this spell\. Each artifact you tap after you're done activating mana abilities pays for \{1\}\.\))?$",
+    )
+    .expect("improvise keyword regex compiles");
+    if improvise_re.is_match(text) {
+        return Some(draft(
+            json!({
+                "kind": "keywordAbility",
+                "source": self_ref(),
+                "ability": { "kind": "improvise" },
+            }),
+            &[
+                "Recognize improvise as an optional generic casting-cost payment",
+                "Tap controlled artifacts only after mana abilities are activated",
+            ],
+        ));
+    }
     let split_second_re = Regex::new(
         r"(?i)^Split second(?: \(As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities\.\))?$",
     )
@@ -344,16 +361,6 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
                 "Parse the receiving spell subtype as a reusable criterion",
                 "Parse the splice payment with the shared cost grammar",
             ],
-        ));
-    }
-    if text == "This creature can block only creatures with flying." {
-        return Some(draft(
-            json!({
-                "kind": "keywordAbility",
-                "source": self_ref(),
-                "ability": { "kind": "canBlockOnlyFlying" },
-            }),
-            &["Restrict this creature to blocking creatures with flying"],
         ));
     }
     let toxic_re =
@@ -1613,48 +1620,6 @@ pub(in crate::oracle::canonical) fn parse_keyword_ability(
                 "Recognize independent kicker alternatives",
                 "Parse every kicker through the shared cost grammar",
                 "Allow any subset of the listed kicker costs",
-            ],
-        ));
-    }
-    let kicker_re = Regex::new(r"^Kicker (\{[^)]+\}) \(You may pay an additional .+\)$")
-        .expect("kicker regex compiles");
-    if let Some(captures) = kicker_re.captures(text) {
-        return Some(draft(
-            json!({
-                "kind": "keywordAbility",
-                "source": self_ref(),
-                "ability": {
-                    "kind": "kicker",
-                    "cost": {
-                        "kind": "payMana",
-                        "manaCost": &captures[1],
-                    },
-                    "repeatable": false,
-                },
-            }),
-            &["Recognize kicker keyword", "Resolve additional cost"],
-        ));
-    }
-    let replicate_re =
-        Regex::new(r"^Replicate ((?:\{[^}]+\})+)(?: \(.+\))?$").expect("replicate regex compiles");
-    if let Some(captures) = replicate_re.captures(text) {
-        return Some(draft(
-            json!({
-                "kind": "keywordAbility",
-                "source": self_ref(),
-                "ability": {
-                    "kind": "replicate",
-                    "cost": {
-                        "kind": "payMana",
-                        "manaCost": &captures[1],
-                    },
-                    "repeatable": true,
-                },
-            }),
-            &[
-                "Recognize replicate keyword",
-                "Resolve repeatable additional mana cost",
-                "Register cast trigger for spell copies",
             ],
         ));
     }

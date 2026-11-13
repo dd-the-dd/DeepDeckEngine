@@ -15,6 +15,37 @@ pub(in crate::oracle::canonical) fn hand(player: Value) -> Value {
     json!({ "kind": "hand", "player": player })
 }
 
+pub(in crate::oracle::canonical) fn parse_generic_effect_spell(
+    text: &str,
+    face_name: &str,
+) -> Option<CanonicalRuleDraft> {
+    let (effects, decisions) = parse_general_effect_instruction(text, face_name)
+        .or_else(|| parse_general_effect_sequence(text, face_name))?;
+    let mut rule = json!({
+        "kind": "spellAbility",
+        "source": self_ref(),
+        "effects": effects,
+    });
+    if !decisions.is_empty() {
+        rule["declaration"] = json!({
+            "kind": "castingDeclaration",
+            "decisions": decisions,
+        });
+    }
+    if text.contains("(Then exile this card. You may cast the ") {
+        rule["exileAfterResolution"] = Value::Bool(true);
+        rule["adventureAfterResolution"] = Value::Bool(true);
+    }
+    Some(draft(
+        rule,
+        &[
+            "Parse reusable effect vocabulary",
+            "Compose independent effects in Oracle order",
+            "Declare generic targets and bindings",
+        ],
+    ))
+}
+
 pub(in crate::oracle::canonical) fn parse_library_spell(text: &str) -> Option<CanonicalRuleDraft> {
     if let Some((effects, decisions)) = parse_top_card_partition_sequence(text, "") {
         let mut rule = json!({
@@ -164,59 +195,6 @@ pub(in crate::oracle::canonical) fn parse_library_spell(text: &str) -> Option<Ca
                 "Target a player",
                 "Inspect and reorder that player's top cards",
                 "Offer the controller the optional shuffle",
-            ],
-        ));
-    }
-    let inspect_re = Regex::new(&format!(
-        r"(?i)^Look at the top ({}) cards? of your library, then put (?:it|them) back in any order\. You may shuffle\.$",
-        count_word_pattern(),
-    ))
-    .expect("look, reorder, and optional shuffle regex compiles");
-    if let Some(captures) = inspect_re.captures(text) {
-        return Some(draft(
-            json!({
-                "kind": "spellAbility",
-                "source": self_ref(),
-                "effects": [
-                    {
-                        "kind": "lookAtTopCards",
-                        "zone": library(controller()),
-                        "count": integer(parse_number_word(&captures[1])?),
-                        "bind": "lookedCards",
-                    },
-                    {
-                        "kind": "chooseOrder",
-                        "id": "topOrder",
-                        "player": controller(),
-                        "objects": bound_objects("lookedCards"),
-                    },
-                    {
-                        "kind": "moveCards",
-                        "cards": decision_result("topOrder"),
-                        "to": {
-                            "kind": "library",
-                            "player": controller(),
-                            "position": "top",
-                        },
-                        "order": {
-                            "kind": "decisionOrder",
-                            "decisionId": "topOrder",
-                        },
-                    },
-                    {
-                        "kind": "optionalEffects",
-                        "player": controller(),
-                        "effects": [{
-                            "kind": "shuffleZone",
-                            "zone": library(controller()),
-                        }],
-                    },
-                ],
-            }),
-            &[
-                "Bind the inspected top cards",
-                "Let their controller choose their order",
-                "Offer the optional library shuffle",
             ],
         ));
     }
@@ -683,63 +661,46 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     } else {
         text
     };
-    let alternative_additional_cost_re = Regex::new(
-        r"(?i)^As an additional cost to cast this spell, ((?:sacrifice|blight) .+?) or pay ((?:\{[^}]+\})+)\.$",
-    )
-    .expect("sacrifice-or-mana additional cost regex compiles");
-    let reversed_alternative_additional_cost_re = Regex::new(
-        r"(?i)^As an additional cost to cast this spell, pay ((?:\{[^}]+\})+) or (sacrifice .+?)\.$",
-    )
-    .expect("mana-or-sacrifice additional cost regex compiles");
-    let parsed_alternatives = alternative_additional_cost_re
+    let additional_cost_re = Regex::new(r"^As an additional cost to cast this spell, (.+)\.$")
+        .expect("generic additional casting-cost regex compiles");
+    let additional_cost_body = additional_cost_re
         .captures(additional_cost_input)
-        .map(|captures| {
-            (
-                captures.get(1).map(|value| value.as_str().to_string()),
-                captures.get(2).map(|value| value.as_str().to_string()),
-                false,
-            )
-        })
-        .or_else(|| {
-            reversed_alternative_additional_cost_re
-                .captures(additional_cost_input)
-                .map(|captures| {
-                    (
-                        captures.get(2).map(|value| value.as_str().to_string()),
-                        captures.get(1).map(|value| value.as_str().to_string()),
-                        true,
-                    )
-                })
-        });
-    if let Some((Some(sacrifice_text), Some(mana_text), mana_first)) = parsed_alternatives {
-        let (sacrifice_costs, mut decisions) = parse_activation_costs(&sacrifice_text)?;
-        let (mana_costs, mana_decisions) = parse_activation_costs(&mana_text)?;
-        if sacrifice_costs.is_empty()
-            || mana_costs.len() != 1
-            || mana_costs[0]["kind"].as_str() != Some("payMana")
-            || !mana_decisions.is_empty()
+        .and_then(|captures| captures.get(1).map(|value| value.as_str()));
+    if let Some(((first_costs, mut first_decisions), (second_costs, mut second_decisions))) =
+        additional_cost_body.and_then(parse_alternative_activation_costs)
+    {
+        let mode_name = |costs: &[Value], fallback: &'static str| match costs
+            .first()
+            .and_then(|cost| cost["kind"].as_str())
         {
-            return None;
+            Some("sacrificePermanent") => "sacrifice",
+            Some("payMana") => "payMana",
+            Some("payLife") => "payLife",
+            Some("discardCard") => "discard",
+            _ => fallback,
+        };
+        let mut first_mode = mode_name(&first_costs, "option1");
+        let mut second_mode = mode_name(&second_costs, "option2");
+        if first_mode == second_mode {
+            first_mode = "option1";
+            second_mode = "option2";
         }
         let condition = |mode: &str| selection("additionalCostMode", mode);
-        for decision in &mut decisions {
-            decision["condition"] = condition("sacrifice");
+        for decision in &mut first_decisions {
+            decision["condition"] = condition(first_mode);
         }
-        let options = if mana_first {
-            vec!["payMana", "sacrifice"]
-        } else {
-            vec!["sacrifice", "payMana"]
-        };
-        decisions.insert(
-            0,
-            json!({
-                "id": "additionalCostMode",
-                "kind": "chooseModes",
-                "minimum": 1,
-                "maximum": 1,
-                "options": options,
-            }),
-        );
+        for decision in &mut second_decisions {
+            decision["condition"] = condition(second_mode);
+        }
+        let mut decisions = vec![json!({
+            "id": "additionalCostMode",
+            "kind": "chooseModes",
+            "minimum": 1,
+            "maximum": 1,
+            "options": [first_mode, second_mode],
+        })];
+        decisions.append(&mut first_decisions);
+        decisions.append(&mut second_decisions);
         return Some(draft(
             json!({
                 "kind": "spellAbility",
@@ -750,14 +711,14 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
                     "additionalCosts": [
                         {
                             "kind": "conditional",
-                            "condition": condition("sacrifice"),
-                            "then": sacrifice_costs,
+                            "condition": condition(first_mode),
+                            "then": first_costs,
                             "else": [],
                         },
                         {
                             "kind": "conditional",
-                            "condition": condition("payMana"),
-                            "then": mana_costs,
+                            "condition": condition(second_mode),
+                            "then": second_costs,
                             "else": [],
                         },
                     ],
@@ -766,7 +727,7 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
             }),
             &[
                 "Split the alternative additional-cost choices",
-                "Parse sacrifice criteria and mana through the shared cost grammar",
+                "Parse both branches through the shared cost grammar",
                 "Condition declarations and payments on exactly one chosen mode",
             ],
         ));
@@ -813,8 +774,6 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
             ],
         ));
     }
-    let additional_cost_re = Regex::new(r"^As an additional cost to cast this spell, (.+)\.$")
-        .expect("generic additional casting-cost regex compiles");
     if let Some(captures) = additional_cost_re.captures(optional_additional_cost_input)
         && let Some((costs, decisions)) = parse_activation_costs(&captures[1])
     {
@@ -925,52 +884,6 @@ pub(in crate::oracle::canonical) fn parse_simple_spell_ability(
     }
     if text == "Explosion deals X damage to any target. Target player draws X cards." {
         return parse_avatar_deck_spell(text);
-    }
-    if let Some((effects, decisions)) = parse_general_effect_instruction(text, "") {
-        let mut rule = json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "effects": effects,
-        });
-        if !decisions.is_empty() {
-            rule["declaration"] = json!({
-                "kind": "castingDeclaration",
-                "decisions": decisions,
-            });
-        }
-        if text.contains("(Then exile this card. You may cast the ") {
-            rule["exileAfterResolution"] = Value::Bool(true);
-            rule["adventureAfterResolution"] = Value::Bool(true);
-        }
-        return Some(draft(
-            rule,
-            &[
-                "Parse reusable effect vocabulary",
-                "Declare generic targets",
-                "Resolve effects in Oracle order",
-            ],
-        ));
-    }
-    if let Some((effects, decisions)) = parse_general_effect_sequence(text, "") {
-        let mut rule = json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "effects": effects,
-        });
-        if !decisions.is_empty() {
-            rule["declaration"] = json!({
-                "kind": "castingDeclaration",
-                "decisions": decisions,
-            });
-        }
-        return Some(draft(
-            rule,
-            &[
-                "Split independent Oracle sentences",
-                "Parse each sentence through reusable effect vocabulary",
-                "Resolve effects in Oracle order",
-            ],
-        ));
     }
     let targeted_zone_change_re =
         Regex::new(r"^(Destroy|Exile) target creature(?: with mana value (\d+) or greater)?\.$")

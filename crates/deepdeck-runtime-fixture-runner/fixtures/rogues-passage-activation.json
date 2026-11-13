@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rogues-passage-pays-four-taps-and-restricts-only-chosen-creature",
+  "seed": 731,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{4}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "grantKeyword",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "keyword": "cantBeBlocked",
+      "duration": { "kind": "untilEndOfCurrentTurn" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Passage controller",
+        "manaPool": ["C", "C", "C", "C"],
+        "battlefield": [
+          {
+            "id": "rogues-passage",
+            "name": "Rogue's Passage",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [{
+                  "kind": "addMana",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "mana": "{C}"
+                }]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "payMana", "manaCost": "{4}" },
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [{
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": { "kind": "cardTypeContains", "value": "Creature" }
+                    }
+                  }]
+                },
+                "effects": [{
+                  "kind": "grantKeyword",
+                  "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                  "keyword": "cantBeBlocked",
+                  "duration": { "kind": "untilEndOfCurrentTurn" }
+                }]
+              }
+            ]
+          },
+          {
+            "id": "chosen-rogue",
+            "name": "Chosen Rogue",
+            "typeLine": "Creature — Human Rogue",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "other-rogue",
+            "name": "Other Rogue",
+            "typeLine": "Creature — Human Rogue",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Blocker controller",
+        "battlefield": [{
+          "id": "ordinary-blocker",
+          "name": "Ordinary Blocker",
+          "typeLine": "Creature — Soldier",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "rogues-passage",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "chosen-rogue"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "rogues-passage", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "chosen-rogue", "keyword": "cantBeBlocked", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "other-rogue", "keyword": "cantBeBlocked", "equals": false },
+    { "kind": "canBlock", "blockerPlayerId": "player-1", "blockerDefinitionId": "ordinary-blocker", "attackerPlayerId": "player-0", "attackerDefinitionId": "chosen-rogue", "equals": false },
+    { "kind": "canBlock", "blockerPlayerId": "player-1", "blockerDefinitionId": "ordinary-blocker", "attackerPlayerId": "player-0", "attackerDefinitionId": "other-rogue", "equals": true },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}
+

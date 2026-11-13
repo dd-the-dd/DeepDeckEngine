@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "sagrada-commander-flag-casts-for-less-without-commander-subtype",
+  "seed": 1121201,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sagrada controller",
+        "hand": [
+          {
+            "id": "flagged-leader",
+            "name": "Flagged Leader",
+            "typeLine": "Legendary Creature — Human Wizard",
+            "manaCost": "{1}",
+            "power": "2",
+            "toughness": "2",
+            "isCommander": true,
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "sagrada-familiar",
+            "name": "Sagrada Familiar",
+            "typeLine": "Artifact Creature — Wall",
+            "manaCost": "{3}",
+            "power": "0",
+            "toughness": "5",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "reduceCastingCost",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "isCommander" },
+                    "amount": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "flagged-leader"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "flagged-leader",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rampant-growth-finds-only-a-basic-land-and-moves-it-tapped",
+  "seed": 43,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rampant Growth pilot",
+        "manaPool": ["C", "G"],
+        "hand": [{
+          "id": "rampant-growth",
+          "name": "Rampant Growth",
+          "typeLine": "Sorcery",
+          "manaCost": "{1}{G}"
+        }],
+        "library": [
+          {
+            "id": "eligible-basic-land",
+            "name": "Eligible Basic Land",
+            "typeLine": "Basic Land - Forest"
+          },
+          {
+            "id": "ineligible-nonbasic-land",
+            "name": "Ineligible Nonbasic Land",
+            "typeLine": "Land - Forest"
+          },
+          {
+            "id": "ineligible-basic-artifact",
+            "name": "Ineligible Basic Artifact",
+            "typeLine": "Basic Artifact"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "rampant-growth" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "selectCards", "count": 1, "take": "forward" }],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "eligible-basic-land",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "eligible-basic-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "ineligible-nonbasic-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "ineligible-basic-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "rampant-growth",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

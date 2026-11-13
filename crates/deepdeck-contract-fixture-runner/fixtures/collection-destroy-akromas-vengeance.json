@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/three-type-union-is-executable",
+  "cardName": "Akroma's Vengeance",
+  "oracleId": "ae19dce5-c9fc-4fbe-99b5-dc6a12124a68",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Artifact" },
+            { "kind": "cardTypeContains", "value": "Creature" },
+            { "kind": "cardTypeContains", "value": "Enchantment" }
+          ]
+        }
+      }
+    }]
+  }
+}

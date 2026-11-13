@@ -1,0 +1,758 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "atraxa-grand-unifier/card-type-partition-is-executable",
+  "cardName": "Atraxa, Grand Unifier",
+  "oracleId": "abbcb153-0763-44c6-964f-b4ff0eb64257",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 10
+        },
+        "bind": "revealedTopCards"
+      },
+      {
+        "kind": "revealCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "revealedTopCards"
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeArtifact",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "revealedTopCards"
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Artifact"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeArtifact"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeBattle",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "revealedTopCards"
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeArtifact"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Battle"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeBattle"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeCreature",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "boundObjects",
+              "binding": "revealedTopCards"
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeArtifact"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeBattle"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeCreature"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeEnchantment",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "revealedTopCards"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeArtifact"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeBattle"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeCreature"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Enchantment"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeEnchantment"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeInstant",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "boundObjects",
+                  "binding": "revealedTopCards"
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeArtifact"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeBattle"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeCreature"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeEnchantment"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Instant"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeInstant"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeKindred",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "setDifference",
+                  "left": {
+                    "kind": "boundObjects",
+                    "binding": "revealedTopCards"
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardTypeArtifact"
+                  }
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeBattle"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeCreature"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeEnchantment"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeInstant"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Kindred"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeKindred"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeLand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "setDifference",
+                  "left": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "revealedTopCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardTypeArtifact"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardTypeBattle"
+                  }
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeCreature"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeEnchantment"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeInstant"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeKindred"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Land"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeLand"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypePlaneswalker",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "setDifference",
+                  "left": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "setDifference",
+                      "left": {
+                        "kind": "boundObjects",
+                        "binding": "revealedTopCards"
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardTypeArtifact"
+                      }
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardTypeBattle"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardTypeCreature"
+                  }
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeEnchantment"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeInstant"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeKindred"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeLand"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Planeswalker"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypePlaneswalker"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardTypeSorcery",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "setDifference",
+                  "left": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "setDifference",
+                      "left": {
+                        "kind": "setDifference",
+                        "left": {
+                          "kind": "boundObjects",
+                          "binding": "revealedTopCards"
+                        },
+                        "right": {
+                          "kind": "decisionResult",
+                          "decisionId": "cardTypeArtifact"
+                        }
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardTypeBattle"
+                      }
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardTypeCreature"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardTypeEnchantment"
+                  }
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeInstant"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeKindred"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypeLand"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypePlaneswalker"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Sorcery"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardTypeSorcery"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "setDifference",
+                "left": {
+                  "kind": "setDifference",
+                  "left": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "setDifference",
+                      "left": {
+                        "kind": "setDifference",
+                        "left": {
+                          "kind": "setDifference",
+                          "left": {
+                            "kind": "boundObjects",
+                            "binding": "revealedTopCards"
+                          },
+                          "right": {
+                            "kind": "decisionResult",
+                            "decisionId": "cardTypeArtifact"
+                          }
+                        },
+                        "right": {
+                          "kind": "decisionResult",
+                          "decisionId": "cardTypeBattle"
+                        }
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardTypeCreature"
+                      }
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardTypeEnchantment"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardTypeInstant"
+                  }
+                },
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "cardTypeKindred"
+                }
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardTypeLand"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "cardTypePlaneswalker"
+            }
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardTypeSorcery"
+          }
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "bottom"
+        },
+        "order": {
+          "kind": "random"
+        }
+      }
+    ]
+  }
+}

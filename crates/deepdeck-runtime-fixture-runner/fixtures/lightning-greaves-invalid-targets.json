@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lightning-greaves-equip-targets-only-a-creature-you-control",
+  "seed": 85,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "equip",
+      "costs": [{ "kind": "payMana", "manaCost": "{0}" }]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lightning Greaves pilot",
+        "battlefield": [
+          {
+            "id": "lightning-greaves",
+            "name": "Lightning Greaves",
+            "typeLine": "Artifact — Equipment",
+            "manaCost": "{2}"
+          },
+          {
+            "id": "own-creature",
+            "name": "Own Creature",
+            "typeLine": "Creature — Elf",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "own-artifact",
+            "name": "Own Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "opponent-creature",
+          "name": "Opponent Creature",
+          "typeLine": "Creature — Goblin",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 0,
+      "targets": { "equipTarget": { "kind": "permanentDefinition", "definitionId": "own-creature" } },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 0,
+      "targets": { "equipTarget": { "kind": "permanentDefinition", "definitionId": "own-artifact" } },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 0,
+      "targets": { "equipTarget": { "kind": "permanentDefinition", "definitionId": "opponent-creature" } },
+      "equals": false
+    },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

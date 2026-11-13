@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "leyline-of-the-void-does-not-replace-an-opponents-token",
+  "seed": 14405,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "isToken"
+          }
+        },
+        "from": {
+          "kind": "anyZone"
+        },
+        "to": {
+          "kind": "exile"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Leyline controller",
+        "manaPool": [
+          "B"
+        ],
+        "battlefield": [
+          {
+            "id": "leyline-of-the-void",
+            "name": "Leyline of the Void",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "openingHandBattlefield"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "graveyardOwners": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "kind": "replaceGraveyardDestination",
+                    "to": {
+                      "kind": "exile"
+                    },
+                    "where": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "isToken"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "destroy-token-spell",
+            "name": "Destroy Token Spell",
+            "typeLine": "Instant",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-spirit-token",
+            "name": "Spirit Token",
+            "typeLine": "Token Creature - Spirit",
+            "power": "1",
+            "toughness": "1",
+            "isToken": true
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "destroy-token-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-spirit-token",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opponent-spirit-token",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "graveyardDestinationReplaced",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCeasedToExist",
+      "playerId": "player-1",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

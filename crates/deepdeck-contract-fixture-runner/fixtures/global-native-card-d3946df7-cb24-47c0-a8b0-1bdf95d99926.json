@@ -1,0 +1,36 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/d3946df7-cb24-47c0-a8b0-1bdf95d99926/complete-rule-set",
+    "cardName":  "Whirlwind",
+    "oracleId":  "d3946df7-cb24-47c0-a8b0-1bdf95d99926",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "hasKeyword",
+                                                                                               "value":  "flying"
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

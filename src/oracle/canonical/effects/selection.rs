@@ -1,5 +1,83 @@
 use super::super::*;
 
+pub(in crate::oracle::canonical) fn lower_object_controller_scope(
+    scope: ObjectControllerScope,
+) -> Value {
+    match scope {
+        ObjectControllerScope::AbilityController => controller(),
+        ObjectControllerScope::NotAbilityController => json!({
+            "kind": "playersExcept",
+            "player": controller(),
+        }),
+        ObjectControllerScope::OpponentOfAbilityController => json!({
+            "kind": "opponentsOf",
+            "player": controller(),
+        }),
+    }
+}
+
+/// Lowers one target-selector branch into the engine's generic candidate-set
+/// vocabulary. Cross-domain unions remain one target slot whose candidates
+/// are the union of independently lowered sets.
+pub(in crate::oracle::canonical) fn lower_target_selector_candidates(
+    selector: &TargetSelector,
+) -> Option<(&'static str, Value)> {
+    Some(match selector {
+        TargetSelector::Any => ("targetDamageable", json!({ "kind": "anyTarget" })),
+        TargetSelector::Union(branches) => {
+            if branches.is_empty() {
+                return None;
+            }
+            let sets = branches
+                .iter()
+                .map(|branch| lower_target_selector_candidates(branch).map(|(_, set)| set))
+                .collect::<Option<Vec<_>>>()?;
+            ("targetDamageable", json!({ "kind": "union", "sets": sets }))
+        }
+        TargetSelector::Player(PlayerPredicate::Any) => {
+            ("targetPlayer", json!({ "kind": "players" }))
+        }
+        TargetSelector::Player(PlayerPredicate::Opponent) => (
+            "targetOpponent",
+            json!({
+                "kind": "players",
+                "where": { "kind": "isOpponentOf", "player": controller() },
+            }),
+        ),
+        TargetSelector::Object(predicate) => (
+            "targetPermanent",
+            json!({
+                "kind": "permanents",
+                "where": lower_permanent_object_predicate(predicate),
+            }),
+        ),
+        TargetSelector::ControlledObject {
+            predicate,
+            controller: controller_scope,
+        } => (
+            "targetPermanent",
+            json!({
+                "kind": "permanents",
+                "controller": lower_object_controller_scope(*controller_scope),
+                "where": lower_permanent_object_predicate(predicate),
+            }),
+        ),
+        TargetSelector::StackItem(_) => return None,
+    })
+}
+
+/// Lowers the complete target slot, including restrictions carried by its
+/// determiner. Parents must not drop `another` when delegating the predicate.
+pub(in crate::oracle::canonical) fn lower_target_slot_candidates(
+    slot: &TargetSlot,
+) -> Option<(&'static str, Value)> {
+    let (id, mut candidates) = lower_target_selector_candidates(&slot.selector)?;
+    if slot.exclude_source {
+        candidates["excludeSource"] = Value::Bool(true);
+    }
+    Some((id, candidates))
+}
+
 pub(in crate::oracle::canonical) fn target_decision(
     id: &str,
     candidates: Value,
@@ -64,10 +142,36 @@ pub(in crate::oracle::canonical) fn search_library_effects_for(
     destination: &str,
     tapped: bool,
 ) -> Vec<Value> {
+    search_library_effects_for_binding(
+        player,
+        filter,
+        maximum,
+        destination,
+        tapped,
+        CollectionBinding(0),
+    )
+}
+
+pub(in crate::oracle::canonical) fn lower_collection_binding(binding: CollectionBinding) -> String {
+    match binding.0 {
+        0 => "searchedCards".to_string(),
+        index => format!("searchedCards:{index}"),
+    }
+}
+
+pub(in crate::oracle::canonical) fn search_library_effects_for_binding(
+    player: Value,
+    filter: Value,
+    maximum: i64,
+    destination: &str,
+    tapped: bool,
+    binding: CollectionBinding,
+) -> Vec<Value> {
+    let searched = lower_collection_binding(binding);
     vec![
         json!({
             "kind": "chooseCards",
-            "id": "searchedCards",
+            "id": searched.clone(),
             "player": player.clone(),
             "minimum": 0,
             "maximum": maximum,
@@ -79,7 +183,7 @@ pub(in crate::oracle::canonical) fn search_library_effects_for(
         }),
         json!({
             "kind": "moveCards",
-            "cards": decision_result("searchedCards"),
+            "cards": decision_result(&searched),
             "to": {
                 "kind": destination,
                 "player": player.clone(),
@@ -93,7 +197,7 @@ pub(in crate::oracle::canonical) fn search_library_effects_for(
         json!({
             "kind": "recordLibrarySearch",
             "player": player,
-            "cards": decision_result("searchedCards"),
+            "cards": decision_result(&searched),
         }),
     ]
 }
@@ -239,3 +343,7 @@ pub(in crate::oracle::canonical) fn airbend_target_decision(text: &str) -> Optio
     };
     Some(target_decision("airbendTarget", candidates, minimum, 1))
 }
+
+#[cfg(test)]
+#[path = "target_slot_lowering_tests.rs"]
+mod target_slot_lowering_tests;

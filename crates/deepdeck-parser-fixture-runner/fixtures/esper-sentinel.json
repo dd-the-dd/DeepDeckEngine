@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "esper-sentinel/ordinal-filtered-dynamic-spell-tax",
+  "cardName": "Esper Sentinel",
+  "oracleId": "5def9f38-0a0b-4e8d-9f9d-29dcb46520b4",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Esper Sentinel",
+        "typeLine": "Artifact Creature — Human Soldier",
+        "manaCost": "{W}",
+        "oracleText": "Whenever an opponent casts their first noncreature spell each turn, draw a card unless that player pays {X}, where X is this creature's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "ruleAssertions": [
+            { "pointer": "/event/kind", "equals": "spellCast" },
+            { "pointer": "/event/opponentOfSourceController", "equals": true },
+            { "pointer": "/event/spellCastOrdinal/value", "equals": 1 },
+            { "pointer": "/event/where/kind", "equals": "not" },
+            { "pointer": "/event/where/operand/value", "equals": "Creature" },
+            { "pointer": "/effects/0/kind", "equals": "optionalPayCostPerformEffects" },
+            { "pointer": "/effects/0/player/kind", "equals": "triggeringPlayer" },
+            { "pointer": "/effects/0/cost/kind", "equals": "payMana" },
+            { "pointer": "/effects/0/cost/genericAmount/kind", "equals": "powerOf" },
+            { "pointer": "/effects/0/cost/genericAmount/object/kind", "equals": "self" },
+            { "pointer": "/effects/0/declineEffects/0/kind", "equals": "drawCards" },
+            { "pointer": "/effects/0/declineEffects/0/count/value", "equals": 1 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "ordinal-composed-filter-and-source-stat-sibling",
+      "request": {
+        "cardName": "Generic Ordinal Tax Test",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent casts their second instant or sorcery spell each turn, draw two cards unless that player pays {X}, where X is this permanent's toughness.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "ruleAssertions": [
+            { "pointer": "/event/spellCastOrdinal/value", "equals": 2 },
+            { "pointer": "/event/where/kind", "equals": "or" },
+            { "pointer": "/event/where/operands/0/value", "equals": "Instant" },
+            { "pointer": "/event/where/operands/1/value", "equals": "Sorcery" },
+            { "pointer": "/effects/0/cost/genericAmount/kind", "equals": "toughnessOf" },
+            { "pointer": "/effects/0/declineEffects/0/count/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unsupported-period-near-miss",
+      "request": {
+        "cardName": "Malformed Ordinal Tax Test",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{1}",
+        "oracleText": "Whenever an opponent casts their first noncreature spell each game, draw a card unless that player pays {X}, where X is this creature's power.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "ordinal-spell-tax-draw",
+          "state": "event.ordinal-spell-cast.period",
+          "found": "game"
+        }]
+      }
+    }
+  ]
+}

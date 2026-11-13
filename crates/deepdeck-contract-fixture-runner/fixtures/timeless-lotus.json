@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "timeless-lotus/named-source-entry-is-executable",
+  "cardName": "Timeless Lotus",
+  "oracleId": "fec77e0a-433e-4d32-9260-e26a37f6ad23",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "wouldEnterBattlefield",
+        "object": { "kind": "self" }
+      },
+      "replacement": [{
+        "kind": "setEnteringState",
+        "object": { "kind": "self" },
+        "tapped": true
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": "{W}{U}{B}{R}{G}"
+      }]
+    }
+  ]
+}

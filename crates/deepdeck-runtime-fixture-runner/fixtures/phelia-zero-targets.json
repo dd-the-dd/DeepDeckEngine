@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "phelia-zero-targets-installs-no-delayed-return",
+  "seed": 13800,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Land" } },
+          "excludeSource": true
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "bind": "delayedExiledPermanent"
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": { "kind": "bindingNotEmpty", "binding": "delayedExiledPermanent" },
+        "then": [
+          {
+            "kind": "bind",
+            "id": "delayedExiledOwner",
+            "value": {
+              "kind": "ownerOf",
+              "object": { "kind": "singleBoundObject", "binding": "delayedExiledPermanent" }
+            }
+          },
+          {
+            "kind": "installDelayedStepTrigger",
+            "step": "endStep",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "captureBindings": ["delayedExiledPermanent", "delayedExiledOwner"],
+            "effects": [
+              {
+                "kind": "moveCards",
+                "cards": { "kind": "boundObjects", "binding": "delayedExiledPermanent" },
+                "from": {
+                  "kind": "exile",
+                  "player": { "kind": "boundValue", "id": "delayedExiledOwner" }
+                },
+                "to": {
+                  "kind": "battlefield",
+                  "player": { "kind": "boundValue", "id": "delayedExiledOwner" },
+                  "tapped": false
+                },
+                "bind": "delayedReturnedPermanent"
+              },
+              {
+                "kind": "conditionalEffect",
+                "condition": {
+                  "kind": "playersEqual",
+                  "left": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "singleBoundObject", "binding": "delayedReturnedPermanent" }
+                  },
+                  "right": { "kind": "controllerOf", "object": { "kind": "self" } }
+                },
+                "then": [{
+                  "kind": "putCounters",
+                  "permanent": { "kind": "self" },
+                  "counter": "+1/+1",
+                  "count": { "kind": "integer", "value": 1 }
+                }],
+                "else": []
+              }
+            ]
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Phelia controller",
+        "battlefield": [
+          {
+            "id": "phelia",
+            "name": "Phelia, Exuberant Shepherd",
+            "typeLine": "Legendary Creature - Dog",
+            "manaCost": "{1}{W}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "declined-target",
+            "name": "Declined Target",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "phelia"
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "phelia", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "declined-target", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "declined-target", "equals": false },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "phelia", "counter": "+1/+1", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "delayedTriggerInstalled", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

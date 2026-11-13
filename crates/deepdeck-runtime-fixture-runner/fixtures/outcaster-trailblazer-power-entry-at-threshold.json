@@ -1,0 +1,221 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "outcaster-trailblazer-native-power-qualified-entry-at-threshold",
+  "seed": 1331,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "excludeSource": true,
+      "kind": "permanentEntered",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "where": {
+        "kind": "and",
+        "operands": [
+          {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          {
+            "kind": "compare",
+            "left": {
+              "kind": "powerOf",
+              "object": {
+                "kind": "candidate"
+              }
+            },
+            "operator": ">=",
+            "right": {
+              "kind": "integer",
+              "value": 4
+            }
+          }
+        ]
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Outcaster controller",
+        "library": [
+          {
+            "id": "drawn-card",
+            "name": "Drawn Card",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "remaining-card",
+            "name": "Remaining Card",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "outcaster-trailblazer",
+            "name": "Outcaster Trailblazer",
+            "typeLine": "Creature — Human Druid",
+            "manaCost": "{2}{G}",
+            "power": "4",
+            "toughness": "2",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "excludeSource": true,
+                  "kind": "permanentEntered",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "compare",
+                        "left": {
+                          "kind": "powerOf",
+                          "object": {
+                            "kind": "candidate"
+                          }
+                        },
+                        "operator": ">=",
+                        "right": {
+                          "kind": "integer",
+                          "value": 4
+                        }
+                      }
+                    ]
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "entering-permanent",
+            "name": "Entering Test Permanent",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "4",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "hand": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "entering-permanent"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "entering-permanent",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "drawn-card",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

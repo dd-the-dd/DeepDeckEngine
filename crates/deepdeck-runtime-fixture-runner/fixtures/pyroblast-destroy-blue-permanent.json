@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "pyroblast-destroy-mode-destroys-a-blue-permanent",
+  "seed": 6202,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "minimum": 1,
+          "maximum": { "kind": "integer", "value": 1 },
+          "options": ["mode1", "mode2"],
+          "allowRepeated": false
+        },
+        {
+          "id": "mode1:targetStackObject",
+          "kind": "chooseTargets",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode1"
+          },
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "spells" }
+        },
+        {
+          "id": "mode2:targetPermanent",
+          "kind": "chooseTargets",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode2"
+          },
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "permanents", "where": null }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode1"
+        },
+        "then": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "mode1:targetStackObject" },
+            "where": { "kind": "colorContains", "value": "Blue" }
+          },
+          "then": [{
+            "kind": "counterStackObject",
+            "object": { "kind": "chosenTarget", "id": "mode1:targetStackObject" }
+          }]
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode2"
+        },
+        "then": [{
+          "kind": "conditional",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "mode2:targetPermanent" },
+            "where": { "kind": "colorContains", "value": "Blue" }
+          },
+          "then": [{
+            "kind": "destroyPermanent",
+            "permanent": { "kind": "chosenTarget", "id": "mode2:targetPermanent" }
+          }]
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pyroblast pilot",
+        "manaPool": ["R"],
+        "hand": [{
+          "id": "pyroblast",
+          "name": "Pyroblast",
+          "typeLine": "Instant",
+          "manaCost": "{R}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Blue permanent controller",
+        "battlefield": [{
+          "id": "blue-permanent",
+          "name": "Blue Test Permanent",
+          "typeLine": "Enchantment",
+          "manaCost": "{U}"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "pyroblast" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "blue-permanent",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}
+

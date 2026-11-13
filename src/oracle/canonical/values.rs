@@ -41,6 +41,7 @@ pub(super) fn variable_clause_pattern() -> String {
     format!(
         concat!(
             r"the greatest (?:power|toughness) among {} you control",
+            r"|the greatest mana value among {} you control",
             r"|the number of creatures you control of the chosen type",
             r"|the number of experience counters you have",
             r"|the number of cards in your hand",
@@ -52,8 +53,10 @@ pub(super) fn variable_clause_pattern() -> String {
             r"|the amount of mana spent to cast that spell",
             r"|that spell's mana value",
             r"|your devotion to that color",
-            r"|this creature's power",
+            r"|this (?:creature|permanent)'s (?:power|toughness)",
+            r"|[A-Za-z][A-Za-z0-9 ,.'-]+(?:'s|') (?:power|toughness)",
         ),
+        permanent_criteria_pattern(),
         permanent_criteria_pattern(),
         permanent_criteria_pattern(),
         permanent_criteria_pattern(),
@@ -105,11 +108,33 @@ pub(super) fn x_variable_expression(clause: &str) -> Option<Value> {
             "kind": "devotionToChosenColor",
             "player": controller(),
         })),
-        "this creature's power" => Some(json!({
+        "this creature's power" | "this permanent's power" => Some(json!({
             "kind": "powerOf",
             "object": self_ref(),
         })),
+        "this creature's toughness" | "this permanent's toughness" => Some(json!({
+            "kind": "toughnessOf",
+            "object": self_ref(),
+        })),
         _ => {
+            let named_source_stat_re =
+                Regex::new(r"(?i)^([A-Za-z][A-Za-z0-9 ,.'-]+)(?:'s|') (power|toughness)$")
+                    .expect("named source stat variable regex compiles");
+            if let Some(captures) = named_source_stat_re.captures(clause)
+                && !matches!(
+                    captures.get(1)?.as_str().to_ascii_lowercase().as_str(),
+                    "that creature" | "that permanent" | "equipped creature" | "enchanted creature"
+                )
+            {
+                return Some(json!({
+                    "kind": if captures[2].eq_ignore_ascii_case("power") {
+                        "powerOf"
+                    } else {
+                        "toughnessOf"
+                    },
+                    "object": self_ref(),
+                }));
+            }
             if let Some(captures) = Regex::new(r"(?i)^the number of (.+?) cards in your graveyard$")
                 .expect("generic graveyard card-count variable regex compiles")
                 .captures(clause)
@@ -155,6 +180,17 @@ pub(super) fn x_variable_expression(clause: &str) -> Option<Value> {
                     },
                     "player": controller(),
                     "where": parse_permanent_criteria(captures.get(2)?.as_str(), "")?,
+                }));
+            }
+            if let Some(captures) =
+                Regex::new(r"(?i)^the greatest mana value among (.+) you control$")
+                    .expect("generic greatest mana-value variable regex compiles")
+                    .captures(clause)
+            {
+                return Some(json!({
+                    "kind": "greatestManaValue",
+                    "player": controller(),
+                    "where": parse_permanent_criteria(captures.get(1)?.as_str(), "")?,
                 }));
             }
 

@@ -174,6 +174,76 @@ pub fn named_card_printing(name: &str) -> Result<Option<&'static CatalogPrinting
     }))
 }
 
+/// Returns the exact normalized names backed by at least one ordinary-card
+/// printing. Consumers may build read-only indexes from this catalog-owned
+/// name set; the catalog remains the single source of truth.
+// This source file is also compiled into the standalone runtime crate, where
+// Oracle name resolution is intentionally absent.
+#[allow(dead_code)]
+pub(crate) fn ordinary_card_names() -> Result<Vec<&'static str>, String> {
+    Ok(catalog()?
+        .cards
+        .iter()
+        .filter(|(_, printings)| {
+            printings.iter().any(|printing| {
+                !printing.is_token.unwrap_or(false)
+                    && !printing.is_game_piece.unwrap_or(false)
+                    && printing.type_line.is_some()
+            })
+        })
+        .map(|(name, _)| name.as_str())
+        .collect())
+}
+
+/// Returns every exact normalized name backed by an Oracle-defined token game
+/// piece. The external catalog and the built-in fallback are one logical
+/// catalog; callers may build indexes but must not add token-name lists.
+#[allow(dead_code)]
+pub(crate) fn named_token_names() -> Result<Vec<&'static str>, String> {
+    fn collect(catalog: &'static StoredCardCatalog, names: &mut Vec<&'static str>) {
+        names.extend(catalog.cards.iter().filter_map(|(name, printings)| {
+            printings
+                .iter()
+                .any(|printing| {
+                    printing.is_token.unwrap_or(false)
+                        && printing.is_game_piece.unwrap_or(false)
+                        && printing
+                            .oracle_text
+                            .as_deref()
+                            .is_some_and(|text| !text.trim().is_empty())
+                })
+                .then_some(name.as_str())
+        }));
+    }
+
+    let mut names = Vec::new();
+    if let Ok(external) = catalog() {
+        collect(external, &mut names);
+    }
+    collect(builtin_game_pieces(), &mut names);
+    names.sort_unstable();
+    names.dedup();
+    Ok(names)
+}
+
+#[allow(dead_code)]
+pub(crate) fn builtin_named_token_names() -> Vec<&'static str> {
+    let mut names = builtin_game_pieces()
+        .cards
+        .iter()
+        .filter_map(|(name, _)| {
+            select_named_token_printing(builtin_game_pieces(), name).map(|_| name.as_str())
+        })
+        .collect::<Vec<_>>();
+    names.sort_unstable();
+    names
+}
+
+#[allow(dead_code)]
+pub(crate) fn builtin_named_token_printing(name: &str) -> Option<&'static CatalogPrinting> {
+    select_named_token_printing(builtin_game_pieces(), name)
+}
+
 fn game_piece_value(name: &str, printing: &CatalogPrinting) -> Value {
     let mut value = serde_json::to_value(printing).expect("catalog printing serializes");
     if let Some(object) = value.as_object_mut() {

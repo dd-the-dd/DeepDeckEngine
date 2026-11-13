@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "fierce-guardianship/commander-zero-alternative-cost-is-executable",
+  "cardName": "Fierce Guardianship",
+  "oracleId": "d09c9cba-fdd2-479b-ad5d-d05181c3e3f9",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": {
+        "kind": "alternativeCost",
+        "costs": [],
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countPermanents",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "isCommander" },
+            "excludeSource": false
+          },
+          "right": { "kind": "integer", "value": 1 }
+        }
+      }
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Creature" }
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      }]
+    }
+  ]
+}

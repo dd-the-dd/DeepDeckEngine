@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "burst-lightning-kicked-deals-replacement-damage",
+  "seed": 51,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetDamageable",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "anyTarget" }
+      }]
+    },
+    "effects": [{
+      "kind": "conditionalEffect",
+      "condition": {
+        "kind": "wasKicked",
+        "spell": { "kind": "self" }
+      },
+      "then": [{
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 4 },
+        "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+      }],
+      "else": [{
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 2 },
+        "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Burst Lightning caster",
+        "hand": [{
+          "id": "burst-lightning",
+          "name": "Burst Lightning",
+          "typeLine": "Instant",
+          "manaCost": "{R}"
+        }]
+      },
+      { "id": "player-1", "name": "Target player" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "burst-lightning",
+    "decisions": { "kicked": true },
+    "targets": {
+      "targetDamageable": { "player": { "playerId": "player-1" } }
+    }
+  },
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 16 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

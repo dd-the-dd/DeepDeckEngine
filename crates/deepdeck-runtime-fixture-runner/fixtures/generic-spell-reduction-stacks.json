@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "independent-generic-spell-reductions-accumulate",
+  "seed": 101104,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reducer controller",
+        "manaPool": ["R"],
+        "hand": [{
+          "id": "three-mana-red-spell",
+          "name": "Three-Mana Red Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "{2}{R}",
+          "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+        }],
+        "battlefield": [
+          {
+            "id": "first-reducer",
+            "name": "First Reducer",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "reduceCastingCost",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": { "kind": "colorContains", "value": "Red" },
+                "amount": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          },
+          {
+            "id": "second-reducer",
+            "name": "Second Reducer",
+            "typeLine": "Enchantment",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "reduceCastingCost",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": { "kind": "colorContains", "value": "Red" },
+                "amount": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "three-mana-red-spell" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "three-mana-red-spell", "equals": true },
+    { "kind": "eventCount", "eventKind": "spellCast", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

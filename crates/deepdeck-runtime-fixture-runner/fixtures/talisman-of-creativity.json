@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "talisman-of-creativity-proves-colorless-blue-and-red-branches",
+  "seed": 52,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{C}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Talisman of Creativity pilot",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "talisman-creativity-colorless",
+            "name": "Talisman of Creativity",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [{
+                  "kind": "addMana",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "mana": "{C}"
+                }]
+              },
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+                  },
+                  {
+                    "kind": "dealDamage",
+                    "source": { "kind": "self" },
+                    "amount": { "kind": "integer", "value": 1 },
+                    "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "talisman-creativity-blue",
+            "name": "Talisman of Creativity",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [{
+                  "kind": "addMana",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "mana": "{C}"
+                }]
+              },
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+                  },
+                  {
+                    "kind": "dealDamage",
+                    "source": { "kind": "self" },
+                    "amount": { "kind": "integer", "value": 1 },
+                    "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "talisman-creativity-red",
+            "name": "Talisman of Creativity",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [{
+                  "kind": "addMana",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "mana": "{C}"
+                }]
+              },
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+                  },
+                  {
+                    "kind": "dealDamage",
+                    "source": { "kind": "self" },
+                    "amount": { "kind": "integer", "value": 1 },
+                    "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "talisman-creativity-colorless",
+      "manaSymbols": ["C"]
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "talisman-creativity-blue",
+      "manaSymbols": ["U"]
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "talisman-creativity-red",
+      "manaSymbols": ["R"]
+    }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C", "U", "R"] },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "talisman-creativity-colorless",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "talisman-creativity-blue",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "talisman-creativity-red",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 3 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,210 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "austere-command-resolves-two-chosen-collection-modes-in-printed-order",
+  "seed": 81202,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "chosenModes",
+        "kind": "chooseModes",
+        "minimum": 2,
+        "maximum": { "kind": "integer", "value": 2 },
+        "options": ["mode1", "mode2", "mode3", "mode4"],
+        "allowRepeated": false
+      }]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode1"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": { "kind": "cardTypeContains", "value": "Artifact" }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode2"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": { "kind": "cardTypeContains", "value": "Enchantment" }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode3"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "right": { "kind": "integer", "value": 3 }
+                }
+              ]
+            }
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode4"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "eachPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "right": { "kind": "integer", "value": 4 }
+                }
+              ]
+            }
+          }
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Austere Command caster",
+        "manaPool": ["W", "W", "C", "C", "C", "C"],
+        "hand": [
+          {
+            "id": "austere-command",
+            "name": "Austere Command",
+            "typeLine": "Sorcery",
+            "manaCost": "{4}{W}{W}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "indestructible-artifact-lord",
+            "name": "Indestructible Artifact Lord",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "grantKeyword",
+                "objects": {
+                  "kind": "permanents",
+                  "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" },
+                  "excludeSource": true
+                },
+                "keyword": "indestructible"
+              }]
+            }]
+          },
+          {
+            "id": "small-artifact-creature",
+            "name": "Small Artifact Creature",
+            "typeLine": "Artifact Creature — Construct",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "small-enchantment-creature",
+            "name": "Small Enchantment Creature",
+            "typeLine": "Enchantment Creature — Spirit",
+            "manaCost": "{2}{W}",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "lord-protected-small-creature",
+            "name": "Lord-Protected Small Creature",
+            "typeLine": "Creature — Test",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          },
+          {
+            "id": "large-creature",
+            "name": "Large Creature",
+            "typeLine": "Creature — Giant",
+            "manaCost": "{3}{G}",
+            "power": "4",
+            "toughness": "4"
+          },
+          {
+            "id": "unchosen-enchantment",
+            "name": "Unchosen Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{U}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "austere-command",
+      "declarationDecisions": { "chosenModes": ["mode1", "mode3"] }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "small-artifact-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "small-enchantment-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "indestructible-artifact-lord", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "lord-protected-small-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "large-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "unchosen-enchantment", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 4 },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

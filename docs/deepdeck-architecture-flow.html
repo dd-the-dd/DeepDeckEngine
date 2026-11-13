@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Schéma d'évolution du parseur Oracle et du moteur DeepDeck Engine.">
+  <title>DeepDeck Engine — Schéma d'architecture</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071019;
+      --surface: #0d1824;
+      --surface-2: #111f2d;
+      --ink: #eef6ff;
+      --muted: #9db0c3;
+      --line: #294056;
+      --current: #2787e6;
+      --current-soft: rgba(39, 135, 230, .14);
+      --modify: #f19a38;
+      --modify-soft: rgba(241, 154, 56, .14);
+      --remove: #ef5261;
+      --remove-soft: rgba(239, 82, 97, .13);
+      --add: #36c681;
+      --add-soft: rgba(54, 198, 129, .13);
+      --shadow: 0 18px 55px rgba(0, 0, 0, .24);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 12% 3%, rgba(39, 135, 230, .14), transparent 28rem),
+        radial-gradient(circle at 93% 22%, rgba(54, 198, 129, .08), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, a { font: inherit; }
+    a { color: inherit; }
+    .shell { width: min(1420px, calc(100% - 40px)); margin: 0 auto; }
+
+    .hero {
+      padding: 72px 0 34px;
+      border-bottom: 1px solid rgba(157, 176, 195, .12);
+    }
+    .eyebrow {
+      margin: 0 0 14px;
+      color: #75baff;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 960px;
+      margin: 0;
+      font-size: clamp(2.4rem, 6vw, 5.7rem);
+      line-height: .98;
+      letter-spacing: -.065em;
+    }
+    .hero-copy {
+      max-width: 860px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.6vw, 1.24rem);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    .legend button {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(13, 24, 36, .78);
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform .18s ease, opacity .18s ease, border-color .18s ease;
+    }
+    .legend button:hover { transform: translateY(-1px); }
+    .legend button[aria-pressed="false"] { opacity: .38; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 15px currentColor; }
+    .dot.current { color: var(--current); background: currentColor; }
+    .dot.modify { color: var(--modify); background: currentColor; }
+    .dot.remove { color: var(--remove); background: currentColor; }
+    .dot.add { color: var(--add); background: currentColor; }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(18px);
+      background: rgba(7, 16, 25, .84);
+      border-bottom: 1px solid rgba(157, 176, 195, .13);
+    }
+    .nav-inner { display: flex; gap: 6px; overflow-x: auto; padding: 11px 0; }
+    .nav a {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .9rem;
+      font-weight: 720;
+    }
+    .nav a:hover { background: var(--surface-2); color: var(--ink); }
+
+    main { padding: 34px 0 90px; }
+    .workspace {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+    }
+    .workspace main { min-width: 0; }
+    .card-rail {
+      position: sticky;
+      top: 76px;
+      padding: 34px 0 70px;
+    }
+    .card-rail-head { margin-bottom: 13px; }
+    .card-rail-head strong { display: block; font-size: .9rem; }
+    .card-rail-head span { display: block; margin-top: 4px; color: var(--muted); font-size: .72rem; line-height: 1.35; }
+    .sample-cards { display: grid; gap: 12px; }
+    .sample-card {
+      width: 100%;
+      padding: 7px;
+      border: 1px solid #516476;
+      border-radius: 16px;
+      background: linear-gradient(145deg, #c6bba8, #756e65);
+      color: #17202a;
+      text-align: left;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(0,0,0,.26);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .sample-card:hover, .sample-card:focus-visible { transform: translateX(5px) rotate(.35deg); outline: none; }
+    .sample-card[aria-pressed="true"] { border-color: #a8d7ff; box-shadow: 0 0 0 3px rgba(39,135,230,.28), 0 16px 34px rgba(0,0,0,.34); }
+    .sample-card[data-card="helix"] { background: linear-gradient(145deg, #e0c89f, #9c6c58); }
+    .sample-card[data-card="jeskai"] { background: linear-gradient(145deg, #c9d9dd, #6d8195); }
+    .sample-card[data-card="sanar"] { background: linear-gradient(145deg, #b2a4c8, #5c516d); }
+    .sample-frame, .sample-art, .sample-type, .sample-text { display: block; }
+    .sample-frame { border: 1px solid rgba(23,32,42,.72); border-radius: 11px; overflow: hidden; background: #e7e1d7; }
+    .sample-title { display: flex; justify-content: space-between; gap: 7px; padding: 7px 8px 5px; font: 800 .73rem/1.15 Georgia, serif; }
+    .sample-mana { white-space: nowrap; font-family: ui-monospace, monospace; font-size: .62rem; }
+    .sample-art {
+      height: 42px;
+      margin: 0 5px;
+      border: 1px solid rgba(23,32,42,.58);
+      background:
+        radial-gradient(circle at 32% 45%, rgba(255,255,255,.72), transparent 8%),
+        linear-gradient(125deg, #c8574f, #6a8ab5 53%, #efcf78);
+    }
+    [data-card="jeskai"] .sample-art { background: radial-gradient(circle at 60% 35%, #f5ecd5, transparent 11%), linear-gradient(135deg, #536d99, #c66b53 58%, #e7cf94); }
+    [data-card="sanar"] .sample-art { background: radial-gradient(circle at 34% 40%, #f0c466, transparent 8%), linear-gradient(135deg, #315a74, #7f4a65 58%, #d58b45); }
+    .sample-type { margin: 4px 5px 0; padding: 4px 5px; border: 1px solid rgba(23,32,42,.45); background: rgba(255,255,255,.48); font: 700 .58rem/1.1 Georgia, serif; }
+    .sample-text { min-height: 55px; margin: 4px 5px 5px; padding: 5px; border: 1px solid rgba(23,32,42,.38); background: rgba(255,255,255,.66); font: .58rem/1.27 Georgia, serif; }
+    .complexity { display: flex; align-items: center; justify-content: space-between; padding: 0 2px 1px; color: #eaf4ff; font: 800 .58rem/1 ui-sans-serif, system-ui; letter-spacing: .06em; text-transform: uppercase; }
+    .complexity span:last-child { letter-spacing: .01em; opacity: .72; text-transform: none; }
+    section { scroll-margin-top: 78px; margin-top: 68px; }
+    section:first-child { margin-top: 0; }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 520px);
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+    .kicker { color: #75baff; font-size: .76rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h2 { margin: 5px 0 0; font-size: clamp(1.7rem, 3.4vw, 3.1rem); letter-spacing: -.045em; line-height: 1.04; }
+    .section-head p { margin: 0; color: var(--muted); }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 24px 0 0;
+    }
+    .fact {
+      min-height: 122px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(17, 31, 45, .93), rgba(10, 20, 30, .8));
+      box-shadow: var(--shadow);
+    }
+    .fact strong { display: block; font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.055em; line-height: 1; }
+    .fact span { display: block; margin-top: 9px; color: var(--muted); font-size: .85rem; }
+
+    .diagram {
+      position: relative;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background:
+        linear-gradient(rgba(157,176,195,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(157,176,195,.035) 1px, transparent 1px),
+        rgba(8, 18, 28, .78);
+      background-size: 28px 28px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .diagram-label {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 6px 9px;
+      border-radius: 7px;
+      background: rgba(238, 246, 255, .06);
+      color: var(--muted);
+      font: 700 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .flow { display: flex; align-items: flex-start; gap: 10px; min-width: 1050px; }
+    .flow-column { display: flex; flex: 1 1 0; min-width: 142px; flex-direction: column; justify-content: flex-start; gap: 10px; }
+    .arrow { align-self: flex-start; flex: 0 0 34px; padding-top: 43px; color: #60768b; text-align: center; font-size: 1.55rem; }
+    .node {
+      position: relative;
+      min-height: 112px;
+      padding: 15px 15px 14px 17px;
+      border: 1px solid;
+      border-left-width: 4px;
+      border-radius: 14px;
+      background: var(--surface);
+      transition: opacity .2s ease, filter .2s ease, transform .2s ease;
+    }
+    .node:hover { transform: translateY(-2px); }
+    .node h3 { margin: 0; font-size: .96rem; line-height: 1.22; letter-spacing: -.015em; }
+    .node p { margin: 7px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.4; }
+    .node code { color: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .76rem; }
+    .stage-example {
+      margin-top: 10px;
+      padding: 8px 9px;
+      border: 1px solid rgba(238,246,255,.13);
+      border-radius: 8px;
+      background: rgba(1, 7, 12, .54);
+      color: #dcecff;
+      font: .66rem/1.42 ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+    }
+    .stage-example::before {
+      content: "EXEMPLE · " attr(data-card-name);
+      display: block;
+      margin-bottom: 5px;
+      color: #87c5ff;
+      font-size: .54rem;
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+    .stage-example .good { color: #71e3aa; }
+    .stage-example .warn { color: #ffc275; }
+    .stage-example .bad { color: #ff8a95; }
+    .stage-example .muted { color: #8fa6ba; }
+    .selected-context {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: -8px 0 18px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+    .selected-context strong { color: var(--ink); }
+    .fsm-board {
+      padding: 22px;
+      border: 1px solid rgba(54,198,129,.42);
+      border-radius: 22px;
+      background: linear-gradient(145deg, rgba(54,198,129,.07), rgba(8,18,28,.9));
+      box-shadow: var(--shadow);
+    }
+    .fsm-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .fsm-controls button {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: .78rem;
+      font-weight: 750;
+    }
+    .fsm-controls button:hover { border-color: #75baff; }
+    .fsm-controls .error-button { border-color: rgba(239,82,97,.55); color: #ff9da6; }
+    .fsm-progress { margin-left: auto; align-self: center; color: var(--muted); font: .72rem/1 ui-monospace, monospace; }
+    .token-strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #050c13; }
+    .fsm-token {
+      padding: 5px 7px;
+      border: 1px solid #334a5e;
+      border-radius: 6px;
+      color: #a8bbcd;
+      font: .72rem/1 ui-monospace, monospace;
+      transition: .18s ease;
+    }
+    .fsm-token.consumed { border-color: rgba(54,198,129,.36); color: #71e3aa; background: var(--add-soft); }
+    .fsm-token.active { border-color: #8dcaff; color: #fff; background: rgba(39,135,230,.28); box-shadow: 0 0 0 3px rgba(39,135,230,.11); transform: translateY(-2px); }
+    .fsm-token.error { border-color: var(--remove); color: #fff; background: var(--remove-soft); }
+    .fsm-layout { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    .fsm-main { min-width: 0; }
+    .fsm-lane {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 8px;
+      min-width: 850px;
+    }
+    .fsm-scroll { overflow-x: auto; padding-bottom: 6px; }
+    .fsm-lane + .fsm-lane { margin-top: 10px; }
+    .fsm-state {
+      position: relative;
+      min-height: 130px;
+      padding: 13px;
+      border: 1px solid rgba(54,198,129,.42);
+      border-radius: 12px;
+      background: rgba(10,25,31,.88);
+      opacity: .53;
+      transition: opacity .18s ease, transform .18s ease, border-color .18s ease;
+    }
+    .fsm-state.done { opacity: .82; }
+    .fsm-state.active { opacity: 1; border-color: #8dcaff; transform: translateY(-3px); box-shadow: 0 0 0 3px rgba(39,135,230,.12); }
+    .fsm-state.failed { opacity: 1; border-color: var(--remove); background: var(--remove-soft); }
+    .fsm-state small { display: block; color: #71e3aa; font: 800 .57rem/1 ui-monospace, monospace; letter-spacing: .07em; text-transform: uppercase; }
+    .fsm-state h3 { margin: 8px 0 0; font-size: .88rem; }
+    .fsm-state p { margin: 7px 0 0; color: var(--muted); font-size: .7rem; line-height: 1.38; }
+    .fsm-emit { border-style: dashed; background: rgba(54,198,129,.13); }
+    .fsm-side { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+    .fsm-panel { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(5,12,19,.86); }
+    .fsm-panel h3 { margin: 0 0 8px; font-size: .86rem; }
+    .fsm-panel pre { margin: 0; color: #b9d7f2; font: .66rem/1.48 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .fsm-panel.error-panel { border-color: rgba(239,82,97,.46); }
+    .fsm-panel.error-panel pre { color: #ffadb4; }
+    .fsm-current-target { margin-top: 16px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+    .fsm-current-target article { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+    .fsm-current-target h3 { margin: 0 0 6px; font-size: .9rem; }
+    .fsm-current-target p { margin: 0; color: var(--muted); font-size: .75rem; }
+    .fsm-current-target .today { border-color: rgba(239,82,97,.46); }
+    .fsm-current-target .target { border-color: rgba(54,198,129,.46); }
+    .fsm-current-target .arrow { align-self: center; padding: 0; }
+    .node::after {
+      content: attr(data-status-label);
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font: 800 .54rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      opacity: .72;
+    }
+    .node.current { border-color: rgba(39,135,230,.7); background: linear-gradient(145deg, var(--current-soft), rgba(13,24,36,.94)); }
+    .node.modify { border-color: rgba(241,154,56,.72); background: linear-gradient(145deg, var(--modify-soft), rgba(13,24,36,.94)); }
+    .node.remove { border-color: rgba(239,82,97,.76); background: linear-gradient(145deg, var(--remove-soft), rgba(13,24,36,.94)); }
+    .node.add { border-color: rgba(54,198,129,.72); background: linear-gradient(145deg, var(--add-soft), rgba(13,24,36,.94)); }
+    body.hide-current .node.current,
+    body.hide-modify .node.modify,
+    body.hide-remove .node.remove,
+    body.hide-add .node.add { opacity: .1; filter: grayscale(1); pointer-events: none; }
+
+    .split-title { margin: 34px 0 12px; color: var(--muted); font-size: .82rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .two-lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .lane {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(13, 24, 36, .82);
+    }
+    .lane > h3 { margin: 0 0 14px; font-size: 1rem; }
+    .lane-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .lane .node { min-height: 132px; }
+
+    .decision {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+      gap: 14px;
+    }
+    .decision-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(13, 24, 36, .85);
+    }
+    .decision-card h3 { margin: 0 0 8px; font-size: 1.24rem; }
+    .decision-card p { margin: 0; color: var(--muted); }
+    .verdict {
+      border-color: rgba(54, 198, 129, .45);
+      background: linear-gradient(145deg, var(--add-soft), rgba(13,24,36,.92));
+    }
+    .verdict strong { color: #71e3aa; }
+
+    .roadmap { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: step; }
+    .step {
+      position: relative;
+      min-height: 210px;
+      padding: 52px 17px 17px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(13, 24, 36, .86);
+      counter-increment: step;
+    }
+    .step::before {
+      content: "0" counter(step);
+      position: absolute;
+      top: 15px;
+      left: 17px;
+      color: #75baff;
+      font: 800 .76rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      letter-spacing: .08em;
+    }
+    .step h3 { margin: 0; font-size: 1rem; }
+    .step p { margin: 8px 0 0; color: var(--muted); font-size: .82rem; }
+    .step .tag { display: inline-block; margin-top: 15px; padding: 5px 7px; border-radius: 6px; background: var(--add-soft); color: #71e3aa; font-size: .68rem; font-weight: 800; }
+
+    .notes {
+      margin-top: 28px;
+      padding: 18px 20px;
+      border-left: 3px solid var(--modify);
+      border-radius: 0 12px 12px 0;
+      background: var(--modify-soft);
+      color: #e4edf5;
+      font-size: .88rem;
+    }
+
+    .machine-shell {
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      overflow: hidden;
+      background: rgba(5, 12, 19, .9);
+      box-shadow: var(--shadow);
+    }
+    .machine-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(13, 24, 36, .96);
+    }
+    .machine-toolbar button,
+    .machine-toolbar select {
+      min-height: 35px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: .75rem;
+      font-weight: 760;
+    }
+    .machine-toolbar button:hover { border-color: #75baff; }
+    .machine-toolbar .machine-help { margin-left: auto; color: var(--muted); font-size: .7rem; }
+    .machine-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-height: 760px; }
+    .machine-viewport {
+      position: relative;
+      min-width: 0;
+      height: 760px;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+      background:
+        linear-gradient(rgba(157,176,195,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(157,176,195,.045) 1px, transparent 1px),
+        radial-gradient(circle at 42% 40%, rgba(39,135,230,.08), transparent 34rem),
+        #07111a;
+      background-size: 28px 28px, 28px 28px, auto, auto;
+    }
+    .machine-viewport.is-panning { cursor: grabbing; }
+    .machine-world {
+      position: absolute;
+      width: 1900px;
+      height: 1180px;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+    .machine-links { position: absolute; inset: 0; width: 1900px; height: 1180px; overflow: visible; pointer-events: none; }
+    .machine-link { fill: none; stroke: #52708a; stroke-width: 2.2; opacity: .72; marker-end: url(#machine-arrow); transition: opacity .18s ease; }
+    .machine-link.memory { stroke: var(--modify); stroke-dasharray: 8 6; }
+    .machine-link.rollback { stroke: var(--modify); stroke-width: 3; stroke-dasharray: 3 7; opacity: .95; }
+    .machine-link.runtime { stroke: var(--add); }
+    .machine-node {
+      position: absolute;
+      width: 250px;
+      min-height: 118px;
+      padding: 14px 15px 13px 17px;
+      border: 1px solid;
+      border-left-width: 4px;
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 12px 30px rgba(0,0,0,.28);
+      cursor: move;
+      user-select: none;
+      touch-action: none;
+      transition: box-shadow .16s ease, opacity .18s ease, filter .18s ease;
+    }
+    .machine-node:hover, .machine-node.selected { box-shadow: 0 0 0 3px rgba(117,186,255,.2), 0 18px 38px rgba(0,0,0,.38); }
+    .machine-node.focus-muted { opacity: .16; filter: grayscale(.75); }
+    .machine-node.current { border-color: var(--current); background: linear-gradient(145deg, var(--current-soft), rgba(13,24,36,.97)); }
+    .machine-node.modify { border-color: var(--modify); background: linear-gradient(145deg, var(--modify-soft), rgba(13,24,36,.97)); }
+    .machine-node.remove { border-color: var(--remove); background: linear-gradient(145deg, var(--remove-soft), rgba(13,24,36,.97)); }
+    .machine-node.add { border-color: var(--add); background: linear-gradient(145deg, var(--add-soft), rgba(13,24,36,.97)); }
+    .machine-node small { display: block; color: var(--muted); font: 800 .55rem/1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+    .machine-node h3 { margin: 8px 0 0; font-size: .92rem; line-height: 1.2; }
+    .machine-node p { margin: 7px 0 0; color: var(--muted); font-size: .7rem; line-height: 1.38; }
+    .machine-node code { color: #d7ecff; font-size: .66rem; }
+    .machine-node .memory-pill { display: inline-block; margin-top: 8px; padding: 4px 6px; border-radius: 5px; background: rgba(241,154,56,.13); color: #ffc275; font: 700 .57rem/1.2 ui-monospace, monospace; }
+    body.hide-current .machine-node.current,
+    body.hide-modify .machine-node.modify,
+    body.hide-remove .machine-node.remove,
+    body.hide-add .machine-node.add { opacity: .08; filter: grayscale(1); pointer-events: none; }
+    .machine-inspector {
+      overflow: auto;
+      max-height: 760px;
+      padding: 18px;
+      border-left: 1px solid var(--line);
+      background: rgba(8, 17, 26, .97);
+    }
+    .machine-inspector .status-badge { display: inline-block; padding: 5px 7px; border-radius: 6px; background: var(--add-soft); color: #71e3aa; font: 800 .58rem/1 ui-monospace, monospace; text-transform: uppercase; }
+    .machine-inspector h3 { margin: 12px 0 6px; font-size: 1.05rem; }
+    .machine-inspector p { margin: 0 0 14px; color: var(--muted); font-size: .78rem; }
+    .machine-inspector h4 { margin: 17px 0 7px; color: #87c5ff; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+    .machine-inspector pre { margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #050c13; color: #c9e2f7; font: .64rem/1.48 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .machine-functions { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .machine-functions li { padding: 7px 8px; border: 1px solid rgba(157,176,195,.14); border-radius: 7px; background: rgba(17,31,45,.58); color: #d7e7f4; font: .62rem/1.35 ui-monospace, monospace; }
+    .machine-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 14px 0 18px; }
+    .machine-stat { padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: rgba(13,24,36,.82); }
+    .machine-stat strong { display: block; font-size: 1.35rem; line-height: 1; }
+    .machine-stat span { display: block; margin-top: 5px; color: var(--muted); font-size: .65rem; }
+    .machine-key { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 13px; }
+    .machine-key span { padding: 5px 7px; border-radius: 6px; background: rgba(238,246,255,.06); color: var(--muted); font: .6rem/1 ui-monospace, monospace; }
+    .machine-cycle {
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; align-items: stretch;
+      margin: -3px 0 14px; padding: 10px; border: 1px solid rgba(241,154,56,.33); border-radius: 9px;
+      background: linear-gradient(90deg, rgba(241,154,56,.08), rgba(13,24,36,.45));
+    }
+    .machine-cycle span { padding: 8px; border-radius: 6px; background: rgba(238,246,255,.055); color: var(--muted); font: .68rem/1.35 ui-monospace, monospace; }
+    .machine-cycle strong { display: block; margin-bottom: 3px; color: var(--ink); font-size: .62rem; letter-spacing: .05em; text-transform: uppercase; }
+    .machine-cycle .cycle-rollback { color: #ffc275; box-shadow: inset 0 0 0 1px rgba(241,154,56,.22); }
+    .implementation-table { width: 100%; margin-top: 18px; border-collapse: collapse; font-size: .72rem; }
+    .implementation-table th, .implementation-table td { padding: 9px 10px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .implementation-table th { color: #87c5ff; background: rgba(17,31,45,.9); }
+    .implementation-table td { color: var(--muted); background: rgba(8,17,26,.66); }
+    .implementation-table code { color: #d7ecff; }
+    body.machine-only .hero,
+    body.machine-only .nav,
+    body.machine-only .card-rail,
+    body.machine-only main > section:not(#machine-live),
+    body.machine-only footer { display: none; }
+    body.machine-only .workspace { display: block; }
+    body.machine-only main { padding-top: 24px; }
+    body.machine-only #machine-live { margin-top: 0; }
+    footer { padding: 28px 0 46px; border-top: 1px solid rgba(157, 176, 195, .12); color: var(--muted); font-size: .8rem; }
+
+    @media (max-width: 980px) {
+      .workspace { grid-template-columns: 1fr; }
+      .card-rail { position: static; padding: 25px 0 0; }
+      .sample-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .sample-card:hover, .sample-card:focus-visible { transform: translateY(-3px); }
+      .section-head, .decision { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: repeat(2, 1fr); }
+      .diagram { overflow-x: auto; }
+      .two-lanes { grid-template-columns: 1fr; }
+      .roadmap { grid-template-columns: repeat(2, 1fr); }
+      .fsm-layout { grid-template-columns: 1fr; }
+      .fsm-side { grid-template-columns: 1fr 1fr; }
+      .machine-layout { grid-template-columns: 1fr; }
+      .machine-inspector { max-height: none; border-left: 0; border-top: 1px solid var(--line); }
+    }
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 24px, 1420px); }
+      .hero { padding-top: 48px; }
+      .facts, .roadmap { grid-template-columns: 1fr; }
+      .lane-flow { grid-template-columns: 1fr; }
+      .diagram { padding: 14px; }
+      .sample-cards { grid-template-columns: 1fr; }
+      .fsm-side, .fsm-current-target { grid-template-columns: 1fr; }
+      .fsm-current-target .arrow { transform: rotate(90deg); justify-self: center; }
+      .machine-stats { grid-template-columns: 1fr; }
+      .machine-cycle { grid-template-columns: 1fr; }
+    }
+    @media print {
+      :root { color-scheme: light; --bg: #fff; --surface: #fff; --surface-2: #f4f7fa; --ink: #0d1824; --muted: #46586a; --line: #b7c4cf; }
+      body { background: #fff; }
+      .nav, .legend { display: none; }
+      .shell { width: 100%; }
+      .hero { padding-top: 10px; }
+      section { break-inside: avoid; margin-top: 30px; }
+      .diagram { overflow: visible; box-shadow: none; }
+      .flow { min-width: 0; }
+      .node, .fact, .step { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="shell">
+      <p class="eyebrow">DeepDeck Engine / Architecture proposée</p>
+      <h1>Du texte Oracle à une simulation spécialisée.</h1>
+      <p class="hero-copy">Une représentation visuelle de l'existant, de ce qui doit évoluer et de la cible proposée. Les couleurs décrivent le statut architectural, pas la qualité fonctionnelle de chaque composant.</p>
+      <div class="legend" aria-label="Filtres de statut">
+        <button type="button" data-toggle="current" aria-pressed="true"><span class="dot current"></span>Bleu · actuel</button>
+        <button type="button" data-toggle="modify" aria-pressed="true"><span class="dot modify"></span>Orange · à modifier</button>
+        <button type="button" data-toggle="remove" aria-pressed="true"><span class="dot remove"></span>Rouge · à retirer</button>
+        <button type="button" data-toggle="add" aria-pressed="true"><span class="dot add"></span>Vert · à ajouter</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Navigation du document">
+    <div class="shell nav-inner">
+      <a href="#lecture">Vue d'ensemble</a>
+      <a href="#parseur">Parseur Oracle</a>
+      <a href="#fsm-helix">FSM Lightning Helix</a>
+      <a href="#machine-live">Machine migrée interactive</a>
+      <a href="#moteur">Moteur de partie</a>
+      <a href="#loader">Loader spécialisé</a>
+      <a href="#roadmap">Trajectoire</a>
+    </div>
+  </nav>
+
+  <div class="workspace shell">
+    <aside class="card-rail" aria-label="Cartes exemples interactives">
+      <div class="card-rail-head"><strong>Choisir une carte</strong><span>Survole, utilise le clavier ou clique. Toutes les boîtes se mettent à jour.</span></div>
+      <div class="sample-cards">
+        <button class="sample-card" type="button" data-card="helix" aria-pressed="true">
+          <span class="complexity"><span>Simple</span><span>1 cible · 2 effets</span></span>
+          <span class="sample-frame">
+            <span class="sample-title"><span>Lightning Helix</span><span class="sample-mana">{R}{W}</span></span>
+            <span class="sample-art" aria-hidden="true"></span>
+            <span class="sample-type">Instant</span>
+            <span class="sample-text">Lightning Helix deals 3 damage to any target and you gain 3 life.</span>
+          </span>
+        </button>
+        <button class="sample-card" type="button" data-card="jeskai" aria-pressed="false">
+          <span class="complexity"><span>Complexe</span><span>2 cibles · 5 effets</span></span>
+          <span class="sample-frame">
+            <span class="sample-title"><span>Jeskai Revelation</span><span class="sample-mana">{4}{U}{R}{W}</span></span>
+            <span class="sample-art" aria-hidden="true"></span>
+            <span class="sample-type">Instant</span>
+            <span class="sample-text">Return target spell or permanent… Deal 4 damage… Create two Monks. Draw two cards. Gain 4 life.</span>
+          </span>
+        </button>
+        <button class="sample-card" type="button" data-card="sanar" aria-pressed="false">
+          <span class="complexity"><span>Très complexe</span><span>2 faces · 3 règles</span></span>
+          <span class="sample-frame">
+            <span class="sample-title"><span>Sanar // Wild Idea</span><span class="sample-mana">{U}{R}</span></span>
+            <span class="sample-art" aria-hidden="true"></span>
+            <span class="sample-type">Creature // Sorcery</span>
+            <span class="sample-text">Enters prepared. Tap: create a Treasure under a cast condition. Spell face searches the library.</span>
+          </span>
+        </button>
+      </div>
+    </aside>
+
+  <main>
+    <section id="lecture">
+      <div class="section-head">
+        <div><span class="kicker">Constat mesuré</span><h2>La bonne fondation existe, mais le chemin critique contourne ses abstractions.</h2></div>
+        <p>Le dépôt possède déjà une normalisation, une IR canonique et des familles de capacités. La dette vient surtout du retour au texte brut, des fallbacks successifs et de l'interprétation JSON répétée.</p>
+      </div>
+      <div class="facts">
+        <article class="fact"><strong>928</strong><span>sites de construction de regex dans le parseur Oracle</span></article>
+        <article class="fact"><strong>766</strong><span>comparaisons longues avec du texte Oracle complet</span></article>
+        <article class="fact"><strong>342</strong><span>longues regex ancrées couvrant une capacité entière</span></article>
+        <article class="fact"><strong>86k</strong><span>lignes environ dans le module moteur principal</span></article>
+      </div>
+      <div class="notes">Important : ce schéma décrit une direction d'architecture. Il ne propose pas une réécriture totale immédiate; les anciens chemins restent actifs pendant une migration par concepts.</div>
+    </section>
+
+    <section id="parseur">
+      <div class="section-head">
+        <div><span class="kicker">Flux 01</span><h2>Parseur Oracle</h2></div>
+        <p>La FSM est utile pour les états locaux. Pour les clauses imbriquées et les références comme « if you do », elle doit alimenter une grammaire avec pile et contexte sémantique.</p>
+      </div>
+      <p class="selected-context">Exemple affiché dans toutes les boîtes : <strong data-selected-card>Lightning Helix</strong></p>
+      <div class="diagram" role="img" aria-label="Diagramme du parseur Oracle actuel et cible">
+        <span class="diagram-label">Aujourd'hui → transition → cible</span>
+        <div class="flow">
+          <div class="flow-column"><article class="node current" data-status-label="actuel" data-stage="input"><h3>Texte Oracle</h3><p>Texte normalisé fourni par le catalogue de cartes.</p></article></div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node current" data-status-label="actuel" data-stage="normalize"><h3>Normalisation & découpage</h3><p>Faces, lignes, sections et limites de capacités.</p></article>
+            <article class="node current" data-status-label="actuel" data-stage="classify"><h3>Classification</h3><p>Activated, triggered, static, replacement, spell.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node modify" data-status-label="modifier" data-stage="auditTokens"><h3>Tokens seulement descriptifs</h3><p>Les tokens reconnus servent surtout à l'audit; les parseurs relisent ensuite la chaîne brute.</p></article>
+            <article class="node modify" data-status-label="modifier" data-stage="fallback"><h3>Arbre de fallbacks</h3><p><code>parse_x().or_else(parse_y)…</code> essaie de nombreuses familles par priorité.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node remove" data-status-label="retirer" data-stage="wholePattern"><h3>Regex de capacité entière</h3><p>Une phrase complète devient un motif long et difficile à composer.</p></article>
+            <article class="node remove" data-status-label="retirer" data-stage="exactBranch"><h3>Comparaisons exactes</h3><p>Branches liées à une formulation ou une carte particulière.</p></article>
+            <article class="node remove" data-status-label="retirer" data-stage="regexCompile"><h3>Regex recompilées</h3><p>Création de regex dans les fonctions appelées pour chaque capacité.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node modify" data-status-label="modifier" data-stage="jsonIr"><h3>IR JSON canonique</h3><p>Bonne frontière publique, mais trop dynamique pour le cœur du runtime.</p></article>
+            <article class="node current" data-status-label="actuel" data-stage="validation"><h3>Validation exécutable</h3><p>Vérifie que la règle produite est comprise par le moteur.</p></article>
+          </div>
+          <div class="arrow">⇢</div>
+          <div class="flow-column">
+            <article class="node add" data-status-label="ajouter" data-stage="sourceTokens"><h3>Flux de tokens source</h3><p>Chaque parseur consomme les mêmes tokens typés et leurs positions.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="grammar"><h3>Grammaire conceptuelle</h3><p>Quantity, Selector, Zone, Cost, Event, Condition, Effect, Duration.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="bindings"><h3>Bindings sémantiques</h3><p>Résolution de « it », « that card », « if you do » et objets choisis.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="typedIr"><h3>RuleIR typée</h3><p>Enums Rust validés, puis sérialisation JSON aux frontières seulement.</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="fsm-helix">
+      <div class="section-head">
+        <div><span class="kicker">Zoom pédagogique</span><h2>La machine d’états de Lightning Helix</h2></div>
+        <p>Cette animation représente la cible conceptuelle, pas du code déjà en production. La machine consomme des tokens, change d’état et émet des primitives dès qu’une clause est complète.</p>
+      </div>
+
+      <div class="fsm-board">
+        <div class="fsm-controls">
+          <button type="button" id="fsm-next">Transition suivante</button>
+          <button type="button" id="fsm-play">Lecture automatique</button>
+          <button type="button" id="fsm-reset">Réinitialiser</button>
+          <button type="button" id="fsm-error" class="error-button">Simuler « happiness » inconnu</button>
+          <span class="fsm-progress" id="fsm-progress">État 0 / 10</span>
+        </div>
+
+        <div class="token-strip" aria-label="Tokens Oracle consommés par la machine">
+          <span class="fsm-token" data-fsm-token="0">Lightning</span>
+          <span class="fsm-token" data-fsm-token="0">Helix</span>
+          <span class="fsm-token" data-fsm-token="1">deals</span>
+          <span class="fsm-token" data-fsm-token="2">3</span>
+          <span class="fsm-token" data-fsm-token="3" data-normal-token="damage">damage</span>
+          <span class="fsm-token" data-fsm-token="4">to</span>
+          <span class="fsm-token" data-fsm-token="4">any</span>
+          <span class="fsm-token" data-fsm-token="4">target</span>
+          <span class="fsm-token" data-fsm-token="5">and</span>
+          <span class="fsm-token" data-fsm-token="6">you</span>
+          <span class="fsm-token" data-fsm-token="7">gain</span>
+          <span class="fsm-token" data-fsm-token="8">3</span>
+          <span class="fsm-token" data-fsm-token="9">life</span>
+          <span class="fsm-token" data-fsm-token="10">.</span>
+        </div>
+
+        <div class="fsm-layout">
+          <div class="fsm-main">
+            <div class="fsm-scroll">
+              <div class="fsm-lane">
+                <article class="fsm-state" data-fsm-state="0"><small>S0 · source</small><h3>Lire Self</h3><p>Le nom de la face devient une référence générique vers la source.</p></article>
+                <article class="fsm-state" data-fsm-state="1"><small>S1 · verbe</small><h3>Lire deals</h3><p>Ouvre une primitive <code>DealDamage</code>.</p></article>
+                <article class="fsm-state" data-fsm-state="2"><small>S2 · valeur</small><h3>Lire 3</h3><p>Produit <code>Integer(3)</code>.</p></article>
+                <article class="fsm-state" data-fsm-state="3"><small>S3 · objet</small><h3>Lire damage</h3><p>Confirme le type d’effet attendu.</p></article>
+                <article class="fsm-state" data-fsm-state="4"><small>S4 · destinataire</small><h3>Lire any target</h3><p>Crée une déclaration de cible réutilisable.</p></article>
+                <article class="fsm-state fsm-emit" data-fsm-state="5"><small>Émission A</small><h3>DealDamage</h3><p><code>Self, 3, ChosenTarget</code>. La première primitive est terminée.</p></article>
+              </div>
+              <div class="fsm-lane">
+                <article class="fsm-state" data-fsm-state="5"><small>S5 · coordination</small><h3>Lire and</h3><p>Le lookahead voit une nouvelle clause, pas un sélecteur composé.</p></article>
+                <article class="fsm-state" data-fsm-state="6"><small>S6 · sujet</small><h3>Lire you</h3><p>Résout <code>ControllerOf(Self)</code>.</p></article>
+                <article class="fsm-state" data-fsm-state="7"><small>S7 · verbe</small><h3>Lire gain</h3><p>Ouvre une primitive <code>GainLife</code>.</p></article>
+                <article class="fsm-state" data-fsm-state="8"><small>S8 · valeur</small><h3>Lire 3</h3><p>Produit un second <code>Integer(3)</code>.</p></article>
+                <article class="fsm-state" data-fsm-state="9"><small>S9 · objet</small><h3>Lire life</h3><p>Ferme la primitive de gain de vie.</p></article>
+                <article class="fsm-state fsm-emit" data-fsm-state="10"><small>Émission B</small><h3>GainLife</h3><p><code>Controller, 3</code>. Aucun <code>DealAndGain</code> n’existe.</p></article>
+              </div>
+            </div>
+          </div>
+
+          <aside class="fsm-side">
+            <article class="fsm-panel">
+              <h3>Sortie accumulée</h3>
+              <pre id="fsm-output">Sequence []</pre>
+            </article>
+            <article class="fsm-panel error-panel">
+              <h3>Diagnostic si transition absente</h3>
+              <pre id="fsm-diagnostic">Aucune erreur.
+La prochaine transition attend
+un token Oracle valide.</pre>
+            </article>
+          </aside>
+        </div>
+
+        <div class="fsm-current-target">
+          <article class="today"><h3><span style="color:var(--remove)">Aujourd’hui</span> · reconnaissance composite</h3><p>Une regex couvre « deals … damage … and … gain … life », puis fabrique deux effets. Une nouvelle combinaison de phrases tend à créer un nouveau motif.</p></article>
+          <div class="arrow">→</div>
+          <article class="target"><h3><span style="color:var(--add)">Cible</span> · composition incrémentale</h3><p>Chaque clause est reconnue et émise séparément. Le connecteur <code>and</code> ne fait qu’enchaîner deux primitives génériques.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="machine-live">
+      <div class="section-head">
+        <div><span class="kicker">État réel du dépôt · novembre 2026</span><h2>Machine hiérarchique avec mémoire transitoire</h2></div>
+        <p>Cette vue est fondée sur les fonctions présentes dans le code. Glisse une boîte pour réorganiser le graphe, glisse le fond pour te déplacer, utilise la molette pour zoomer et clique une boîte pour inspecter son contrat.</p>
+      </div>
+
+      <div class="machine-stats" aria-label="Couverture mesurée avant le lot en cours">
+        <article class="machine-stat"><strong>285 / 285</strong><span>Reality Fracture · parseur + moteur</span></article>
+        <article class="machine-stat"><strong>193 / 193</strong><span>HOB · parseur + moteur</span></article>
+        <article class="machine-stat"><strong>191 / 281</strong><span>Marvel Super Heroes · avant le lot Thirst</span></article>
+      </div>
+      <div class="machine-key">
+        <span>trait plein = données / contrôle</span>
+        <span>trait orange pointillé = mémoire transitoire</span>
+        <span>flèche orange courte vers la gauche = rollback / nouvelle tentative</span>
+        <span>trait vert = exécution moteur</span>
+        <span>cliquer = contrat détaillé</span>
+      </div>
+      <div class="machine-cycle" aria-label="Cycle transactionnel du parseur">
+        <span><strong>1 · Checkpoint</strong>Figer curseur, registres et diagnostics avant une hypothèse ambiguë.</span>
+        <span><strong>2 · Tentative</strong>Un sous-automate consomme provisoirement les tokens et peuple son builder.</span>
+        <span><strong>3A · Commit</strong>Si le contrat est complet, conserver le résultat et avancer.</span>
+        <span class="cycle-rollback"><strong>3B · Rollback ↶</strong>Sinon restaurer le checkpoint, essayer une autre transition, puis produire une erreur si elles échouent toutes.</span>
+      </div>
+
+      <div class="machine-shell">
+        <div class="machine-toolbar">
+          <button type="button" id="machine-reset">Réinitialiser la disposition</button>
+          <button type="button" id="machine-fit">Tout cadrer</button>
+          <button type="button" id="machine-zoom-in">Zoom +</button>
+          <button type="button" id="machine-zoom-out">Zoom −</button>
+          <select id="machine-focus" aria-label="Centrer une couche">
+            <option value="all">Toutes les couches</option>
+            <option value="syntax">Syntaxe</option>
+            <option value="memory">Mémoire</option>
+            <option value="ir">IR primitive</option>
+            <option value="runtime">Moteur</option>
+            <option value="legacy">Dette legacy</option>
+          </select>
+          <span class="machine-help">Glisser boîte · glisser fond · molette = zoom</span>
+        </div>
+        <div class="machine-layout">
+          <div class="machine-viewport" id="machine-viewport" aria-label="Canevas interactif de la machine migrée">
+            <div class="machine-world" id="machine-world">
+              <svg class="machine-links" id="machine-links" aria-hidden="true">
+                <defs>
+                  <marker id="machine-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"></path>
+                  </marker>
+                </defs>
+              </svg>
+            </div>
+          </div>
+          <aside class="machine-inspector" id="machine-inspector" aria-live="polite">
+            <span class="status-badge" id="machine-detail-status">Implémenté</span>
+            <h3 id="machine-detail-title">Sélectionne une boîte</h3>
+            <p id="machine-detail-copy">Le panneau montre le rôle, les registres lus ou écrits, l’IR et les fonctions Rust réelles.</p>
+            <h4>Fonctions / primitives</h4>
+            <ul class="machine-functions" id="machine-detail-functions"></ul>
+            <h4>Mémoire transitoire</h4>
+            <pre id="machine-detail-memory">Aucune sélection.</pre>
+            <h4>Entrée → sortie</h4>
+            <pre id="machine-detail-io">Aucune sélection.</pre>
+            <h4>Preuve / cartes couvertes</h4>
+            <pre id="machine-detail-proof">Aucune sélection.</pre>
+          </aside>
+        </div>
+      </div>
+
+      <p class="split-title">Catalogue des fonctions réellement branchées au chemin migré</p>
+      <table class="implementation-table">
+        <thead><tr><th>Couche</th><th>Fonctions Rust</th><th>Contrat de la nouvelle solution</th><th>Statut</th></tr></thead>
+        <tbody>
+          <tr><td>Découpage / lexical</td><td><code>ability_splitter</code>, <code>tokenizer</code>, <code>classify_ability</code></td><td>Préserver faces, lignes, catégories et source. Les tokens avec spans doivent devenir l’entrée unique de toutes les familles.</td><td style="color:var(--modify)">En transition</td></tr>
+          <tr><td>Quantités</td><td><code>parse_numeric_expression_text</code>, <code>runtime_numeric_expression</code></td><td>Littéraux, X, compteurs, comptages, maximums et opérations arithmétiques partagent le même sous-automate et le même évaluateur.</td><td style="color:var(--add)">Implémenté</td></tr>
+          <tr><td>Sélecteurs</td><td><code>parse_permanent_criteria</code>, <code>resolve_target</code>, <code>resolve_runtime_object_ids</code></td><td>Types, sous-types, contrôleur, exclusions, unions et objets liés sont des données; l’effet ne connaît pas la carte ciblée.</td><td style="color:var(--add)">Implémenté</td></tr>
+          <tr><td>Conditions / événements</td><td><code>parse_condition_text</code>, <code>condition_value_with_source</code>, <code>record_event</code></td><td>Les conditions consultent l’état et l’historique structurés. Les événements transportent acteur, objet et détails utiles.</td><td style="color:var(--add)">Implémenté partiellement</td></tr>
+          <tr><td>Coûts</td><td><code>parse_activation_costs</code>, <code>parse_resolution_cost_text</code></td><td>Mana, tap, sacrifice, défausse, marqueurs et autres coûts sont des atomes composables. Les alternatives de coûts restent à généraliser.</td><td style="color:var(--modify)">Partiel</td></tr>
+          <tr><td>Effets / séquences</td><td><code>parse_general_effect_instruction</code>, <code>parse_general_effect_sequence</code></td><td><code>and</code>, <code>then</code>, modalités, optionnels et bindings composent des primitives ordonnées.</td><td style="color:var(--add)">Implémenté et en croissance</td></tr>
+          <tr><td>Statique / déclenché</td><td><code>parse_common_static_ability</code>, <code>parse_expansion_triggered</code></td><td>L’enveloppe définit source, événement, condition, déclaration, limites et effets sans réimplémenter les sous-grammaires.</td><td style="color:var(--add)">Implémenté partiellement</td></tr>
+          <tr><td>Validation</td><td><code>rule_is_executable</code>, <code>effect_supported</code>, <code>condition_supported</code></td><td>Une règle n’est couverte que si tout le contrat IR possède un consommateur moteur.</td><td style="color:var(--current)">Actuel et obligatoire</td></tr>
+          <tr><td>Interprétation</td><td><code>execute_effects</code>, <code>execute_effect</code>, <code>resolve_player</code></td><td>Exécution ordonnée des primitives et résolution tardive des références avec l’état de partie courant.</td><td style="color:var(--add)">Implémenté</td></tr>
+          <tr><td>Primitives d’état</td><td><code>deal_damage*</code>, <code>gain_life</code>, <code>draw_cards_with_replacements</code>, <code>create_tokens</code>, <code>move_permanent_to_graveyard</code></td><td>Une fonction atomique par mutation; les combinaisons Oracle restent dans la séquence IR.</td><td style="color:var(--add)">Implémenté</td></tr>
+          <tr><td>Marqueurs / historique</td><td><code>put_counters_on_permanent_by</code>, <code>static_keyword_selector_matches</code>, <code>permanent_has_keyword</code></td><td>Sépare le joueur qui place, le contrôleur, la cible, la source et l’historique par permanent.</td><td style="color:var(--add)">Ajouté pendant MSH</td></tr>
+          <tr><td>Déclenchements</td><td><code>put_triggered_ability_on_stack_with_decisions</code>, <code>enqueue_permanent_tapped_triggers</code></td><td>Les décisions conservent l’identité du permanent déclencheur; l’indexation globale des abonnements reste à ajouter.</td><td style="color:var(--modify)">Fonctionnel, scans à modifier</td></tr>
+          <tr><td>Dette à retirer</td><td><code>text == ...</code>, longues regex de phrase, opérations composites, arbre de fallbacks</td><td>Chaque lot remplace une formulation complète par un concept partagé et rend les échecs visibles.</td><td style="color:var(--remove)">Encore présent</td></tr>
+        </tbody>
+      </table>
+      <div class="notes">Limite volontaire : « implémenté » signifie branché et prouvé pour les familles déjà migrées. Cela ne signifie pas que les 90 cartes MSH restantes ni tout le moteur historique utilisent déjà ce chemin. Le canevas montre aussi les frontières orange et rouges pour rendre cette différence auditable.</div>
+    </section>
+
+    <section id="moteur">
+      <div class="section-head">
+        <div><span class="kicker">Flux 02</span><h2>Moteur de partie</h2></div>
+        <p>Le coût central vient de la reconstruction du possible à chaque fenêtre de priorité : scans, clones, interprétation de chaînes et expansion combinatoire.</p>
+      </div>
+      <p class="selected-context">Même carte, maintenant dans le runtime : <strong data-selected-card>Lightning Helix</strong></p>
+      <div class="diagram" role="img" aria-label="Diagramme du moteur de partie actuel et cible">
+        <span class="diagram-label">Fenêtre de priorité / chemin chaud</span>
+        <div class="flow">
+          <div class="flow-column"><article class="node current" data-status-label="actuel" data-stage="gameState"><h3>GameState</h3><p>Joueurs, zones, stack, événements et état du combat.</p></article></div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node modify" data-status-label="modifier" data-stage="cardInstance"><h3>CardInstance lourde</h3><p>Chaque instance embarque sa définition complète et ses règles JSON.</p></article>
+            <article class="node modify" data-status-label="modifier" data-stage="jsonInterpreter"><h3>Interpréteur JSON</h3><p>Dispatch répété par la valeur textuelle de <code>kind</code>.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node modify" data-status-label="modifier" data-stage="legalActions"><h3>Actions légales complètes</h3><p>Recalcul des sorts, capacités, cibles et paiements pour le joueur prioritaire.</p></article>
+            <article class="node modify" data-status-label="modifier" data-stage="staticEffects"><h3>Effets statiques reconstruits</h3><p>Balayage du champ de bataille et clonage des sources/modificateurs.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node remove" data-status-label="retirer" data-stage="repeatedScans"><h3>Scans répétés</h3><p>Recherche linéaire des joueurs, permanents, règles et événements passés.</p></article>
+            <article class="node remove" data-status-label="retirer" data-stage="eagerExpansion"><h3>Expansion combinatoire hâtive</h3><p>Toutes les combinaisons sont matérialisées avant de savoir si elles seront choisies.</p></article>
+            <article class="node remove" data-status-label="retirer" data-stage="fingerprint"><h3>Fingerprint par sérialisation</h3><p>Conversion répétée de fragments JSON pour détecter les boucles.</p></article>
+          </div>
+          <div class="arrow">⇢</div>
+          <div class="flow-column">
+            <article class="node add" data-status-label="ajouter" data-stage="interned"><h3>Définitions internées</h3><p>Une définition partagée; l'instance conserve un DefinitionId compact.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="ruleProgram"><h3>RuleProgram typé</h3><p>Instructions compilées et dispatch exhaustif par enums.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="indexes"><h3>Index incrémentaux</h3><p>InstanceId → position, EventKind → triggers, catégorie → effets statiques.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="lazyActions"><h3>Actions paresseuses</h3><p>Gabarit d'action d'abord; cibles et paiements développés à la demande.</p></article>
+          </div>
+          <div class="arrow">→</div>
+          <div class="flow-column">
+            <article class="node current" data-status-label="actuel" data-stage="application"><h3>Application déterministe</h3><p>Mutation de l'état, événements et passage à la prochaine priorité.</p></article>
+            <article class="node add" data-status-label="ajouter" data-stage="incrementalHash"><h3>Hash incrémental</h3><p>Mise à jour avec les mutations plutôt qu'une sérialisation complète.</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="loader">
+      <div class="section-head">
+        <div><span class="kicker">Décision d'architecture</span><h2>Ne pas charger du code : compiler un plan de partie.</h2></div>
+        <p>Le besoin derrière le « subsection loader » est valide. La spécialisation doit porter sur les données et les index actifs, pas sur le chargement dynamique de modules Rust.</p>
+      </div>
+      <div class="decision">
+        <article class="decision-card">
+          <h3>Loader dynamique de modules</h3>
+          <p><span style="color:var(--remove);font-weight:800">Non recommandé.</span> Le code Rust non exécuté coûte peu pendant la partie. Cela ajoute des frontières de modules dynamiques sans éviter les scans de l'état.</p>
+        </article>
+        <article class="decision-card verdict">
+          <h3>CompiledGamePlan</h3>
+          <p><strong>Recommandé.</strong> Au démarrage, analyser les cartes uniques et construire uniquement les tables nécessaires à cette partie.</p>
+        </article>
+      </div>
+      <p class="split-title">Construction et utilisation du plan</p>
+      <div class="two-lanes">
+        <article class="lane">
+          <h3>Une fois, au chargement de la partie</h3>
+          <div class="lane-flow">
+            <div class="node current" data-status-label="actuel" data-stage="deckCatalog"><h3>Decks + catalogue</h3><p>Cartes uniques et règles déjà parsées.</p></div>
+            <div class="node add" data-status-label="ajouter" data-stage="capabilityAnalysis"><h3>Analyse de capacités</h3><p>Inventaire des événements, opérations et modificateurs présents.</p></div>
+            <div class="node add" data-status-label="ajouter" data-stage="compiledPlan"><h3>CompiledGamePlan</h3><p>Tables compactes et handlers activés pour cette partie.</p></div>
+          </div>
+        </article>
+        <article class="lane">
+          <h3>À chaque mutation de l'état</h3>
+          <div class="lane-flow">
+            <div class="node current" data-status-label="actuel" data-stage="engineEvent"><h3>Événement moteur</h3><p>Entrée, mort, cast, changement d'étape, dégâts…</p></div>
+            <div class="node add" data-status-label="ajouter" data-stage="targetedLookup"><h3>Lookup ciblé</h3><p>Consulte uniquement les capacités indexées pour cet événement.</p></div>
+            <div class="node add" data-status-label="ajouter" data-stage="incrementalUpdate"><h3>Mise à jour incrémentale</h3><p>Révisions, caches, positions et hash sont ajustés localement.</p></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head">
+        <div><span class="kicker">Migration sans big bang</span><h2>Ordre de mise en œuvre</h2></div>
+        <p>Chaque étape livre un bénéfice mesurable et conserve le contrat JSON public pendant que le cœur devient progressivement typé.</p>
+      </div>
+      <div class="roadmap">
+        <article class="step"><h3>Mesurer et sécuriser</h3><p>Benchmarks release, tests architecturaux verts, correction du débordement de pile et métriques par hot path.</p><span class="tag">fondation</span></article>
+        <article class="step"><h3>Gains rapides</h3><p>Regex compilées une fois, cache de parsing, définitions internées et index InstanceId.</p><span class="tag">faible risque</span></article>
+        <article class="step"><h3>RuleIR typée</h3><p>Adapter le JSON public vers des enums internes et compiler un RuleProgram exécutable.</p><span class="tag">qualité + vitesse</span></article>
+        <article class="step"><h3>Grammaire par concepts</h3><p>Migrer sélecteurs, quantités, zones, coûts, événements et effets; réduire les cas complets à chaque lot.</p><span class="tag">portée parseur</span></article>
+        <article class="step"><h3>Plan spécialisé</h3><p>Index de triggers/statics, actions paresseuses, solveur de mana mémoïsé et simulations parallèles.</p><span class="tag">échelle</span></article>
+      </div>
+    </section>
+  </main>
+  </div>
+
+  <footer><div class="shell">DeepDeck Engine · Schéma conceptuel basé sur l'analyse locale du dépôt · Les boutons de légende permettent d'isoler chaque catégorie.</div></footer>
+
+  <script>
+    window.addEventListener('error', (event) => {
+      const banner = document.createElement('pre');
+      banner.id = 'runtime-error-banner';
+      banner.style.cssText = 'position:fixed;z-index:9999;left:12px;right:12px;bottom:12px;padding:12px;background:#3b0b12;color:#ffd8dc;border:1px solid #ef5261;white-space:pre-wrap';
+      banner.textContent = `Erreur du diagramme : ${event.message}\n${event.filename}:${event.lineno}:${event.colno}`;
+      document.body.appendChild(banner);
+    });
+    const fsm = {
+      step: 0,
+      maximum: 10,
+      error: false,
+      timer: null
+    };
+
+    function renderFsm() {
+      document.querySelectorAll('[data-fsm-token]').forEach((token) => {
+        const tokenStep = Number(token.dataset.fsmToken);
+        token.classList.toggle('consumed', tokenStep < fsm.step && !fsm.error);
+        token.classList.toggle('active', tokenStep === fsm.step && !fsm.error);
+        token.classList.toggle('error', fsm.error && tokenStep === 3);
+      });
+      document.querySelectorAll('[data-fsm-state]').forEach((state) => {
+        const stateStep = Number(state.dataset.fsmState);
+        state.classList.toggle('done', stateStep < fsm.step && !fsm.error);
+        state.classList.toggle('active', stateStep === fsm.step && !fsm.error);
+        state.classList.toggle('failed', fsm.error && stateStep === 3);
+      });
+
+      const damageToken = document.querySelector('[data-normal-token="damage"]');
+      damageToken.textContent = fsm.error ? 'happiness' : damageToken.dataset.normalToken;
+      document.getElementById('fsm-progress').textContent = fsm.error
+        ? 'Transition refusée · S3'
+        : `État ${fsm.step} / ${fsm.maximum}`;
+
+      const output = [];
+      if (fsm.step >= 5 && !fsm.error) {
+        output.push('DealDamage {\n  source: Self,\n  amount: 3,\n  recipient: ChosenTarget\n}');
+      }
+      if (fsm.step >= 10 && !fsm.error) {
+        output.push('GainLife {\n  player: Controller,\n  amount: 3\n}');
+      }
+      document.getElementById('fsm-output').textContent = output.length
+        ? `Sequence [\n${output.map((effect) => effect.split('\n').map((line) => `  ${line}`).join('\n')).join(',\n')}\n]`
+        : 'Sequence []';
+
+      document.getElementById('fsm-diagnostic').textContent = fsm.error
+        ? `{
+  code: "no_transition",
+  machine: "oracle-effect-fsm/v1",
+  state: "ReadingDamageNoun",
+  tokenIndex: 4,
+  found: "happiness",
+  expected: ["damage"]
+}`
+        : 'Aucune erreur.\nLa prochaine transition attend\nun token Oracle valide.';
+    }
+
+    function stopFsmPlayback() {
+      if (fsm.timer) window.clearInterval(fsm.timer);
+      fsm.timer = null;
+      document.getElementById('fsm-play').textContent = 'Lecture automatique';
+    }
+
+    document.getElementById('fsm-next').addEventListener('click', () => {
+      stopFsmPlayback();
+      fsm.error = false;
+      fsm.step = fsm.step >= fsm.maximum ? 0 : fsm.step + 1;
+      renderFsm();
+    });
+    document.getElementById('fsm-reset').addEventListener('click', () => {
+      stopFsmPlayback();
+      fsm.error = false;
+      fsm.step = 0;
+      renderFsm();
+    });
+    document.getElementById('fsm-error').addEventListener('click', () => {
+      stopFsmPlayback();
+      fsm.step = 3;
+      fsm.error = true;
+      renderFsm();
+    });
+    document.getElementById('fsm-play').addEventListener('click', () => {
+      if (fsm.timer) {
+        stopFsmPlayback();
+        return;
+      }
+      fsm.error = false;
+      if (fsm.step >= fsm.maximum) fsm.step = 0;
+      document.getElementById('fsm-play').textContent = 'Pause';
+      renderFsm();
+      fsm.timer = window.setInterval(() => {
+        fsm.step += 1;
+        renderFsm();
+        if (fsm.step >= fsm.maximum) stopFsmPlayback();
+      }, 680);
+    });
+
+    renderFsm();
+
+    const machineNodes = [
+      {
+        id: 'oracle', group: 'syntax', status: 'current', x: 45, y: 90,
+        layer: 'Entrée', title: 'Texte Oracle + faces',
+        copy: 'Conserve le texte, les lignes de capacités, le nom de face et le type de carte.',
+        functions: ['parse_oracle_card', 'ability_splitter', 'OracleCardParseRequest'],
+        memory: 'faceName\ntypeLine\nabilitySpan\nsourceText',
+        io: 'OracleCardParseRequest\n→ capacités isolées avec contexte de face',
+        proof: 'Lightning Helix · cartes multifaces · Sagas · capacités séparées'
+      },
+      {
+        id: 'tokenizer', group: 'syntax', status: 'modify', x: 340, y: 55,
+        layer: 'Lexical', title: 'Tokenizer avec spans',
+        copy: 'Les tokens existent, mais certaines familles relisent encore la chaîne reconstruite.',
+        functions: ['syntax/tokenizer.rs', 'syntax/class.rs', 'regex_cache.rs'],
+        memory: 'tokenIndex\nspan.start / span.end\nnormalizedClass',
+        io: 'texte source\n→ Token { class, lexeme, span }[]',
+        proof: 'Orange : entrée unique pas encore imposée à toutes les familles.'
+      },
+      {
+        id: 'dispatch', group: 'syntax', status: 'modify', x: 340, y: 250,
+        layer: 'Envelope', title: 'Classification / dispatch',
+        copy: 'Détermine spell, activated, triggered, static ou replacement; doit rester un indice, pas une seconde sémantique.',
+        functions: ['classify_ability', 'canonical/dispatch.rs', 'canonical/grammar.rs'],
+        memory: 'abilityKind\nfaceContext\nreminderTextBoundary',
+        io: 'tokens + type line\n→ route de grammaire',
+        proof: 'Le résultat canonique demeure l’autorité sémantique.'
+      },
+      {
+        id: 'legacy', group: 'legacy', status: 'remove', x: 340, y: 720,
+        layer: 'Legacy', title: 'Phrases entières / fallbacks',
+        copy: 'Regex longues, comparaisons exactes et primitives composées à retirer lot par lot.',
+        functions: ['text == "…"', 'starts_with("…")', 'parse_x().or_else(parse_y)'],
+        memory: 'Aucune mémoire typée\nLa phrase complète sert de clé',
+        io: 'phrase entière\n→ JSON spécialisé ou unsupported',
+        proof: 'Rouge : la primitive discardTwoUnlessDiscardCreature est en cours de suppression.'
+      },
+      {
+        id: 'envelope', group: 'syntax', status: 'add', x: 650, y: 40,
+        layer: 'Automate parent', title: 'Ability envelope',
+        copy: 'Ouvre les registres de source, événement, coût, condition, déclaration, effets et limites.',
+        functions: ['parse_expansion_triggered', 'parse_common_static_ability', 'parse_simple_activated_ability_for_face'],
+        memory: 'sourceRef\neventBuilder\ncosts[]\ncondition\ntriggerLimit',
+        io: 'route + tokens\n→ squelette CanonicalRuleDraft',
+        proof: 'Misty Knight · Ant-Man · Kid Loki · Wondrous Wasp'
+      },
+      {
+        id: 'subgrammars', group: 'syntax', status: 'add', x: 650, y: 250,
+        layer: 'Sous-automates', title: 'Valeurs · cibles · coûts · conditions',
+        copy: 'Chaque domaine est résolu une fois puis réutilisé par tous les effets.',
+        functions: ['parse_numeric_expression_text', 'parse_permanent_criteria', 'parse_condition_text', 'parse_activation_costs', 'parse_resolution_cost_text', 'create_token_effect'],
+        memory: 'numericExpr\nselector\nplayerRef\nzone\nduration\ncostAtoms[]',
+        io: 'segment de tokens\n→ nœud typé réutilisable',
+        proof: 'X ou entier · cibles alternatives · historique de marqueurs · Harness'
+      },
+      {
+        id: 'checkpoint', group: 'memory', status: 'modify', x: 930, y: 15,
+        layer: 'Contrôle transactionnel', title: 'Checkpoint de lecture',
+        copy: 'Capture le curseur, les registres et le diagnostic avant toute transition ambiguë; rien n’est encore publié dans l’IR.',
+        functions: ['état actuel : parseurs purs sur &str', 'état actuel : Option + or_else', 'cible : ParseCheckpoint::capture / restore / commit'],
+        memory: 'tokenIndex\nregisterSnapshot\nbuilderLength\ndiagnosticMark',
+        io: 'ParseContext courant\n→ snapshot restaurable',
+        proof: 'Le rollback est implicitement sûr aujourd’hui parce que chaque alternative relit une entrée immuable; le checkpoint typé reste à expliciter.'
+      },
+      {
+        id: 'memory', group: 'memory', status: 'modify', x: 930, y: 180,
+        layer: 'Mémoire transitoire', title: 'ParseContext / registres',
+        copy: 'Stocke les informations reconnues mais encore incomplètes sans inventer leur rôle.',
+        functions: ['bindings', 'RuntimeBinding', 'decision_result', 'chosen_target', 'self_ref'],
+        memory: 'pendingSubject\nactiveBuilder\nexpected[]\nbindings{}\ntrace[]\nlastCompletedEffect',
+        io: 'transitions locales\n→ contexte enrichi ou diagnostic structuré',
+        proof: 'Self attend deals; you attend gain; createdTokens relie création et marqueurs.'
+      },
+      {
+        id: 'alternatives', group: 'memory', status: 'modify', x: 650, y: 500,
+        layer: 'Contrôle', title: 'Backtracking borné / alternatives',
+        copy: 'Sur échec récupérable, restaure le dernier checkpoint et tente uniquement les transitions déclarées pour cet état, sans rescanner arbitrairement toute la phrase.',
+        functions: ['état actuel : parser_a(...).or_else(parser_b)', 'cible : expectedTransitions[]', 'cible : rollback(checkpoint)'],
+        memory: 'checkpointId\nattemptedTransitions[]\nfurthestToken\nexpected[]',
+        io: 'échec récupérable\n→ contexte restauré + prochaine transition',
+        proof: 'Permet de distinguer une alternative grammaticale normale d’un texte Oracle réellement non couvert.'
+      },
+      {
+        id: 'diagnostic', group: 'memory', status: 'modify', x: 930, y: 650,
+        layer: 'Sortie d’échec', title: 'Diagnostic structuré',
+        copy: 'Si toutes les transitions valides échouent, conserve l’échec le plus avancé au lieu de retourner seulement None.',
+        functions: ['cible : ParseDiagnostic', 'cible : merge_furthest_failure', 'audit_scryfall_set'],
+        memory: 'token / span\nstate\nexpected[]\nattempts[]\npartialTrace[]',
+        io: 'alternatives épuisées\n→ unsupported précis et exploitable par un agent',
+        proof: 'Orange : l’audit remonte déjà les cartes non couvertes; le chemin token/état/attentes reste à enrichir.'
+      },
+      {
+        id: 'sequence', group: 'ir', status: 'add', x: 1210, y: 55,
+        layer: 'Composition', title: 'EffectSequence',
+        copy: 'Ferme une primitive à la fois et représente and, then, or, modal, optional et reflexive explicitement.',
+        functions: ['parse_general_effect_instruction', 'parse_general_effect_sequence', 'parse_general_modal_spell'],
+        memory: 'effects[]\ndecisions[]\nconnective\npriorBinding',
+        io: 'builders complétés\n→ effets primitifs ordonnés',
+        proof: 'Lightning Helix = dealDamage puis gainLife; aucun dealAndGainLife.'
+      },
+      {
+        id: 'ir', group: 'ir', status: 'add', x: 1210, y: 275,
+        layer: 'Contrat', title: 'IR canonique primitive',
+        copy: 'Source, références, valeurs, sélecteurs, choix et durées sont des champs indépendants.',
+        functions: ['dealDamage', 'gainLife', 'drawCards', 'createTokens', 'putCounters', 'optionalEffects', 'blinkPermanent', 'installRuleModifier', 'installLinkedAbilityLoss'],
+        memory: 'kind\nsource / player / object\namount / count\nwhere\nduration\nbind',
+        io: 'CanonicalRuleDraft\n→ JSON canonique stable',
+        proof: '191/281 MSH sont à la fois canoniques et exécutables avant le lot courant.'
+      },
+      {
+        id: 'validator', group: 'ir', status: 'current', x: 1210, y: 510,
+        layer: 'Gate', title: 'Validation exécutable',
+        copy: 'Refuse une règle si un champ, une expression ou une primitive n’a pas de contrat moteur.',
+        functions: ['rule_is_executable', 'effect_supported', 'condition_supported', 'numeric_expression_supported', 'card_filter_supported'],
+        memory: 'validationPath\nunsupportedKind\ninvalidField',
+        io: 'IR canonique\n→ executable = true | diagnostic',
+        proof: 'Garde-fou obligatoire de tous les nouveaux tests de couverture.'
+      },
+      {
+        id: 'resolver', group: 'runtime', status: 'add', x: 1510, y: 100,
+        layer: 'Runtime', title: 'Résolution tardive',
+        copy: 'Résout les références et expressions avec l’état réel au moment de l’exécution.',
+        functions: ['resolve_target', 'resolve_player', 'resolve_runtime_object_ids', 'runtime_numeric_expression', 'runtime_condition_value'],
+        memory: 'StackObject.decisions\nRuntimeBinding{}\nchosen targets\ncurrent GameState',
+        io: 'référence / expression IR\n→ valeur, joueur ou InstanceId',
+        proof: 'Quantités X · triggeringPermanent · createdTokens · greatestManaValue'
+      },
+      {
+        id: 'executor', group: 'runtime', status: 'add', x: 1510, y: 335,
+        layer: 'Runtime', title: 'Interpréteur de primitives',
+        copy: 'Exécute les effets dans l’ordre sans connaître la phrase Oracle d’origine.',
+        functions: ['execute_effects', 'execute_effect', 'deal_damage*', 'gain_life', 'draw_cards_with_replacements', 'create_tokens', 'move_permanent_to_graveyard'],
+        memory: 'effectIndex\nbindings mutables\ndecisions mutables\nnextEffect',
+        io: 'effects[] + StackObject\n→ mutations atomiques',
+        proof: 'Tests runtime pour Helix, Alien Invasion, Mighty Thor, Wasp et compteurs.'
+      },
+      {
+        id: 'counters', group: 'runtime', status: 'add', x: 1510, y: 570,
+        layer: 'Runtime ajouté', title: 'Marqueurs attribués + historique',
+        copy: 'Sépare qui place le marqueur, qui contrôle la cible et la source exclue.',
+        functions: ['put_counters_on_permanent_by', 'record_event', 'static_keyword_selector_matches', 'permanent_has_keyword'],
+        memory: 'placedByPlayerId\ntargetController\nsourceInstanceId\ncounter / count\nturnNumber',
+        io: 'putCounters\n→ état + countersPlaced + triggers',
+        proof: 'Invisible Woman · Knight of Wundagore · Ant-Man · Kid Loki'
+      },
+      {
+        id: 'triggers', group: 'runtime', status: 'modify', x: 1210, y: 760,
+        layer: 'Runtime à optimiser', title: 'Événements et déclenchements',
+        copy: 'Les événements structurés fonctionnent; plusieurs recherches de triggers balayent encore le battlefield.',
+        functions: ['record_event', 'put_triggered_ability_on_stack_with_decisions', 'enqueue_permanent_tapped_triggers'],
+        memory: 'event.kind\nplayerId\ncardInstanceId\ndetail{}\ntriggeringPermanentId',
+        io: 'mutation\n→ événement → capacités sur la stack',
+        proof: 'Fonctionnel; l’index EventKind → subscribers reste une optimisation future.'
+      },
+      {
+        id: 'state', group: 'runtime', status: 'current', x: 1510, y: 805,
+        layer: 'État', title: 'GameState déterministe',
+        copy: 'Zones, stack, joueurs, combat, permissions et historique deviennent la nouvelle vérité.',
+        functions: ['GameState', 'CardInstance', 'StackObject', 'EngineEvent'],
+        memory: 'players[]\nstack[]\nevents[]\nruleModifiers[]\nturn / phase / priority',
+        io: 'mutations + événements\n→ prochain état légal',
+        proof: 'Les tests runtime comparent les changements d’état, pas seulement le JSON.'
+      }
+    ];
+
+    const machineEdges = [
+      ['oracle', 'tokenizer', 'data'], ['tokenizer', 'dispatch', 'data'], ['dispatch', 'envelope', 'data'],
+      ['dispatch', 'legacy', 'data'], ['envelope', 'checkpoint', 'memory'], ['checkpoint', 'subgrammars', 'memory'],
+      ['subgrammars', 'memory', 'memory'], ['memory', 'subgrammars', 'rollback'],
+      ['memory', 'alternatives', 'rollback'], ['alternatives', 'diagnostic', 'memory'],
+      ['memory', 'sequence', 'memory'], ['sequence', 'ir', 'data'], ['ir', 'validator', 'data'],
+      ['validator', 'resolver', 'runtime'], ['resolver', 'executor', 'runtime'], ['executor', 'counters', 'runtime'],
+      ['executor', 'state', 'runtime'], ['counters', 'triggers', 'runtime'], ['triggers', 'state', 'runtime'],
+      ['state', 'resolver', 'memory'], ['legacy', 'ir', 'data']
+    ];
+
+    const machineViewport = document.getElementById('machine-viewport');
+    const machineWorld = document.getElementById('machine-world');
+    const machineLinks = document.getElementById('machine-links');
+    const initialMachinePositions = Object.fromEntries(machineNodes.map((node) => [node.id, { x: node.x, y: node.y }]));
+    const machineView = { x: 18, y: 18, scale: .62 };
+    let machineDrag = null;
+
+    function machineStatusLabel(status) {
+      return { current: 'Actuel', modify: 'En transition', remove: 'À retirer', add: 'Implémenté / ajouté' }[status] || status;
+    }
+
+    function renderMachineNodes() {
+      machineWorld.querySelectorAll('.machine-node').forEach((node) => node.remove());
+      machineNodes.forEach((node) => {
+        const element = document.createElement('article');
+        element.className = `machine-node ${node.status}`;
+        element.dataset.machineId = node.id;
+        element.dataset.group = node.group;
+        element.style.left = `${node.x}px`;
+        element.style.top = `${node.y}px`;
+        element.innerHTML = `<small>${node.layer} · ${machineStatusLabel(node.status)}</small><h3>${node.title}</h3><p>${node.copy}</p><span class="memory-pill">${node.memory.split('\n')[0]}</span>`;
+        element.addEventListener('pointerdown', startMachineNodeDrag);
+        element.addEventListener('click', () => inspectMachineNode(node.id));
+        machineWorld.appendChild(element);
+      });
+      drawMachineEdges();
+    }
+
+    function machineNodeElement(id) {
+      return machineWorld.querySelector(`[data-machine-id="${id}"]`);
+    }
+
+    function drawMachineEdges() {
+      machineLinks.querySelectorAll('.machine-link').forEach((edge) => edge.remove());
+      machineEdges.forEach(([fromId, toId, type]) => {
+        const from = machineNodeElement(fromId);
+        const to = machineNodeElement(toId);
+        if (!from || !to) return;
+        const goesRight = to.offsetLeft >= from.offsetLeft;
+        const x1 = goesRight ? from.offsetLeft + from.offsetWidth : from.offsetLeft;
+        const y1 = from.offsetTop + from.offsetHeight / 2;
+        const x2 = goesRight ? to.offsetLeft : to.offsetLeft + to.offsetWidth;
+        const y2 = to.offsetTop + to.offsetHeight / 2;
+        const bend = Math.max(55, Math.abs(x2 - x1) * .42);
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const direction = goesRight ? 1 : -1;
+        path.setAttribute('d', `M ${x1} ${y1} C ${x1 + direction * bend} ${y1}, ${x2 - direction * bend} ${y2}, ${x2} ${y2}`);
+        path.setAttribute('class', `machine-link ${type}`);
+        machineLinks.appendChild(path);
+      });
+    }
+
+    function applyMachineTransform() {
+      machineWorld.style.transform = `translate(${machineView.x}px, ${machineView.y}px) scale(${machineView.scale})`;
+    }
+
+    function startMachineNodeDrag(event) {
+      event.stopPropagation();
+      const element = event.currentTarget;
+      const node = machineNodes.find((candidate) => candidate.id === element.dataset.machineId);
+      if (!node) return;
+      machineDrag = { kind: 'node', pointerId: event.pointerId, node, startX: event.clientX, startY: event.clientY, originX: node.x, originY: node.y, moved: false };
+      element.setPointerCapture(event.pointerId);
+    }
+
+    machineViewport.addEventListener('pointerdown', (event) => {
+      if (event.target.closest('.machine-node')) return;
+      machineDrag = { kind: 'pan', pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: machineView.x, originY: machineView.y };
+      machineViewport.classList.add('is-panning');
+      machineViewport.setPointerCapture(event.pointerId);
+    });
+
+    window.addEventListener('pointermove', (event) => {
+      if (!machineDrag || machineDrag.pointerId !== event.pointerId) return;
+      const dx = event.clientX - machineDrag.startX;
+      const dy = event.clientY - machineDrag.startY;
+      if (machineDrag.kind === 'node') {
+        machineDrag.moved ||= Math.abs(dx) + Math.abs(dy) > 3;
+        machineDrag.node.x = Math.max(0, machineDrag.originX + dx / machineView.scale);
+        machineDrag.node.y = Math.max(0, machineDrag.originY + dy / machineView.scale);
+        const element = machineNodeElement(machineDrag.node.id);
+        element.style.left = `${machineDrag.node.x}px`;
+        element.style.top = `${machineDrag.node.y}px`;
+        drawMachineEdges();
+      } else {
+        machineView.x = machineDrag.originX + dx;
+        machineView.y = machineDrag.originY + dy;
+        applyMachineTransform();
+      }
+    });
+
+    window.addEventListener('pointerup', (event) => {
+      if (!machineDrag || machineDrag.pointerId !== event.pointerId) return;
+      machineViewport.classList.remove('is-panning');
+      machineDrag = null;
+    });
+
+    machineViewport.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const rect = machineViewport.getBoundingClientRect();
+      const cursorX = event.clientX - rect.left;
+      const cursorY = event.clientY - rect.top;
+      const worldX = (cursorX - machineView.x) / machineView.scale;
+      const worldY = (cursorY - machineView.y) / machineView.scale;
+      const nextScale = Math.min(1.35, Math.max(.35, machineView.scale * (event.deltaY < 0 ? 1.1 : .9)));
+      machineView.x = cursorX - worldX * nextScale;
+      machineView.y = cursorY - worldY * nextScale;
+      machineView.scale = nextScale;
+      applyMachineTransform();
+    }, { passive: false });
+
+    function inspectMachineNode(id) {
+      const node = machineNodes.find((candidate) => candidate.id === id);
+      if (!node) return;
+      machineWorld.querySelectorAll('.machine-node').forEach((element) => element.classList.toggle('selected', element.dataset.machineId === id));
+      document.getElementById('machine-detail-status').textContent = machineStatusLabel(node.status);
+      document.getElementById('machine-detail-title').textContent = node.title;
+      document.getElementById('machine-detail-copy').textContent = node.copy;
+      const functions = document.getElementById('machine-detail-functions');
+      functions.replaceChildren(...node.functions.map((name) => {
+        const item = document.createElement('li'); item.textContent = name; return item;
+      }));
+      document.getElementById('machine-detail-memory').textContent = node.memory;
+      document.getElementById('machine-detail-io').textContent = node.io;
+      document.getElementById('machine-detail-proof').textContent = node.proof;
+    }
+
+    function fitMachine(group = 'all') {
+      const nodes = group === 'all' ? machineNodes : machineNodes.filter((node) => node.group === group);
+      if (!nodes.length) return;
+      const left = Math.min(...nodes.map((node) => node.x));
+      const top = Math.min(...nodes.map((node) => node.y));
+      const right = Math.max(...nodes.map((node) => node.x + 250));
+      const bottom = Math.max(...nodes.map((node) => node.y + 145));
+      const width = right - left;
+      const height = bottom - top;
+      machineView.scale = Math.min(1.1, Math.max(.35, Math.min((machineViewport.clientWidth - 60) / width, (machineViewport.clientHeight - 60) / height)));
+      machineView.x = (machineViewport.clientWidth - width * machineView.scale) / 2 - left * machineView.scale;
+      machineView.y = (machineViewport.clientHeight - height * machineView.scale) / 2 - top * machineView.scale;
+      applyMachineTransform();
+      machineWorld.querySelectorAll('.machine-node').forEach((element) => element.classList.toggle('focus-muted', group !== 'all' && element.dataset.group !== group));
+    }
+
+    document.getElementById('machine-reset').addEventListener('click', () => {
+      machineNodes.forEach((node) => Object.assign(node, initialMachinePositions[node.id]));
+      renderMachineNodes(); fitMachine('all'); inspectMachineNode('memory');
+    });
+    document.getElementById('machine-fit').addEventListener('click', () => fitMachine('all'));
+    document.getElementById('machine-zoom-in').addEventListener('click', () => { machineView.scale = Math.min(1.35, machineView.scale * 1.15); applyMachineTransform(); });
+    document.getElementById('machine-zoom-out').addEventListener('click', () => { machineView.scale = Math.max(.35, machineView.scale / 1.15); applyMachineTransform(); });
+    document.getElementById('machine-focus').addEventListener('change', (event) => fitMachine(event.target.value));
+
+    renderMachineNodes();
+    fitMachine('all');
+    inspectMachineNode('memory');
+    if (new URLSearchParams(window.location.search).get('view') === 'machine') {
+      document.body.classList.add('machine-only');
+      document.getElementById('machine-live').scrollIntoView({ block: 'start' });
+    }
+
+    const cardExamples = {
+      helix: {
+        name: 'Lightning Helix',
+        stages: {
+          input: '<span class="muted">Instant · {R}{W}</span><br>“Lightning Helix deals 3 damage to any target and you gain 3 life.”',
+          normalize: '<span class="good">1 face → 1 ligne → 1 capacité</span><br>Aucun regroupement spécial requis.',
+          classify: '<code>typeLine = Instant</code><br>⇒ <span class="good">spellAbility</span>',
+          auditTokens: '<code>Lightning · Helix · deals · 3 · damage · target · and · gain · 3 · life</code><br><span class="warn">Ces tokens ne pilotent pas le parseur actuel.</span>',
+          fallback: '<code>spellAbility → … → parse_composed_spell → … → parse_simple_damage</code><br>Plusieurs parseurs sont essayés avant le bon.',
+          wholePattern: '<code>^[^.]+ deals (\\d+) damage to any target and you gain (\\d+) life\\.$</code><br><span class="bad">Le motif représente presque toute la capacité.</span>',
+          exactBranch: '<span class="good">Pas de <code>text ==</code> ici.</span><br>Mais la regex reste spécifique à la combinaison dégâts + gain de vie.',
+          regexCompile: '<code>Regex::new(lightning_re)</code><br><span class="bad">Construit dans <code>parse_simple_damage()</code> à chaque appel.</span>',
+          jsonIr: '<code>{ kind: spellAbility, declaration: targetDamageable, effects: [dealDamage(3), gainLife(3)] }</code>',
+          validation: '<code>rule_is_executable(rule) = true</code><br>Le moteur annonce qu’il comprend les deux effets.',
+          sourceTokens: '<code>Verb(DealDamage) Number(3) Recipient(AnyTarget) Then Verb(GainLife) Number(3)</code>',
+          grammar: '<code>EffectSequence [ Damage(Self, 3, AnyTarget), GainLife(Controller, 3) ]</code><br><span class="good">Deux concepts réutilisables, aucune carte nommée.</span>',
+          bindings: '<code>declare targetDamageable → ChosenTarget(targetDamageable)</code><br>La cible déclarée est reliée au premier effet.',
+          typedIr: '<code>Spell { targets: [AnyTarget], effects: [DealDamage(3), GainLife(3)] }</code>',
+          gameState: 'La carte est en main. Le moteur regarde priorité, mana disponible, stack, joueurs et permanents ciblables.',
+          cardInstance: '<code>CardInstance { definition: CardDefinition { rules: Vec&lt;Value&gt;, … } }</code><br>Chaque copie transporte toute la définition.',
+          jsonInterpreter: '<code>kind == "spellAbility"</code> puis <code>kind == "dealDamage"</code> et <code>"gainLife"</code>.',
+          legalActions: '<code>CastSpell(Lightning Helix, targetDamageable = X)</code><br>Une option complète est produite pour chaque cible légale et chaque paiement.',
+          staticEffects: 'Helix n’a pas d’effet statique. <span class="warn">Le moteur doit néanmoins vérifier les modificateurs globaux pouvant changer coût, cible ou timing.</span>',
+          repeatedScans: 'Recherche des sources de mana, des cibles, des protections et des modificateurs sur le battlefield.',
+          eagerExpansion: 'Avec <code>N</code> cibles valides, jusqu’à <code>N × paiements</code> déclarations sont matérialisées avant le choix.',
+          fingerprint: 'Après l’action, l’empreinte reparcourt zones, stack, décisions, permissions et modificateurs — bien au-delà de Helix.',
+          interned: '<code>CardInstance { definition_id: LIGHTNING_HELIX }</code><br>La RuleIR n’existe qu’une fois dans un registre partagé.',
+          ruleProgram: '<code>[ChooseTarget(Any), DealDamage(Const(3)), GainLife(Controller, Const(3))]</code>',
+          indexes: '<code>instance_index[helix#7] = Hand(P1, 2)</code><br><code>operation_mask = DAMAGE | LIFE</code>',
+          lazyActions: '<code>CastTemplate(helix#7)</code> d’abord; cibles et paiements ne sont développés que pour l’action consultée.',
+          application: 'À la résolution : vérifier la cible → infliger 3 → gagner 3. Si l’unique cible est illégale, le sort ne résout pas.',
+          incrementalHash: '<code>hash ^= hand(helix#7) ^ stack(helix#7) ^ life_delta</code><br>Pas de sérialisation globale.',
+          deckCatalog: '<code>LIGHTNING_HELIX → Spell / Damage / Life / AnyTarget</code>',
+          capabilityAnalysis: 'Active les capacités moteur <code>DAMAGE</code>, <code>LIFE_CHANGE</code> et <code>ANY_TARGET</code>.',
+          compiledPlan: '<code>handlers = [cast_spell, deal_damage, gain_life]</code><br>Aucune table de trigger nécessaire pour Helix.',
+          engineEvent: '<code>SpellCast → StackObjectCreated → SpellResolved → DamageDealt + LifeGained</code>',
+          targetedLookup: '<code>event_index[SpellCast]</code> ne consulte que les capacités réellement abonnées à cet événement.',
+          incrementalUpdate: 'Déplace l’instance main → stack → graveyard et met à jour seulement les index de zones et de vie concernés.'
+        }
+      },
+      jeskai: {
+        name: 'Jeskai Revelation',
+        stages: {
+          input: '<span class="muted">Instant · {4}{U}{R}{W}</span><br>5 phrases : return, damage, create, draw, gain life.',
+          normalize: '<span class="good">1 face → 1 ligne → 1 capacité</span><br>Les cinq phrases restent un seul bloc de résolution.',
+          classify: '<code>typeLine = Instant</code><br>⇒ <span class="good">spellAbility</span>',
+          auditTokens: '<code>Return · target · spell · permanent · deals · 4 · Create · two · Draw · two · gain · 4</code><br><span class="warn">Inventoriés, mais non composés sémantiquement.</span>',
+          fallback: '<code>spellAbility → … → parse_composed_spell</code><br>La branche reconnaît seulement le préfixe de cette formulation.',
+          wholePattern: '<code>text.starts_with("Return target spell or permanent…")</code><br><span class="bad">Ce n’est pas une regex, mais cela sélectionne quand même une capacité complète.</span>',
+          exactBranch: '<span class="bad">Branche dédiée.</span><br>Les valeurs <code>4 dégâts, 2 tokens, 2 cartes, 4 vies</code> sont codées directement dans le constructeur JSON.',
+          regexCompile: 'Avant d’atteindre cette branche, la chaîne de fallbacks peut construire et essayer d’autres motifs sans rapport.',
+          jsonIr: '<code>2 target decisions + 5 effects</code><br>ReturnToHand → Damage(4) → CreateMonks(2) → Draw(2) → GainLife(4).',
+          validation: '<code>rule_is_executable(rule) = true</code><br>Les deux cibles indépendantes et les cinq effets sont supportés.',
+          sourceTokens: '<code>Return(Target(Spell|Permanent)); Damage(Self,4,AnyTarget); Create(2,Monk); Draw(2); GainLife(4)</code>',
+          grammar: '<code>EffectSequence</code> compose cinq productions atomiques sans connaître “Jeskai Revelation”.',
+          bindings: '<code>targetToReturn</code> et <code>targetForDamage</code> sont deux bindings distincts utilisés par deux effets.',
+          typedIr: '<code>Spell { targets: [Union(Spell,Permanent), AnyTarget], effects: [Return, Damage, Create, Draw, GainLife] }</code>',
+          gameState: 'La carte est en main. Le moteur doit considérer stack + permanents pour la 1re cible, puis joueurs/permanents pour la 2e.',
+          cardInstance: 'Chaque copie embarque la définition et le grand arbre JSON contenant deux décisions et cinq effets.',
+          jsonInterpreter: 'Le runtime branche successivement sur <code>returnToOwnersHand</code>, <code>dealDamage</code>, <code>createTokens</code>, <code>drawCards</code>, <code>gainLife</code>.',
+          legalActions: '<code>CastSpell(jeskai, targetToReturn=A, targetForDamage=B)</code><br>Chaque couple légal doit être représenté avec son paiement.',
+          staticEffects: 'La carte n’a pas de static. Le moteur vérifie quand même les effets modifiant ciblage, coûts, timing et incontrabilité.',
+          repeatedScans: 'Balayage de la stack, de tous les permanents, joueurs, protections, modificateurs et sources de mana.',
+          eagerExpansion: 'Avec <code>S</code> sorts/permanents et <code>D</code> any-targets : jusqu’à <code>S × D × paiements</code> déclarations.',
+          fingerprint: 'Les deux cibles et le grand objet de stack sont convertis dans l’empreinte générale de boucle.',
+          interned: '<code>CardInstance { definition_id: JESKAI_REVELATION }</code><br>Les cinq opérations sont partagées entre toutes les copies.',
+          ruleProgram: '<code>[ChooseTarget(Union), ChooseTarget(Any), Return, Damage(4), Create(Monk,2), Draw(2), GainLife(4)]</code>',
+          indexes: '<code>operation_mask = ZONE_MOVE | DAMAGE | TOKEN | DRAW | LIFE</code><br>Les services requis sont connus au chargement.',
+          lazyActions: 'Présenter un <code>CastTemplate</code>; énumérer les couples de cibles seulement si l’agent explore ou choisit ce sort.',
+          application: 'À la résolution, revalider les deux cibles. Si au moins une reste légale, les effets non ciblés — tokens, pioche, vie — résolvent aussi.',
+          incrementalHash: 'Mettre à jour stack, zones des cibles, tokens, taille de main et vie avec des deltas locaux.',
+          deckCatalog: '<code>JESKAI_REVELATION → 2 selectors + 5 operations</code>',
+          capabilityAnalysis: 'Active <code>STACK_TARGET</code>, <code>PERMANENT_TARGET</code>, <code>DAMAGE</code>, <code>TOKEN</code>, <code>DRAW</code>, <code>LIFE</code>.',
+          compiledPlan: 'Prépare les handlers des cinq effets et les validateurs des deux catégories de cibles.',
+          engineEvent: '<code>SpellCast → TargetsLocked(2) → Resolution(5 effects) → zone/life/token/draw events</code>',
+          targetedLookup: 'Chaque événement produit interroge son petit index de triggers au lieu de rescanner toutes les règles du battlefield.',
+          incrementalUpdate: 'Les index sont ajustés effet par effet; aucune reconstruction complète du plan n’est nécessaire.'
+        }
+      },
+      sanar: {
+        name: 'Sanar, Unfinished Genius // Wild Idea',
+        stages: {
+          input: '<span class="muted">Prepare · 2 faces · {U}{R} // {3}{U}{R}</span><br>Face permanente : prepared + activation conditionnelle. Face sort : recherche de bibliothèque.',
+          normalize: '<span class="good">2 faces → 3 lignes/capacités</span><br>Chaque capacité garde son <code>faceId</code> et ses limites de ligne.',
+          classify: '<code>enters prepared → replacementEffect</code><br><code>{T}: … → activatedAbility</code><br><code>Sorcery face → spellAbility</code>',
+          auditTokens: 'Trois flux distincts : <code>enters/prepared</code>, <code>{T}/Create/Activate only if</code>, <code>Search/reveal/put/shuffle</code>.',
+          fallback: 'Trois chemins actuels : <code>parse_prepared_replacement</code>, <code>parse_simple_activated_ability_for_face</code>, <code>parse_library_spell</code>.',
+          wholePattern: 'Prepared utilise une regex de phrase; la recherche utilise <code>starts_with</code>; l’activation compare le texte complet.',
+          exactBranch: '<span class="bad"><code>text == "{T}: Create a Treasure token…"</code></span><br>La capacité activée de Sanar est un cas complet dédié.',
+          regexCompile: '<code>Regex::new(prepared_re)</code> est créé dans le parseur de replacement; d’autres motifs sont essayés selon chaque famille.',
+          jsonIr: '<code>3 règles</code><br>Replacement(setPrepared) + Activated(tap, hasCastSpellThisTurn, Treasure) + Spell(search/reveal/move/shuffle).',
+          validation: 'Les trois règles sont canoniques et exécutables; le lien prepare autorise une copie de Wild Idea puis unprepare Sanar.',
+          sourceTokens: 'Un flux typé par face, mais avec un environnement partagé : <code>PrepareLink(permanentFace, spellFace)</code>.',
+          grammar: '<code>Replacement(Event::WouldEnter, SetPrepared)</code><br><code>Activated(Cost::Tap, Condition::CastThisTurn, CreateTreasure)</code><br><code>SearchSequence</code>',
+          bindings: '<code>foundCard</code> relie choose → reveal → move; le lien de faces relie Sanar à la copie de Wild Idea.',
+          typedIr: '<code>CardProgram { faces: [PermanentProgram(2 abilities), SpellProgram(SearchSequence)], links: [Prepare] }</code>',
+          gameState: 'Sanar peut être sur le battlefield, sa copie préparée en exile, et Wild Idea sur la stack; l’historique du tour décide si {T} est légal.',
+          cardInstance: 'L’instance contient la définition multiface, trois règles JSON, flags <code>prepared</code> et données de liaison de la copie.',
+          jsonInterpreter: 'Le runtime interprète replacement, condition d’activation, coût de tap, création de token, permission de copie et quatre effets de recherche.',
+          legalActions: 'Actions possibles selon l’état : activer {T}, lancer la copie préparée, ou autres actions normales. La condition consulte les événements du tour.',
+          staticEffects: 'Prepare installe une permission liée à l’état de Sanar. Les scans généraux doivent retrouver cette permission et sa copie.',
+          repeatedScans: 'Recherche de Sanar par InstanceId, consultation des événements <code>spellCast</code>, permissions, exile, battlefield et règles des deux faces.',
+          eagerExpansion: 'La recherche cachée est un choix de résolution; la copie préparée ajoute cependant une nouvelle source de cast et de paiement aux actions légales.',
+          fingerprint: 'Flags <code>prepared</code>, permission, copie en exile, stack et décisions de recherche sont tous sérialisés dans l’empreinte globale.',
+          interned: '<code>CardInstance { definition_id: SANAR, flags: PREPARED }</code><br>Les faces et leurs programmes sont partagés.',
+          ruleProgram: '<code>on WouldEnter → SetPrepared</code><br><code>activate Tap if CastThisTurn(Instant|Sorcery) → Create(Treasure)</code><br><code>spell → SearchSequence</code>',
+          indexes: '<code>event_index[WouldEnter] += Sanar</code><br><code>turn_summary.cast_types</code> remplace le scan de tout l’historique.',
+          lazyActions: 'Le template d’activation consulte un bit <code>cast_instant_or_sorcery_this_turn</code>; la recherche n’est développée qu’à la résolution.',
+          application: 'Entrée : prepared=true. Activation : tap + Treasure si condition vraie. Copie : unprepare puis search → reveal → hand → shuffle.',
+          incrementalHash: 'Chaque transition touche seulement <code>prepared</code>, zone de la copie, compteur de tokens, main et bibliothèque.',
+          deckCatalog: '<code>SANAR → PrepareLink + Replacement + Activated + LibrarySearch</code>',
+          capabilityAnalysis: 'Active <code>PREPARE</code>, <code>TURN_CAST_SUMMARY</code>, <code>TOKEN</code>, <code>SEARCH</code>, <code>REVEAL</code>, <code>SHUFFLE</code>.',
+          compiledPlan: 'Crée le lien permanent↔sort, l’abonnement <code>WouldEnter</code> et le résumé incrémental des types de sorts lancés.',
+          engineEvent: '<code>WouldEnter → Prepared</code>; <code>AbilityActivated → Treasure</code>; <code>PreparedCopyCast → Unprepare</code>; <code>SearchResolved</code>.',
+          targetedLookup: '<code>event_index[WouldEnter]</code> trouve Sanar directement; <code>cast_summary[P1]</code> répond à la condition en O(1).',
+          incrementalUpdate: 'Les permissions et liens prepare sont ajoutés/retirés quand Sanar change d’état, sans rescanner toutes les cartes.'
+        }
+      }
+    };
+
+    const requestedCard = new URLSearchParams(window.location.search).get('card');
+    let lockedCard = cardExamples[requestedCard] ? requestedCard : 'helix';
+
+    function renderCardExample(cardKey) {
+      const card = cardExamples[cardKey];
+      if (!card) return;
+      document.querySelectorAll('[data-selected-card]').forEach((label) => {
+        label.textContent = card.name;
+      });
+      document.querySelectorAll('[data-stage]').forEach((node) => {
+        let example = node.querySelector('.stage-example');
+        if (!example) {
+          example = document.createElement('div');
+          example.className = 'stage-example';
+          node.appendChild(example);
+        }
+        example.dataset.cardName = card.name;
+        example.innerHTML = card.stages[node.dataset.stage] || '<span class="muted">Aucun changement spécifique pour cette étape.</span>';
+      });
+    }
+
+    function showCard(cardKey, lock = false) {
+      if (lock) lockedCard = cardKey;
+      document.querySelectorAll('.sample-card').forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.card === (lock ? lockedCard : cardKey)));
+      });
+      renderCardExample(cardKey);
+    }
+
+    document.querySelectorAll('.sample-card').forEach((button) => {
+      button.addEventListener('mouseenter', () => showCard(button.dataset.card));
+      button.addEventListener('focus', () => showCard(button.dataset.card));
+      button.addEventListener('click', () => showCard(button.dataset.card, true));
+      button.addEventListener('mouseleave', () => showCard(lockedCard));
+      button.addEventListener('blur', () => showCard(lockedCard));
+    });
+
+    showCard(lockedCard, true);
+
+    document.querySelectorAll('[data-toggle]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const key = button.dataset.toggle;
+        const pressed = button.getAttribute('aria-pressed') === 'true';
+        button.setAttribute('aria-pressed', String(!pressed));
+        document.body.classList.toggle(`hide-${key}`, pressed);
+      });
+    });
+
+    if (new URLSearchParams(window.location.search).get('view') === 'machine') {
+      requestAnimationFrame(() => document.getElementById('machine-live').scrollIntoView({ block: 'start' }));
+    }
+  </script>
+</body>
+</html>

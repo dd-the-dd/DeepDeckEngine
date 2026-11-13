@@ -195,69 +195,6 @@ pub(in crate::oracle::canonical) fn parse_shock_land_replacement(
     ))
 }
 
-pub(in crate::oracle::canonical) fn parse_multiversal_passage_replacement(
-    text: &str,
-) -> Option<CanonicalRuleDraft> {
-    if text
-        != "As this land enters, choose a basic land type. Then you may pay 2 life. If you don't, it enters tapped."
-    {
-        return None;
-    }
-    Some(draft(
-        json!({
-            "kind": "replacementEffect",
-            "source": self_ref(),
-            "event": {
-                "kind": "wouldEnterBattlefield",
-                "object": self_ref(),
-            },
-            "decisions": [
-                {
-                    "id": "basicLandType",
-                    "kind": "chooseBasicLandType",
-                    "player": controller(),
-                    "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"],
-                },
-                {
-                    "id": "payTwoLife",
-                    "kind": "chooseWhetherToPay",
-                    "player": controller(),
-                    "cost": {
-                        "kind": "payLife",
-                        "amount": integer(2),
-                    },
-                },
-            ],
-            "replacement": [
-                {
-                    "kind": "setBasicLandType",
-                    "object": self_ref(),
-                    "decisionId": "basicLandType",
-                },
-                {
-                    "kind": "conditional",
-                    "condition": not(json!({
-                        "kind": "costWasPaid",
-                        "decisionId": "payTwoLife",
-                    })),
-                    "then": [{
-                        "kind": "setEnteringState",
-                        "object": self_ref(),
-                        "tapped": true,
-                    }],
-                },
-            ],
-        }),
-        &[
-            "Classify as-entering replacement",
-            "Extract basic land type choice",
-            "Extract optional life payment",
-            "Apply chosen land type",
-            "Attach entering-state replacement",
-        ],
-    ))
-}
-
 pub(in crate::oracle::canonical) fn parse_prepared_replacement(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {

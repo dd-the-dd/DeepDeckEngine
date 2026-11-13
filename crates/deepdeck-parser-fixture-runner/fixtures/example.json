@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "example/fixed-mana-success-and-near-miss",
+  "cardName": "Fixture Mana Source",
+  "cases": [
+    {
+      "id": "native-fixed-mana",
+      "request": {
+        "cardName": "Fixture Mana Source",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {G}.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "manaAbility" },
+              { "pointer": "/costs/0/kind", "equals": "tap" },
+              { "pointer": "/effects/0/kind", "equals": "addMana" },
+              { "pointer": "/effects/0/mana", "equals": "{G}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-mana-symbol",
+      "request": {
+        "cardName": "Fixture Mana Source",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {Q}.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "activated-mana-ability",
+            "state": "mana.fixed.start",
+            "found": "{Q}"
+          }
+        ]
+      }
+    }
+  ]
+}

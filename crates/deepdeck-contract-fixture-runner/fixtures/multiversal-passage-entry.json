@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "multiversal-passage/chosen-land-type-entry-is-executable",
+  "cardName": "Multiversal Passage",
+  "oracleId": "17770eeb-ecbf-4510-af2d-acececfbe146",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": { "kind": "self" }
+    },
+    "decisions": [
+      {
+        "id": "basicLandType",
+        "kind": "chooseBasicLandType",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+      },
+      {
+        "id": "optionalLifePayment",
+        "kind": "chooseWhetherToPay",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cost": {
+          "kind": "payLife",
+          "amount": { "kind": "integer", "value": 2 }
+        }
+      }
+    ],
+    "replacement": [
+      {
+        "kind": "setBasicLandType",
+        "object": { "kind": "self" },
+        "decisionId": "basicLandType"
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+        },
+        "then": [
+          {
+            "kind": "setEnteringState",
+            "object": { "kind": "self" },
+            "tapped": true
+          }
+        ]
+      }
+    ]
+  }
+}

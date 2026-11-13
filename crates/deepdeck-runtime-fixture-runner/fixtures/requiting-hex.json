@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "requiting-hex-destroys-qualified-creature-and-gains-life-when-paid",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "right": { "kind": "integer", "value": 2 }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "additionalCostMode" },
+          "value": "pay"
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 2 }
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Requiting Hex pilot",
+        "life": 20,
+        "hand": [
+          {
+            "id": "requiting-hex",
+            "name": "Requiting Hex",
+            "typeLine": "Instant",
+            "manaCost": "{B}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "qualified-creature",
+            "name": "Qualified Creature",
+            "typeLine": "Creature — Test",
+            "manaCost": "{1}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "requiting-hex",
+    "decisions": { "additionalCostMode": ["pay"] },
+    "targets": {
+      "targetPermanent": {
+        "permanent": { "instanceId": "player-1:qualified-creature:0" }
+      }
+    }
+  },
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 22 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "qualified-creature",
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

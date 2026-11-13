@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "attack-tax-resolves-opponents-of-protected-player-reference",
+  "seed": 114,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": {
+        "kind": "opponentsOf",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tax source controller",
+        "battlefield": [{
+          "id": "opponent-tax-source",
+          "name": "Opponent Tax Source",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+            "modifiers": [{
+              "kind": "attackTax",
+              "protectedPlayer": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              "amount": { "kind": "integer", "value": 2 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "opponents-draw", "name": "Opponents Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [{
+          "id": "opponents-attacker",
+          "name": "Opponents Attacker",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      },
+      { "id": "player-2", "name": "Protected opponent" }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    { "kind": "lifeTotal", "playerId": "player-2", "equals": 20 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

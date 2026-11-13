@@ -19,6 +19,58 @@ pub(in crate::oracle::canonical) fn chosen_creature_type() -> Value {
     })
 }
 
+fn parse_graveyard_destination_replacement(text: &str) -> Option<Value> {
+    let remainder = strip_prefix_ascii_case(text, "If ")?;
+    let (where_filter, remainder) = parse_graveyard_object_filter_prefix(remainder)?;
+    let remainder = strip_prefix_ascii_case(remainder, " would be put into ")?;
+    let (graveyard_owners, remainder) = parse_graveyard_owner_scope_prefix(remainder)?;
+    let remainder = strip_prefix_ascii_case(remainder, " ")?;
+    let (from, remainder) = parse_zone_origin_prefix(remainder)?;
+    let remainder = strip_prefix_ascii_case(remainder, ", ")?;
+    let (to, remainder) = parse_zone_replacement_destination_prefix(remainder)?;
+    (remainder == ".").then(|| {
+        json!({
+            "kind": "replaceGraveyardDestination",
+            "graveyardOwners": graveyard_owners,
+            "where": where_filter,
+            "from": from,
+            "to": to,
+        })
+    })
+}
+
+fn parse_source_entering_counters(text: &str) -> Option<CanonicalRuleDraft> {
+    let enters_with_counters_re = Regex::new(
+        r"^(?:This permanent|This creature|This artifact|This enchantment|This land|[A-Z][^.]+) enters with (\w+) ([^ ]+) counters? on (?:it|him|her|them)\.$",
+    )
+    .expect("enters-with-counters regex compiles");
+    let captures = enters_with_counters_re.captures(text)?;
+    let count = if captures[1].eq_ignore_ascii_case("X") {
+        decision_result("xValue")
+    } else {
+        integer(parse_number_word(&captures[1])?)
+    };
+    Some(draft(
+        json!({
+            "kind": "replacementEffect",
+            "source": self_ref(),
+            "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": self_ref(),
+            },
+            "replacement": [{
+                "kind": "putEnteringCounters",
+                "counter": &captures[2],
+                "count": count,
+            }],
+        }),
+        &[
+            "Resolve entering counter type",
+            "Apply counters before entry",
+        ],
+    ))
+}
+
 pub(in crate::oracle::canonical) fn parse_common_static_ability(
     text: &str,
     face_name: &str,
@@ -34,6 +86,229 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             &["Resolve affected permanents", "Apply continuous modifiers"],
         )
     };
+
+    if let Some(parsed) = parse_source_entering_counters(text) {
+        return Some(parsed);
+    }
+
+    let event_replacement_with_prelude_re = Regex::new(&format!(
+        r"(?i)^If (?:a|an) (.+?) you control would connive, instead you draw ({}) cards?, then that (.+?) connives\.$",
+        count_word_pattern(),
+    ))
+    .expect("event-replacement-with-prelude regex compiles");
+    if let Some(captures) = event_replacement_with_prelude_re.captures(text) {
+        let affected_where = parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?;
+        let resumed_where = parse_permanent_criteria(captures.get(3)?.as_str(), face_name)?;
+        if affected_where != resumed_where {
+            return None;
+        }
+        return Some(static_rule(vec![json!({
+            "kind": "replaceEvent",
+            "event": {
+                "kind": "connive",
+                "objects": {
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": affected_where,
+                },
+            },
+            "replacement": [{
+                "kind": "drawCards",
+                "player": controller(),
+                "count": integer(parse_number_word(captures.get(2)?.as_str())?),
+            }],
+            "resumeOriginal": true,
+        })]));
+    }
+
+    let conditional_flash_casting_re = Regex::new(
+        r"(?i)^As long as (.+?), you may cast(?: (.+?))? spells as though they had flash\.$",
+    )
+    .expect("conditional flash-casting permission regex compiles");
+    if let Some(captures) = conditional_flash_casting_re.captures(text) {
+        let where_filter = captures
+            .get(2)
+            .map(|criteria| {
+                card_qualifier_list_filter(criteria.as_str(), face_name)
+                    .or_else(|| parse_permanent_criteria(criteria.as_str(), face_name))
+            })
+            .unwrap_or(Some(Value::Null))?;
+        return Some(static_rule(vec![json!({
+            "kind": "grantFlashCasting",
+            "player": controller(),
+            "where": where_filter,
+            "firstEachTurn": false,
+            "condition": parse_condition_text(captures.get(1)?.as_str())?,
+        })]));
+    }
+
+    let source_counter_history_keyword_re = Regex::new(&format!(
+        r"(?i)^As long as (?:you've|you have) put ({}) or more (.+?) counters? on (.+?) this turn, (.+?) has (flying|deathtouch|double strike|first strike|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)\.$",
+        count_word_pattern(),
+    ))
+    .expect("source counter-history keyword regex compiles");
+    if let Some(captures) = source_counter_history_keyword_re.captures(text)
+        && source_reference_matches(captures.get(3)?.as_str(), face_name)
+        && source_reference_matches(captures.get(4)?.as_str(), face_name)
+    {
+        let keyword = oracle_keyword_list(captures.get(5)?.as_str())?
+            .into_iter()
+            .next()?;
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": self_ref(),
+            "keyword": keyword,
+            "condition": {
+                "kind": "sourceReceivedCountersThisTurn",
+                "counter": captures.get(2)?.as_str().to_ascii_lowercase(),
+                "minimum": integer(parse_number_word(captures.get(1)?.as_str())?),
+            },
+        })]));
+    }
+
+    let controlled_counter_history_keyword_re = Regex::new(&format!(
+        r"(?i)^Each (.+?) you control that (?:you've|you have) put ({}) or more (.+?) counters? on this turn has (flying|deathtouch|double strike|first strike|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)\.$",
+        count_word_pattern(),
+    ))
+    .expect("controlled permanent counter-history keyword regex compiles");
+    if let Some(captures) = controlled_counter_history_keyword_re.captures(text) {
+        let keyword = oracle_keyword_list(captures.get(4)?.as_str())?
+            .into_iter()
+            .next()?;
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(1)?.as_str()),
+                    face_name,
+                )?,
+                "history": {
+                    "kind": "receivedCountersPlacedBy",
+                    "player": controller(),
+                    "counter": captures.get(3)?.as_str().to_ascii_lowercase(),
+                    "minimum": integer(parse_number_word(captures.get(2)?.as_str())?),
+                    "turn": "current",
+                },
+            },
+            "keyword": keyword,
+        })]));
+    }
+
+    let controlled_permanent_source_keyword_re = Regex::new(
+        r"(?i)^As long as you control (.+?), (.+?) has (flying|deathtouch|double strike|first strike|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)\.$",
+    )
+    .expect("controlled-permanent source keyword regex compiles");
+    if let Some(captures) = controlled_permanent_source_keyword_re.captures(text)
+        && source_reference_matches(captures.get(2)?.as_str(), face_name)
+    {
+        let keyword = oracle_keyword_list(captures.get(3)?.as_str())?
+            .into_iter()
+            .next()?;
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": self_ref(),
+            "keyword": keyword,
+            "condition": {
+                "kind": "controlsPermanent",
+                "player": controller(),
+                "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            },
+        })]));
+    }
+
+    let graveyard_card_threshold_bonus_re = Regex::new(&format!(
+        r"(?i)^As long as there are ({}) or more (.+?) cards in your graveyard, (.+?) gets ([+-]\d+)/([+-]\d+)( and is all creature types)?\.$",
+        count_word_pattern(),
+    ))
+    .expect("graveyard card threshold bonus regex compiles");
+    if let Some(captures) = graveyard_card_threshold_bonus_re.captures(text)
+        && source_reference_matches(captures.get(3)?.as_str(), face_name)
+    {
+        let condition = compare(
+            ">=",
+            json!({
+                "kind": "countCards",
+                "zone": graveyard(controller()),
+                "where": parse_permanent_criteria(captures.get(2)?.as_str(), face_name)?,
+            }),
+            integer(parse_number_word(captures.get(1)?.as_str())?),
+        );
+        let mut modifiers = vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": integer(captures[4].parse::<i64>().ok()?),
+            "toughness": integer(captures[5].parse::<i64>().ok()?),
+            "condition": condition.clone(),
+        })];
+        if captures.get(6).is_some() {
+            modifiers.push(json!({
+                "kind": "grantKeyword",
+                "objects": self_ref(),
+                "keyword": "changeling",
+                "condition": condition,
+            }));
+        }
+        return Some(static_rule(modifiers));
+    }
+
+    let additional_activation_re = Regex::new(
+        r"(?i)^Each ([a-z][a-z-]*) ability of permanents you control can be activated an additional time\.$",
+    )
+    .expect("ability-class additional activation regex compiles");
+    if let Some(captures) = additional_activation_re.captures(text) {
+        return Some(static_rule(vec![json!({
+            "kind": "additionalActivation",
+            "objects": {
+                "kind": "permanents",
+                "controller": controller(),
+                "where": Value::Null,
+            },
+            "abilityClass": normalize_ability_class(captures.get(1)?.as_str())?,
+            "amount": integer(1),
+        })]));
+    }
+
+    let activation_reduction_re = Regex::new(
+        r"(?i)^([a-z][a-z-]*) abilities of (other )?(.+?) you control cost \{(\d+)\} less to activate\.$",
+    )
+    .expect("ability-class activation reduction regex compiles");
+    if let Some(captures) = activation_reduction_re.captures(text) {
+        let mut objects = json!({
+            "kind": "permanents",
+            "controller": controller(),
+            "where": parse_permanent_criteria(captures.get(3)?.as_str(), face_name)?,
+        });
+        if captures.get(2).is_some() {
+            objects["excludeSource"] = Value::Bool(true);
+        }
+        return Some(static_rule(vec![json!({
+            "kind": "reduceActivationCost",
+            "objects": objects,
+            "abilityClass": normalize_ability_class(captures.get(1)?.as_str())?,
+            "amount": integer(captures.get(4)?.as_str().parse::<i64>().ok()?),
+        })]));
+    }
+
+    let source_power_evasion_re = Regex::new(
+        r"(?i)^(.+?) can't be blocked if (?:his|her|its|their) power is (.+?) or less\.$",
+    )
+    .expect("source power threshold evasion regex compiles");
+    if let Some(captures) = source_power_evasion_re.captures(text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "grantKeyword",
+            "objects": self_ref(),
+            "keyword": "cantBeBlocked",
+            "condition": compare(
+                "<=",
+                json!({ "kind": "powerOf", "object": self_ref() }),
+                parse_numeric_expression_text(captures.get(2)?.as_str())?,
+            ),
+        })]));
+    }
 
     if text == "Other Spiders you control have riot." {
         return Some(static_rule(vec![json!({
@@ -1991,20 +2266,8 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         return Some(static_rule(modifiers));
     }
 
-    let graveyard_destination_replacement_re = Regex::new(
-        r"(?i)^If a card would be put into an opponent's graveyard from anywhere, exile it instead\.$",
-    )
-    .expect("graveyard destination replacement regex compiles");
-    if graveyard_destination_replacement_re.is_match(text) {
-        return Some(static_rule(vec![json!({
-            "kind": "replaceGraveyardDestination",
-            "graveyardOwners": {
-                "kind": "opponentsOf",
-                "player": controller(),
-            },
-            "from": { "kind": "anyZone" },
-            "to": { "kind": "exile" },
-        })]));
+    if let Some(modifier) = parse_graveyard_destination_replacement(text) {
+        return Some(static_rule(vec![modifier]));
     }
 
     let dungeon_entry_re =
@@ -2035,9 +2298,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
     let controlled_granted_activated_re = Regex::new(r#"(?i)^(.+?) you control have "(.+)"\.?$"#)
         .expect("controlled permanents granted activated ability regex compiles");
-    if let Some(captures) = controlled_granted_activated_re.captures(text)
-        && !captures.get(2)?.as_str().contains("Add ")
-    {
+    if let Some(captures) = controlled_granted_activated_re.captures(text) {
         let raw_ability = captures.get(2)?.as_str();
         let loyalty_re = Regex::new(r"^\[([+\-\x{2212}]?\d+|[\-\x{2212}]X)\]:\s*(.+)$")
             .expect("bracketed granted loyalty ability regex compiles");
@@ -3020,9 +3281,10 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     let conditional_static_re = Regex::new(r"(?i)^As long as (.+?), (.+)$")
         .expect("conditional static ability regex compiles");
     if let Some(captures) = conditional_static_re.captures(text) {
-        let condition = parse_condition_text(captures.get(1)?.as_str()).or_else(|| {
-            parse_controlled_permanent_condition(captures.get(1)?.as_str(), face_name)
-        })?;
+        let condition = parse_condition_text_for_face(captures.get(1)?.as_str(), face_name)
+            .or_else(|| {
+                parse_controlled_permanent_condition(captures.get(1)?.as_str(), face_name)
+            })?;
         let self_keywords_re = Regex::new(
             r"(?i)^this (?:artifact|creature|enchantment|permanent) (?:has|gains) (.+?)\.$",
         )
@@ -3091,6 +3353,43 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         }
         Some(selector)
     };
+
+    let player_and_other_controlled_keyword_re =
+        Regex::new(r"(?i)^you and other (.+?) you control have (hexproof|shroud)\.$")
+            .expect("player and controlled permanents keyword regex compiles");
+    if let Some(captures) = player_and_other_controlled_keyword_re.captures(text) {
+        let keyword = oracle_keyword_kind(captures.get(2)?.as_str())?;
+        let player_modifier_kind = match keyword {
+            "hexproof" => "playerHexproof",
+            "shroud" => "playerShroud",
+            _ => return None,
+        };
+        return Some(draft(
+            json!({
+                "kind": "staticAbility",
+                "source": self_ref(),
+                "activeWhile": active_while_battlefield(),
+                "modifiers": [
+                    {
+                        "kind": player_modifier_kind,
+                        "player": controller(),
+                    },
+                    {
+                        "kind": "grantKeyword",
+                        "objects": controlled_selector(
+                            &singular_card_term(captures.get(1)?.as_str()),
+                            true,
+                        )?,
+                        "keyword": keyword,
+                    },
+                ],
+            }),
+            &[
+                "Grant the player keyword",
+                "Grant the same keyword to the other matching controlled permanents",
+            ],
+        ));
+    }
 
     let controlled_subject_selectors = |subject: &str| {
         subject
@@ -3325,17 +3624,19 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         })]));
     }
 
-    let source_count_bonus_re = Regex::new(&format!(
-        r"{} gets ([+-]\d+)/([+-]\d+) for each (?:(other) )?(.+) you control\.$",
-        source_re,
-    ))
+    let source_count_bonus_re = Regex::new(
+        r"(?i)^(.+?) gets ([+-]\d+)/([+-]\d+) for each (?:(other) )?(.+) you control\.$",
+    )
     .expect("source counted static bonus regex compiles");
-    if let Some(captures) = source_count_bonus_re.captures(text) {
+    if let Some(captures) = source_count_bonus_re.captures(text)
+        && (captures[1].to_ascii_lowercase().starts_with("this ")
+            || source_reference_matches(captures.get(1)?.as_str(), face_name))
+    {
         let count = json!({
             "kind": "countPermanents",
             "player": controller(),
-            "where": parse_permanent_criteria(&captures[4], face_name)?,
-            "excludeSource": captures.get(3).is_some(),
+            "where": parse_permanent_criteria(&captures[5], face_name)?,
+            "excludeSource": captures.get(4).is_some(),
         });
         let scaled = |amount: i64| {
             if amount == 0 {
@@ -3349,8 +3650,38 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         return Some(static_rule(vec![json!({
             "kind": "modifyPowerToughness",
             "objects": self_ref(),
-            "power": scaled(captures[1].parse::<i64>().ok()?),
-            "toughness": scaled(captures[2].parse::<i64>().ok()?),
+            "power": scaled(captures[2].parse::<i64>().ok()?),
+            "toughness": scaled(captures[3].parse::<i64>().ok()?),
+        })]));
+    }
+
+    let source_attachment_count_bonus_re = Regex::new(
+        r"(?i)^(.+?) gets ([+-]\d+)/([+-]\d+) for each (.+?) attached to (?:it|him|her|them)\.$",
+    )
+    .expect("source attachment-count static bonus regex compiles");
+    if let Some(captures) = source_attachment_count_bonus_re.captures(text)
+        && (captures[1].to_ascii_lowercase().starts_with("this ")
+            || source_reference_matches(captures.get(1)?.as_str(), face_name))
+    {
+        let count = json!({
+            "kind": "countAttachments",
+            "object": self_ref(),
+            "where": parse_permanent_criteria(&captures[4], face_name)?,
+        });
+        let scaled = |amount: i64| {
+            if amount == 0 {
+                integer(0)
+            } else if amount == 1 {
+                count.clone()
+            } else {
+                json!({ "kind": "multiply", "value": count.clone(), "factor": integer(amount) })
+            }
+        };
+        return Some(static_rule(vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": self_ref(),
+            "power": scaled(captures[2].parse::<i64>().ok()?),
+            "toughness": scaled(captures[3].parse::<i64>().ok()?),
         })]));
     }
 
@@ -3582,14 +3913,6 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
             "symbols": ["R"],
         })]));
     }
-    if text == "Noncreature spells you cast cost {1} less to cast." {
-        return Some(static_rule(vec![json!({
-            "kind": "reduceCastingCost",
-            "player": controller(),
-            "where": not(card_type("Creature")),
-            "amount": integer(1),
-        })]));
-    }
     if text == "Enchanted creature is a copy of the chosen creature." {
         return Some(static_rule(vec![json!({
             "kind": "copyAttachedFromStoredCreature",
@@ -3804,14 +4127,18 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         })]));
     }
 
+    // Controller-only attack taxes are owned by the promoted token automaton.
+    // Keep only the wider planeswalker-protection legacy shape until the
+    // runtime resolves protected-player collections generically.
     let attack_tax_re = Regex::new(
-        r"(?i)^Creatures can't attack you(?: or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:of those creatures|creature they control that's attacking you)\.$",
+        r"(?i)^Creatures can't attack you or planeswalkers you control unless their controller pays \{(\d+)\} for each (?:of those creatures|creature they control that's attacking you)\.$",
     )
-    .expect("generic attack-tax regex compiles");
+    .expect("planeswalker-protecting attack-tax regex compiles");
     if let Some(captures) = attack_tax_re.captures(text) {
         return Some(static_rule(vec![json!({
             "kind": "attackTax",
             "protectedPlayer": controller(),
+            "protectPlaneswalkers": true,
             "amount": integer(captures[1].parse::<i64>().ok()?),
         })]));
     }
@@ -3962,20 +4289,30 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         })]));
     }
     let variable_spell_reduction_re = Regex::new(
-        r"(?i)^(.+?) spells you cast cost \{X\} less to cast, where X is (this (?:creature|permanent)|equipped creature)'s power\.$",
+        r"(?i)^(.+?) spells you cast(?: with (.+?))? cost \{X\} less to cast, where X is (.+?)'s power\.$",
     )
     .expect("variable spell-cost reduction regex compiles");
     if let Some(captures) = variable_spell_reduction_re.captures(text) {
-        let amount_object = if captures[2].eq_ignore_ascii_case("equipped creature") {
+        let source_subject = captures.get(3)?.as_str();
+        let amount_object = if source_subject.eq_ignore_ascii_case("equipped creature") {
             json!({ "kind": "attachedPermanent", "attachment": self_ref() })
-        } else {
+        } else if source_subject.to_ascii_lowercase().starts_with("this ")
+            || source_reference_matches(source_subject, face_name)
+        {
             self_ref()
+        } else {
+            return None;
         };
+        let mut spell_criteria = captures.get(1)?.as_str().to_string();
+        if let Some(qualifier) = captures.get(2) {
+            spell_criteria.push_str(" with ");
+            spell_criteria.push_str(qualifier.as_str());
+        }
         return Some(static_rule(vec![json!({
             "kind": "reduceCastingCost",
             "player": controller(),
-            "where": card_qualifier_list_filter(captures.get(1)?.as_str(), face_name)
-                .or_else(|| parse_permanent_criteria(captures.get(1)?.as_str(), face_name))?,
+            "where": card_qualifier_list_filter(&spell_criteria, face_name)
+                .or_else(|| parse_permanent_criteria(&spell_criteria, face_name))?,
             "amount": { "kind": "powerOf", "object": amount_object },
             "duringOtherPlayersTurns": false,
         })]));
@@ -4171,6 +4508,20 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
                 "where": counted_criteria,
             },
             "duringOtherPlayersTurns": false,
+        })]));
+    }
+    let granted_improvise_re = Regex::new(r"(?i)^(.+?) spells you cast have improvise\.$")
+        .expect("granted improvise spell criteria regex compiles");
+    if let Some(captures) = granted_improvise_re.captures(text) {
+        let spell_criteria = card_qualifier_list_filter(&captures[1], face_name)
+            .or_else(|| parse_permanent_criteria(&captures[1], face_name))?;
+        return Some(static_rule(vec![json!({
+            "kind": "grantImprovise",
+            "spells": {
+                "kind": "spells",
+                "controller": controller(),
+                "where": spell_criteria,
+            },
         })]));
     }
     let historic_cost_modifier = if text
@@ -4512,7 +4863,6 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let casting_reduction = match text {
-        "Enchantment spells you cast cost {1} less to cast." => Some(card_type("Enchantment")),
         "Aura spells you cast cost {1} less to cast." => Some(subtype("Aura")),
         _ => None,
     };
@@ -4602,8 +4952,13 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         ));
     }
 
-    if text
-        == "If this card is in your opening hand, you may begin the game with it on the battlefield."
+    let opening_hand_battlefield_re = Regex::new(
+        r"(?i)^If (.+?) is in your opening hand, you may begin the game with (?:it|him|her|them) on the battlefield\.$",
+    )
+    .expect("opening-hand battlefield regex compiles");
+    if let Some(captures) = opening_hand_battlefield_re.captures(text)
+        && (captures[1].eq_ignore_ascii_case("this card")
+            || source_reference_matches(captures.get(1)?.as_str(), face_name))
     {
         return Some(draft(
             json!({
@@ -4616,6 +4971,18 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
                 "Offer the optional battlefield move after mulligans",
             ],
         ));
+    }
+
+    let prevent_all_source_damage_re =
+        Regex::new(r"(?i)^Prevent all damage that would be dealt to (.+?)\.$")
+            .expect("prevent all damage to source regex compiles");
+    if let Some(captures) = prevent_all_source_damage_re.captures(text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some(static_rule(vec![json!({
+            "kind": "preventDamage",
+            "objects": self_ref(),
+        })]));
     }
 
     if text == "You may cast spells as though they had flash."
@@ -5850,7 +6217,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
     }
 
     let attached_loses_abilities_and_does_not_untap_re = Regex::new(
-        r"(?i)^Enchanted (creature|permanent) loses all abilities and doesn't untap during its controller's untap step\.$",
+        r"(?i)^Enchanted (creature|permanent) loses all abilities and (?:doesn't untap during its controller's untap step|can't become untapped)\.$",
     )
     .expect("attached permanent loses-abilities and untap-restriction regex compiles");
     if attached_loses_abilities_and_does_not_untap_re.is_match(text) {
@@ -5861,7 +6228,7 @@ pub(in crate::oracle::canonical) fn parse_common_static_ability(
         ]));
     }
     let attached_does_not_untap_re = Regex::new(
-        r"(?i)^Enchanted (creature|permanent) doesn't untap during its controller's untap step\.$",
+        r"(?i)^Enchanted (creature|permanent) (?:doesn't untap during its controller's untap step|can't become untapped)\.$",
     )
     .expect("attached permanent untap-restriction regex compiles");
     if attached_does_not_untap_re.is_match(text) {
@@ -5926,12 +6293,6 @@ pub(in crate::oracle::canonical) fn parse_direct_landfall_static_ability(
             Some(triggered(vec![create_token_effect(
                 "Create a 4/4 red Dragon creature token with flying.",
             )?]))
-        }
-        "Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn." => {
-            Some(triggered(vec![json!({
-                "kind": "resolveTriggeredInstruction",
-                "operation": "advanceEarthbenderAscension",
-            })]))
         }
         value
             if value.starts_with(
@@ -6004,12 +6365,6 @@ pub(in crate::oracle::canonical) fn parse_landfall_static_ability(
             Some(triggered(vec![create_token_effect(
                 "Create a 4/4 red Dragon creature token with flying.",
             )?]))
-        }
-        "Whenever a land you control enters, put a quest counter on this enchantment. When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature you control. It gains trample until end of turn." => {
-            Some(triggered(vec![json!({
-                "kind": "resolveTriggeredInstruction",
-                "operation": "advanceEarthbenderAscension",
-            })]))
         }
         value
             if value.starts_with(
@@ -6821,6 +7176,7 @@ pub(in crate::oracle::canonical) fn parse_avatar_deck_static(
         return Some(static_rule(vec![json!({
             "kind": "attackTax",
             "protectedPlayer": controller(),
+            "protectPlaneswalkers": true,
             "amount": {
                 "kind": "countPermanents",
                 "player": controller(),
@@ -7260,19 +7616,6 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             "factor": 2,
         })]));
     }
-    if text == "This token can block only creatures with flying." {
-        return Some(static_rule(vec![json!({
-            "kind": "blockRestriction",
-            "attackers": {
-                "kind": "permanents",
-                "where": and(vec![
-                    card_type("Creature"),
-                    not(json!({ "kind": "hasKeyword", "value": "flying" })),
-                ]),
-            },
-            "blockers": self_ref(),
-        })]));
-    }
     if text == "Spells you cast with mana value 6 or greater have cascade." {
         return Some(draft(
             json!({
@@ -7308,6 +7651,7 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
     }
     let top_library_filter = match text {
         "You may play lands and cast spells from the top of your library." => Some(Value::Null),
+        "You may play lands from the top of your library." => Some(card_type("Land")),
         "You may cast creature spells from the top of your library." => Some(card_type("Creature")),
         _ => None,
     }
@@ -7405,36 +7749,6 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
     }
     if let Some(modifiers) = parse_player_static_modifiers(text) {
         return Some(static_rule(modifiers));
-    }
-    let enters_with_counters_re = Regex::new(
-        r"^(?:This permanent|This creature|This artifact|This enchantment|This land|[A-Z][^.]+) enters with (\w+) ([^ ]+) counters? on (?:it|him|her|them)\.$",
-    )
-    .expect("enters-with-counters regex compiles");
-    if let Some(captures) = enters_with_counters_re.captures(text) {
-        let count = if captures[1].eq_ignore_ascii_case("X") {
-            decision_result("xValue")
-        } else {
-            integer(parse_number_word(&captures[1])?)
-        };
-        return Some(draft(
-            json!({
-                "kind": "replacementEffect",
-                "source": self_ref(),
-                "event": {
-                    "kind": "wouldEnterBattlefield",
-                    "object": self_ref(),
-                },
-                "replacement": [{
-                    "kind": "putEnteringCounters",
-                    "counter": &captures[2],
-                    "count": count,
-                }],
-            }),
-            &[
-                "Resolve entering counter type",
-                "Apply counters before entry",
-            ],
-        ));
     }
     let kicked_enters_with_counters_re =
         Regex::new(r"^If .+ was kicked, it enters with (\w+) ([^ ]+) counters? on it\.$")
@@ -7968,40 +8282,44 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             "kind": "attachedPermanent",
             "attachment": self_ref(),
         });
-        let granted_modifier = captures
-            .get(3)
-            .and_then(|capture| equipped_keyword(capture.as_str()))
-            .map(|keyword| {
-                json!({
-                    "kind": "grantKeyword",
-                    "objects": objects.clone(),
-                    "keyword": keyword,
-                })
-            })
-            .or_else(|| {
-                parse_keyword_cost(captures.get(3)?.as_str(), "Ward").map(|cost| {
-                    json!({
-                        "kind": "grantWard",
-                        "objects": objects.clone(),
-                        "cost": cost,
+        let keyword_text = captures.get(3)?.as_str();
+        let normalized = keyword_text.replace(", and ", ", ").replace(" and ", ", ");
+        let granted_modifiers = normalized
+            .split(", ")
+            .map(|phrase| {
+                equipped_keyword(phrase)
+                    .map(|keyword| {
+                        json!({
+                            "kind": "grantKeyword",
+                            "objects": objects.clone(),
+                            "keyword": keyword,
+                        })
                     })
-                })
-            });
-        if let Some(granted_modifier) = granted_modifier {
+                    .or_else(|| {
+                        parse_keyword_cost(phrase, "Ward").map(|cost| {
+                            json!({
+                                "kind": "grantWard",
+                                "objects": objects.clone(),
+                                "cost": cost,
+                            })
+                        })
+                    })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        if !granted_modifiers.is_empty() {
+            let mut modifiers = vec![json!({
+                "kind": "modifyPowerToughness",
+                "objects": objects.clone(),
+                "power": integer(captures[1].parse::<i64>().ok()?),
+                "toughness": integer(captures[2].parse::<i64>().ok()?),
+            })];
+            modifiers.extend(granted_modifiers);
             return Some(draft(
                 json!({
                     "kind": "staticAbility",
                     "source": self_ref(),
                     "activeWhile": active_while_battlefield(),
-                    "modifiers": [
-                        {
-                            "kind": "modifyPowerToughness",
-                            "objects": objects.clone(),
-                            "power": integer(captures[1].parse::<i64>().ok()?),
-                            "toughness": integer(captures[2].parse::<i64>().ok()?),
-                        },
-                        granted_modifier,
-                    ],
+                    "modifiers": modifiers,
                 }),
                 &[
                     "Resolve equipped creature",
@@ -8174,23 +8492,54 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             &["Count all other enchantments", "Apply twice that bonus"],
         ));
     }
-    if text
-        == "Enchanted creature gets +4/+4, has flying and first strike, and is an Angel in addition to its other types."
-    {
+    let aura_bonus_keywords_types_re = Regex::new(
+        r"(?i)^Enchanted creature gets ([+-]\d+)/([+-]\d+), has (.+?), and is (?:a|an) (legendary )?(.+?) in addition to its other types\.$",
+    )
+    .expect("aura bonus keywords and added types regex compiles");
+    if let Some(captures) = aura_bonus_keywords_types_re.captures(text) {
         let attached = json!({ "kind": "attachedPermanent", "attachment": self_ref() });
+        let mut modifiers = vec![json!({
+            "kind": "modifyPowerToughness",
+            "objects": attached.clone(),
+            "power": integer(captures[1].parse::<i64>().ok()?),
+            "toughness": integer(captures[2].parse::<i64>().ok()?),
+        })];
+        modifiers.extend(
+            oracle_keyword_list(captures.get(3)?.as_str())?
+                .into_iter()
+                .map(|keyword| {
+                    json!({
+                        "kind": "grantKeyword",
+                        "objects": attached.clone(),
+                        "keyword": keyword,
+                    })
+                }),
+        );
+        if captures.get(4).is_some() {
+            modifiers.push(json!({
+                "kind": "addSupertype",
+                "objects": attached.clone(),
+                "supertype": "Legendary",
+            }));
+        }
+        modifiers.extend(captures.get(5)?.as_str().split_whitespace().map(|subtype| {
+            json!({
+                "kind": "addSubtype",
+                "objects": attached.clone(),
+                "subtype": subtype,
+            })
+        }));
         return Some(draft(
             json!({
                 "kind": "staticAbility",
                 "source": self_ref(),
                 "activeWhile": active_while_battlefield(),
-                "modifiers": [
-                    { "kind": "modifyPowerToughness", "objects": attached.clone(), "power": integer(4), "toughness": integer(4) },
-                    { "kind": "grantKeyword", "objects": attached.clone(), "keyword": "flying" },
-                    { "kind": "grantKeyword", "objects": attached.clone(), "keyword": "firstStrike" },
-                    { "kind": "addSubtype", "objects": attached, "subtype": "Angel" },
-                ],
+                "modifiers": modifiers,
             }),
-            &["Resolve enchanted creature", "Apply Angel characteristics"],
+            &[
+                "Resolve enchanted creature",
+                "Compose continuous stats, keywords, supertype, and subtypes",
+            ],
         ));
     }
     if text == "Enchanted creature has protection from creatures." {
@@ -9085,23 +9434,6 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
             &["Resolve untap-step choice", "Allow source to remain tapped"],
         ));
     }
-    if text == "This land is the chosen type." {
-        return Some(draft(
-            json!({
-                "kind": "staticAbility",
-                "source": self_ref(),
-                "activeWhile": active_while_battlefield(),
-                "modifiers": [{
-                    "kind": "retainChosenBasicLandType",
-                    "decisionId": "basicLandType",
-                }],
-            }),
-            &[
-                "Resolve stored basic-land-type choice",
-                "Retain chosen land characteristics",
-            ],
-        ));
-    }
     if text == "This land enters tapped." {
         return Some(draft(
             json!({
@@ -9118,40 +9450,6 @@ pub(in crate::oracle::canonical) fn parse_special_static_ability(
                 }],
             }),
             &["Resolve entering land", "Apply tapped entering state"],
-        ));
-    }
-
-    if matches!(
-        text,
-        "Creatures entering don't cause abilities to trigger."
-            | "Artifacts and creatures entering the battlefield don't cause abilities to trigger."
-    ) {
-        let where_filter = if text.starts_with("Artifacts and creatures") {
-            or(vec![card_type("Artifact"), card_type("Creature")])
-        } else {
-            card_type("Creature")
-        };
-        return Some(draft(
-            json!({
-                "kind": "staticAbility",
-                "source": self_ref(),
-                "activeWhile": active_while_battlefield(),
-                "modifiers": [{
-                    "kind": "suppressTriggerCreation",
-                    "causedBy": {
-                        "kind": "enterBattlefield",
-                        "object": {
-                            "kind": "eventObject",
-                            "where": where_filter,
-                        },
-                    },
-                }],
-            }),
-            &[
-                "Constrain rule to battlefield",
-                "Resolve creature-entering event",
-                "Install trigger-creation suppression",
-            ],
         ));
     }
 

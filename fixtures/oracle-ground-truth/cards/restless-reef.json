@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "8a8121c9-2480-419c-aa9c-5b8b55f65014",
+  "oracleId": "df20f85b-5f81-4ee4-8487-55d90109ac36",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Restless Reef",
+    "setCode": "lci",
+    "collectorNumber": "282",
+    "typeLine": "Land",
+    "manaCost": "",
+    "oracleText": "This land enters tapped.\n{T}: Add {U} or {B}.\n{2}{U}{B}: Until end of turn, this land becomes a 4/4 blue and black Shark creature with deathtouch. It's still a land.\nWhenever this land attacks, target player mills four cards."
+  },
+  "abilities": [
+    {
+      "id": "restless-reef:ability:1",
+      "reviewStatus": "verified",
+      "source": { "text": "This land enters tapped.", "lineStart": 0, "lineEnd": 0 },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+        "replacement": [{
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }]
+      }
+    },
+    {
+      "id": "restless-reef:ability:4",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Whenever this land attacks, target player mills four cards.",
+        "lineStart": 3,
+        "lineEnd": 3
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [{
+            "id": "targetPlayer",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": { "kind": "players" }
+          }]
+        },
+        "effects": [{
+          "kind": "mill",
+          "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+          "count": { "kind": "integer", "value": 4 }
+        }]
+      }
+    }
+  ]
+}

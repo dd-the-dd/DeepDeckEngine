@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "negated-outlaw-batch-selects-only-non-outlaw-creatures",
+  "seed": 31,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "subtypeContains", "value": "Assassin" },
+                    { "kind": "subtypeContains", "value": "Mercenary" },
+                    { "kind": "subtypeContains", "value": "Pirate" },
+                    { "kind": "subtypeContains", "value": "Rogue" },
+                    { "kind": "subtypeContains", "value": "Warlock" }
+                  ]
+                }
+              },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Batch selector pilot",
+        "manaPool": ["C", "B"],
+        "hand": [{
+          "id": "shoot-the-sheriff",
+          "name": "Shoot the Sheriff",
+          "typeLine": "Instant",
+          "manaCost": "{1}{B}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "eligible-bear",
+            "name": "Eligible Bear",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ineligible-rogue",
+            "name": "Ineligible Rogue",
+            "typeLine": "Creature - Human Rogue",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ineligible-assassin",
+            "name": "Ineligible Assassin",
+            "typeLine": "Creature - Assassin",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ineligible-changeling",
+            "name": "Ineligible Changeling",
+            "typeLine": "Creature - Shapeshifter",
+            "power": "2",
+            "toughness": "2",
+            "rules": [{
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "changeling" }
+            }]
+          },
+          {
+            "id": "ineligible-noncreature",
+            "name": "Ineligible Noncreature",
+            "typeLine": "Artifact"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "shoot-the-sheriff"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "eligible-bear",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ineligible-rogue",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ineligible-assassin",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ineligible-changeling",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ineligible-noncreature",
+      "equals": true
+    },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 4 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "graveyard", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "thalia-guardian-of-thraben/static-spell-tax-is-executable",
+  "cardName": "Thalia, Guardian of Thraben",
+  "oracleId": "9b7f1d05-707c-4ed3-9f0e-8ced1232c2ee",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "firstStrike" }
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "additionalCastingCost",
+        "players": { "kind": "eachPlayer" },
+        "where": {
+          "kind": "not",
+          "operand": { "kind": "cardTypeContains", "value": "Creature" }
+        },
+        "cost": { "kind": "payMana", "manaCost": "{1}" }
+      }]
+    }
+  ]
+}

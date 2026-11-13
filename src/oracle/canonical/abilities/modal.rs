@@ -1,91 +1,5 @@
 use super::super::*;
 
-pub(in crate::oracle::canonical) fn parse_choose_one_modal(
-    text: &str,
-) -> Option<CanonicalRuleDraft> {
-    let lines = text.lines().collect::<Vec<_>>();
-    if lines.len() != 3 || !lines[0].starts_with("Choose one") {
-        return None;
-    }
-    let damage_re = Regex::new(r"^\u{2022} [^.]+ deals (\d+) damage to target creature\.$")
-        .expect("modal damage regex compiles");
-    let destroy_re =
-        Regex::new(r"^\u{2022} Destroy target artifact\.$").expect("modal destroy regex compiles");
-    let damage = damage_re.captures(lines[1])?[1].parse::<i64>().ok()?;
-    if !destroy_re.is_match(lines[2]) {
-        return None;
-    }
-    let damage_condition = selection("chosenModes", "damageCreature");
-    let destroy_condition = selection("chosenModes", "destroyArtifact");
-
-    Some(draft(
-        json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "declaration": {
-                "kind": "castingDeclaration",
-                "decisions": [
-                    {
-                        "id": "chosenModes",
-                        "kind": "chooseModes",
-                        "minimum": 1,
-                        "maximum": 1,
-                        "options": ["damageCreature", "destroyArtifact"],
-                    },
-                    {
-                        "id": "targetCreature",
-                        "kind": "chooseTargets",
-                        "condition": damage_condition,
-                        "minimum": 1,
-                        "maximum": 1,
-                        "candidates": {
-                            "kind": "permanents",
-                            "where": card_type("Creature"),
-                        },
-                    },
-                    {
-                        "id": "targetArtifact",
-                        "kind": "chooseTargets",
-                        "condition": destroy_condition,
-                        "minimum": 1,
-                        "maximum": 1,
-                        "candidates": {
-                            "kind": "permanents",
-                            "where": card_type("Artifact"),
-                        },
-                    },
-                ],
-            },
-            "effects": [
-                {
-                    "kind": "conditional",
-                    "condition": selection("chosenModes", "damageCreature"),
-                    "then": [{
-                        "kind": "dealDamage",
-                        "source": self_ref(),
-                        "amount": integer(damage),
-                        "recipient": chosen_target("targetCreature"),
-                    }],
-                },
-                {
-                    "kind": "conditional",
-                    "condition": selection("chosenModes", "destroyArtifact"),
-                    "then": [{
-                        "kind": "destroyPermanent",
-                        "permanent": chosen_target("targetArtifact"),
-                    }],
-                },
-            ],
-        }),
-        &[
-            "Group modal continuation lines",
-            "Create required mode decision",
-            "Guard each target declaration by its mode",
-            "Guard each resolution effect by its mode",
-        ],
-    ))
-}
-
 pub(in crate::oracle::canonical) fn replace_decision_ids(
     value: &mut Value,
     replacements: &[(String, String)],
@@ -125,7 +39,27 @@ pub(in crate::oracle::canonical) fn modal_bullet_instruction(line: &str) -> Opti
 pub(in crate::oracle::canonical) fn parse_general_modal_spell(
     text: &str,
 ) -> Option<CanonicalRuleDraft> {
-    let lines = text.lines().map(str::trim).collect::<Vec<_>>();
+    // Oracle text normally renders modal bullets on separate lines, but some
+    // data sources flatten the same structure to `Choose ... — • ... • ...`.
+    // Normalize both surface forms before parsing the modal grammar.
+    let inline_lines = if !text.contains('\n') && text.contains('•') {
+        let mut parts = text.split('•');
+        let header = parts
+            .next()?
+            .trim()
+            .trim_end_matches([' ', '-', '—'])
+            .trim()
+            .to_string();
+        let mut lines = vec![header];
+        lines.extend(parts.map(|part| format!("• {}", part.trim())));
+        Some(lines)
+    } else {
+        None
+    };
+    let lines = inline_lines
+        .as_ref()
+        .map(|lines| lines.iter().map(String::as_str).collect::<Vec<_>>())
+        .unwrap_or_else(|| text.lines().map(str::trim).collect::<Vec<_>>());
     if lines.len() < 3 {
         return None;
     }
@@ -141,10 +75,30 @@ pub(in crate::oracle::canonical) fn parse_general_modal_spell(
         count_word_pattern(),
     ))
     .expect("conditional modal maximum header regex compiles");
+    let teamwork_maximum_header_re = Regex::new(
+        r"(?i)^Choose one\. If this spell was cast using teamwork, choose both instead\.$",
+    )
+    .expect("teamwork modal maximum header regex compiles");
     let (minimum, maximum_kind, allow_repeated, conditional_maximum) =
         if let Some(captures) = repeated_header_re.captures(header) {
             let count = parse_number_word(&captures[1])?;
             (count, Some(count), true, None)
+        } else if teamwork_maximum_header_re.is_match(header) {
+            (
+                1,
+                None,
+                false,
+                Some(json!({
+                    "kind": "conditionalValue",
+                    "condition": {
+                        "kind": "decisionWas",
+                        "decisionId": "teamworkPaid",
+                        "value": true,
+                    },
+                    "ifTrue": integer(2),
+                    "ifFalse": integer(1),
+                })),
+            )
         } else if let Some(captures) = conditional_maximum_header_re.captures(header) {
             let maximum = parse_number_word(captures.get(2)?.as_str())?;
             if maximum <= 1 {

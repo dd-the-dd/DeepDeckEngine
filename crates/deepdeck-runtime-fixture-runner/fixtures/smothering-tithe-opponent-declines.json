@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "smothering-tithe-opponent-draw-decline-creates-treasure",
+  "seed": 130,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "cardDrawn", "opponentOfSourceController": true },
+    "effects": [{
+      "kind": "optionalPayCostPerformEffects",
+      "player": { "kind": "triggeringPlayer" },
+      "cost": { "kind": "payMana", "manaCost": "{2}" },
+      "effects": [],
+      "declineEffects": [{
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": { "kind": "namedToken", "name": "Treasure" }
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tithe controller",
+        "battlefield": [{
+          "id": "smothering-tithe",
+          "name": "Smothering Tithe",
+          "typeLine": "Enchantment",
+          "manaCost": "{3}{W}",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": { "kind": "cardDrawn", "opponentOfSourceController": true },
+            "effects": [{
+              "kind": "optionalPayCostPerformEffects",
+              "player": { "kind": "triggeringPlayer" },
+              "cost": { "kind": "payMana", "manaCost": "{2}" },
+              "effects": [],
+              "declineEffects": [{
+                "kind": "createTokens",
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "quantity": { "kind": "integer", "value": 1 },
+                "token": { "kind": "namedToken", "name": "Treasure" }
+              }]
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Drawing opponent",
+        "library": [{ "id": "opponent-draw", "name": "Opponent Draw", "typeLine": "Land" }],
+        "hand": [{
+          "id": "draw-spell",
+          "name": "Draw Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "{0}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "drawCards",
+              "player": { "kind": "abilityController" },
+              "count": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "draw-spell" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "hand", "definitionId": "opponent-draw", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-1", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

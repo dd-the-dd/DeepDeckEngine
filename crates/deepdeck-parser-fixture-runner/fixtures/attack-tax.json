@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/attack-tax",
+  "cases": [
+    {
+      "id": "exact-propaganda",
+      "request": {
+        "cardName": "Propaganda",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "rule": {
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "attackTax",
+              "protectedPlayer": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              },
+              "amount": { "kind": "integer", "value": 2 }
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "exact-ghostly-prison",
+      "request": {
+        "cardName": "Ghostly Prison",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/kind", "equals": "attackTax" },
+            { "pointer": "/modifiers/0/protectedPlayer/kind", "equals": "controllerOf" },
+            { "pointer": "/modifiers/0/amount/kind", "equals": "integer" },
+            { "pointer": "/modifiers/0/amount/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "generic-fixed-amount-sibling",
+      "request": {
+        "cardName": "Tolling Ward",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}",
+        "oracleText": "Creatures can't attack you unless their controller pays {3} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/kind", "equals": "attackTax" },
+            { "pointer": "/modifiers/0/amount/value", "equals": 3 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unsupported-protected-subject-near-miss",
+      "request": {
+        "cardName": "Misapplied Toll",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures can't attack target opponent unless their controller pays {2} for each creature they control that's attacking target opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-attack-tax",
+          "state": "modifier.attack-tax.protected-player",
+          "expectedContains": "ability controller",
+          "found": "target"
+        }]
+      }
+    },
+    {
+      "id": "negative-generic-mana-is-rejected",
+      "request": {
+        "cardName": "Negative Toll",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures can't attack you unless their controller pays {-1} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-attack-tax",
+          "state": "modifier.attack-tax.payment",
+          "expectedContains": "runtime integer range",
+          "found": "{-1}"
+        }]
+      }
+    },
+    {
+      "id": "overflowing-generic-mana-is-rejected",
+      "request": {
+        "cardName": "Overflowing Toll",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures can't attack you unless their controller pays {2147483648} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-attack-tax",
+          "state": "modifier.attack-tax.payment",
+          "expectedContains": "runtime integer range",
+          "found": "{2147483648}"
+        }]
+      }
+    },
+    {
+      "id": "colored-payment-is-not-a-generic-attack-tax",
+      "request": {
+        "cardName": "Colored Toll",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures can't attack you unless their controller pays {R} for each creature they control that's attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-attack-tax",
+          "state": "modifier.attack-tax.payment",
+          "expectedContains": "generic mana symbol",
+          "found": "{R}"
+        }]
+      }
+    }
+  ]
+}

@@ -57,6 +57,48 @@ pub(in crate::oracle::canonical) fn parse_spm_leaf_ability(
         ));
     }
 
+    let harness_re = Regex::new(r"(?i)^(.+?): Harness (.+?)\.(?: \(.+\))?$")
+        .expect("generic harness activation regex compiles");
+    if let Some(captures) = harness_re.captures(text)
+        && source_reference_matches(captures.get(2)?.as_str(), face_name)
+    {
+        let (costs, decisions) = parse_activation_costs(captures.get(1)?.as_str())?;
+        let mut rule = json!({
+            "kind": "activatedAbility",
+            "source": self_ref(),
+            "costs": costs,
+            "effects": [{
+                "kind": "setPermanentFlag",
+                "object": self_ref(),
+                "flag": "harnessed",
+                "value": true,
+            }],
+        });
+        if !decisions.is_empty() {
+            rule["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": decisions,
+            });
+        }
+        return Some(draft(
+            rule,
+            &[
+                "Parse the activation costs with the shared cost grammar",
+                "Persist the reusable harnessed source flag",
+            ],
+        ));
+    }
+
+    if text.starts_with('∞') || text.starts_with("âˆž") || text.starts_with("Ã¢Ë†Å¾") {
+        let instruction = strip_short_oracle_label(text);
+        if instruction != text
+            && let Some(mut parsed) = parse_expansion_triggered(instruction, face_name)
+        {
+            parsed.rule["condition"] = json!({ "kind": "sourceFlagSet", "flag": "harnessed" });
+            return Some(parsed);
+        }
+    }
+
     if text.ends_with(
         "At the beginning of your upkeep, return target creature card from your graveyard to the battlefield.",
     ) && (text.starts_with('∞') || text.starts_with("âˆž"))

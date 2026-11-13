@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "disruptor-flute-name-drives-tax-prohibition-and-mana-exception",
+  "seed": 32,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "decisions": [{
+      "id": "chosenCardName",
+      "kind": "chooseCardName",
+      "where": null,
+      "lookAtOpponentHand": false
+    }],
+    "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCardName" }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Flute pilot",
+        "manaPool": ["C", "C", "C"],
+        "hand": [
+          {
+            "id": "disruptor-flute",
+            "name": "Disruptor Flute",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "flash" }
+              },
+              {
+                "kind": "replacementEffect",
+                "source": { "kind": "self" },
+                "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+                "decisions": [{
+                  "id": "chosenCardName",
+                  "kind": "chooseCardName",
+                  "where": null,
+                  "lookAtOpponentHand": false
+                }],
+                "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCardName" }]
+              },
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [{
+                  "kind": "additionalCastingCost",
+                  "players": { "kind": "eachPlayer" },
+                  "where": {
+                    "kind": "nameEquals",
+                    "value": {
+                      "kind": "storedDecision",
+                      "object": { "kind": "self" },
+                      "decisionId": "chosenCardName"
+                    }
+                  },
+                  "cost": { "kind": "payMana", "manaCost": "{3}" }
+                }]
+              },
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [{
+                  "kind": "prohibitActivation",
+                  "abilities": {
+                    "kind": "activatedAbilities",
+                    "sourceWhere": {
+                      "kind": "nameEquals",
+                      "value": {
+                        "kind": "storedDecision",
+                        "object": { "kind": "self" },
+                        "decisionId": "chosenCardName"
+                      }
+                    },
+                    "where": { "kind": "not", "operand": { "kind": "isManaAbility" } }
+                  }
+                }]
+              }
+            ]
+          },
+          {
+            "id": "named-device-spell",
+            "name": "Named Device",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "other-device-spell",
+            "name": "Other Device",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "named-device",
+            "name": "Named Device",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "payMana", "manaCost": "{1}" }],
+                "effects": [{
+                  "kind": "gainLife",
+                  "player": { "kind": "abilityController" },
+                  "amount": { "kind": "integer", "value": 1 }
+                }]
+              },
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "abilitySource" } }],
+                "effects": [{
+                  "kind": "addMana",
+                  "player": { "kind": "controllerOf", "object": { "kind": "abilitySource" } },
+                  "mana": "{C}"
+                }]
+              }
+            ]
+          },
+          {
+            "id": "other-device",
+            "name": "Other Device",
+            "typeLine": "Artifact",
+            "rules": [{
+              "kind": "activatedAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "payMana", "manaCost": "{1}" }],
+              "effects": [{
+                "kind": "gainLife",
+                "player": { "kind": "abilityController" },
+                "amount": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "disruptor-flute" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseCardName", "value": "Named Device" }],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "named-device-spell",
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "other-device-spell",
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "named-device",
+      "abilityRuleIndex": 0,
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "named-device",
+      "manaSymbols": ["C"],
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "other-device",
+      "abilityRuleIndex": 0,
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

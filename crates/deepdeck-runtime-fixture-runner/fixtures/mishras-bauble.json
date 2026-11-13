@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mishras-bauble-target-look-and-next-upkeep-draw",
+  "seed": 92,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "candidates": {
+            "kind": "players"
+          },
+          "minimum": 1,
+          "maximum": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "chosenTarget",
+            "id": "targetPlayer"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "bind": "lookedTopCards"
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "upkeep",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Bauble controller",
+        "library": [
+          {
+            "id": "controller-upkeep-card",
+            "name": "Controller Upkeep Card",
+            "typeLine": "Artifact"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "mishras-bauble",
+            "name": "Mishra's Bauble",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "candidates": {
+                        "kind": "players"
+                      },
+                      "minimum": 1,
+                      "maximum": 1
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "lookAtTopCards",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "chosenTarget",
+                        "id": "targetPlayer"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "bind": "lookedTopCards"
+                  },
+                  {
+                    "kind": "installDelayedStepTrigger",
+                    "step": "upkeep",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "effects": [
+                      {
+                        "kind": "drawCards",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target player",
+        "library": [
+          {
+            "id": "target-top-card",
+            "name": "Target Top Card",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "mishras-bauble",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "player-1"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 2
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "mishras-bauble",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "mishras-bauble",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "player-1",
+      "step": "postcombatMain",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "delayedTriggerInstalled",
+      "playerId": "player-0",
+      "step": "postcombatMain",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "step": "upkeep",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "step": "draw",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-1",
+      "step": "draw",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "controller-upkeep-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "target-top-card",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

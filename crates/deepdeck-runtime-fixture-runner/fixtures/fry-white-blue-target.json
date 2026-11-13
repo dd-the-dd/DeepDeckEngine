@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "fry-casts-and-damages-a-white-blue-creature",
+  "seed": 101105,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Creature" },
+                  { "kind": "cardTypeContains", "value": "Planeswalker" }
+                ]
+              },
+              {
+                "kind": "or",
+                "operands": [
+                  { "kind": "colorContains", "value": "White" },
+                  { "kind": "colorContains", "value": "Blue" }
+                ]
+              }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "dealDamage",
+      "source": { "kind": "self" },
+      "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "amount": { "kind": "integer", "value": 5 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Fry caster",
+        "manaPool": ["C", "R"],
+        "hand": [{
+          "id": "fry",
+          "name": "Fry",
+          "typeLine": "Instant",
+          "manaCost": "{1}{R}",
+          "rules": [
+            {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "stack" }
+              },
+              "modifiers": [{
+                "kind": "cantBeCountered",
+                "object": { "kind": "self" }
+              }]
+            },
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "or",
+                          "operands": [
+                            { "kind": "cardTypeContains", "value": "Creature" },
+                            { "kind": "cardTypeContains", "value": "Planeswalker" }
+                          ]
+                        },
+                        {
+                          "kind": "or",
+                          "operands": [
+                            { "kind": "colorContains", "value": "White" },
+                            { "kind": "colorContains", "value": "Blue" }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "dealDamage",
+                "source": { "kind": "self" },
+                "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "amount": { "kind": "integer", "value": 5 }
+              }]
+            }
+          ]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "white-blue-creature",
+          "name": "White-Blue Creature",
+          "typeLine": "Creature — Test",
+          "manaCost": "{W}{U}",
+          "power": "4",
+          "toughness": "4",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "fry" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "fry", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "white-blue-creature", "equals": true },
+    { "kind": "eventCount", "eventKind": "spellCast", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

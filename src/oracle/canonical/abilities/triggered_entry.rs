@@ -170,11 +170,58 @@ pub(in crate::oracle::canonical) fn linked_exile_candidates(
     description: &str,
     exclude_source: bool,
 ) -> Option<Value> {
+    let (description, exclude_attached) = [
+        " other than enchanted creature",
+        " other than enchanted permanent",
+    ]
+    .into_iter()
+    .find_map(|suffix| strip_suffix_ascii_case(description.trim(), suffix))
+    .map_or((description.trim(), false), |description| {
+        (description.trim(), true)
+    });
     let mut candidates = permanent_target_candidates(description, "")?;
     if exclude_source {
         candidates["excludeSource"] = Value::Bool(true);
     }
+    if exclude_attached {
+        candidates["exclude"] = json!({
+            "kind": "attachedPermanent",
+            "attachment": self_ref(),
+        });
+    }
     Some(candidates)
+}
+
+fn parse_linked_exile_with_followup(text: &str) -> Option<(&str, i64, bool, &str, &str)> {
+    let cursor = strip_prefix_ascii_case(text, "When this ")?;
+    let (source_kind, cursor) = split_once_ascii_case(cursor, " enters, exile ")?;
+    if !["Aura", "artifact", "creature", "enchantment"]
+        .iter()
+        .any(|candidate| source_kind.eq_ignore_ascii_case(candidate))
+    {
+        return None;
+    }
+    let (minimum, cursor) =
+        strip_prefix_ascii_case(cursor, "up to one ").map_or((1, cursor), |cursor| (0, cursor));
+    let (exclude_source, cursor) = strip_prefix_ascii_case(cursor, "another ")
+        .map_or((false, cursor), |cursor| (true, cursor));
+    let cursor = strip_prefix_ascii_case(cursor, "target ")?;
+    let (target_description, cursor) = split_once_ascii_case(cursor, " until this ")?;
+    let (duration_source_kind, trailing_instruction) =
+        split_once_ascii_case(cursor, " leaves the battlefield. ")?;
+    if !source_kind.eq_ignore_ascii_case(duration_source_kind)
+        || target_description.trim().is_empty()
+        || trailing_instruction.trim().is_empty()
+    {
+        return None;
+    }
+    Some((
+        source_kind,
+        minimum,
+        exclude_source,
+        target_description.trim(),
+        trailing_instruction.trim(),
+    ))
 }
 
 pub(in crate::oracle::canonical) fn parse_composed_entry_triggered(
@@ -508,27 +555,28 @@ pub(in crate::oracle::canonical) fn parse_composed_entry_triggered(
         return Some(entry_trigger_rule(None, effects));
     }
 
-    let linked_exile_with_followup_re = Regex::new(
-        r"(?i)^When this (Aura|artifact|creature|enchantment) enters, exile (up to one )?(another )?target (.+?) until this (Aura|artifact|creature|enchantment) leaves the battlefield\. (.+)$",
-    )
-    .expect("linked exile followed by another entry effect regex compiles");
-    if let Some(captures) = linked_exile_with_followup_re.captures(text)
-        && captures[1].eq_ignore_ascii_case(&captures[5])
+    if let Some((source_kind, minimum, exclude_source, target_description, trailing)) =
+        parse_linked_exile_with_followup(text)
     {
-        let minimum = i64::from(captures.get(2).is_none());
-        let candidates = linked_exile_candidates(&captures[4], captures.get(3).is_some())?;
+        let candidates = linked_exile_candidates(target_description, exclude_source)?;
+        let binding = "linkedExiledPermanent";
         let (mut trailing_effects, trailing_decisions) =
-            parse_general_effect_instruction(&captures[6], "")?;
+            parse_linked_copy_instruction(trailing, source_kind, binding)
+                .or_else(|| parse_general_effect_instruction(trailing, ""))?;
         if !trailing_decisions.is_empty() {
             return None;
         }
         let mut effects = vec![json!({
             "kind": "exilePermanentWithSource",
-            "permanent": chosen_target("exileTarget"),
+            "permanent": {
+                "kind": "chosenTargets",
+                "id": "exileTarget",
+            },
             "candidates": candidates.clone(),
             "minimum": minimum,
             "maximum": 1,
             "returnWhenSourceLeaves": true,
+            "bind": binding,
         })];
         effects.append(&mut trailing_effects);
         return Some(entry_trigger_rule(

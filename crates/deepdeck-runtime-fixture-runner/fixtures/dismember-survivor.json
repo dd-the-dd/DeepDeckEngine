@@ -1,0 +1,74 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "dismember-reduces-six-six-to-one-one",
+  "seed": 10501,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "modifyPowerToughness",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "power": { "kind": "integer", "value": -5 },
+      "toughness": { "kind": "integer", "value": -5 },
+      "duration": { "kind": "untilEndOfCurrentTurn" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Dismember caster",
+        "hand": [{
+          "id": "dismember",
+          "name": "Dismember",
+          "typeLine": "Instant",
+          "manaCost": "{1}{B/P}{B/P}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Creature controller",
+        "battlefield": [{
+          "id": "six-six",
+          "name": "Six-Six",
+          "typeLine": "Creature - Test",
+          "power": "6",
+          "toughness": "6"
+        }]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "dismember",
+    "targets": {
+      "targetPermanent": { "permanent": { "instanceId": "player-1:six-six:0" } }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-1",
+      "definitionId": "six-six",
+      "power": 1,
+      "toughness": 1
+    },
+    { "kind": "eventCount", "eventKind": "powerToughnessModified", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

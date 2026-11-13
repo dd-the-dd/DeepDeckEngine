@@ -1,0 +1,1708 @@
+{
+  "generatedAt": "2026-11-13T02:28:43.2141841-05:00",
+  "mode": "NativeOnly",
+  "parserFingerprint": "9D6B65AD937C1DB83FAB402362CA31B54EE244D8989CCE9626AEA84FB336288F",
+  "parserFingerprintTag": "9D6B65AD",
+  "analyzerPath": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\analyze_local_abilities-nativeonly-9D6B65AD.exe",
+  "analyzerSha256": "E9F21F83A719CDA96443F11C76D3B32002A1C73A4F2F7225227C8BC9748ECC8D",
+  "catalogPath": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\catalog.json",
+  "catalogSha256": "C92ED6077C7BD18CC0CC5A32660546C2CF787CFB7990FC839AA96E04AA11D048",
+  "catalogReadSeconds": 2.042,
+  "sets": [
+    {
+      "code": "mbc",
+      "name": "Mystery Booster Commander Edition",
+      "releaseDate": "2026-10-19",
+      "uniqueOracleIds": 80,
+      "completeNonzero": 8,
+      "completeVanilla": 0,
+      "overallCompletePercent": 10,
+      "partial": 15,
+      "noNativeCanonical": 57,
+      "cardLevelFailures": 72,
+      "splitterFailures": 0,
+      "nativeAbilities": 26,
+      "totalAbilities": 181,
+      "nativeAbilityPercent": 14.36,
+      "analyzerSeconds": 0.113,
+      "wallSeconds": 0.28,
+      "sourcePrintings": 80,
+      "localInputPrintings": 80,
+      "auditablePrintings": 80,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\mbc-printings.json",
+      "inputSha256": "CA34D5BC02C6AB70A8A6BA0EE212CBEFC04A9BF74CBCC058C73EF9FDC9BB6BDE",
+      "auditSha256": "8046584C3299D0E3166A98A7B16BD94747D18052F8DCEBA179B1670F0E7E7A4B",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 80,
+        "localPrintings": 80,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "fra",
+      "name": "Reality Fracture",
+      "releaseDate": "2026-10-02",
+      "uniqueOracleIds": 285,
+      "completeNonzero": 35,
+      "completeVanilla": 2,
+      "overallCompletePercent": 12.98,
+      "partial": 110,
+      "noNativeCanonical": 138,
+      "cardLevelFailures": 248,
+      "splitterFailures": 0,
+      "nativeAbilities": 181,
+      "totalAbilities": 562,
+      "nativeAbilityPercent": 32.21,
+      "analyzerSeconds": 0.312,
+      "wallSeconds": 0.595,
+      "sourcePrintings": 462,
+      "localInputPrintings": 462,
+      "auditablePrintings": 462,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\fra-printings.json",
+      "inputSha256": "7868D372BE78FCC89E40F89DE7C42D75F5DDFB9D2ADAED6B5A75F29058ABF79E",
+      "auditSha256": "E75F064FB378CB02BDA52E513FB7AFFBB4AC54364B28CA68F27497C94C707632",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 462,
+        "localPrintings": 462,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "hob",
+      "name": "The Hobbit",
+      "releaseDate": "2026-08-14",
+      "uniqueOracleIds": 193,
+      "completeNonzero": 11,
+      "completeVanilla": 1,
+      "overallCompletePercent": 6.22,
+      "partial": 82,
+      "noNativeCanonical": 99,
+      "cardLevelFailures": 181,
+      "splitterFailures": 0,
+      "nativeAbilities": 106,
+      "totalAbilities": 387,
+      "nativeAbilityPercent": 27.39,
+      "analyzerSeconds": 0.205,
+      "wallSeconds": 0.408,
+      "sourcePrintings": 321,
+      "localInputPrintings": 321,
+      "auditablePrintings": 321,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\hob-printings.json",
+      "inputSha256": "50AD23A9D52B1FC039E1C30ED3BAE3070A54CD0E9E2CE2A240000D3BB518946F",
+      "auditSha256": "D4458AFAC56CF271031A6FA82D37FD1A12A5A0827740123F455920EF279489D0",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 321,
+        "localPrintings": 321,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "msh",
+      "name": "Marvel Super Heroes",
+      "releaseDate": "2026-06-26",
+      "uniqueOracleIds": 281,
+      "completeNonzero": 16,
+      "completeVanilla": 0,
+      "overallCompletePercent": 5.69,
+      "partial": 141,
+      "noNativeCanonical": 124,
+      "cardLevelFailures": 265,
+      "splitterFailures": 0,
+      "nativeAbilities": 193,
+      "totalAbilities": 590,
+      "nativeAbilityPercent": 32.71,
+      "analyzerSeconds": 0.304,
+      "wallSeconds": 0.544,
+      "sourcePrintings": 453,
+      "localInputPrintings": 453,
+      "auditablePrintings": 453,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\msh-printings.json",
+      "inputSha256": "4210560AC391AF310A1F777282DC707224AF5BC7BBD10FA72A3ED49FAFA67232",
+      "auditSha256": "095A8A12A9E017EB6FA417890CFF0DDA2B41908F26D24AD316EC7303A61A6562",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 453,
+        "localPrintings": 453,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "sos",
+      "name": "Secrets of Strixhaven",
+      "releaseDate": "2026-04-24",
+      "uniqueOracleIds": 271,
+      "completeNonzero": 33,
+      "completeVanilla": 0,
+      "overallCompletePercent": 12.18,
+      "partial": 99,
+      "noNativeCanonical": 139,
+      "cardLevelFailures": 238,
+      "splitterFailures": 0,
+      "nativeAbilities": 174,
+      "totalAbilities": 506,
+      "nativeAbilityPercent": 34.39,
+      "analyzerSeconds": 0.327,
+      "wallSeconds": 0.553,
+      "sourcePrintings": 368,
+      "localInputPrintings": 368,
+      "auditablePrintings": 368,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\sos-printings.json",
+      "inputSha256": "B07792E93AF7F5840D1C19E63DEC610698A71415E16C6569B322BF0D6EFE95A6",
+      "auditSha256": "E5CD34C75309C521F1B63B648C245999BEC438EA48CBB37DF75035FAB3A547C4",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 368,
+        "localPrintings": 368,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "tmt",
+      "name": "Teenage Mutant Ninja Turtles",
+      "releaseDate": "2026-03-06",
+      "uniqueOracleIds": 195,
+      "completeNonzero": 16,
+      "completeVanilla": 0,
+      "overallCompletePercent": 8.21,
+      "partial": 79,
+      "noNativeCanonical": 100,
+      "cardLevelFailures": 179,
+      "splitterFailures": 0,
+      "nativeAbilities": 110,
+      "totalAbilities": 408,
+      "nativeAbilityPercent": 26.96,
+      "analyzerSeconds": 0.219,
+      "wallSeconds": 0.439,
+      "sourcePrintings": 320,
+      "localInputPrintings": 320,
+      "auditablePrintings": 320,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\tmt-printings.json",
+      "inputSha256": "4BC6517711AEB9FB4CB55731AD74574AE7CC1C9052C5BF1D2719BFA9CA4D1D95",
+      "auditSha256": "675C0E464CF781B91F166A0FC75036EA59F6B96E4FC27586A7A9CDBB815623B2",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 320,
+        "localPrintings": 320,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "ecl",
+      "name": "Lorwyn Eclipsed",
+      "releaseDate": "2026-01-23",
+      "uniqueOracleIds": 273,
+      "completeNonzero": 20,
+      "completeVanilla": 0,
+      "overallCompletePercent": 7.33,
+      "partial": 80,
+      "noNativeCanonical": 173,
+      "cardLevelFailures": 253,
+      "splitterFailures": 0,
+      "nativeAbilities": 120,
+      "totalAbilities": 540,
+      "nativeAbilityPercent": 22.22,
+      "analyzerSeconds": 0.279,
+      "wallSeconds": 0.496,
+      "sourcePrintings": 408,
+      "localInputPrintings": 403,
+      "auditablePrintings": 403,
+      "excludedNullOracleIdPrintings": 5,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\ecl-printings.json",
+      "inputSha256": "CBDE9DAD2A0C20C74D1C5B27A5AC3B86EDA725819AC8B5846C1748895FDA37F2",
+      "auditSha256": "D4262D2763A2B661A790782C8C250413A413D313F9327F14F32EDFCD27FCF1F4",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 408,
+        "localPrintings": 403,
+        "excludedNullIdWrappers": 5
+      }
+    },
+    {
+      "code": "tla",
+      "name": "Avatar: The Last Airbender",
+      "releaseDate": "2025-11-21",
+      "uniqueOracleIds": 286,
+      "completeNonzero": 31,
+      "completeVanilla": 0,
+      "overallCompletePercent": 10.84,
+      "partial": 94,
+      "noNativeCanonical": 161,
+      "cardLevelFailures": 255,
+      "splitterFailures": 0,
+      "nativeAbilities": 170,
+      "totalAbilities": 604,
+      "nativeAbilityPercent": 28.15,
+      "analyzerSeconds": 0.34,
+      "wallSeconds": 0.579,
+      "sourcePrintings": 394,
+      "localInputPrintings": 394,
+      "auditablePrintings": 394,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\tla-printings.json",
+      "inputSha256": "72D1091DE89B03BF1385733A14AC902A4145FB3DA0012D8E01463C66C1A2EAA6",
+      "auditSha256": "E0BF5FD2EDBD64D302CCEA3627230F1A991020777CDBCE575408FCEE2731E5D4",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 394,
+        "localPrintings": 394,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "spm",
+      "name": "Marvel's Spider-Man",
+      "releaseDate": "2025-09-26",
+      "uniqueOracleIds": 193,
+      "completeNonzero": 13,
+      "completeVanilla": 0,
+      "overallCompletePercent": 6.74,
+      "partial": 86,
+      "noNativeCanonical": 94,
+      "cardLevelFailures": 180,
+      "splitterFailures": 0,
+      "nativeAbilities": 113,
+      "totalAbilities": 400,
+      "nativeAbilityPercent": 28.25,
+      "analyzerSeconds": 0.222,
+      "wallSeconds": 0.476,
+      "sourcePrintings": 286,
+      "localInputPrintings": 286,
+      "auditablePrintings": 286,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\spm-printings.json",
+      "inputSha256": "68C286BCB1B06621A3E9A88646B13CBDF83253FB8EFD68C1B2560E79ACA79EEA",
+      "auditSha256": "DAB270838E0ACC74CD871D1FDF4D8EB34BD8D81B17D1FD869AAF82FC02D246C1",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 286,
+        "localPrintings": 286,
+        "excludedNullIdWrappers": 0
+      }
+    },
+    {
+      "code": "eoe",
+      "name": "Edge of Eternities",
+      "releaseDate": "2025-08-01",
+      "uniqueOracleIds": 266,
+      "completeNonzero": 20,
+      "completeVanilla": 0,
+      "overallCompletePercent": 7.52,
+      "partial": 83,
+      "noNativeCanonical": 163,
+      "cardLevelFailures": 246,
+      "splitterFailures": 0,
+      "nativeAbilities": 125,
+      "totalAbilities": 519,
+      "nativeAbilityPercent": 24.08,
+      "analyzerSeconds": 0.279,
+      "wallSeconds": 0.511,
+      "sourcePrintings": 400,
+      "localInputPrintings": 400,
+      "auditablePrintings": 400,
+      "excludedNullOracleIdPrintings": 0,
+      "inputSource": "D:\\User\\Documents\\Projet\\deepdeck-engine\\.tmp\\recent-sets-root\\eoe-printings.json",
+      "inputSha256": "003857233B25F41C82BCE0DE6985E782138E2023EDF054FFFFA511407968C13E",
+      "auditSha256": "51E3715ACC55DA8FD25060F89173E86A1390ACF70D11FF97C171966419665313",
+      "provenance": {
+        "bulkPath": ".tmp/default-cards.jsonl.gz",
+        "snapshot": "2026-11-09",
+        "expectedPrintings": 400,
+        "localPrintings": 400,
+        "excludedNullIdWrappers": 0
+      }
+    }
+  ],
+  "interSetUnion": {
+    "uniqueOracleIds": 2279,
+    "completeNonzero": 160,
+    "completeVanilla": 3,
+    "overallCompletePercent": 7.15,
+    "partial": 868,
+    "noNativeCanonical": 1248,
+    "cardLevelFailures": 2116,
+    "splitterFailures": 0,
+    "nativeAbilities": 1274,
+    "totalAbilities": 4652,
+    "nativeAbilityPercent": 27.39,
+    "analyzerSecondsSum": 2.6,
+    "wallSecondsSum": 4.881,
+    "note": "Deduplicated by oracle_id across all audited sets; per-set rows count occurrences within each set."
+  },
+  "missingSets": [],
+  "schemaVersion": "deepdeck-ten-set-native-coverage-snapshot/v1",
+  "selectionAsOf": "2026-11-12",
+  "dataSnapshot": "2026-11-09",
+  "auditDate": "2026-11-13",
+  "scope": "NativeOnly Oracle recognition, without per-card runtime certification. No set is complete.",
+  "baselineCheckpoint": "8C34384E41237A10A87ACAF67E3432F0DF4FBE0DE0778B20AB77E6CA07C8ED96",
+  "baselineComparison": {
+    "rows": [
+      {
+        "code": "mbc",
+        "name": "Mystery Booster Commander Edition",
+        "totalCards": 80,
+        "completeBefore": 8,
+        "completeAfter": 8,
+        "partialBefore": 15,
+        "partialAfter": 15,
+        "noNativeBefore": 57,
+        "noNativeAfter": 57,
+        "nativeAbilitiesBefore": 26,
+        "nativeAbilitiesAfter": 26,
+        "totalAbilities": 181,
+        "newlyCompleteCards": [],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "fra",
+        "name": "Reality Fracture",
+        "totalCards": 285,
+        "completeBefore": 35,
+        "completeAfter": 37,
+        "partialBefore": 109,
+        "partialAfter": 110,
+        "noNativeBefore": 141,
+        "noNativeAfter": 138,
+        "nativeAbilitiesBefore": 178,
+        "nativeAbilitiesAfter": 181,
+        "totalAbilities": 562,
+        "newlyCompleteCards": [
+          {
+            "oracleId": "0caccec3-4942-499a-9434-0c94389afcf8",
+            "name": "Surgical Precision"
+          },
+          {
+            "oracleId": "25151d18-8e73-4b0d-a8d2-e5fa291e5729",
+            "name": "Eardrum Rattler"
+          }
+        ],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "hob",
+        "name": "The Hobbit",
+        "totalCards": 193,
+        "completeBefore": 11,
+        "completeAfter": 12,
+        "partialBefore": 81,
+        "partialAfter": 82,
+        "noNativeBefore": 101,
+        "noNativeAfter": 99,
+        "nativeAbilitiesBefore": 103,
+        "nativeAbilitiesAfter": 106,
+        "totalAbilities": 387,
+        "newlyCompleteCards": [
+          {
+            "oracleId": "7d070a95-49ea-4aea-b512-dbb0006a00ee",
+            "name": "Elvenking's Harper"
+          }
+        ],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "msh",
+        "name": "Marvel Super Heroes",
+        "totalCards": 281,
+        "completeBefore": 16,
+        "completeAfter": 16,
+        "partialBefore": 141,
+        "partialAfter": 141,
+        "noNativeBefore": 124,
+        "noNativeAfter": 124,
+        "nativeAbilitiesBefore": 193,
+        "nativeAbilitiesAfter": 193,
+        "totalAbilities": 590,
+        "newlyCompleteCards": [],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "sos",
+        "name": "Secrets of Strixhaven",
+        "totalCards": 271,
+        "completeBefore": 32,
+        "completeAfter": 33,
+        "partialBefore": 99,
+        "partialAfter": 99,
+        "noNativeBefore": 140,
+        "noNativeAfter": 139,
+        "nativeAbilitiesBefore": 173,
+        "nativeAbilitiesAfter": 174,
+        "totalAbilities": 506,
+        "newlyCompleteCards": [
+          {
+            "oracleId": "00e94b75-ad31-4e1f-b3be-eed7cd3e4d76",
+            "name": "Stand Up for Yourself"
+          }
+        ],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "tmt",
+        "name": "Teenage Mutant Ninja Turtles",
+        "totalCards": 195,
+        "completeBefore": 14,
+        "completeAfter": 16,
+        "partialBefore": 79,
+        "partialAfter": 79,
+        "noNativeBefore": 102,
+        "noNativeAfter": 100,
+        "nativeAbilitiesBefore": 106,
+        "nativeAbilitiesAfter": 110,
+        "totalAbilities": 408,
+        "newlyCompleteCards": [
+          {
+            "oracleId": "0056fc91-4398-471c-b561-7ff99750ac8a",
+            "name": "Escape Tunnel"
+          },
+          {
+            "oracleId": "8226f31d-6f51-49c3-87f7-0c68f7f4f9ce",
+            "name": "Make Your Move"
+          }
+        ],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "ecl",
+        "name": "Lorwyn Eclipsed",
+        "totalCards": 273,
+        "completeBefore": 20,
+        "completeAfter": 20,
+        "partialBefore": 80,
+        "partialAfter": 80,
+        "noNativeBefore": 173,
+        "noNativeAfter": 173,
+        "nativeAbilitiesBefore": 120,
+        "nativeAbilitiesAfter": 120,
+        "totalAbilities": 540,
+        "newlyCompleteCards": [],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "tla",
+        "name": "Avatar: The Last Airbender",
+        "totalCards": 286,
+        "completeBefore": 30,
+        "completeAfter": 31,
+        "partialBefore": 94,
+        "partialAfter": 94,
+        "noNativeBefore": 162,
+        "noNativeAfter": 161,
+        "nativeAbilitiesBefore": 169,
+        "nativeAbilitiesAfter": 170,
+        "totalAbilities": 604,
+        "newlyCompleteCards": [
+          {
+            "oracleId": "73ca3132-d849-4cf9-beba-75ba09789332",
+            "name": "Deserter's Disciple"
+          }
+        ],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "spm",
+        "name": "Marvel's Spider-Man",
+        "totalCards": 193,
+        "completeBefore": 13,
+        "completeAfter": 13,
+        "partialBefore": 86,
+        "partialAfter": 86,
+        "noNativeBefore": 94,
+        "noNativeAfter": 94,
+        "nativeAbilitiesBefore": 113,
+        "nativeAbilitiesAfter": 113,
+        "totalAbilities": 400,
+        "newlyCompleteCards": [],
+        "lostCompleteCards": []
+      },
+      {
+        "code": "eoe",
+        "name": "Edge of Eternities",
+        "totalCards": 266,
+        "completeBefore": 20,
+        "completeAfter": 20,
+        "partialBefore": 81,
+        "partialAfter": 83,
+        "noNativeBefore": 165,
+        "noNativeAfter": 163,
+        "nativeAbilitiesBefore": 123,
+        "nativeAbilitiesAfter": 125,
+        "totalAbilities": 519,
+        "newlyCompleteCards": [],
+        "lostCompleteCards": []
+      }
+    ],
+    "occurrenceTotals": {
+      "totalCards": 2323,
+      "completeBefore": 199,
+      "completeAfter": 206,
+      "partialBefore": 865,
+      "partialAfter": 869,
+      "noNativeBefore": 1259,
+      "noNativeAfter": 1248,
+      "nativeAbilitiesBefore": 1304,
+      "nativeAbilitiesAfter": 1318,
+      "totalAbilities": 4697
+    },
+    "unionBefore": {
+      "uniqueOracleIds": 2279,
+      "completeNonzero": 153,
+      "completeVanilla": 3,
+      "overallCompletePercent": 6.85,
+      "partial": 864,
+      "noNativeCanonical": 1259,
+      "cardLevelFailures": 2123,
+      "splitterFailures": 0,
+      "nativeAbilities": 1260,
+      "totalAbilities": 4652,
+      "nativeAbilityPercent": 27.09,
+      "analyzerSecondsSum": 2.467,
+      "wallSecondsSum": 10.223,
+      "note": "Deduplicated by oracle_id across all audited sets; per-set rows count occurrences within each set."
+    },
+    "unionAfter": {
+      "uniqueOracleIds": 2279,
+      "completeNonzero": 160,
+      "completeVanilla": 3,
+      "overallCompletePercent": 7.15,
+      "partial": 868,
+      "noNativeCanonical": 1248,
+      "cardLevelFailures": 2116,
+      "splitterFailures": 0,
+      "nativeAbilities": 1274,
+      "totalAbilities": 4652,
+      "nativeAbilityPercent": 27.39,
+      "analyzerSecondsSum": 2.6,
+      "wallSecondsSum": 4.881,
+      "note": "Deduplicated by oracle_id across all audited sets; per-set rows count occurrences within each set."
+    },
+    "newlyCompleteUnionCards": [
+      {
+        "oracleId": "0caccec3-4942-499a-9434-0c94389afcf8",
+        "name": "Surgical Precision"
+      },
+      {
+        "oracleId": "25151d18-8e73-4b0d-a8d2-e5fa291e5729",
+        "name": "Eardrum Rattler"
+      },
+      {
+        "oracleId": "7d070a95-49ea-4aea-b512-dbb0006a00ee",
+        "name": "Elvenking's Harper"
+      },
+      {
+        "oracleId": "00e94b75-ad31-4e1f-b3be-eed7cd3e4d76",
+        "name": "Stand Up for Yourself"
+      },
+      {
+        "oracleId": "0056fc91-4398-471c-b561-7ff99750ac8a",
+        "name": "Escape Tunnel"
+      },
+      {
+        "oracleId": "8226f31d-6f51-49c3-87f7-0c68f7f4f9ce",
+        "name": "Make Your Move"
+      },
+      {
+        "oracleId": "73ca3132-d849-4cf9-beba-75ba09789332",
+        "name": "Deserter's Disciple"
+      }
+    ],
+    "lostCompleteUnionCards": []
+  },
+  "globalContext": {
+    "newNativeAbilities": 214,
+    "newFullyNativeCards": 100,
+    "gainsByLayout": {
+      "normal": 100
+    },
+    "gainsByCategory": {
+      "ordinary": 100
+    },
+    "auxiliaryLayouts": [
+      "art_series",
+      "double_faced_token",
+      "emblem",
+      "planar",
+      "scheme",
+      "token",
+      "vanguard"
+    ],
+    "gainedCards": [
+      {
+        "cardKey": "0056fc91-4398-471c-b561-7ff99750ac8a",
+        "cardName": "Escape Tunnel",
+        "set": "tmt",
+        "collectorNumber": "184",
+        "layout": "normal",
+        "typeLine": "Land",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "00e94b75-ad31-4e1f-b3be-eed7cd3e4d76",
+        "cardName": "Stand Up for Yourself",
+        "set": "sos",
+        "collectorNumber": "34",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "02fde433-955d-49df-bd72-270b6feac9e7",
+        "cardName": "Raze",
+        "set": "usg",
+        "collectorNumber": "207",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "038519b9-bca8-4b27-b5ac-2409595469d0",
+        "cardName": "Diabolic Intent",
+        "set": "bro",
+        "collectorNumber": "89",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0385be55-8e8e-4e7d-b6b7-51adc6eb98fa",
+        "cardName": "Reaver Ambush",
+        "set": "rix",
+        "collectorNumber": "83",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0996d48a-f92a-4aaf-b8a3-f7ec8ff986ca",
+        "cardName": "Magma Rift",
+        "set": "zen",
+        "collectorNumber": "136",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0b67dff0-5bb7-44fe-a72b-d3b1a6c0ee72",
+        "cardName": "Infernal Plunge",
+        "set": "isd",
+        "collectorNumber": "148",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0c936582-d4c0-4da8-bc7e-49da5a433939",
+        "cardName": "Bone Splinters",
+        "set": "dmu",
+        "collectorNumber": "83",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0caccec3-4942-499a-9434-0c94389afcf8",
+        "cardName": "Surgical Precision",
+        "set": "fra",
+        "collectorNumber": "22",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0f81064d-01cd-4a61-8aea-2544e4d14b70",
+        "cardName": "Spontaneous Combustion",
+        "set": "cns",
+        "collectorNumber": "194",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "0f8ebf11-b5ec-4f21-8c49-90d569b5a4c5",
+        "cardName": "Worthy Cost",
+        "set": "tdm",
+        "collectorNumber": "99",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "1005bc16-8a6a-476a-a647-4ed40d2e96de",
+        "cardName": "Goblin Tunneler",
+        "set": "ddt",
+        "collectorNumber": "49",
+        "layout": "normal",
+        "typeLine": "Creature — Goblin Rogue",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "13279222-422d-4447-9451-2463b0c714c6",
+        "cardName": "Garruk's Packleader",
+        "set": "j25",
+        "collectorNumber": "660",
+        "layout": "normal",
+        "typeLine": "Creature — Beast",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "17c7878f-891f-40a6-80a7-47fcc7b8e29b",
+        "cardName": "Skulltap",
+        "set": "scg",
+        "collectorNumber": "73",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "1c4afb0d-6d6e-4d21-9fe0-5621cd2fd27c",
+        "cardName": "Command Decision",
+        "set": "trk",
+        "collectorNumber": "8",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "20aecb7b-7e37-4efe-ac27-f9f9042203f4",
+        "cardName": "Goblin Grenade",
+        "set": "ddt",
+        "collectorNumber": "45",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "20c705e3-4141-41f8-ad73-bf953f0e1ddd",
+        "cardName": "Improvised Club",
+        "set": "hoc",
+        "collectorNumber": "197",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "2138533a-d33c-477a-9765-7369d1ec30b0",
+        "cardName": "Tawnos's Wand",
+        "set": "me4",
+        "collectorNumber": "231",
+        "layout": "normal",
+        "typeLine": "Artifact",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "21645448-ecbd-4036-b9ed-47cd903079e4",
+        "cardName": "Defeat",
+        "set": "dtk",
+        "collectorNumber": "97",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "25151d18-8e73-4b0d-a8d2-e5fa291e5729",
+        "cardName": "Eardrum Rattler",
+        "set": "fra",
+        "collectorNumber": "81",
+        "layout": "normal",
+        "typeLine": "Creature — Human Bard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "254878f0-be90-4653-a395-0c41258fceaf",
+        "cardName": "Tinker",
+        "set": "ulg",
+        "collectorNumber": "45",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "28b46183-c62f-47b1-9fee-3ba148202cab",
+        "cardName": "Crop Rotation",
+        "set": "dmr",
+        "collectorNumber": "154",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "28da6443-4acc-4f1c-a54f-9153286f18c4",
+        "cardName": "Incendiary Sabotage",
+        "set": "kld",
+        "collectorNumber": "119",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "2a33d0ea-9b19-4fde-8e7a-2a9d17f716ea",
+        "cardName": "Sungold Barrage",
+        "set": "mid",
+        "collectorNumber": "36",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "2e0b838d-c858-4aa5-999e-c4ef9d29571b",
+        "cardName": "Demon of Catastrophes",
+        "set": "m19",
+        "collectorNumber": "91",
+        "layout": "normal",
+        "typeLine": "Creature — Demon",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "2ec1860b-89cc-4529-8b8c-fb47f79f2b4b",
+        "cardName": "Sower of Chaos",
+        "set": "fdn",
+        "collectorNumber": "95",
+        "layout": "normal",
+        "typeLine": "Creature — Devil",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "2f6f5054-4a48-458e-969e-3a0f0e507354",
+        "cardName": "Heartfire",
+        "set": "jmp",
+        "collectorNumber": "333",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "34f9a03e-ca95-4d3e-9e63-7297b5513481",
+        "cardName": "Final Flare",
+        "set": "thb",
+        "collectorNumber": "134",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "365548fb-5acc-4a8a-b20b-26d28b7d029f",
+        "cardName": "Village Rites",
+        "set": "inr",
+        "collectorNumber": "137",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "39b7f3cc-e229-4cdf-9d85-db0b17203d7e",
+        "cardName": "Cruel Cut",
+        "set": "anb",
+        "collectorNumber": "47",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "3ac01298-e45b-4ea0-8379-2074279716a4",
+        "cardName": "Citywide Bust",
+        "set": "c20",
+        "collectorNumber": "82",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "3d19ab38-fb32-4f2b-b68c-28db4a6864c6",
+        "cardName": "Shard Volley",
+        "set": "mor",
+        "collectorNumber": "103",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "3eabd27c-bd65-479a-9743-e90e4273c016",
+        "cardName": "Sneaking Guide",
+        "set": "znr",
+        "collectorNumber": "164",
+        "layout": "normal",
+        "typeLine": "Creature — Goblin Rogue",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "46f78c42-85d1-4cd4-9fc3-d5fdec04a4c8",
+        "cardName": "Vivisection",
+        "set": "mid",
+        "collectorNumber": "83",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "4a3cc4f6-037f-461d-a3b7-9f9e24c4b8cf",
+        "cardName": "Vanquish the Weak",
+        "set": "mom",
+        "collectorNumber": "129",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "53e4273c-3292-47a0-90d1-8a0eb0eaf381",
+        "cardName": "Amphin Pathmage",
+        "set": "m15",
+        "collectorNumber": "45",
+        "layout": "normal",
+        "typeLine": "Creature — Salamander Wizard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "58916455-844c-4d97-908f-8205bdc117c0",
+        "cardName": "Exorcise",
+        "set": "dsk",
+        "collectorNumber": "8",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "607a3f5f-4a36-4077-b5cf-40ffd52fa580",
+        "cardName": "Altar of Bone",
+        "set": "ice",
+        "collectorNumber": "281",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "627de3d8-ad5e-4f9b-b83c-476cc98fea9b",
+        "cardName": "Paleoloth",
+        "set": "con",
+        "collectorNumber": "88",
+        "layout": "normal",
+        "typeLine": "Creature — Beast",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "635dda8c-3761-4c87-8723-8cd09878516b",
+        "cardName": "Kronch Wrangler",
+        "set": "clu",
+        "collectorNumber": "169",
+        "layout": "normal",
+        "typeLine": "Creature — Human Warrior",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "6385fd0d-256d-4400-9319-afa8170024db",
+        "cardName": "Culling the Weak",
+        "set": "exo",
+        "collectorNumber": "55",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "63afc3d1-7653-476e-838f-fc18d4a62a21",
+        "cardName": "Mishra's Bauble",
+        "set": "2xm",
+        "collectorNumber": "274",
+        "layout": "normal",
+        "typeLine": "Artifact",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "63c1dfcc-9d47-4dee-b4e6-1f50e716cf9e",
+        "cardName": "Intrepid Hero",
+        "set": "m13",
+        "collectorNumber": "20",
+        "layout": "normal",
+        "typeLine": "Creature — Human Soldier",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "643c1ee3-a653-4a6c-b705-a61f3b67e38c",
+        "cardName": "Pillar of Light",
+        "set": "m15",
+        "collectorNumber": "24",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "649512ed-4908-450a-9652-b2c80df5e24d",
+        "cardName": "Smite the Monstrous",
+        "set": "znr",
+        "collectorNumber": "42",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "6a125750-2b8c-4f9d-8173-ac8d14c91ddb",
+        "cardName": "Altar's Reap",
+        "set": "cma",
+        "collectorNumber": "45",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "6eb21aca-116e-427b-9e75-8adaee0cc62a",
+        "cardName": "Wormhole Serpent",
+        "set": "stx",
+        "collectorNumber": "62",
+        "layout": "normal",
+        "typeLine": "Creature — Serpent",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "73ca3132-d849-4cf9-beba-75ba09789332",
+        "cardName": "Deserter's Disciple",
+        "set": "tla",
+        "collectorNumber": "131",
+        "layout": "normal",
+        "typeLine": "Creature — Human Rebel Ally",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "7aad0a80-cf7b-4224-8e72-d611e0be3383",
+        "cardName": "Wicked Reward",
+        "set": "vis",
+        "collectorNumber": "75",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "7b47891f-130a-4d76-b262-53f5e3bb6b95",
+        "cardName": "Killing Glare",
+        "set": "j25",
+        "collectorNumber": "120",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "7d070a95-49ea-4aea-b512-dbb0006a00ee",
+        "cardName": "Elvenking's Harper",
+        "set": "hob",
+        "collectorNumber": "38",
+        "layout": "normal",
+        "typeLine": "Creature — Elf Bard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "8226f31d-6f51-49c3-87f7-0c68f7f4f9ce",
+        "cardName": "Make Your Move",
+        "set": "msc",
+        "collectorNumber": "137",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "84c7d60a-7a7a-4344-8db5-d658792e3ac4",
+        "cardName": "Lambholt Harrier",
+        "set": "mid",
+        "collectorNumber": "145",
+        "layout": "normal",
+        "typeLine": "Creature — Wolf",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "8cdfd9df-4783-4138-a286-828a97f516aa",
+        "cardName": "Costly Plunder",
+        "set": "2xm",
+        "collectorNumber": "80",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "8eb328e6-332e-435c-9733-4c5336f17824",
+        "cardName": "Reave Soul",
+        "set": "eld",
+        "collectorNumber": "103",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "91af3c81-615a-4b89-acf2-34c72001ebbd",
+        "cardName": "Fiery Conclusion",
+        "set": "pca",
+        "collectorNumber": "42",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "937a04c2-41be-4ff3-8992-6628a9ee9792",
+        "cardName": "Hall Monitor",
+        "set": "stx",
+        "collectorNumber": "105",
+        "layout": "normal",
+        "typeLine": "Creature — Lizard Shaman",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "968b6277-584c-4947-98ac-4d6e5f8d6754",
+        "cardName": "Bring to Trial",
+        "set": "rna",
+        "collectorNumber": "5",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "979e670e-bbd8-4595-8d9d-ad1c0bc422e3",
+        "cardName": "Coralhelm Guide",
+        "set": "bbd",
+        "collectorNumber": "116",
+        "layout": "normal",
+        "typeLine": "Creature — Merfolk Scout Ally",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "9a2bc266-4076-4923-b201-5898b18cbad9",
+        "cardName": "Passwall Adept",
+        "set": "clu",
+        "collectorNumber": "91",
+        "layout": "normal",
+        "typeLine": "Creature — Human Wizard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "9be3e610-f6bf-4e79-87ca-79dde27945d0",
+        "cardName": "Godtracker of Jund",
+        "set": "arb",
+        "collectorNumber": "55",
+        "layout": "normal",
+        "typeLine": "Creature — Elf Shaman",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "a0324f33-3f25-4374-affa-c7b5b54bc8d7",
+        "cardName": "Chainwhip Cyclops",
+        "set": "clu",
+        "collectorNumber": "127",
+        "layout": "normal",
+        "typeLine": "Creature — Cyclops Warrior",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "aa108554-f1a0-45b6-aa15-597d42be7a8a",
+        "cardName": "Repel the Vile",
+        "set": "neo",
+        "collectorNumber": "33",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "adc03c37-33c7-4b92-b9fd-4608e6c372c4",
+        "cardName": "Collar the Culprit",
+        "set": "grn",
+        "collectorNumber": "5",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b262a057-9ace-48b4-b418-1bb751ccb300",
+        "cardName": "Angelic Purge",
+        "set": "inr",
+        "collectorNumber": "9",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b26b1d22-3882-4aa9-b86b-f3748a6c9a25",
+        "cardName": "Inspiring Commander",
+        "set": "oana",
+        "collectorNumber": "4",
+        "layout": "normal",
+        "typeLine": "Creature — Human Soldier",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b45e35df-9032-4482-89a6-c7c50c6d0a79",
+        "cardName": "Corrupted Conviction",
+        "set": "otj",
+        "collectorNumber": "84",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b558541f-ae57-41f7-a5bd-e23fa35e68b4",
+        "cardName": "Jamuraan Lion",
+        "set": "vis",
+        "collectorNumber": "10",
+        "layout": "normal",
+        "typeLine": "Creature — Cat",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b75e667a-1ceb-445a-acf4-ae1fd2dae9e7",
+        "cardName": "Destroy Evil",
+        "set": "msc",
+        "collectorNumber": "128",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "b89dd47e-0f65-41f0-ad23-cefc61e68978",
+        "cardName": "Collateral Damage",
+        "set": "jmp",
+        "collectorNumber": "305",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "c0247a19-9c8f-422c-88cf-9f298c3a8c96",
+        "cardName": "Pathmaker Initiate",
+        "set": "j25",
+        "collectorNumber": "584",
+        "layout": "normal",
+        "typeLine": "Creature — Human Wizard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "c1cf9d74-e700-456a-9e5a-1c4df22db268",
+        "cardName": "Blood Divination",
+        "set": "jmp",
+        "collectorNumber": "207",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "c4020178-71d9-4363-a0bd-b9a7eecd5d02",
+        "cardName": "Crafty Pathmage",
+        "set": "10e",
+        "collectorNumber": "77",
+        "layout": "normal",
+        "typeLine": "Creature — Human Wizard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "c4f1d8c8-29e5-43fe-8281-7d42d0173dc5",
+        "cardName": "Minamo Sightbender",
+        "set": "ddi",
+        "collectorNumber": "5",
+        "layout": "normal",
+        "typeLine": "Creature — Human Wizard",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "ca611c90-7753-43dd-af91-81694d004eeb",
+        "cardName": "Suspicious Bookcase",
+        "set": "tle",
+        "collectorNumber": "170",
+        "layout": "normal",
+        "typeLine": "Artifact Creature — Wall",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "cba07472-7212-4411-a9f9-38a48870ad69",
+        "cardName": "Spellbreaker Behemoth",
+        "set": "c13",
+        "collectorNumber": "216",
+        "layout": "normal",
+        "typeLine": "Creature — Beast",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "ccb1b532-92b8-4ebf-b3c2-fb5924b116f5",
+        "cardName": "Slimy Dualleech",
+        "set": "mkm",
+        "collectorNumber": "104",
+        "layout": "normal",
+        "typeLine": "Creature — Leech",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "cdba7f43-df9e-4bfb-9480-721c787ad051",
+        "cardName": "Final Vengeance",
+        "set": "dsk",
+        "collectorNumber": "99",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "cfc553cd-3b4c-47a9-bffb-e5790befb32c",
+        "cardName": "Dwarven Warriors",
+        "set": "5ed",
+        "collectorNumber": "222",
+        "layout": "normal",
+        "typeLine": "Creature — Dwarf Warrior",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "d0732ebf-91ad-4e3c-a09a-f410d20587fc",
+        "cardName": "Ragged Playmate",
+        "set": "dsk",
+        "collectorNumber": "150",
+        "layout": "normal",
+        "typeLine": "Artifact Creature — Toy",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "d14a8d90-13c0-4eb0-ab7b-86edb2c7fb96",
+        "cardName": "Artillerize",
+        "set": "nph",
+        "collectorNumber": "79",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "d3c623f3-c7c9-47c0-8096-6dee3267baff",
+        "cardName": "Shrapnel Blast",
+        "set": "ddu",
+        "collectorNumber": "48",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "d8838e16-96ca-4f73-ad61-7e98a76c4baf",
+        "cardName": "Blade Banish",
+        "set": "iko",
+        "collectorNumber": "4",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "d9a7e5a6-3e41-4fc6-987a-18fe1b9d67dd",
+        "cardName": "Elemental Bond",
+        "set": "tdc",
+        "collectorNumber": "254",
+        "layout": "normal",
+        "typeLine": "Enchantment",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "db130ff4-7525-421f-b7e7-200921ecbdec",
+        "cardName": "Dwarven Nomad",
+        "set": "mir",
+        "collectorNumber": "170",
+        "layout": "normal",
+        "typeLine": "Creature — Dwarf Nomad",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "dca7102e-c020-4fdc-9b59-f186e3e615a5",
+        "cardName": "Dusk Rose Reliquary",
+        "set": "lci",
+        "collectorNumber": "10",
+        "layout": "normal",
+        "typeLine": "Artifact",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "dce4d65f-cb91-48a2-a2a7-013e73dfb667",
+        "cardName": "Legion's Judgment",
+        "set": "m21",
+        "collectorNumber": "24",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "dd97e457-07eb-4918-b780-ae7ff42a37e7",
+        "cardName": "Abjure",
+        "set": "wth",
+        "collectorNumber": "31",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "df621822-c811-40fa-99c1-ea9920bcd2e2",
+        "cardName": "Sultai Flayer",
+        "set": "ima",
+        "collectorNumber": "186",
+        "layout": "normal",
+        "typeLine": "Creature — Snake Shaman",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "e9eecc10-8821-4b61-a042-01fef435d37c",
+        "cardName": "Merciless Resolve",
+        "set": "soi",
+        "collectorNumber": "123",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "eae15f7d-1f6e-4dfc-afea-7698b93cd145",
+        "cardName": "Goblin Smuggler",
+        "set": "fdn",
+        "collectorNumber": "540",
+        "layout": "normal",
+        "typeLine": "Creature — Goblin Rogue",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "ed9cc560-f30b-4b60-a094-ccf93ed656a7",
+        "cardName": "Access Tunnel",
+        "set": "tdc",
+        "collectorNumber": "337",
+        "layout": "normal",
+        "typeLine": "Land",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "eed4651b-4c45-4136-9e3d-44471031368f",
+        "cardName": "Grotesque Demise",
+        "set": "rna",
+        "collectorNumber": "75",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "ef414347-bbe3-47cb-b900-88275561c43e",
+        "cardName": "Neighborhood Guardian",
+        "set": "mkm",
+        "collectorNumber": "26",
+        "layout": "normal",
+        "typeLine": "Creature — Unicorn",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "f13baf38-27fc-4c5d-8fee-459eefdb32da",
+        "cardName": "Powerstone Fracture",
+        "set": "j25",
+        "collectorNumber": "477",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "f24d5187-0f80-4528-bf44-03ae146f3551",
+        "cardName": "Reckless Abandon",
+        "set": "ddn",
+        "collectorNumber": "20",
+        "layout": "normal",
+        "typeLine": "Sorcery",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "f29dc596-2121-4421-8463-15f6c2e8b9b3",
+        "cardName": "Rogue's Passage",
+        "set": "trc",
+        "collectorNumber": "552",
+        "layout": "normal",
+        "typeLine": "Land",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "fae90808-bafa-44d8-972a-17ded87576ee",
+        "cardName": "Reprisal",
+        "set": "jou",
+        "collectorNumber": "23",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "fcd281e3-f336-449f-a887-4b98dc14dfe7",
+        "cardName": "Siegebreaker Giant",
+        "set": "m19",
+        "collectorNumber": "157",
+        "layout": "normal",
+        "typeLine": "Creature — Giant Warrior",
+        "category": "ordinary"
+      },
+      {
+        "cardKey": "ff281103-7a9b-4eb1-b81e-b8cd137b6e98",
+        "cardName": "Triumphant Surge",
+        "set": "thb",
+        "collectorNumber": "41",
+        "layout": "normal",
+        "typeLine": "Instant",
+        "category": "ordinary"
+      }
+    ],
+    "preservedPriorNativeAbilities": 14923
+  },
+  "priorityRecognition": {
+    "queueCards": 145,
+    "afterFullyNativeCards": 145,
+    "afterNativePrefixLength": 145,
+    "regressionsAgainst8C": 0,
+    "gainsAgainst8C": 1,
+    "historicalCertifiedLosses": 0,
+    "changedPreviouslyNativeRulesRaw": 0
+  },
+  "numericFullCompatibility": {
+    "cards": 544,
+    "counts": {
+      "regressions": 0,
+      "promotions": 73,
+      "retainedCanonical": 455,
+      "unsupportedDiagnosticOrTypeChanges": 36,
+      "fullNativeParityFailures": 0,
+      "structuredLegacyDeferrals": 11
+    },
+    "nativeParity": {
+      "matched": 211,
+      "failures": 0
+    },
+    "promotionReviewStatus": "review_required",
+    "sourcePath": ".tmp\\coverage-checkpoint-audit\\9D6B65AD\\numeric-full-9D6B65AD.comparison.json"
+  },
+  "independentVerification": {
+    "passed": true,
+    "sets": [
+      {
+        "code": "mbc",
+        "uniqueCards": 80,
+        "noNativeCanonical": 57,
+        "partial": 15,
+        "completeNonzero": 8,
+        "nativeAbilities": 26,
+        "totalAbilities": 181,
+        "multiFaceCardsPreserved": 0
+      },
+      {
+        "code": "fra",
+        "uniqueCards": 285,
+        "partial": 110,
+        "noNativeCanonical": 138,
+        "completeNonzero": 35,
+        "completeVanilla": 2,
+        "nativeAbilities": 181,
+        "totalAbilities": 562,
+        "multiFaceCardsPreserved": 21
+      },
+      {
+        "code": "hob",
+        "uniqueCards": 193,
+        "partial": 82,
+        "noNativeCanonical": 99,
+        "completeNonzero": 11,
+        "completeVanilla": 1,
+        "nativeAbilities": 106,
+        "totalAbilities": 387,
+        "multiFaceCardsPreserved": 17
+      },
+      {
+        "code": "msh",
+        "uniqueCards": 281,
+        "noNativeCanonical": 124,
+        "partial": 141,
+        "completeNonzero": 16,
+        "nativeAbilities": 193,
+        "totalAbilities": 590,
+        "multiFaceCardsPreserved": 5
+      },
+      {
+        "code": "sos",
+        "uniqueCards": 271,
+        "partial": 99,
+        "noNativeCanonical": 139,
+        "completeNonzero": 33,
+        "nativeAbilities": 174,
+        "totalAbilities": 506,
+        "multiFaceCardsPreserved": 36
+      },
+      {
+        "code": "tmt",
+        "uniqueCards": 195,
+        "partial": 79,
+        "noNativeCanonical": 100,
+        "completeNonzero": 16,
+        "nativeAbilities": 110,
+        "totalAbilities": 408,
+        "multiFaceCardsPreserved": 0
+      },
+      {
+        "code": "ecl",
+        "uniqueCards": 273,
+        "noNativeCanonical": 173,
+        "partial": 80,
+        "completeNonzero": 20,
+        "nativeAbilities": 120,
+        "totalAbilities": 540,
+        "multiFaceCardsPreserved": 7
+      },
+      {
+        "code": "tla",
+        "uniqueCards": 286,
+        "partial": 94,
+        "noNativeCanonical": 161,
+        "completeNonzero": 31,
+        "nativeAbilities": 170,
+        "totalAbilities": 604,
+        "multiFaceCardsPreserved": 8
+      },
+      {
+        "code": "spm",
+        "uniqueCards": 193,
+        "noNativeCanonical": 94,
+        "partial": 86,
+        "completeNonzero": 13,
+        "nativeAbilities": 113,
+        "totalAbilities": 400,
+        "multiFaceCardsPreserved": 5
+      },
+      {
+        "code": "eoe",
+        "uniqueCards": 266,
+        "noNativeCanonical": 163,
+        "partial": 83,
+        "completeNonzero": 20,
+        "nativeAbilities": 125,
+        "totalAbilities": 519,
+        "multiFaceCardsPreserved": 0
+      }
+    ],
+    "occurrences": {
+      "uniqueCards": 2323,
+      "completeNonzero": 203,
+      "completeVanilla": 3,
+      "partial": 869,
+      "noNativeCanonical": 1248,
+      "nativeAbilities": 1318,
+      "totalAbilities": 4697
+    },
+    "uniqueAcrossSets": 2279,
+    "union": {
+      "noNativeCanonical": 1248,
+      "partial": 868,
+      "completeNonzero": 160,
+      "completeVanilla": 3
+    },
+    "auditReportSha256": "80F93BF4625D55ABAA75BF193235FC8BAF826CA4D2061C75D18A94B5E96DBD12"
+  },
+  "artifacts": {
+    ".tmp\\coverage-checkpoint-audit\\ten-sets-9D6B65AD\\last-10-sets-nativeonly-9D6B65AD.json": "80F93BF4625D55ABAA75BF193235FC8BAF826CA4D2061C75D18A94B5E96DBD12",
+    ".tmp\\coverage-checkpoint-audit\\9D6B65AD\\oracle-global-8C34384E-to-9D6B65AD-comparison.json": "0C8539B27A144F0F74F969E70E95314D2C06540AA4611FC3DE00C2A9758AE885",
+    ".tmp\\coverage-checkpoint-audit\\9D6B65AD\\priority-historical-145-9D6B65AD.json": "B8CF9DCF7679572250FC3AFFE4FF768FBA16627D1819F496B5324597ABD3B916",
+    ".tmp\\coverage-checkpoint-audit\\9D6B65AD\\numeric-full-9D6B65AD.comparison.json": "954873EF6401F2D5A7D7A6470E0A095ABBD6F6D82BB84A1FDB974088A68EBE2A",
+    ".tmp\\recent-sets-root\\manifest.json": "3624C44FEB14705CFF4124459963E7F0A83D03AE0DBF1F795DA35924816ECD82",
+    ".tmp\\recent-sets-root\\catalog.json": "C92ED6077C7BD18CC0CC5A32660546C2CF787CFB7990FC839AA96E04AA11D048"
+  }
+}

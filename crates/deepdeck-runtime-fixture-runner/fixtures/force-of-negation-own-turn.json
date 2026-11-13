@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "force-of-negation-alternative-cost-is-unavailable-on-controllers-turn",
+  "seed": 22,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "condition": { "kind": "notYourTurn" },
+      "costs": [{
+        "kind": "exileCard",
+        "zone": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          }
+        },
+        "where": { "kind": "colorContains", "value": "blue" }
+      }]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Force pilot",
+        "hand": [
+          {
+            "id": "force-of-negation",
+            "name": "Force of Negation",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "condition": { "kind": "notYourTurn" },
+                  "costs": [{
+                    "kind": "exileCard",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": { "kind": "self" }
+                      }
+                    },
+                    "where": { "kind": "colorContains", "value": "blue" }
+                  }]
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "effects": []
+              }
+            ]
+          },
+          {
+            "id": "blue-payment-card",
+            "name": "Blue Payment Card",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [{
+    "kind": "spellCastAvailable",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "force-of-negation",
+    "useAlternativeCost": true,
+    "alternativeExileDefinitionId": "blue-payment-card",
+    "equals": false
+  }]
+}

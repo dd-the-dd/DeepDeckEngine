@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "leyline-of-the-void/all-native-rules-are-executable",
+  "cardName": "Leyline of the Void",
+  "oracleId": "f4e32fc1-1b8d-441e-8e76-71f19f98e925",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "openingHandBattlefield" }
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "where": { "kind": "not", "operand": { "kind": "isToken" } },
+        "from": { "kind": "anyZone" },
+        "to": { "kind": "exile" }
+      }]
+    }
+  ]
+}

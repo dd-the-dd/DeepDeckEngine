@@ -1,0 +1,2422 @@
+{
+  "schema_version": "deepdeck-native-card-proofs/v1",
+  "cards": [
+    {
+      "oracle_id": "b1544f21-7e98-461b-aed5-e748b0168c52",
+      "name": "Swords to Plowshares",
+      "expected_semantic_ir_digest": "4087BD23512EFEFD0A3CF9B6677159086940DD37B5325146DA71C47CF23D9566",
+      "contract": {
+        "fixture_id": "swords-to-plowshares/snapshot-exile-and-life-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/swords-to-plowshares.json"
+      },
+      "runtime": {
+        "fixture_id": "swords-to-plowshares-exiles-and-uses-power-snapshot",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/swords-to-plowshares.json"
+      }
+    },
+    {
+      "oracle_id": "2e467fab-e808-44d3-99bf-e3621baeb7cb",
+      "name": "Erode",
+      "expected_semantic_ir_digest": "3FE9132687FDE17F16A2CD457AD5B6792AB854CAAA2990628BCF67D8F00CA910",
+      "contract": {
+        "fixture_id": "erode/destroy-and-controller-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/erode.json"
+      },
+      "runtime": {
+        "fixture_id": "erode-destroys-and-searches-for-prior-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/erode.json"
+      }
+    },
+    {
+      "oracle_id": "3407fe41-fdd3-4119-8f70-4bc4590a379f",
+      "name": "Negate",
+      "expected_semantic_ir_digest": "DCB0A1F373BE9205F0D9FA144DB3BEAA87F0E71B6B811B2B7E7323D430010122",
+      "contract": {
+        "fixture_id": "negate/noncreature-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/negate.json"
+      },
+      "runtime": {
+        "fixture_id": "negate-counters-noncreature-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/negate.json"
+      }
+    },
+    {
+      "oracle_id": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+      "name": "Llanowar Elves",
+      "expected_semantic_ir_digest": "1D1A3EBBA815CBEBDF8875C1749111285AD9D64873B45A15C037580ACA41242F",
+      "contract": {
+        "fixture_id": "llanowar-elves/simple-tap-mana-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/llanowar-elves.json"
+      },
+      "runtime": {
+        "fixture_id": "llanowar-elves-add-green-mana",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/llanowar-elves.json"
+      }
+    },
+    {
+      "oracle_id": "2251e34e-4ce8-4452-9dc6-d8cce8583996",
+      "name": "Stock Up",
+      "expected_semantic_ir_digest": "C00EA760026A54D489D7682BAEF0589EB25DB5BA97460C23D8B3423CF2D688E8",
+      "contract": {
+        "fixture_id": "stock-up/top-cards-partition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/stock-up.json"
+      },
+      "runtime": {
+        "fixture_id": "stock-up-top-five-partition",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stock-up.json"
+      }
+    },
+    {
+      "oracle_id": "956381ba-6d37-4a8a-846c-bad79222dbee",
+      "name": "Force of Will",
+      "expected_semantic_ir_digest": "CE67DC9D391A6D1B1D3A565D9791DECB16974E441196E0ED69013E99A62717D7",
+      "contract": {
+        "fixture_id": "force-of-will/compound-alternative-cost-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/force-of-will.json"
+      },
+      "runtime": {
+        "fixture_id": "force-of-will-cast-with-compound-alternative-cost",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/force-of-will.json"
+      }
+    },
+    {
+      "oracle_id": "6ad8011d-3471-4369-9d68-b264cc027487",
+      "name": "Sol Ring",
+      "expected_semantic_ir_digest": "DCFD2B53ECB79364D492D3B8B56C65212E9D9021257FB88CDCFDBB75EF8DF82E",
+      "contract": {
+        "fixture_id": "sol-ring/simple-tap-two-mana-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/sol-ring.json"
+      },
+      "runtime": {
+        "fixture_id": "sol-ring-add-two-colorless-mana",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sol-ring.json"
+      }
+    },
+    {
+      "oracle_id": "0127c13f-7b0f-44c3-8b35-97f306c5f239",
+      "name": "Strategic Betrayal",
+      "expected_semantic_ir_digest": "BB4342C99A2997099A4F8A24B7EE3138F72F4A530C5D5232371D40317A09D154",
+      "contract": {
+        "fixture_id": "targeted-player/compound-controlled-permanent-and-graveyard-exile-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/strategic-betrayal.json"
+      },
+      "runtime": {
+        "fixture_id": "targeted-player-compound-controlled-permanent-and-graveyard-exile",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/strategic-betrayal.json"
+      }
+    },
+    {
+      "oracle_id": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+      "name": "Arcane Signet",
+      "expected_semantic_ir_digest": "B1DC92994E54C39E2C225370C08BA3F243B264AAE3BF47C752BDDB28710B11E7",
+      "contract": {
+        "fixture_id": "arcane-signet/commander-identity-mana-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/arcane-signet.json"
+      },
+      "runtime": {
+        "fixture_id": "arcane-signet-adds-only-a-commander-identity-color",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arcane-signet.json"
+      }
+    },
+    {
+      "oracle_id": "33d405ea-7a9a-4970-b70f-9c05d90dd6f0",
+      "name": "Duress",
+      "expected_semantic_ir_digest": "9360E072B1E0276DF0D3F522F62F3FA649EB7C4EA296073AF26168FEF2D2EFD0",
+      "contract": {
+        "fixture_id": "duress/targeted-filtered-hand-disruption-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/duress.json"
+      },
+      "runtime": {
+        "fixture_id": "duress-targeted-filtered-hand-disruption",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/duress.json"
+      }
+    },
+    {
+      "oracle_id": "09a70ae8-3859-4a09-901d-dce063fa3b5f",
+      "name": "Wasteland",
+      "expected_semantic_ir_digest": "5C7E9596BAAB1129CDA032F8CA77A21F3F6FC0424DE657F01758643AE9E3D6CB",
+      "contract": {
+        "fixture_id": "wasteland/compound-tap-sacrifice-destroy-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/wasteland.json"
+      },
+      "runtime": {
+        "fixture_id": "wasteland-compound-activated-cost-destroys-nonbasic-land",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/wasteland.json"
+      }
+    },
+    {
+      "oracle_id": "16c39265-72d9-4c86-a961-8dd38ff9adcd",
+      "name": "Consign to Memory",
+      "expected_semantic_ir_digest": "DEF8EC32E2EEE33DCA64D08FEB2DA399C86E50F2280B8C299FE09FE29CB20060",
+      "contract": {
+        "fixture_id": "consign-to-memory/heterogeneous-stack-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/consign-to-memory.json"
+      },
+      "runtime": {
+        "fixture_id": "consign-to-memory-counter-colorless-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/consign-to-memory.json"
+      }
+    },
+    {
+      "oracle_id": "eda16b31-33db-4ad2-901a-80fbe6273733",
+      "name": "Requiting Hex",
+      "expected_semantic_ir_digest": "D35F50BA7D82643A64781A1A66982367B9BE189B44AB8AF60FB86F4B33BCE0F1",
+      "contract": {
+        "fixture_id": "requiting-hex/qualified-destroy-and-paid-cost-life-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/requiting-hex.json"
+      },
+      "runtime": {
+        "fixture_id": "requiting-hex-destroys-qualified-creature-and-gains-life-when-paid",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/requiting-hex.json"
+      }
+    },
+    {
+      "oracle_id": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
+      "name": "Brainstorm",
+      "expected_semantic_ir_digest": "1CCA7A14F4F1361F55F1736F8E1E7060224FCF273FF9A03F7CC663164B48BB37",
+      "contract": {
+        "fixture_id": "brainstorm/draw-select-order-move-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brainstorm.json"
+      },
+      "runtime": {
+        "fixture_id": "brainstorm-draw-three-put-two-back-in-order",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm.json"
+      }
+    },
+    {
+      "oracle_id": "eaf98e03-729b-4145-b2af-c910c415c15d",
+      "name": "Flashfreeze",
+      "expected_semantic_ir_digest": "710E60C07B24A824C10E0D876C921CED52AC1EC53D8DB9C05B82CDCFF6C92923",
+      "contract": {
+        "fixture_id": "flashfreeze/color-union-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/flashfreeze.json"
+      },
+      "runtime": {
+        "fixture_id": "flashfreeze-counters-red-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/flashfreeze-red-spell.json"
+      }
+    },
+    {
+      "oracle_id": "d683d985-9888-4d21-8b5f-69e69ce4a03b",
+      "name": "Path to Exile",
+      "expected_semantic_ir_digest": "AC1E47E79D5F0A755091E805D576F6CBB11E8E69A3FBAFB133B70BF825B75E66",
+      "contract": {
+        "fixture_id": "path-to-exile/exile-and-optional-controller-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/path-to-exile.json"
+      },
+      "runtime": {
+        "fixture_id": "path-to-exile-accepts-controller-search",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/path-to-exile-accept.json"
+      }
+    },
+    {
+      "oracle_id": "cc187110-1148-4090-bbb8-e205694a39f5",
+      "name": "Counterspell",
+      "expected_semantic_ir_digest": "EC0B39D2EFE4BECA46D0376ED8A20DC218743699AB007EE45BF9B5A47921068A",
+      "contract": {
+        "fixture_id": "counterspell/unqualified-spell-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/counterspell.json"
+      },
+      "runtime": {
+        "fixture_id": "counterspell-counters-target-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/counterspell.json"
+      }
+    },
+    {
+      "oracle_id": "11e02134-7b1a-46a4-a89e-7539dd1efada",
+      "name": "Disdainful Stroke",
+      "expected_semantic_ir_digest": "11FB8D59E940C1AA21B7462FE1938E998A0F7A310DFF6FCA0D833295E3D2EB85",
+      "contract": {
+        "fixture_id": "disdainful-stroke/mana-value-threshold-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/disdainful-stroke.json"
+      },
+      "runtime": {
+        "fixture_id": "disdainful-stroke-counters-mana-value-four-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/disdainful-stroke-mv4.json"
+      }
+    },
+    {
+      "oracle_id": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+      "name": "Force of Negation",
+      "expected_semantic_ir_digest": "4F56B10CFE465ECA77631452F9748A304D9BE27C8739BF2409133D4CB82DA953",
+      "contract": {
+        "fixture_id": "force-of-negation/counter-exile-replacement-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/force-of-negation.json"
+      },
+      "runtime": {
+        "fixture_id": "force-of-negation-complete-native-runtime-proof",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/force-of-negation.json"
+      }
+    },
+    {
+      "oracle_id": "8b755881-a72d-4e21-a369-d2924eb4585a",
+      "name": "Cultivate",
+      "expected_semantic_ir_digest": "6A3223677D70790BAA8890723D9B1BEEBFE0CB35490A685BA25C7E52B0AA4B0B",
+      "contract": {
+        "fixture_id": "cultivate/search-reveal-partition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/cultivate.json"
+      },
+      "runtime": {
+        "fixture_id": "cultivate-two-matches-partitions-one-to-battlefield-and-one-to-hand",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/cultivate-two.json"
+      }
+    },
+    {
+      "oracle_id": "17770eeb-ecbf-4510-af2d-acececfbe146",
+      "name": "Multiversal Passage",
+      "expected_semantic_ir_digest": "FE8789D60E6DECED0B8749DB29EE5CEAEC822875389EB19F4D64A42C4296DB3B",
+      "contract": {
+        "fixture_id": "multiversal-passage/chosen-land-type-entry-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/multiversal-passage-entry.json"
+      },
+      "runtime": {
+        "fixture_id": "multiversal-passage-declines-life-and-enters-tapped-with-chosen-type",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/multiversal-passage-decline.json"
+      }
+    },
+    {
+      "oracle_id": "02090581-61aa-4348-ad57-451be8ee91c2",
+      "name": "Ponder",
+      "expected_semantic_ir_digest": "20A4DCD19C7413E15FF6908B62EE00DC41D654FAAC145FC136AC6355E468B47F",
+      "contract": {
+        "fixture_id": "ponder/top-cards-reorder-and-optional-shuffle-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ponder-reorder.json"
+      },
+      "runtime": {
+        "fixture_id": "ponder-keeps-chosen-order-then-draws",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ponder-keep-order.json"
+      }
+    },
+    {
+      "oracle_id": "495e52e6-4c2b-4574-9474-eadbdcc8b4ac",
+      "name": "Farseek",
+      "expected_semantic_ir_digest": "A1397F510C443534427761D47CE83900C3D3BEF8C07AEC53DCB1E87588430564",
+      "contract": {
+        "fixture_id": "farseek/subtype-union-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/farseek.json"
+      },
+      "runtime": {
+        "fixture_id": "farseek-finds-one-eligible-subtype-and-moves-it-tapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/farseek-found.json"
+      }
+    },
+    {
+      "oracle_id": "f3c7af78-a77d-4134-82a2-a5ce84285a84",
+      "name": "Flooded Strand",
+      "expected_semantic_ir_digest": "462B28F6FF535D9D2341D4B1B9B864E9695EA6C682F31A99B152888EBE601D58",
+      "contract": {
+        "fixture_id": "flooded-strand/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/flooded-strand.json"
+      },
+      "runtime": {
+        "fixture_id": "flooded-strand-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/flooded-strand.json"
+      }
+    },
+    {
+      "oracle_id": "38877c68-b69b-4ee1-8e8f-5137a184a8f7",
+      "name": "Spell Snare",
+      "expected_semantic_ir_digest": "2058180022E039B7C6721C698D527FE02D7F25462BB96189AA71C462FD688F34",
+      "contract": {
+        "fixture_id": "spell-snare/exact-mana-value-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/spell-snare.json"
+      },
+      "runtime": {
+        "fixture_id": "spell-snare-counters-exact-mana-value-two-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/spell-snare-mv2.json"
+      }
+    },
+    {
+      "oracle_id": "7a2484a9-04fd-41a0-8224-610c1c07ed10",
+      "name": "Blasphemous Act",
+      "expected_semantic_ir_digest": "90934C0F76C229E7671DA7F1174D22A4FE902FD1E08FC5A6E3A52D0E24CAB753",
+      "contract": {
+        "fixture_id": "blasphemous-act/permanent-scaled-cost-reduction-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/blasphemous-act-cost.json"
+      },
+      "runtime": {
+        "fixture_id": "blasphemous-act-reduces-for-all-creatures-and-damages-each-creature",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blasphemous-act-eight-creatures.json"
+      }
+    },
+    {
+      "oracle_id": "ef86989d-ce80-4e55-aece-7d11710eeffa",
+      "name": "Polluted Delta",
+      "expected_semantic_ir_digest": "D0F092AD4280DDE8137DA4E2B0096325635A231AB604FF469C5766BB82E85CB2",
+      "contract": {
+        "fixture_id": "polluted-delta/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/polluted-delta.json"
+      },
+      "runtime": {
+        "fixture_id": "polluted-delta-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/polluted-delta.json"
+      }
+    },
+    {
+      "oracle_id": "d04e0975-f401-41b8-a9db-9bcf9cbbce66",
+      "name": "Starting Town",
+      "expected_semantic_ir_digest": "D685CA35AB20FC8C66057078FC1EB7AFE5976AE1297F6FAA37065BB02395CB8D",
+      "contract": {
+        "fixture_id": "starting-town/early-turn-entry-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/starting-town-entry.json"
+      },
+      "runtime": {
+        "fixture_id": "starting-town-pays-life-and-taps-for-chosen-color",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/starting-town-any-color-mana.json"
+      }
+    },
+    {
+      "oracle_id": "7735eeba-693b-47e2-bd51-414379cf1016",
+      "name": "Beast Within",
+      "expected_semantic_ir_digest": "A64239DEA97D00EFB37344DBBAAE8BA4ADF08B976C3908F56844625414467092",
+      "contract": {
+        "fixture_id": "beast-within/controller-snapshot-token-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/beast-within.json"
+      },
+      "runtime": {
+        "fixture_id": "beast-within-snapshots-stolen-permanent-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/beast-within-stolen-permanent.json"
+      }
+    },
+    {
+      "oracle_id": "09dd85aa-47bc-4713-a9b9-8b52ff2285ed",
+      "name": "Misty Rainforest",
+      "expected_semantic_ir_digest": "2E8E0B3BCE0163E73F5BBC41752ED0A21D1200A2232A586961AE6A2E39B1BF1B",
+      "contract": {
+        "fixture_id": "misty-rainforest/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/misty-rainforest.json"
+      },
+      "runtime": {
+        "fixture_id": "misty-rainforest-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/misty-rainforest.json"
+      }
+    },
+    {
+      "oracle_id": "2038138e-2e52-41e4-90fc-443fa054c5c0",
+      "name": "Shoot the Sheriff",
+      "expected_semantic_ir_digest": "BA09DF7D0B9640188427082E331E8BDEBD8935171DEC8999F36DB5EE39F6C019",
+      "contract": {
+        "fixture_id": "shoot-the-sheriff/negated-characteristic-batch-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/shoot-the-sheriff.json"
+      },
+      "runtime": {
+        "fixture_id": "negated-outlaw-batch-selects-only-non-outlaw-creatures",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/shoot-the-sheriff.json"
+      }
+    },
+    {
+      "oracle_id": "d6c46906-1339-4440-8cd0-2bb9890d4975",
+      "name": "Disruptor Flute",
+      "expected_semantic_ir_digest": "50840FF550543057C51FC533C6E03BC3555CDA46D5D402E247A33D21F08F2884",
+      "contract": {
+        "fixture_id": "disruptor-flute/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/disruptor-flute.json"
+      },
+      "runtime": {
+        "fixture_id": "disruptor-flute-name-drives-tax-prohibition-and-mana-exception",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/disruptor-flute.json"
+      }
+    },
+    {
+      "oracle_id": "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+      "name": "Talisman of Dominance",
+      "expected_semantic_ir_digest": "C6FB6F9B95F7643E1A49B2C252B74FEAAF91E9D391639C9996A88413CCA2E8C1",
+      "contract": {
+        "fixture_id": "talisman-of-dominance/mana-choice-followup-damage-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-dominance.json"
+      },
+      "runtime": {
+        "fixture_id": "mana-choice-resolves-followup-controller-damage",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-dominance.json"
+      }
+    },
+    {
+      "oracle_id": "ac10d218-f9a6-4058-9cda-a15ca1b0b7b5",
+      "name": "Assassin's Trophy",
+      "expected_semantic_ir_digest": "3A49F764DA3EEFF6E996E730091F2D6038163A705EAFC3711D2DEEDCEB342C1A",
+      "contract": {
+        "fixture_id": "assassins-trophy/opponent-controlled-destroy-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/assassins-trophy.json"
+      },
+      "runtime": {
+        "fixture_id": "assassins-trophy-restricts-target-and-searches-for-prior-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/assassins-trophy.json"
+      }
+    },
+    {
+      "oracle_id": "edd8d1e8-be43-4c38-bb3a-83081fbaf0b5",
+      "name": "Thoughtseize",
+      "expected_semantic_ir_digest": "3E9179D3DEB3E6CCBD42F69C5524CF10E8442F98091D0398E0C81A20D1B31ACB",
+      "contract": {
+        "fixture_id": "thoughtseize/hand-disruption-life-loss-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/thoughtseize.json"
+      },
+      "runtime": {
+        "fixture_id": "thoughtseize-targeted-hand-disruption-and-life-loss",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/thoughtseize.json"
+      }
+    },
+    {
+      "oracle_id": "97326cad-b13c-4e52-82ce-850a39e5ff08",
+      "name": "Torpor Orb",
+      "expected_semantic_ir_digest": "B0229A360D4776CBDE9FE5D171B170BC22DD6427EE2C0F85A3943EDC6AFC83F6",
+      "contract": {
+        "fixture_id": "torpor-orb/entering-object-trigger-suppression-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/torpor-orb.json"
+      },
+      "runtime": {
+        "fixture_id": "torpor-orb-suppresses-only-creature-entry-triggers",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/torpor-orb.json"
+      }
+    },
+    {
+      "oracle_id": "776341cb-d2ec-423f-9250-92dc8bd8d503",
+      "name": "Bitter Triumph",
+      "expected_semantic_ir_digest": "95DE8B0DA2FEFA28E041CD1A0D71FA019407B5B293F7B18AAF1F7D475089D9B5",
+      "contract": {
+        "fixture_id": "bitter-triumph/alternative-additional-cost-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/bitter-triumph.json"
+      },
+      "runtime": {
+        "fixture_id": "bitter-triumph-pays-discard-branch-and-destroys-target",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/bitter-triumph-discard.json"
+      }
+    },
+    {
+      "oracle_id": "32e5339e-9e4f-46f8-b305-f9d6d3ba8bb5",
+      "name": "Lotus Petal",
+      "expected_semantic_ir_digest": "7E502FD81CF4E4428ABC9309227505E4895A0A53C5B4224C1CA4BB5EE2FB6A47",
+      "contract": {
+        "fixture_id": "lotus-petal/tap-sacrifice-color-choice-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/lotus-petal.json"
+      },
+      "runtime": {
+        "fixture_id": "lotus-petal-sacrifices-for-chosen-black-mana",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/lotus-petal.json"
+      }
+    },
+    {
+      "oracle_id": "78826359-fe63-44ad-adc4-a17ffcd710e4",
+      "name": "Nature's Lore",
+      "expected_semantic_ir_digest": "2937927E1D7B12BCD4A7C53382A140BB2C4FFB1F707234D37A458645E7D8EFD8",
+      "contract": {
+        "fixture_id": "natures-lore/forest-search-untapped-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/natures-lore.json"
+      },
+      "runtime": {
+        "fixture_id": "natures-lore-finds-nonbasic-forest-and-moves-it-untapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/natures-lore.json"
+      }
+    },
+    {
+      "oracle_id": "24882fa2-3fe9-4c1b-aa3d-0e6488b9db27",
+      "name": "Heroic Intervention",
+      "expected_semantic_ir_digest": "6DB691815BFB8B5BF3AC3D6E7BDB87C0BFC506E3E64AABF2DF50551932DACBF9",
+      "contract": {
+        "fixture_id": "heroic-intervention/controlled-permanent-keyword-grants-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/heroic-intervention.json"
+      },
+      "runtime": {
+        "fixture_id": "heroic-intervention-grants-each-controlled-permanent-two-keywords",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/heroic-intervention.json"
+      }
+    },
+    {
+      "oracle_id": "59119143-c0fa-49dd-adf0-e2fd3029c48b",
+      "name": "Karakas",
+      "expected_semantic_ir_digest": "410FF33532C9A5627E89BACA0ECCEC2D31FE9AF2EB6267F66F7F2DE0C45A5E40",
+      "contract": {
+        "fixture_id": "karakas/legendary-creature-owner-hand-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/karakas.json"
+      },
+      "runtime": {
+        "fixture_id": "karakas-returns-stolen-legendary-creature-to-owner-hand",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/karakas.json"
+      }
+    },
+    {
+      "oracle_id": "087f9ad7-e74f-40e2-8102-1ed2925d0418",
+      "name": "Rest in Peace",
+      "expected_semantic_ir_digest": "35CB66FFB510A1C2FC5F3CBA4D78F4947A7A696EDDD334D0FA978CB63AB934FC",
+      "contract": {
+        "fixture_id": "rest-in-peace/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rest-in-peace.json"
+      },
+      "runtime": {
+        "fixture_id": "rest-in-peace-replaces-a-spells-graveyard-destination",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rest-in-peace-replacement.json"
+      }
+    },
+    {
+      "oracle_id": "8539f295-5d58-4436-a73a-b9277c4c7795",
+      "name": "Rampant Growth",
+      "expected_semantic_ir_digest": "EE5C18EA5F9014ECF80D8A9116C75DA0C57F749CFB0E3E511134CF456E2BCCCC",
+      "contract": {
+        "fixture_id": "rampant-growth/basic-land-search-tapped-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rampant-growth.json"
+      },
+      "runtime": {
+        "fixture_id": "rampant-growth-finds-only-a-basic-land-and-moves-it-tapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rampant-growth.json"
+      }
+    },
+    {
+      "oracle_id": "cb027150-848c-4a66-88ad-e20222304dd8",
+      "name": "Scalding Tarn",
+      "expected_semantic_ir_digest": "D80CEB2EB1D97AA46C9CEEB4F751C3C480B285321BB1A4E3097B68E32FE91C4E",
+      "contract": {
+        "fixture_id": "scalding-tarn/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/scalding-tarn.json"
+      },
+      "runtime": {
+        "fixture_id": "scalding-tarn-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/scalding-tarn.json"
+      }
+    },
+    {
+      "oracle_id": "fc9ec820-4245-4a96-b009-5308a818ca58",
+      "name": "Watery Grave",
+      "expected_semantic_ir_digest": "62AAF5CE66210CB28FEA1752E46CEFA625FC69A48303BE9F5D1EBF791066B790",
+      "contract": {
+        "fixture_id": "watery-grave/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/watery-grave.json"
+      },
+      "runtime": {
+        "fixture_id": "watery-grave-declines-life-and-enters-tapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/watery-grave-decline-life.json"
+      }
+    },
+    {
+      "oracle_id": "23467047-6dba-4498-b783-1ebc4f74b8c2",
+      "name": "Ancient Tomb",
+      "expected_semantic_ir_digest": "F29276E31382331366BCBCC267201A2DE50154C8B0ED710C0CB930A49AA40B6A",
+      "contract": {
+        "fixture_id": "ancient-tomb/fixed-mana-followup-damage-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ancient-tomb.json"
+      },
+      "runtime": {
+        "fixture_id": "ancient-tomb-adds-two-colorless-and-damages-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ancient-tomb.json"
+      }
+    },
+    {
+      "oracle_id": "07a0cba9-8768-4fd9-a3d5-b0f83b4bf8e8",
+      "name": "Chaos Warp",
+      "expected_semantic_ir_digest": "456F7E9420BECBF48C6C2C332189913E9C98E0AFD73D0DF81FB7BE812ECA547F",
+      "contract": {
+        "fixture_id": "chaos-warp/owner-bound-library-reveal-sequence-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/chaos-warp.json"
+      },
+      "runtime": {
+        "fixture_id": "chaos-warp-binds-owner-before-moving-stolen-permanent",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/chaos-warp.json"
+      }
+    },
+    {
+      "oracle_id": "dfd5939e-a71a-4e16-9b93-752162be4ccd",
+      "name": "Seam Rip",
+      "expected_semantic_ir_digest": "EBE48028C98A115E3280258F0DE08B374337962F3D19093E49620EEA155397AF",
+      "contract": {
+        "fixture_id": "seam-rip/linked-entry-exile-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/seam-rip.json"
+      },
+      "runtime": {
+        "fixture_id": "seam-rip-exiles-only-the-eligible-opposing-permanent-and-returns-it-to-its-owner",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/seam-rip.json"
+      }
+    },
+    {
+      "oracle_id": "d3a0b660-358c-41bd-9cd2-41fbf3491b1a",
+      "name": "Birds of Paradise",
+      "expected_semantic_ir_digest": "3B432357261851B8F1DBD2E1C08D54CBB8DE81DA1148364C14E2C296A5304E25",
+      "contract": {
+        "fixture_id": "birds-of-paradise/native-keyword-and-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/birds-of-paradise.json"
+      },
+      "runtime": {
+        "fixture_id": "birds-of-paradise-taps-for-a-chosen-color",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/birds-of-paradise.json"
+      }
+    },
+    {
+      "oracle_id": "d71bda4c-3dee-4398-8fd0-f77d8743b887",
+      "name": "Gloomlake Verge",
+      "expected_semantic_ir_digest": "3B385971B0E6928C6224BC2C98F52EF99AE568AB081177443F692CE3ACC18386",
+      "contract": {
+        "fixture_id": "gloomlake-verge/conditional-fixed-mana-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/gloomlake-verge.json"
+      },
+      "runtime": {
+        "fixture_id": "gloomlake-verge-adds-black-when-controller-has-island",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/gloomlake-verge-qualified.json"
+      }
+    },
+    {
+      "oracle_id": "ac2086fe-98ee-4280-9c7c-c5c2d6548a8b",
+      "name": "Burst Lightning",
+      "expected_semantic_ir_digest": "0B115B9DB3E9278229000D3500D8F313D530AD8343BFC36C941BE820349CBDFE",
+      "contract": {
+        "fixture_id": "burst-lightning/native-kicker-and-conditional-damage-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/burst-lightning.json"
+      },
+      "runtime": {
+        "fixture_id": "burst-lightning-kicked-deals-replacement-damage",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/burst-lightning-kicked.json"
+      }
+    },
+    {
+      "oracle_id": "14d2979d-5728-42d7-a027-0eb1f754655d",
+      "name": "Talisman of Creativity",
+      "expected_semantic_ir_digest": "4ABD06B23ABD5A7B469F9541DCF8C44BA24D7F6344AE487D5AB960F5ED586DCB",
+      "contract": {
+        "fixture_id": "talisman-of-creativity/both-native-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-creativity.json"
+      },
+      "runtime": {
+        "fixture_id": "talisman-of-creativity-proves-colorless-blue-and-red-branches",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-creativity.json"
+      }
+    },
+    {
+      "oracle_id": "4b22be3a-8ce1-47d1-b82e-6c3ccfb0548b",
+      "name": "Underground Sea",
+      "expected_semantic_ir_digest": "934C7F9627582852F0A55D8B540966B78DCCEC3AAD29EE08B14348ACBC3052E6",
+      "contract": {
+        "fixture_id": "underground-sea/native-mana-choice-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/underground-sea.json"
+      },
+      "runtime": {
+        "fixture_id": "underground-sea-chooses-blue-mana",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/underground-sea-blue.json"
+      }
+    },
+    {
+      "oracle_id": "70486bee-6ee7-41ea-b834-8caf4699302b",
+      "name": "Daze",
+      "expected_semantic_ir_digest": "38D7C34A14E61764FA02DC9FA5314CE7AECD0DA365480A0FA64AA5B2180C45F0",
+      "contract": {
+        "fixture_id": "daze/native-alternative-return-and-counter-unless-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/daze.json"
+      },
+      "runtime": {
+        "fixture_id": "daze-alternative-return-cost-and-declined-payment-counter",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/daze-decline.json"
+      }
+    },
+    {
+      "oracle_id": "17039058-822d-409f-938c-b727a366ba63",
+      "name": "Steam Vents",
+      "expected_semantic_ir_digest": "07F6C2AD826259A2B967F3FEBA64F8F4D2BFE411C27633E226523C4836102CA6",
+      "contract": {
+        "fixture_id": "steam-vents/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/steam-vents.json"
+      },
+      "runtime": {
+        "fixture_id": "steam-vents-declines-life-and-enters-tapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/steam-vents-decline-life.json"
+      }
+    },
+    {
+      "oracle_id": "1d9aeaaa-66f6-41cb-9bac-162d6fd8662c",
+      "name": "Talisman of Indulgence",
+      "expected_semantic_ir_digest": "96DD0E2852E6FE0EDF553F8283D5E4B06191FE6897990D4085FB4936BB7F741A",
+      "contract": {
+        "fixture_id": "talisman-of-indulgence/both-native-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-indulgence.json"
+      },
+      "runtime": {
+        "fixture_id": "talisman-of-indulgence-adds-red-and-damages-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-indulgence-red.json"
+      }
+    },
+    {
+      "oracle_id": "89ca686a-7c72-4d8f-9290-e89635624a83",
+      "name": "Cavern of Souls",
+      "expected_semantic_ir_digest": "1A7B66213796190C2FDB46365D28BA3C6D3D46ED10E4546F1FEDAA308A9CC8E0",
+      "contract": {
+        "fixture_id": "cavern-of-souls/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/cavern-of-souls.json"
+      },
+      "runtime": {
+        "fixture_id": "cavern-of-souls-chooses-and-stores-a-creature-type",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/cavern-of-souls-entry.json"
+      }
+    },
+    {
+      "oracle_id": "3bfa088c-9a47-4123-aee5-4de44e355bef",
+      "name": "Surgical Extraction",
+      "expected_semantic_ir_digest": "82C1DA93F5DC8D45C1382F0CC0AAE3DC4B963654E99C172419E97A00351B7424",
+      "contract": {
+        "fixture_id": "surgical-extraction/phyrexian-reminder-and-same-name-search-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/surgical-extraction.json"
+      },
+      "runtime": {
+        "fixture_id": "surgical-extraction-binds-target-owner-and-name-across-three-zones",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/surgical-extraction.json"
+      }
+    },
+    {
+      "oracle_id": "b693c3de-2eaf-4850-b405-e79d00adefda",
+      "name": "Talisman of Hierarchy",
+      "expected_semantic_ir_digest": "C9D7F9EB280986F8C63733213402BB5FAEA584E60BC41B32596681CD54D5CA63",
+      "contract": {
+        "fixture_id": "talisman-of-hierarchy/both-native-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-hierarchy.json"
+      },
+      "runtime": {
+        "fixture_id": "talisman-of-hierarchy-adds-white-and-damages-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-hierarchy-white.json"
+      }
+    },
+    {
+      "oracle_id": "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+      "name": "An Offer You Can't Refuse",
+      "expected_semantic_ir_digest": "9236036A130C2D72CD728C8BA1701A46A924F492FDBAFF58CDDB49F39EC55014",
+      "contract": {
+        "fixture_id": "an-offer-you-cant-refuse/native-primitive-sequence-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/an-offer-you-cant-refuse.json"
+      },
+      "runtime": {
+        "fixture_id": "an-offer-counters-spell-and-gives-its-controller-two-treasures",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/an-offer-you-cant-refuse.json"
+      }
+    },
+    {
+      "oracle_id": "dc857129-533c-41d1-8e8b-1c0443030d69",
+      "name": "Day of Black Sun",
+      "expected_semantic_ir_digest": "F3A330FBD669B090767EE8AB3744F2FFACA4499D2A0691787204A3DE7C60F2CD",
+      "contract": {
+        "fixture_id": "day-of-black-sun/variable-set-binding-sequence-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/day-of-black-sun.json"
+      },
+      "runtime": {
+        "fixture_id": "day-of-black-sun-loses-abilities-before-destroying-the-bound-set",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/day-of-black-sun.json"
+      }
+    },
+    {
+      "oracle_id": "ecc435e2-deb1-420a-a79f-01dd08747314",
+      "name": "Pyroblast",
+      "expected_semantic_ir_digest": "8F1B02D132A829947FC60163E9ADA069FB4D9FF4969560D688F4A118D36EA840",
+      "contract": {
+        "fixture_id": "pyroblast/color-guarded-modal-primitives-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/pyroblast.json"
+      },
+      "runtime": {
+        "fixture_id": "pyroblast-counter-mode-counters-a-blue-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/pyroblast-counter-blue-spell.json"
+      }
+    },
+    {
+      "oracle_id": "b94c0336-2ca8-4bb1-bb1f-e9babd1826ad",
+      "name": "Hydroblast",
+      "expected_semantic_ir_digest": "0B2240011C11C95F3F75FDFC5D59339B3CE0D16259A2B7C5C40FD7FCB6229275",
+      "contract": {
+        "fixture_id": "hydroblast/color-guarded-modal-primitives-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/hydroblast.json"
+      },
+      "runtime": {
+        "fixture_id": "hydroblast-counter-mode-counters-a-red-spell",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/hydroblast-counter-red-spell.json"
+      }
+    },
+    {
+      "oracle_id": "c8b143ad-43ec-4e0d-a440-e348daa31391",
+      "name": "Swiftfoot Boots",
+      "expected_semantic_ir_digest": "CA6C0E9A44BC0C7836DC8F73E8E1D285B213C93971FE8345FFEDB9B3646FB411",
+      "contract": {
+        "fixture_id": "swiftfoot-boots/attached-keywords-and-equip-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/swiftfoot-boots.json"
+      },
+      "runtime": {
+        "fixture_id": "swiftfoot-boots-equips-and-grants-both-continuous-keywords",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/swiftfoot-boots.json"
+      }
+    },
+    {
+      "oracle_id": "2bace3ea-7d28-4a1c-857a-d3c3a1c11b59",
+      "name": "Wan Shi Tong, Librarian",
+      "expected_semantic_ir_digest": "F3E34CE09FD9E6BE4DBB0B82FD2BFC86B9CF449C75DF88A848CD865E45EDAA56",
+      "contract": {
+        "fixture_id": "wan-shi-tong/source-cast-x-entry-sequence-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/wan-shi-tong-entry.json"
+      },
+      "runtime": {
+        "fixture_id": "wan-shi-tong-entry-retains-cast-x-for-counters-and-rounded-draw",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/wan-shi-tong-entry.json"
+      }
+    },
+    {
+      "oracle_id": "ea5103f5-27e0-4eb1-902c-7f34652d6bf3",
+      "name": "Orcish Bowmasters",
+      "expected_semantic_ir_digest": "E0CA955B303333F4EBFCE742796730A8E547FFAB2C8EA5143BA0C984EE7AFEEE",
+      "contract": {
+        "fixture_id": "orcish-bowmasters/entry-or-repeat-draw-trigger-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/orcish-bowmasters.json"
+      },
+      "runtime": {
+        "fixture_id": "orcish-bowmasters-deals-damage-then-amasses-orcs",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/orcish-bowmasters.json"
+      }
+    },
+    {
+      "oracle_id": "d64b0848-0193-4025-ba62-63ecd8fb9f50",
+      "name": "Spell Pierce",
+      "expected_semantic_ir_digest": "D24E1879F2FE634279245EFF4EAF32F94022E6B8ED52D64A493A3B109B7565AA",
+      "contract": {
+        "fixture_id": "spell-pierce/noncreature-counter-unless-two-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/spell-pierce.json"
+      },
+      "runtime": {
+        "fixture_id": "spell-pierce-controller-declines-two-and-spell-is-countered",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/spell-pierce-decline.json"
+      }
+    },
+    {
+      "oracle_id": "00e35322-1a9a-41e3-9ce1-359c8eaa3bc7",
+      "name": "Talisman of Progress",
+      "expected_semantic_ir_digest": "25100ED0795FC8906C5FF3C15EA9702D9B9D7FC98F258396AD18271FD6AC3488",
+      "contract": {
+        "fixture_id": "talisman-of-progress/both-native-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-progress.json"
+      },
+      "runtime": {
+        "fixture_id": "talisman-of-progress-adds-white-and-damages-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-progress-white.json"
+      }
+    },
+    {
+      "oracle_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+      "name": "Dark Ritual",
+      "expected_semantic_ir_digest": "0D5F4A67B5273AC9EBE75CED97252C51F15F12E1C8F81244646FD0CC54FEAC0D",
+      "contract": {
+        "fixture_id": "dark-ritual/direct-mana-spell-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/dark-ritual.json"
+      },
+      "runtime": {
+        "fixture_id": "dark-ritual-resolves-from-the-stack-and-adds-three-black",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dark-ritual-resolves.json"
+      }
+    },
+    {
+      "oracle_id": "df20f85b-5f81-4ee4-8487-55d90109ac36",
+      "name": "Restless Reef",
+      "expected_semantic_ir_digest": "8B88D4680A8AF60981F681A66C4E827FEF87B3CB8F5A53AD754B27E1D060D4DB",
+      "contract": {
+        "fixture_id": "restless-reef/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/restless-reef.json"
+      },
+      "runtime": {
+        "fixture_id": "restless-reef-activation-pays-mana-and-temporarily-animates-source",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-animation.json"
+      }
+    },
+    {
+      "oracle_id": "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
+      "name": "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+      "expected_semantic_ir_digest": "AA5B342BCF532D24F5321E65751E1D5C76975E64226D1FE4266FCB6B113A8780",
+      "contract": {
+        "fixture_id": "tamiyo/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/tamiyo-all-native.json"
+      },
+      "runtime": {
+        "fixture_id": "tamiyo-third-draw-returns-transformed-under-owner-control",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/tamiyo-third-draw-transform.json"
+      }
+    },
+    {
+      "oracle_id": "ad09b3c3-c8e7-481c-8c45-e7f234935117",
+      "name": "Anguished Unmaking",
+      "expected_semantic_ir_digest": "FCF9A599ACF9EF058737EED55E4D208FB08F909A8B66E18E8CC92B2607319004",
+      "contract": {
+        "fixture_id": "anguished-unmaking/nonland-permanent-exile-and-life-loss-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/anguished-unmaking.json"
+      },
+      "runtime": {
+        "fixture_id": "anguished-unmaking-exiles-only-a-nonland-permanent-and-loses-life",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/anguished-unmaking.json"
+      }
+    },
+    {
+      "oracle_id": "08d80efc-9542-4ba2-824c-c8615d8d07f2",
+      "name": "Undercity Sewers",
+      "expected_semantic_ir_digest": "204373AB9057159972E9D96F002CF9BE86022584F009F28B2C31282A0727B714",
+      "contract": {
+        "fixture_id": "undercity-sewers/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/undercity-sewers.json"
+      },
+      "runtime": {
+        "fixture_id": "undercity-sewers-enters-tapped-and-surveils-one",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/undercity-sewers-surveil.json"
+      }
+    },
+    {
+      "oracle_id": "7a0fe73f-6e08-4c9a-80e1-c2ead6cebe06",
+      "name": "Surrak, Elusive Hunter",
+      "expected_semantic_ir_digest": "DCA4EED7B780E74C2098CD8252D29A1396D70290EECB4E8C47444B82BA08ED41",
+      "contract": {
+        "fixture_id": "surrak-elusive-hunter/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/surrak-elusive-hunter.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "surrak-elusive-hunter-activated-and-triggered-sources",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/surrak-elusive-hunter-targeting.json"
+        },
+        {
+          "fixture_id": "surrak-elusive-hunter-creature-spell-targeted-by-triggered-ability",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/surrak-elusive-hunter-creature-spell-targeting.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "8a76a9b9-3127-45fe-b20f-a8f643276281",
+      "name": "Containment Priest",
+      "expected_semantic_ir_digest": "2BC2C1C4536360CC5CDA7A51AF7580525D999848755AF39AE953C0DC75014823",
+      "contract": {
+        "fixture_id": "containment-priest/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/containment-priest.json"
+      },
+      "runtime": {
+        "fixture_id": "containment-priest-replaces-only-uncast-nontoken-creature-entry",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/containment-priest.json"
+      }
+    },
+    {
+      "oracle_id": "c8de43a3-ebd3-4000-b343-a6ffed11d34d",
+      "name": "Ignoble Hierarch",
+      "expected_semantic_ir_digest": "282484D6106115F25C54E3BA8C3527B5578DF55B9801A26858ED7A61A1AAD750",
+      "contract": {
+        "fixture_id": "ignoble-hierarch/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ignoble-hierarch.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "ignoble-hierarch-exalted-buffs-one-attacker-until-cleanup",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ignoble-hierarch-exalted.json"
+        },
+        {
+          "fixture_id": "ignoble-hierarch-exalted-does-not-buff-multiple-attackers",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ignoble-hierarch-exalted-multiple.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "45181cb8-2090-4471-ba90-e5a8f04d525f",
+      "name": "Sacred Foundry",
+      "expected_semantic_ir_digest": "C8C0A5D4AC5A2C100D78C39D5D6AAFA3ABEEADA6941E31C70818CEC10E8CD75E",
+      "contract": {
+        "fixture_id": "sacred-foundry/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/sacred-foundry.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "sacred-foundry-chooses-white-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sacred-foundry-mana.json"
+        },
+        {
+          "fixture_id": "sacred-foundry-pays-life-and-enters-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sacred-foundry-pay-life.json"
+        },
+        {
+          "fixture_id": "sacred-foundry-declines-life-and-enters-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sacred-foundry-decline-life.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "510a6ac5-f098-4145-ac07-771b1b6f7cdf",
+      "name": "Riverpyre Verge",
+      "expected_semantic_ir_digest": "9607BB64B8667534D333C84BBC9AA8D33AA8EBB06956665146EDD8623FB814CF",
+      "contract": {
+        "fixture_id": "riverpyre-verge/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/riverpyre-verge.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "riverpyre-verge-adds-red-unconditionally",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/riverpyre-verge-red.json"
+        },
+        {
+          "fixture_id": "riverpyre-verge-adds-blue-when-controller-has-mountain",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/riverpyre-verge-qualified.json"
+        },
+        {
+          "fixture_id": "riverpyre-verge-blue-is-unavailable-without-island-or-mountain",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/riverpyre-verge-unqualified.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "1b882a0e-0ede-4d1a-bd1a-9b7cffbcde8e",
+      "name": "Three Visits",
+      "expected_semantic_ir_digest": "2937927E1D7B12BCD4A7C53382A140BB2C4FFB1F707234D37A458645E7D8EFD8",
+      "contract": {
+        "fixture_id": "three-visits/forest-search-untapped-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/three-visits.json"
+      },
+      "runtime": {
+        "fixture_id": "three-visits-finds-nonbasic-forest-and-moves-it-untapped",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/three-visits.json"
+      }
+    },
+    {
+      "oracle_id": "c718911c-c955-4eb9-9e16-be4bd49a4e4e",
+      "name": "Volcanic Island",
+      "expected_semantic_ir_digest": "D7D8EA665197AEB76A843379CE637E0590CF013B38A72E5B4D05FEC4FF91B88B",
+      "contract": {
+        "fixture_id": "volcanic-island/native-mana-choice-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/volcanic-island.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "volcanic-island-chooses-blue-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/volcanic-island-blue.json"
+        },
+        {
+          "fixture_id": "volcanic-island-chooses-red-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/volcanic-island-red.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "43985bbc-a0f6-4812-984e-392bc8562633",
+      "name": "Blood Crypt",
+      "expected_semantic_ir_digest": "9DDB6F268AC29654D059EF49624E48D5ED09880F2E22AD1B0C6542B8C7A15778",
+      "contract": {
+        "fixture_id": "blood-crypt/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/blood-crypt.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "blood-crypt-pays-life-and-enters-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blood-crypt-pay-life.json"
+        },
+        {
+          "fixture_id": "blood-crypt-declines-life-and-enters-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blood-crypt-decline-life.json"
+        },
+        {
+          "fixture_id": "blood-crypt-chooses-black-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blood-crypt-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "1593ea18-2f2f-4ab4-83fb-6ccc0bec8a90",
+      "name": "Kodama's Reach",
+      "expected_semantic_ir_digest": "6A3223677D70790BAA8890723D9B1BEEBFE0CB35490A685BA25C7E52B0AA4B0B",
+      "contract": {
+        "fixture_id": "kodamas-reach/search-reveal-partition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/kodamas-reach.json"
+      },
+      "runtime": {
+        "fixture_id": "kodamas-reach-partitions-one-land-to-battlefield-and-one-to-hand",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/kodamas-reach.json"
+      }
+    },
+    {
+      "oracle_id": "dab520d0-20b4-4273-ba6b-eb07f85ea433",
+      "name": "Marsh Flats",
+      "expected_semantic_ir_digest": "8A635B7AB572DC0FD5699E2CD150808BB4339A5BFAB74693F6BDEEA0A67753A9",
+      "contract": {
+        "fixture_id": "marsh-flats/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/marsh-flats.json"
+      },
+      "runtime": {
+        "fixture_id": "marsh-flats-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/marsh-flats.json"
+      }
+    },
+    {
+      "oracle_id": "16437a83-be52-44cd-a768-a767c9347eb2",
+      "name": "Fatal Push",
+      "expected_semantic_ir_digest": "1EB8259C699005558342E7FC5087A65C417CA9084A910FA6E8669B68751F6210",
+      "contract": {
+        "fixture_id": "fatal-push/conditional-base-and-revolt-amendment-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/fatal-push.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "fatal-push-without-revolt-destroys-mana-value-two",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fatal-push-base-mv2.json"
+        },
+        {
+          "fixture_id": "fatal-push-without-revolt-refuses-mana-value-three",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fatal-push-base-mv3.json"
+        },
+        {
+          "fixture_id": "fatal-push-with-revolt-destroys-mana-value-four",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fatal-push-revolt-mv4.json"
+        },
+        {
+          "fixture_id": "fatal-push-with-revolt-refuses-mana-value-five",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fatal-push-revolt-mv5.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "4ef583ab-e0a0-4e4b-bd65-af766038b1fd",
+      "name": "Ghost Vacuum",
+      "expected_semantic_ir_digest": "98BF739FFEECBBCFF64ADF25768533DF76F1EAF3EFFB0623745C6514D95487F7",
+      "contract": {
+        "fixture_id": "ghost-vacuum/both-linked-exile-abilities-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ghost-vacuum.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "ghost-vacuum-exiles-links-and-returns-only-its-linked-creatures",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-linked-return.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-requires-six-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-five-mana.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-requires-an-untapped-source",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-tapped.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-is-unavailable-outside-sorcery-timing",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-sorcery-timing.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "ca204b66-8d0c-431a-8d34-282f7c2d17da",
+      "name": "Lightning Greaves",
+      "expected_semantic_ir_digest": "2D8D01E3E0DC691763AD23E31982A5738EA25A67BCDA89176853845516560DC1",
+      "contract": {
+        "fixture_id": "lightning-greaves/attached-keywords-and-zero-equip-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/lightning-greaves.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "lightning-greaves-zero-equip-grants-dynamic-haste-and-shroud",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/lightning-greaves-equip.json"
+        },
+        {
+          "fixture_id": "lightning-greaves-equip-targets-only-a-creature-you-control",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/lightning-greaves-invalid-targets.json"
+        },
+        {
+          "fixture_id": "lightning-greaves-equip-is-unavailable-outside-sorcery-timing",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/lightning-greaves-sorcery-timing.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "d08e9784-75f7-4164-ac48-d06160f8c56b",
+      "name": "Annul",
+      "expected_semantic_ir_digest": "C54E5D50178F7411EB09C231CC9A07EA86F22AC4B6161203696EBA20F7E7EC9A",
+      "contract": {
+        "fixture_id": "annul/type-union-counter-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/annul.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "annul-counters-artifact-spell",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/annul-artifact.json"
+        },
+        {
+          "fixture_id": "annul-counters-enchantment-spell",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/annul-enchantment.json"
+        },
+        {
+          "fixture_id": "annul-rejects-creature-spell",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/annul-creature-ineligible.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "e7194bca-0cf4-4a86-8b84-d2f9219a08b3",
+      "name": "Flow State",
+      "expected_semantic_ir_digest": "5D711C3503B75CD1C6CD9CD36E728226840C51F0A2392BD94A9CFB22D89DAD2E",
+      "contract": {
+        "fixture_id": "flow-state/conditional-top-card-partition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/flow-state.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "flow-state-instant-only-keeps-one-and-orders-bottom",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/flow-state-instant-only-order.json"
+        },
+        {
+          "fixture_id": "flow-state-sorcery-alone-then-instant-and-sorcery",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/flow-state-sorcery-then-both.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "6c326439-5620-4ec6-a56a-fe9c3d5d2a46",
+      "name": "Talisman of Conviction",
+      "expected_semantic_ir_digest": "F81B86CEED7A779C5867390CE486F7784DC5F7B2ED9539669F7318AD12E603F7",
+      "contract": {
+        "fixture_id": "talisman-of-conviction/both-native-mana-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/talisman-of-conviction.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "talisman-of-conviction-adds-colorless-without-damage",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-conviction-colorless.json"
+        },
+        {
+          "fixture_id": "talisman-of-conviction-adds-red-and-damages-controller",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-conviction-red.json"
+        },
+        {
+          "fixture_id": "talisman-of-conviction-adds-white-and-damages-controller",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/talisman-of-conviction-white.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "977c2f33-b622-4172-9efb-7f523becd32b",
+      "name": "Blazemire Verge",
+      "expected_semantic_ir_digest": "069EF4072091891721C019C1D8074B0C33AB39DA84AA6CB09E610E5F9A8E542B",
+      "contract": {
+        "fixture_id": "blazemire-verge/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/blazemire-verge.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "blazemire-verge-adds-black-unconditionally",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blazemire-verge-black.json"
+        },
+        {
+          "fixture_id": "blazemire-verge-adds-red-when-controller-has-swamp",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blazemire-verge-qualified.json"
+        },
+        {
+          "fixture_id": "blazemire-verge-red-is-unavailable-without-swamp-or-mountain",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blazemire-verge-unqualified.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "7d881c57-0bd9-4c57-aa4a-b10808b86143",
+      "name": "Dimir Signet",
+      "expected_semantic_ir_digest": "F1F637EA751D2FB02FEA9A7122E1E0ACCDCBFA8CDFA33B6A2DC039DE174622EA",
+      "contract": {
+        "fixture_id": "dimir-signet/mana-payment-tap-and-fixed-output-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/dimir-signet.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "dimir-signet-pays-one-taps-and-adds-blue-black",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dimir-signet-paid-activation.json"
+        },
+        {
+          "fixture_id": "dimir-signet-is-unavailable-without-one-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dimir-signet-insufficient-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "21efa6f2-3e7c-4576-b5a3-0b75b2843442",
+      "name": "Wrath of the Skies",
+      "expected_semantic_ir_digest": "86D7B6DA9477D242FA92A38D01DE4EC734F83D3CC550ED89C41DD54D13417C43",
+      "contract": {
+        "fixture_id": "wrath-of-the-skies/energy-payment-sweep-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/wrath-of-the-skies.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "wrath-of-the-skies-full-payment-destroys-type-union",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/wrath-of-the-skies-full-payment.json"
+        },
+        {
+          "fixture_id": "wrath-of-the-skies-partial-payment-leaves-energy-and-lowers-threshold",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/wrath-of-the-skies-partial-payment.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "63afc3d1-7653-476e-838f-fc18d4a62a21",
+      "name": "Mishra's Bauble",
+      "expected_semantic_ir_digest": "91D6A33C15744D2EF03E4280FCC0A07F347AFFDDD0CD71C067FB9DD0650C9993",
+      "contract": {
+        "fixture_id": "mishras-bauble/target-library-look-and-next-upkeep-draw-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/mishras-bauble.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "mishras-bauble-target-look-and-next-upkeep-draw",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/mishras-bauble.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "3adb7681-977f-4a32-9ec8-51481b958268",
+      "name": "Rakdos Signet",
+      "expected_semantic_ir_digest": "05422B9A4291BCB81FCD63801D725CFFEB4B6B4DA11D166953C7B3554B3975FE",
+      "contract": {
+        "fixture_id": "rakdos-signet/mana-payment-tap-and-fixed-output-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rakdos-signet.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "rakdos-signet-pays-one-taps-and-adds-black-red",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rakdos-signet-paid-activation.json"
+        },
+        {
+          "fixture_id": "rakdos-signet-is-unavailable-without-one-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rakdos-signet-insufficient-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "bf1341dd-41a3-49f6-87ec-63170dde4324",
+      "name": "Boseiju, Who Endures",
+      "expected_semantic_ir_digest": "4D4DD4DD4E3D6D8D0FFB2D89EFF98BD6BA7B692D82A2835DB9450BFE4C6CA91E",
+      "contract": {
+        "fixture_id": "boseiju-who-endures/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/boseiju-who-endures.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "boseiju-who-endures-reduces-to-green-and-searches",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boseiju-who-endures-reduced-search.json"
+        },
+        {
+          "fixture_id": "boseiju-who-endures-searches-basic-forest-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boseiju-who-endures-basic-land-search.json"
+        },
+        {
+          "fixture_id": "boseiju-who-endures-decline-skips-search-and-shuffle",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boseiju-who-endures-decline-search.json"
+        },
+        {
+          "fixture_id": "boseiju-who-endures-targets-only-opposing-artifact-enchantment-or-nonbasic-land",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boseiju-who-endures-target-legality.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "f1750962-a87c-49f6-b731-02ae971ac6ea",
+      "name": "Hallowed Fountain",
+      "expected_semantic_ir_digest": "1CD0049222415736A41B6C6471FD4E5B9526B5102E9A14C2DB4C2BFA282D942D",
+      "contract": {
+        "fixture_id": "hallowed-fountain/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/hallowed-fountain.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "hallowed-fountain-pays-life-and-enters-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/hallowed-fountain-pay-life.json"
+        },
+        {
+          "fixture_id": "hallowed-fountain-declines-life-and-enters-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/hallowed-fountain-decline-life.json"
+        },
+        {
+          "fixture_id": "hallowed-fountain-chooses-blue-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/hallowed-fountain-mana.json"
+        },
+        {
+          "fixture_id": "hallowed-fountain-chooses-white-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/hallowed-fountain-white-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "53236dd7-845a-444c-96d5-f41ed7325d8f",
+      "name": "Rhystic Study",
+      "expected_semantic_ir_digest": "A222B23441E5ED39D91C47E342C5DA0BB3767B916ED4FA4AC005A79C9CCA858F",
+      "contract": {
+        "fixture_id": "rhystic-study/opponent-payment-before-optional-draw-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rhystic-study.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "rhystic-study-triggering-player-pays",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-pay.json"
+        },
+        {
+          "fixture_id": "rhystic-study-decline-payment-and-draw",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-decline-draw.json"
+        },
+        {
+          "fixture_id": "rhystic-study-decline-payment-and-decline-draw",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-decline-no-draw.json"
+        },
+        {
+          "fixture_id": "rhystic-study-opponent-cast-and-pay",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-opponent-cast-pay.json"
+        },
+        {
+          "fixture_id": "rhystic-study-opponent-cast-decline-and-draw",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-opponent-cast-decline-draw.json"
+        },
+        {
+          "fixture_id": "rhystic-study-controller-spell-does-not-trigger",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhystic-study-controller-cast-no-trigger.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "2fda4fe7-8b0c-489c-a000-6d358e614e34",
+      "name": "Izzet Signet",
+      "expected_semantic_ir_digest": "A1D327B69D077654EAE322F274EBA3EBABE85E1B97C5879AA0A9F9B95FF69289",
+      "contract": {
+        "fixture_id": "izzet-signet/mana-payment-tap-and-fixed-output-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/izzet-signet.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "izzet-signet-pays-one-taps-and-adds-blue-red",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/izzet-signet-paid-activation.json"
+        },
+        {
+          "fixture_id": "izzet-signet-is-unavailable-without-one-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/izzet-signet-insufficient-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "7f993ac7-c2cd-413c-a106-2c051a77ebf6",
+      "name": "Murktide Regent",
+      "expected_semantic_ir_digest": "654C81B99E7A4140EDDA567A9250341218F6C79AB633BB6667F475306393F2C1",
+      "contract": {
+        "fixture_id": "murktide-regent/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/murktide-regent.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "murktide-regent-delve-filters-entering-counters-and-preserves-colored-cost",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/murktide-regent-delve-entry.json"
+        },
+        {
+          "fixture_id": "murktide-regent-two-matching-cards-leaving-create-two-triggers",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/murktide-regent-graveyard-leave-aggregation.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "1b5e6560-ff2e-4475-96cb-63f64c8a86db",
+      "name": "Soul-Guide Lantern",
+      "expected_semantic_ir_digest": "2DF2DFBC315CE87D3E69EE18765F1BD872D0AD48E50BFE0C823173B12FFE8F07",
+      "contract": {
+        "fixture_id": "soul-guide-lantern/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/soul-guide-lantern.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "soul-guide-lantern-entry-exiles-one-target-without-source-linkage",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-entry-exile.json"
+        },
+        {
+          "fixture_id": "soul-guide-lantern-exiles-only-opponent-graveyards",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-opponent-graveyards.json"
+        },
+        {
+          "fixture_id": "soul-guide-lantern-pays-mana-taps-sacrifices-and-draws",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-draw.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "522dd417-364b-44ab-8ca9-fb55db5f26a6",
+      "name": "Get Lost",
+      "expected_semantic_ir_digest": "07546F48327AE1895550CE1B15CB5229F4B1499F21CE093E5218B60847E3729E",
+      "contract": {
+        "fixture_id": "get-lost/controller-snapshot-and-catalog-map-creation-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/get-lost.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "get-lost-snapshots-target-controller-and-creates-two-catalog-map-tokens",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/get-lost-stolen-permanent.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "67d60b24-d429-4ded-90d9-06e49f28c396",
+      "name": "Verdant Catacombs",
+      "expected_semantic_ir_digest": "D77E5A83C0918ABC9517284A519A38CB6A7743AABD57D4763707E25E9C2AA94E",
+      "contract": {
+        "fixture_id": "verdant-catacombs/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/verdant-catacombs.json"
+      },
+      "runtime": {
+        "fixture_id": "verdant-catacombs-pays-costs-finds-subtype-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/verdant-catacombs.json"
+      }
+    },
+    {
+      "oracle_id": "74c0164c-130f-4572-9066-626c77f6e2ff",
+      "name": "Barrowgoyf",
+      "expected_semantic_ir_digest": "14649B369FECED39FF351841C9B7F37A74646D6B266F11875BC7B65DC6E246AA",
+      "contract": {
+        "fixture_id": "barrowgoyf/damage-bound-mill-recovery-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/barrowgoyf.json"
+      },
+      "runtime": {
+        "fixture_id": "barrowgoyf-characteristic-and-damage-bound-mill-recovery",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/barrowgoyf.json"
+      }
+    },
+    {
+      "oracle_id": "2679d0dd-ba30-4a1c-b6a0-b3ac6c790496",
+      "name": "Boros Charm",
+      "expected_semantic_ir_digest": "A5B44CA5F99F42B99E9A0ED0E6C41C43E1311029457FC5E2C3CD90A754E7D643",
+      "contract": {
+        "fixture_id": "boros-charm/native-choose-one-modal-primitives-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/boros-charm.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "boros-charm-damage-mode-deals-four-to-player",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boros-charm-damage.json"
+        },
+        {
+          "fixture_id": "boros-charm-damage-mode-removes-four-loyalty-from-planeswalker",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boros-charm-planeswalker.json"
+        },
+        {
+          "fixture_id": "boros-charm-indestructible-mode-grants-only-controller-permanents",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boros-charm-indestructible.json"
+        },
+        {
+          "fixture_id": "boros-charm-double-strike-mode-grants-only-chosen-creature",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/boros-charm-double-strike.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "de3dcb5d-775a-479f-99f5-d1883ed9b1b5",
+      "name": "Orzhov Signet",
+      "expected_semantic_ir_digest": "EA02AE268831C32E3B6BBC12735B158C8C5C894E1B9EED03EFA5F40F531A3BFA",
+      "contract": {
+        "fixture_id": "orzhov-signet/mana-payment-tap-and-fixed-output-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/orzhov-signet.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "orzhov-signet-pays-one-taps-and-adds-white-black",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/orzhov-signet-paid-activation.json"
+        },
+        {
+          "fixture_id": "orzhov-signet-is-unavailable-without-one-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/orzhov-signet-insufficient-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "eb0d8093-5f93-4b25-9384-08f9731bfb28",
+      "name": "Spirebluff Canal",
+      "expected_semantic_ir_digest": "44884B397BB8BE2F0FA32B58EFEF88E1122ADF66567BEC6966A8AF6C019282A2",
+      "contract": {
+        "fixture_id": "spirebluff-canal/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/spirebluff-canal.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "spirebluff-canal-enters-untapped-with-two-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/spirebluff-canal-two-lands.json"
+        },
+        {
+          "fixture_id": "spirebluff-canal-enters-tapped-with-three-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/spirebluff-canal-three-lands.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "fd74f8eb-0253-42dd-8277-186d4934da38",
+      "name": "Dismember",
+      "expected_semantic_ir_digest": "D8067D848507849A0AEC7C8EFDF32279F9F2867ADDCDEB688B64E718FF213F32",
+      "contract": {
+        "fixture_id": "dismember/targeted-temporary-power-toughness-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/dismember.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "dismember-reduces-six-six-to-one-one",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dismember-survivor.json"
+        },
+        {
+          "fixture_id": "dismember-kills-four-four-through-state-based-actions",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dismember-lethal.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "975ec9a3-6f20-4177-8211-82526e092538",
+      "name": "Overgrown Tomb",
+      "expected_semantic_ir_digest": "C0BDC8666E45C19D2F926BE27AF515FF7F6CF1E39EB4ED43B5FE4F6C7F3E65DB",
+      "contract": {
+        "fixture_id": "overgrown-tomb/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/overgrown-tomb.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "overgrown-tomb-chooses-black-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/overgrown-tomb-black-mana.json"
+        },
+        {
+          "fixture_id": "overgrown-tomb-chooses-green-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/overgrown-tomb-green-mana.json"
+        },
+        {
+          "fixture_id": "overgrown-tomb-pays-life-and-enters-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/overgrown-tomb-pay-life.json"
+        },
+        {
+          "fixture_id": "overgrown-tomb-declines-life-and-enters-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/overgrown-tomb-decline-life.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "ab1cc360-b9de-48d9-9983-4dfe4a7d2a37",
+      "name": "Arcane Denial",
+      "expected_semantic_ir_digest": "C6193D4EF8A3741BE7D509145903247549E3D2741C7C1C4EF1E4BB71F7734A39",
+      "contract": {
+        "fixture_id": "arcane-denial/counter-and-captured-controller-delayed-draw-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/arcane-denial.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "arcane-denial-captures-target-controller-for-next-upkeep-draw",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arcane-denial.json"
+        },
+        {
+          "fixture_id": "arcane-denial-delayed-draw-survives-prevented-counter",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arcane-denial-uncounterable.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "4c6a0c30-b547-4eff-8ff4-0ca25803c076",
+      "name": "Urza's Saga",
+      "expected_semantic_ir_digest": "14B31ED688BBCD769B1EEED516B79A7FB7CDF909F72FF93359B7978446DA5897",
+      "contract": {
+        "fixture_id": "urzas-saga/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/urzas-saga.json"
+      },
+      "runtime": {
+        "fixture_id": "urzas-saga-third-chapter-searches-and-sacrifices",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/urzas-saga-chapter-three.json"
+      }
+    },
+    {
+      "oracle_id": "fc0707c7-d504-4ccf-a0d2-3eb6e26e7a57",
+      "name": "Bloodstained Mire",
+      "expected_semantic_ir_digest": "0D2711ADA2CA5E5ADBFC81D1DF0D0CBF581C800452B719CE6D31E4790815ABA6",
+      "contract": {
+        "fixture_id": "bloodstained-mire/compound-cost-swamp-or-mountain-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/bloodstained-mire.json"
+      },
+      "runtime": {
+        "fixture_id": "bloodstained-mire-pays-costs-finds-mountain-and-shuffles",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/bloodstained-mire.json"
+      }
+    },
+    {
+      "oracle_id": "acfa77fd-3610-4f12-9c3c-bd860ce91700",
+      "name": "Rhythm of the Wild",
+      "expected_semantic_ir_digest": "C65E1FFBC228385531DA166FFA4F617C12D0AC663AB90FC172EDD41186F23E81",
+      "contract": {
+        "fixture_id": "rhythm-of-the-wild/filtered-counter-protection-and-riot-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rhythm-of-the-wild.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "rhythm-of-the-wild-dynamically-protects-creature-spells",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhythm-of-the-wild-creature-counter-protection.json"
+        },
+        {
+          "fixture_id": "rhythm-of-the-wild-does-not-protect-noncreature-spells",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhythm-of-the-wild-noncreature-counterable.json"
+        },
+        {
+          "fixture_id": "rhythm-of-the-wild-grants-typed-riot-entry-choices",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rhythm-of-the-wild-riot-choices.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+      "name": "Voice of Victory",
+      "expected_semantic_ir_digest": "7B6AB838EC229F54D4C0A97180E14567E58CFB9D25732F4ACF00A26887D2592F",
+      "contract": {
+        "fixture_id": "voice-of-victory/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/voice-of-victory.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "voice-of-victory-mobilize-cleans-up-only-captured-token-batch",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/voice-of-victory-mobilize.json"
+        },
+        {
+          "fixture_id": "voice-of-victory-prohibits-only-opponents-during-controller-turn",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/voice-of-victory-cast-prohibition.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "de1ae205-ca5b-4d26-8194-ca85f1406e53",
+      "name": "Ba Sing Se",
+      "expected_semantic_ir_digest": "BABE733D8D06EBA768399022957F2B59A8753FDEC845CFDBF828F3085AD1AF4F",
+      "contract": {
+        "fixture_id": "ba-sing-se/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ba-sing-se.json"
+      },
+      "runtime": {
+        "fixture_id": "ba-sing-se-earthbend-lowers-to-animation-counters-tracking-and-signal",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ba-sing-se-earthbend.json"
+      }
+    },
+    {
+      "oracle_id": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+      "name": "Fellwar Stone",
+      "expected_semantic_ir_digest": "6AE71896EA134EEDD4EB98F9B04CB38BB71B0EB4EBF2BF24CC62BF4BA21A5F2A",
+      "contract": {
+        "fixture_id": "fellwar-stone/opposing-land-color-domain-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/fellwar-stone.json"
+      },
+      "runtime": {
+        "fixture_id": "fellwar-stone-uses-only-colors-opposing-lands-could-produce",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fellwar-stone.json"
+      }
+    },
+    {
+      "oracle_id": "02418479-9455-417f-a6a1-004356faff37",
+      "name": "Tundra",
+      "expected_semantic_ir_digest": "A26BB4C1531FD4323CF5E3B727CF3159305F02F89B261E8F3285150BE058385F",
+      "contract": {
+        "fixture_id": "tundra/native-mana-choice-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/tundra.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "tundra-chooses-white-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/tundra-white.json"
+        },
+        {
+          "fixture_id": "tundra-chooses-blue-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/tundra-blue.json"
+        },
+        {
+          "fixture_id": "tundra-rejects-mana-outside-white-blue-choice",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/tundra-illegal-choice.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "a188fe7e-68de-4c7c-806c-bfe8fc7b44bf",
+      "name": "Pithing Needle",
+      "expected_semantic_ir_digest": "9E5DD2A9267BF875F3A94F3671ACB25B1C5F3669F809E130A951A8ADFA90CB39",
+      "contract": {
+        "fixture_id": "pithing-needle/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/pithing-needle.json"
+      },
+      "runtime": {
+        "fixture_id": "pithing-needle-stored-name-prohibits-only-nonmana-activations",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/pithing-needle.json"
+      }
+    },
+    {
+      "oracle_id": "abbcb153-0763-44c6-964f-b4ff0eb64257",
+      "name": "Atraxa, Grand Unifier",
+      "expected_semantic_ir_digest": "1D83BCE582354870BF2D1F9AEC009AA893B351FB7DB717C11454C5D1769F1E5E",
+      "contract": {
+        "fixture_id": "atraxa-grand-unifier/card-type-partition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/atraxa-grand-unifier.json"
+      },
+      "runtime": {
+        "fixture_id": "atraxa-card-type-partition-keeps-multitype-card-out-of-later-choices",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/atraxa-grand-unifier.json"
+      }
+    },
+    {
+      "oracle_id": "a044474a-cd72-4e9d-bd8d-a08f2de9cdc0",
+      "name": "Reanimate",
+      "expected_semantic_ir_digest": "3EA0EADB13BD724EA752002360E740ABE7E5BFFEA6C6009D98D0FBFE7B31634C",
+      "contract": {
+        "fixture_id": "reanimate-targeted-graveyard-entry-and-linked-mana-value-loss-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/reanimate.json"
+      },
+      "runtime": {
+        "fixture_id": "reanimate-captures-mana-value-before-moving-an-opponents-card-under-caster-control",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/reanimate.json"
+      }
+    },
+    {
+      "oracle_id": "3c0f99b8-0222-4fac-932a-eb5d77826564",
+      "name": "Soulstone Sanctuary",
+      "expected_semantic_ir_digest": "B1C0CD711B42DEB045DF07F01670BE7D071F06763D3311F6EE268DB2FA1AD25A",
+      "contract": {
+        "fixture_id": "soulstone-sanctuary/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/soulstone-sanctuary.json"
+      },
+      "runtime": {
+        "fixture_id": "soulstone-sanctuary-becomes-a-vigilant-land-creature-with-subtype-domain",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary.json"
+      }
+    },
+    {
+      "oracle_id": "c7d8beb6-472c-4758-9876-e8cbf98f4f72",
+      "name": "Faerie Macabre",
+      "expected_semantic_ir_digest": "1878B54B5EF327F7F95122E16D6AC89E4BB4AB263E3DAC751546BF5401F6A0D3",
+      "contract": {
+        "fixture_id": "faerie-macabre/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/faerie-macabre.json"
+      },
+      "runtime": {
+        "fixture_id": "faerie-macabre-discards-from-hand-and-exiles-two-cards-across-graveyards",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/faerie-macabre.json"
+      }
+    },
+    {
+      "oracle_id": "fae37e28-e137-4177-b973-fa8b4dd8f409",
+      "name": "Generous Gift",
+      "expected_semantic_ir_digest": "6FA8133F394C9E1042B2B4DCF3E6D8E70FD5777F8606A7866E2EB7E8D694B5C1",
+      "contract": {
+        "fixture_id": "generous-gift/controller-snapshot-token-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/generous-gift.json"
+      },
+      "runtime": {
+        "fixture_id": "generous-gift-snapshots-stolen-permanent-controller",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generous-gift-stolen-permanent.json"
+      }
+    },
+    {
+      "oracle_id": "a202276b-1f1b-4277-95ee-26877a204f5e",
+      "name": "Sunbillow Verge",
+      "expected_semantic_ir_digest": "B97701921AF07A63C72AF0FC6E2020466278B63E5AB0F844122251D527C36784",
+      "contract": {
+        "fixture_id": "sunbillow-verge/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/sunbillow-verge.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "sunbillow-verge-adds-white-without-a-qualifying-land",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sunbillow-verge-white.json"
+        },
+        {
+          "fixture_id": "sunbillow-verge-adds-red-when-controller-has-mountain",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sunbillow-verge-mountain.json"
+        },
+        {
+          "fixture_id": "sunbillow-verge-adds-red-when-controller-has-plains",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sunbillow-verge-plains.json"
+        },
+        {
+          "fixture_id": "sunbillow-verge-red-is-unavailable-without-a-controlled-mountain-or-plains",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/sunbillow-verge-unqualified.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "d75b9c82-1b49-4c3e-a1b5-aeef57d6644b",
+      "name": "Cyclonic Rift",
+      "expected_semantic_ir_digest": "123A0E35AF2F398FC9DF61600239933B9F3404C8837E7976F0AA8428754241FF",
+      "contract": {
+        "fixture_id": "cyclonic-rift/overload-composition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/cyclonic-rift.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "cyclonic-rift-normal-returns-one-target-nonland",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/cyclonic-rift-normal.json"
+        },
+        {
+          "fixture_id": "cyclonic-rift-overload-returns-each-other-player-nonland",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/cyclonic-rift-overload.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "16052b52-ade1-406f-a06b-ce7ea607fb63",
+      "name": "Stomping Ground",
+      "expected_semantic_ir_digest": "99FB005A684D7CD803182A31D7759C381F6BB545BD07BA48574E66BAE35AC239",
+      "contract": {
+        "fixture_id": "stomping-ground/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/stomping-ground.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "stomping-ground-pays-life-and-enters-untapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stomping-ground-pay-life.json"
+        },
+        {
+          "fixture_id": "stomping-ground-declines-life-and-enters-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stomping-ground-decline-life.json"
+        },
+        {
+          "fixture_id": "stomping-ground-chooses-red-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stomping-ground-red-mana.json"
+        },
+        {
+          "fixture_id": "stomping-ground-chooses-green-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stomping-ground-green-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "e018773f-95b3-49a3-9674-6f04ddef2092",
+      "name": "Azorius Signet",
+      "expected_semantic_ir_digest": "620E21D9533D5A08ED32426B771FB22E2DD8E1E345B2281557558E549ED15614",
+      "contract": {
+        "fixture_id": "azorius-signet/mana-payment-tap-and-fixed-output-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/azorius-signet.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "azorius-signet-pays-one-taps-and-adds-white-blue",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/azorius-signet-paid-activation.json"
+        },
+        {
+          "fixture_id": "azorius-signet-is-unavailable-without-one-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/azorius-signet-insufficient-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "24a29be4-5bc2-469b-b2ce-2fb305c3facb",
+      "name": "Emeritus of Ideation // Ancestral Recall",
+      "expected_semantic_ir_digest": "F7B3FF3017C0C13F880D6145C157DF6D5248ED479A74E7CB45D36B6B41683978",
+      "contract": {
+        "fixture_id": "emeritus-of-ideation/primitive-prepare-contract",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/emeritus-of-ideation.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "emeritus-attack-exiles-exactly-eight-and-prepares-source",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/emeritus-of-ideation-attack-prepare.json"
+        },
+        {
+          "fixture_id": "emeritus-does-not-prepare-when-eight-card-action-is-unavailable",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/emeritus-of-ideation-insufficient-graveyard.json"
+        },
+        {
+          "fixture_id": "ancestral-recall-draws-three-for-the-chosen-player",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ancestral-recall-target-player-draw.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "f161111d-9747-47b3-bb10-3c8bded32e21",
+      "name": "City of Traitors",
+      "expected_semantic_ir_digest": "BB208DFAE0B71B16A6F0D2155710349E857533092AB5016B6DC1931ECC83CA4E",
+      "contract": {
+        "fixture_id": "city-of-traitors/land-play-sacrifice-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/city-of-traitors.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "city-of-traitors-land-play-trigger-sacrifices-source",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/city-of-traitors-sacrifice.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "713332c1-5bd8-400f-bfff-c1ca0697a043",
+      "name": "Opt",
+      "expected_semantic_ir_digest": "BD31B80B18A453BBAF9C4B769C21CDAEC2DA7160DB7C866B93AF9974E9053CA9",
+      "contract": {
+        "fixture_id": "opt/native-atomic-scry-and-draw-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/opt.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "opt-scry-one-bottom-emits-signal-after-reordering",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/opt-scry-one-bottom.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "153376c9-dffd-458c-8ce3-a4c8269bc4e9",
+      "name": "Smothering Tithe",
+      "expected_semantic_ir_digest": "FAE47D8447B97D3F4D660881769F164C5E7DC015E1F1523E9443399EC740A151",
+      "contract": {
+        "fixture_id": "smothering-tithe/event-bound-payment-and-token-primitives-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/smothering-tithe.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "smothering-tithe-opponent-draw-decline-creates-treasure",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/smothering-tithe-opponent-declines.json"
+        },
+        {
+          "fixture_id": "smothering-tithe-opponent-draw-pay-prevents-treasure",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/smothering-tithe-opponent-pays.json"
+        },
+        {
+          "fixture_id": "smothering-tithe-controller-draw-does-not-trigger",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/smothering-tithe-controller-draw.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "c7b044c3-3cfa-407e-bf20-2875e8e04b7b",
+      "name": "Brazen Borrower // Petty Theft",
+      "expected_semantic_ir_digest": "DB0DBD1127E3E64F04F933A7D3197828F11EE296B3EDD2A31208CACEF0761A90",
+      "contract": {
+        "fixture_id": "brazen-borrower/block-only-flying-is-primitive",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brazen-borrower-block-restriction.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "brazen-borrower/block-restriction-effective-flying",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brazen-borrower-block-restriction.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "0c85b8f7-0bd0-4680-9ec5-d4b110460a54",
+      "name": "Fabled Passage",
+      "expected_semantic_ir_digest": "69B46E2B6D6D489D22C354C8670BBFA88CE128B7F0D2FD8BCAF189F3C474AF16",
+      "contract": {
+        "fixture_id": "fabled-passage/conditional-search-result-untap-is-primitive",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/fabled-passage.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "fabled-passage-untaps-the-searched-fourth-land",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fabled-passage-threshold-met.json"
+        },
+        {
+          "fixture_id": "fabled-passage-leaves-the-searched-land-tapped-below-threshold",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fabled-passage-threshold-missed.json"
+        },
+        {
+          "fixture_id": "fabled-passage-empty-search-does-not-untap-an-unbound-object",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/fabled-passage-empty-search.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "34bcc217-dd91-45a0-90d7-a94d02f1f317",
+      "name": "Growth Spiral",
+      "expected_semantic_ir_digest": "EA0C964E0513B6C13CF0BB9EE0A5587BD27224F6130B6595B2EAFBD83E2FC105",
+      "contract": {
+        "fixture_id": "growth-spiral/resolution-time-optional-deployment-is-primitive",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/growth-spiral.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "growth-spiral-accepts-resolution-time-land-deployment",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/growth-spiral-accept.json"
+        },
+        {
+          "fixture_id": "growth-spiral-may-decline-land-deployment",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/growth-spiral-decline.json"
+        },
+        {
+          "fixture_id": "growth-spiral-no-land-is-a-valid-empty-choice",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/growth-spiral-no-match.json"
+        },
+        {
+          "fixture_id": "optional-card-deployment-supports-graveyard-and-tapped-entry",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/optional-artifact-deployment-tapped.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "1b388371-f9ef-45b4-82a3-ca20a8cd7807",
+      "name": "Dovin's Veto",
+      "expected_semantic_ir_digest": "85B3F24938C499F974AEDB11CD71EABA9EC47819A72DEA6611105FFE1C02EE4A",
+      "contract": {
+        "fixture_id": "dovins-veto/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/dovins-veto.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "dovins-veto-resists-a-counter-then-counters-a-noncreature-spell",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dovins-veto.json"
+        },
+        {
+          "fixture_id": "dovins-veto-rejects-a-creature-spell-target",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/dovins-veto-creature-ineligible.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "2f2c549d-0293-4b9d-b9a8-ff392800f3a5",
+      "name": "Kozilek's Command",
+      "expected_semantic_ir_digest": "D98F83D8605DDCD89253845C3E616B258A2E7A9924D21EEDD46D298394905FF8",
+      "contract": {
+        "fixture_id": "kozileks-command/exact-two-modal-primitives-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/kozileks-command.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "kozileks-command-modes-one-two-use-independent-player-targets",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/kozileks-command-modes-1-2.json"
+        },
+        {
+          "fixture_id": "kozileks-command-modes-three-and-four-share-x-and-exile-the-selected-objects",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/kozileks-command-modes-3-4.json"
+        },
+        {
+          "fixture_id": "kozileks-command-embedded-spawn-rule-sacrifices-source-for-colorless-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/kozileks-command-spawn-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "4722105b-0085-4bb8-bca1-9de0d3eb5600",
+      "name": "Stormcarved Coast",
+      "expected_semantic_ir_digest": "3384FBDBB3C6DCF2E753C1B4A94AE7FAF5A5832D3783B7BFACD316E22EAAE5CD",
+      "contract": {
+        "fixture_id": "stormcarved-coast/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/stormcarved-coast.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "stormcarved-coast-enters-tapped-with-zero-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stormcarved-coast-threshold-zero.json"
+        },
+        {
+          "fixture_id": "stormcarved-coast-enters-tapped-with-one-other-land",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stormcarved-coast-threshold-missed.json"
+        },
+        {
+          "fixture_id": "stormcarved-coast-enters-untapped-with-exactly-two-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stormcarved-coast-threshold-met.json"
+        },
+        {
+          "fixture_id": "stormcarved-coast-chooses-blue-and-red-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/stormcarved-coast-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "66fa2326-1b5d-41fb-b919-83bf9f383577",
+      "name": "Blooming Marsh",
+      "expected_semantic_ir_digest": "58B5594C5816C8D2F550533B0FD865A80722C2D30B52724D46C0EE879BB05101",
+      "contract": {
+        "fixture_id": "blooming-marsh/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/blooming-marsh.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "blooming-marsh-enters-untapped-with-zero-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blooming-marsh-threshold-zero.json"
+        },
+        {
+          "fixture_id": "blooming-marsh-enters-untapped-with-one-other-land",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blooming-marsh-threshold-one.json"
+        },
+        {
+          "fixture_id": "blooming-marsh-enters-untapped-with-exactly-two-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blooming-marsh-threshold-two.json"
+        },
+        {
+          "fixture_id": "blooming-marsh-enters-tapped-with-exactly-three-other-lands",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blooming-marsh-threshold-three.json"
+        },
+        {
+          "fixture_id": "blooming-marsh-chooses-black-and-green-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/blooming-marsh-mana.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "5d86a59a-ba1f-45f7-b829-dca6f9f3e624",
+      "name": "Phelia, Exuberant Shepherd",
+      "expected_semantic_ir_digest": "4B7D2F119C667BA7EF2B18CCDF630FB90BAD7569E212CA60417556EE8A58F889",
+      "contract": {
+        "fixture_id": "phelia-exuberant-shepherd/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/phelia-exuberant-shepherd.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "phelia-zero-targets-installs-no-delayed-return",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/phelia-zero-targets.json"
+        },
+        {
+          "fixture_id": "phelia-returns-controller-owned-permanent-and-gets-counter",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/phelia-controller-owned-return.json"
+        },
+        {
+          "fixture_id": "phelia-returns-opponent-owned-permanent-without-counter",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/phelia-opponent-owned-return.json"
+        },
+        {
+          "fixture_id": "phelia-return-survives-absent-source-without-counter",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/phelia-source-absent-return.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "6257c2fd-005f-41e3-8a72-af76df1eb134",
+      "name": "Terminate",
+      "expected_semantic_ir_digest": "396DE7BDF8AD3644C7E50BAB2A14C341040F3E713E34332941A02828B4F144B5",
+      "contract": {
+        "fixture_id": "terminate/destroy-regeneration-prohibition-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/terminate.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "ordinary-destroy-consumes-regeneration-shield-and-leaves-target-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/terminate-regeneration-control.json"
+        },
+        {
+          "fixture_id": "terminate-removes-regeneration-shield-before-destroying-target",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/terminate-cannot-regenerate.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "c5acf2a5-40f4-433d-a74d-1cb56c521464",
+      "name": "Arid Mesa",
+      "expected_semantic_ir_digest": "8568A278361064A6E112B0B37F49DF0AB1C017F55561201F63D3916E669E8C89",
+      "contract": {
+        "fixture_id": "arid-mesa/compound-cost-library-search-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/arid-mesa.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "arid-mesa-pays-costs-finds-mountain-and-shuffles",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arid-mesa-mountain.json"
+        },
+        {
+          "fixture_id": "arid-mesa-pays-costs-finds-plains-and-shuffles",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arid-mesa-plains.json"
+        },
+        {
+          "fixture_id": "arid-mesa-empty-search-still-pays-costs-and-shuffles",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arid-mesa-empty-search.json"
+        },
+        {
+          "fixture_id": "arid-mesa-tap-cost-is-unavailable-while-tapped",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/arid-mesa-tapped-unavailable.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "f8966fd5-2926-4ba0-b7d6-cfea40cd4e05",
+      "name": "Earthbender Ascension",
+      "expected_semantic_ir_digest": "B646F6242EED8F80E1799EAA3BF442DE72958B59C72C929636997217A398AC90",
+      "contract": {
+        "fixture_id": "earthbender-ascension/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/earthbender-ascension.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "earthbender-ascension-entry-earthbends-then-searches",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-entry.json"
+        },
+        {
+          "fixture_id": "earthbender-ascension-landfall-zero-to-one-stops-before-reflexive",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-landfall-one.json"
+        },
+        {
+          "fixture_id": "earthbender-ascension-landfall-three-to-four-creates-separate-reflexive",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-landfall-reflexive.json"
+        },
+        {
+          "fixture_id": "earthbender-ascension-ignores-an-opponents-land-entry",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-landfall-opponent.json"
+        },
+        {
+          "fixture_id": "earthbender-ascension-empty-counter-placement-does-not-create-reflexive",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-landfall-empty-antecedent.json"
+        },
+        {
+          "fixture_id": "earthbender-ascension-reflexive-rechecks-intervening-if-on-resolution",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/earthbender-ascension-landfall-recheck.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "8ddfc283-c9b4-41a5-af88-cf0068e986cc",
+      "name": "Swan Song",
+      "expected_semantic_ir_digest": "DB5C33590A1E4900A07175ED47D7A6B87C69D5DF4CC3DD343EBBD24DB6C37E7B",
+      "contract": {
+        "fixture_id": "swan-song/native-counter-and-descriptive-token-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/swan-song.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "swan-song-counters-and-creates-bird-for-target-controller",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/swan-song.json"
+        },
+        {
+          "fixture_id": "swan-song-still-creates-bird-when-counter-is-prevented",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/swan-song-uncounterable.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "5def9f38-0a0b-4e8d-9f9d-29dcb46520b4",
+      "name": "Esper Sentinel",
+      "expected_semantic_ir_digest": "577E50E5D84B6E38088AD218C200794342509435DC25590E04D02BA34BF0C9AE",
+      "contract": {
+        "fixture_id": "esper-sentinel/ordinal-filtered-dynamic-spell-tax-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/esper-sentinel.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "esper-sentinel-dynamic-tax-uses-live-source-power",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/esper-sentinel-live-power.json"
+        },
+        {
+          "fixture_id": "esper-sentinel-dynamic-tax-falls-back-to-source-lki",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/esper-sentinel-lki-power.json"
+        },
+        {
+          "fixture_id": "esper-sentinel-filters-and-counts-first-spell-per-opponent",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/esper-sentinel-ordinal-multiplayer.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "f4e32fc1-1b8d-441e-8e76-71f19f98e925",
+      "name": "Leyline of the Void",
+      "expected_semantic_ir_digest": "74DDFA95023073ED1E712D48FF259556E575BEAB129B2E6CA9A1C4164EF4DEBC",
+      "contract": {
+        "fixture_id": "leyline-of-the-void/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/leyline-of-the-void.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "leyline-of-the-void-does-not-replace-its-controllers-graveyard",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/leyline-of-the-void-controller-card.json"
+        },
+        {
+          "fixture_id": "leyline-of-the-void-opening-hand-offer-is-accepted",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/leyline-of-the-void-opening-accept.json"
+        },
+        {
+          "fixture_id": "leyline-of-the-void-opening-hand-offer-is-declined",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/leyline-of-the-void-opening-decline.json"
+        },
+        {
+          "fixture_id": "leyline-of-the-void-exiles-an-opponents-resolved-card",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/leyline-of-the-void-opponent-card.json"
+        },
+        {
+          "fixture_id": "leyline-of-the-void-does-not-replace-an-opponents-token",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/leyline-of-the-void-token.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "5f42b67f-87fd-4f98-a0e8-0c8313f4bbc8",
+      "name": "Shipwreck Marsh",
+      "expected_semantic_ir_digest": "2039E0C02699AA508FA463BF4830FD15F4F242BB1B79DB5FF5B9E94E27680524",
+      "contract": {
+        "fixture_id": "shipwreck-marsh/all-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/shipwreck-marsh.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "shipwreck-marsh-chooses-blue-and-black-mana",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/shipwreck-marsh-mana.json"
+        },
+        {
+          "fixture_id": "shipwreck-marsh-enters-untapped-with-exactly-two-other-lands",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/shipwreck-marsh-threshold-met.json"
+        },
+        {
+          "fixture_id": "shipwreck-marsh-enters-tapped-with-one-other-land",
+          "fixture_path": ".tmp/strict-priority-proof-transition-staging/runtime/shipwreck-marsh-threshold-missed.json"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "wasteland-compound-activated-cost-destroys-nonbasic-land",
+  "seed": 1,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "not",
+                  "operand": { "kind": "typeLineContains", "value": "Basic" }
+                },
+                { "kind": "cardTypeContains", "value": "Land" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Utility-land pilot",
+        "battlefield": [
+          {
+            "id": "wasteland",
+            "name": "Wasteland",
+            "typeLine": "Land"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "nonbasic-land",
+            "name": "Nonbasic Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "basic-land",
+            "name": "Basic Land",
+            "typeLine": "Basic Land — Forest"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "wasteland",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "nonbasic-land"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "wasteland",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "nonbasic-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "basic-land",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "activatedAbilityPutOnStack", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 1 }
+  ]
+}

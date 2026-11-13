@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "orcish-bowmasters-deals-damage-then-amasses-orcs",
+  "seed": 66,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "oneOf",
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": { "kind": "self" }
+        },
+        {
+          "kind": "cardDrawn",
+          "opponentOfSourceController": true,
+          "exceptFirstInDrawStep": true
+        }
+      ]
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "triggerDamageTarget",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "anyTarget" }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 1 },
+        "recipient": { "kind": "chosenTarget", "id": "triggerDamageTarget" }
+      },
+      {
+        "kind": "amass",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "armySubtype": "Orc",
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Bowmasters controller",
+        "battlefield": [
+          {
+            "id": "orcish-bowmasters",
+            "name": "Orcish Bowmasters",
+            "typeLine": "Creature — Orc Archer",
+            "manaCost": "{1}{B}",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Damage target" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "orcish-bowmasters",
+    "targets": {
+      "triggerDamageTarget": { "player": { "playerId": "player-1" } }
+    }
+  },
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 19 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "amassed", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

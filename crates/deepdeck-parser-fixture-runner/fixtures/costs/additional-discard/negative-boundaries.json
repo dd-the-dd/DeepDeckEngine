@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "additional-discard/synthetic-negative-boundaries",
+  "cases": [
+    {
+      "id": "random-payment-explicitly-unsupported",
+      "request": {
+        "cardName": "Synthetic Additional Discard Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard a card at random.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "expectedContains": "random casting-time payment"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-quantity-explicitly-unsupported",
+      "request": {
+        "cardName": "Synthetic Additional Discard Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "expectedContains": "literal discard-card quantity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-noun-number-not-truncated",
+      "request": {
+        "cardName": "Synthetic Additional Discard Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard two card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "selector.search-card.predicate",
+            "expectedContains": "a supported card supertype, card type, or subtype",
+            "found": "card"
+          }
+        ]
+      }
+    },
+    {
+      "id": "adapter-capacity-not-truncated",
+      "request": {
+        "cardName": "Synthetic Additional Discard Boundary",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard 65 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "expectedContains": "bounded scalar cost adapter"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "wan-shi-tong/source-cast-x-entry-sequence-is-executable",
+  "cardName": "Wan Shi Tong, Librarian",
+  "oracleId": "2bace3ea-7d28-4a1c-857a-d3c3a1c11b59",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "self" },
+        "counter": "+1/+1",
+        "count": { "kind": "sourceCastXValue" }
+      },
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": {
+          "kind": "divide",
+          "left": { "kind": "sourceCastXValue" },
+          "right": { "kind": "integer", "value": 2 },
+          "round": "down"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "default-maximum-hand-size-discards-the-eighth-card-during-cleanup",
+  "seed": 150,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [
+      {
+        "kind": "noMaximumHandSize",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Default hand-size control",
+        "hand": [
+          { "id": "hand-1", "name": "Hand Card 1", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-2", "name": "Hand Card 2", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-3", "name": "Hand Card 3", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-4", "name": "Hand Card 4", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-5", "name": "Hand Card 5", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-6", "name": "Hand Card 6", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-7", "name": "Hand Card 7", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-8", "name": "Hand Card 8", "typeLine": "Instant", "manaCost": "{99}" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 1 }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 7 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

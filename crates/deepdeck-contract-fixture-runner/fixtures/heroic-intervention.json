@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "heroic-intervention/controlled-permanent-keyword-grants-are-executable",
+  "cardName": "Heroic Intervention",
+  "oracleId": "24882fa2-3fe9-4c1b-aa3d-0e6488b9db27",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "hexproof",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "indestructible",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  }
+}

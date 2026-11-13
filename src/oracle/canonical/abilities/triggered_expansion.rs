@@ -4,6 +4,140 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
     text: &'a str,
     face_name: &str,
 ) -> Option<(Value, &'a str)> {
+    let controller_counter_placement_re = Regex::new(
+        r"(?i)^Whenever you put (?:a|an|one or more) ([A-Za-z0-9+/-]+) counters? on (?:one or more )?(?:(another|other) )?(.+?), (.+)$",
+    )
+    .expect("controller counter-placement trigger regex compiles");
+    if let Some(captures) = controller_counter_placement_re.captures(text) {
+        let raw_subject = captures.get(3)?.as_str().trim();
+        let controlled = strip_suffix_ascii_case(raw_subject, " you control");
+        return Some((
+            json!({
+                "kind": "countersPlaced",
+                "player": controller(),
+                "placedBy": controller(),
+                "counter": captures.get(1)?.as_str().to_ascii_lowercase(),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(controlled.unwrap_or(raw_subject)),
+                    face_name,
+                )?,
+                "anyController": controlled.is_none(),
+                "excludeSource": captures.get(2).is_some(),
+            }),
+            captures.get(4)?.as_str(),
+        ));
+    }
+    let ordinal_source_counter_re = Regex::new(&format!(
+        r"(?i)^When the ({}) ([A-Za-z0-9+/-]+) counter is put on this (artifact|creature|enchantment|land|permanent), (.+)$",
+        ordinal_word_pattern(),
+    ))
+    .expect("ordinal counter placement on source regex compiles");
+    if let Some(captures) = ordinal_source_counter_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "countersPlaced",
+                "player": controller(),
+                "object": self_ref(),
+                "where": card_type(captures.get(3)?.as_str()),
+                "counter": captures.get(2)?.as_str().to_ascii_lowercase(),
+                "resultingCount": integer(parse_ordinal_word(captures.get(1)?.as_str())?),
+            }),
+            captures.get(4)?.as_str(),
+        ));
+    }
+    let controlled_permanents_tapped_re = Regex::new(
+        r"(?i)^Whenever (?:one or more|a|an) (.+?) you control (?:become|becomes) tapped, (.+)$",
+    )
+    .expect("controlled-permanent tap trigger regex compiles");
+    if let Some(captures) = controlled_permanents_tapped_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "controlledPermanentsTapped",
+                "player": controller(),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(1)?.as_str()),
+                    face_name,
+                )?,
+            }),
+            captures.get(2)?.as_str(),
+        ));
+    }
+    if let Some(instruction) = text.strip_prefix("Whenever a creature you control attacks alone, ")
+    {
+        return Some((
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "minimum": integer(1),
+                "maximum": integer(1),
+            }),
+            instruction,
+        ));
+    }
+    if let Some(instruction) = text.strip_prefix("Whenever one or more tokens you control enter, ")
+    {
+        return Some((
+            json!({
+                "kind": "permanentEntered",
+                "player": controller(),
+                "where": { "kind": "isToken" },
+            }),
+            instruction,
+        ));
+    }
+    if let Some(instruction) =
+        text.strip_prefix("Whenever a player draws their second card each turn, ")
+    {
+        return Some((
+            json!({
+                "kind": "cardDrawn",
+                "anyPlayer": true,
+                "drawOrdinal": integer(2),
+            }),
+            instruction,
+        ));
+    }
+    if let Some(instruction) = text.strip_prefix("Whenever you draw a card, ") {
+        return Some((
+            json!({ "kind": "cardDrawn", "player": controller() }),
+            instruction,
+        ));
+    }
+    if let Some(instruction) =
+        text.strip_prefix("Whenever you cast a spell that targets a creature you control, ")
+    {
+        return Some((
+            json!({
+                "kind": "spellCastTargetingControlledCreature",
+                "player": controller(),
+            }),
+            instruction,
+        ));
+    }
+    let mana_symbol_spell_cast_re = Regex::new(
+        r"(?i)^Whenever you cast an? (.+?) spell with one or more (white|blue|black|red|green) mana symbols? in its mana cost, (.+)$",
+    )
+    .expect("mana-symbol spell-cast trigger regex compiles");
+    if let Some(captures) = mana_symbol_spell_cast_re.captures(text) {
+        let mana_symbol = match captures.get(2)?.as_str().to_ascii_lowercase().as_str() {
+            "white" => "W",
+            "blue" => "U",
+            "black" => "B",
+            "red" => "R",
+            "green" => "G",
+            _ => return None,
+        };
+        return Some((
+            json!({
+                "kind": "spellCast",
+                "player": controller(),
+                "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                "manaSymbol": mana_symbol,
+                "minimumManaSymbols": integer(1),
+            }),
+            captures.get(3)?.as_str(),
+        ));
+    }
     let scry_or_surveil_re = Regex::new(r"(?i)^Whenever you scry or surveil, (.+)$")
         .expect("scry-or-surveil trigger regex compiles");
     if let Some(captures) = scry_or_surveil_re.captures(text) {
@@ -197,18 +331,35 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
         ));
     }
 
-    let source_dealt_noncombat_damage_re = Regex::new(
-        r"(?i)^Whenever (this (?:creature|permanent)|[A-Z][A-Za-z0-9 ',.-]+) is dealt noncombat damage, (.+)$",
+    let source_dealt_damage_re = Regex::new(
+        r"(?i)^Whenever (this (?:creature|permanent)|[A-Z][A-Za-z0-9 ',.-]+) is dealt (noncombat )?damage, (.+)$",
     )
-    .expect("source dealt noncombat damage trigger regex compiles");
-    if let Some(captures) = source_dealt_noncombat_damage_re.captures(text)
+    .expect("source dealt damage trigger regex compiles");
+    if let Some(captures) = source_dealt_damage_re.captures(text)
         && source_reference_matches(captures.get(1)?.as_str(), face_name)
     {
+        let mut event = json!({
+            "kind": "permanentDealtDamage",
+            "object": self_ref(),
+        });
+        if captures.get(2).is_some() {
+            event["noncombatOnly"] = Value::Bool(true);
+        }
+        return Some((event, captures.get(3)?.as_str()));
+    }
+
+    let controlled_permanent_dealt_damage_re =
+        Regex::new(r"(?i)^Whenever (?:a|an) (.+?) you control is dealt damage, (.+)$")
+            .expect("controlled permanent dealt-damage trigger regex compiles");
+    if let Some(captures) = controlled_permanent_dealt_damage_re.captures(text) {
         return Some((
             json!({
-                "kind": "permanentDealtDamage",
-                "object": self_ref(),
-                "noncombatOnly": true,
+                "kind": "controlledPermanentDealtDamage",
+                "player": controller(),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(1)?.as_str()),
+                    face_name,
+                )?,
             }),
             captures.get(2)?.as_str(),
         ));
@@ -304,16 +455,6 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
                 captures.get(3)?.as_str(),
             ));
         }
-    }
-
-    let land_played_re = Regex::new(r"(?i)^When(?:ever)? you play (another|a) land, (.+)$")
-        .expect("land-play trigger regex compiles");
-    if let Some(captures) = land_played_re.captures(text) {
-        let mut event = json!({ "kind": "landPlayed", "player": controller() });
-        if captures[1].eq_ignore_ascii_case("another") {
-            event["excludeSource"] = Value::Bool(true);
-        }
-        return Some((event, captures.get(2)?.as_str()));
     }
 
     let self_graveyard_re =
@@ -433,6 +574,23 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
                 captures.get(3)?.as_str(),
             ));
         }
+    }
+
+    let controlled_returned_to_hand_re = Regex::new(
+        r"(?i)^Whenever another (.+?) you control is returned to its owner's hand, (.+)$",
+    )
+    .expect("controlled permanent returned to hand trigger regex compiles");
+    if let Some(captures) = controlled_returned_to_hand_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "controlledPermanentLeftBattlefield",
+                "player": controller(),
+                "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                "excludeSource": true,
+                "destination": "hand",
+            }),
+            captures.get(2)?.as_str(),
+        ));
     }
 
     if !face_name.is_empty() {
@@ -697,6 +855,22 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
             ));
         }
     }
+    let source_attacks_alone_re = Regex::new(r"(?i)^Whenever (.+?) attacks alone, (.+)$")
+        .expect("named source attacks-alone regex compiles");
+    if let Some(captures) = source_attacks_alone_re.captures(text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        return Some((
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "minimum": integer(1),
+                "maximum": integer(1),
+                "sourceMustAttack": true,
+            }),
+            captures.get(2)?.as_str(),
+        ));
+    }
     if let Some(instruction) = text.strip_prefix("Whenever a creature you control attacks, ") {
         return Some((
             json!({
@@ -705,6 +879,22 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
                 "where": card_type("Creature"),
             }),
             instruction,
+        ));
+    }
+    let filtered_controlled_attacker_re =
+        Regex::new(r"(?i)^Whenever (?:a|an) (.+?) you control attacks, (.+)$")
+            .expect("filtered controlled attacker regex compiles");
+    if let Some(captures) = filtered_controlled_attacker_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "controlledCreatureDeclaredAttacker",
+                "player": controller(),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(1)?.as_str()),
+                    face_name,
+                )?,
+            }),
+            captures.get(2)?.as_str(),
         ));
     }
     let attached_attacks_alone_re =
@@ -767,6 +957,23 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
         Regex::new(r"(?i)^Whenever you attack with one or more (.+?), (.+)$")
             .expect("attack with filtered creature regex compiles");
     if let Some(captures) = attack_with_filtered_creature_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "controlledCreaturesAttacked",
+                "player": controller(),
+                "minimum": integer(1),
+                "where": parse_permanent_criteria(
+                    &singular_card_term(captures.get(1)?.as_str()),
+                    face_name,
+                )?,
+            }),
+            captures.get(2)?.as_str(),
+        ));
+    }
+    let filtered_creatures_attack_player_re =
+        Regex::new(r"(?i)^Whenever one or more (.+?) you control attack a player, (.+)$")
+            .expect("filtered controlled creatures attack player regex compiles");
+    if let Some(captures) = filtered_creatures_attack_player_re.captures(text) {
         return Some((
             json!({
                 "kind": "controlledCreaturesAttacked",
@@ -932,6 +1139,21 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
             event["player"] = controller();
         }
         return Some((event, captures.get(3)?.as_str()));
+    }
+    let controlled_spell_from_zone_re = Regex::new(
+        r"(?i)^Whenever you cast (?:a|an) (.+?) spell from your (hand|graveyard|exile), (.+)$",
+    )
+    .expect("controlled filtered spell-from-zone trigger regex compiles");
+    if let Some(captures) = controlled_spell_from_zone_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "spellCast",
+                "player": controller(),
+                "where": parse_permanent_criteria(&captures[1], face_name)?,
+                "fromZone": captures.get(2)?.as_str().to_ascii_lowercase(),
+            }),
+            captures.get(3)?.as_str(),
+        ));
     }
     let colored_spell_re =
         Regex::new(r"^Whenever you cast an? (white|blue|black|red|green) spell, (.+)$")
@@ -1157,6 +1379,23 @@ pub(in crate::oracle::canonical) fn parse_expansion_trigger_event<'a>(
         return Some((
             json!({ "kind": "stepBegan", "step": "upkeep", "player": { "kind": "eachPlayer" } }),
             instruction,
+        ));
+    }
+    let attached_controller_upkeep_re = Regex::new(
+        r"(?i)^At the beginning of the upkeep of (?:enchanted|equipped) (?:creature|permanent)'s controller, (.+)$",
+    )
+    .expect("attached permanent controller upkeep regex compiles");
+    if let Some(captures) = attached_controller_upkeep_re.captures(text) {
+        return Some((
+            json!({
+                "kind": "stepBegan",
+                "step": "upkeep",
+                "player": {
+                    "kind": "controllerOfAttachedPermanent",
+                    "attachment": self_ref(),
+                },
+            }),
+            captures.get(1)?.as_str(),
         ));
     }
     if let Some(instruction) = text.strip_prefix("At the beginning of each opponent's draw step, ")
@@ -1871,6 +2110,103 @@ pub(in crate::oracle::canonical) fn parse_second_resolution_bonus(
         "branches": [{ "ordinal": integer(2), "effects": bonus_effects }],
     }));
     Some((effects, decisions))
+}
+
+fn instruction_starts_with_subject_anaphora(instruction: &str) -> bool {
+    let lower = instruction.trim_start().to_ascii_lowercase();
+    [
+        "it ",
+        "he ",
+        "she ",
+        "they ",
+        "you may have it ",
+        "you may have him ",
+        "you may have her ",
+        "you may have them ",
+    ]
+    .iter()
+    .any(|pronoun| lower.starts_with(pronoun))
+}
+
+fn triggering_subject_reference(event: &Value) -> Option<Value> {
+    match event["kind"].as_str()? {
+        "controlledCreatureDeclaredAttacker"
+        | "controlledCreatureDeclaredBlocker"
+        | "controlledPermanentLeftBattlefield"
+        | "permanentEntered"
+        | "permanentDied"
+        | "permanentLeftBattlefield" => Some(json!({ "kind": "triggeringPermanent" })),
+        "declaredAttacker" | "declaredBlocker" | "enterBattlefield" => event.get("object").cloned(),
+        _ => None,
+    }
+}
+
+fn bind_primitive_subject(effect: &mut Value, subject: &Value) {
+    // Primitive schemas identify their semantic subject explicitly. Keeping this
+    // binding here lets the trigger envelope resolve Oracle anaphora without
+    // teaching individual effect parsers about every possible trigger event.
+    if effect["kind"].as_str() == Some("connive") {
+        effect["permanent"] = subject.clone();
+        effect["player"] = json!({ "kind": "controllerOf", "object": subject.clone() });
+    }
+    if let Some(nested) = effect.get_mut("effects").and_then(Value::as_array_mut) {
+        for nested_effect in nested {
+            bind_primitive_subject(nested_effect, subject);
+        }
+    }
+}
+
+fn bind_trigger_subject_anaphora(event: &Value, instruction: &str, effects: &mut [Value]) {
+    if !instruction_starts_with_subject_anaphora(instruction) {
+        return;
+    }
+    let Some(subject) = triggering_subject_reference(event) else {
+        return;
+    };
+    for effect in effects {
+        bind_primitive_subject(effect, &subject);
+    }
+}
+
+fn replace_triggering_player_reference(value: &mut Value, player: &Value) {
+    if value["kind"].as_str() == Some("triggeringPlayer") {
+        *value = player.clone();
+        return;
+    }
+    match value {
+        Value::Array(values) => {
+            for value in values {
+                replace_triggering_player_reference(value, player);
+            }
+        }
+        Value::Object(fields) => {
+            for value in fields.values_mut() {
+                replace_triggering_player_reference(value, player);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn bind_trigger_player_anaphora(event: &Value, instruction: &str, effects: &mut [Value]) {
+    if !instruction.to_ascii_lowercase().contains("that player") {
+        return;
+    }
+    let Some(player) = event.get("player") else {
+        return;
+    };
+    // A set-valued event reference ("each player" or "each opponent") does not
+    // identify the one player whose event caused this trigger. Singular event
+    // references can be bound directly and remain valid at resolution.
+    if matches!(
+        player["kind"].as_str(),
+        Some("eachPlayer" | "opponentsOf") | None
+    ) {
+        return;
+    }
+    for effect in effects {
+        replace_triggering_player_reference(effect, player);
+    }
 }
 
 pub(in crate::oracle::canonical) fn parse_expansion_triggered(
@@ -4581,6 +4917,7 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
     }
     let (trigger_text, trigger_limit) = text
         .strip_suffix(" This ability triggers only once each turn.")
+        .or_else(|| text.strip_suffix(" Do this only once each turn."))
         .map(|text| {
             (
                 text,
@@ -4899,8 +5236,84 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
         ));
     }
 
+    let attached_attack_or_block_attach_re = Regex::new(
+        r"(?i)^Whenever (?:enchanted|equipped) creature attacks or blocks, attach any number of target (.+?) you control to it\.$",
+    )
+    .expect("attached attack-or-block multi-attachment regex compiles");
+    if let Some(captures) = attached_attack_or_block_attach_re.captures(trigger_text) {
+        return Some(draft(
+            json!({
+                "kind": "triggeredAbility",
+                "source": self_ref(),
+                "event": {
+                    "kind": "oneOf",
+                    "events": [
+                        { "kind": "attachedPermanentDeclaredAttacker" },
+                        { "kind": "attachedPermanentDeclaredBlocker" },
+                    ],
+                },
+                "declaration": {
+                    "kind": "castingDeclaration",
+                    "decisions": [target_decision(
+                        "targetAttachments",
+                        json!({
+                            "kind": "permanents",
+                            "controller": controller(),
+                            "where": parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+                        }),
+                        0,
+                        64,
+                    )],
+                },
+                "effects": [{
+                    "kind": "attachPermanent",
+                    "attachment": { "kind": "chosenTargets", "id": "targetAttachments" },
+                    "to": { "kind": "attachedPermanent", "attachment": self_ref() },
+                }],
+            }),
+            &[
+                "Observe the attached permanent attacking or blocking",
+                "Choose any number of controlled attachments",
+                "Attach each choice to the same triggering permanent",
+            ],
+        ));
+    }
+
     let source_tapped_re = Regex::new(r"(?i)^Whenever (.+?) becomes tapped, (.+)$")
         .expect("source-tapped trigger regex compiles");
+    let source_tapped_for_teamwork_re =
+        Regex::new(r"(?i)^Whenever (.+?) becomes tapped to pay a teamwork cost, (.+)$")
+            .expect("source tapped for teamwork trigger regex compiles");
+    if let Some(captures) = source_tapped_for_teamwork_re.captures(trigger_text)
+        && source_reference_matches(captures.get(1)?.as_str(), face_name)
+    {
+        let (effects, decisions) =
+            parse_expansion_instruction(captures.get(2)?.as_str(), face_name)?;
+        let mut rule = json!({
+            "kind": "triggeredAbility",
+            "source": self_ref(),
+            "event": { "kind": "permanentTapped", "object": self_ref() },
+            "condition": {
+                "kind": "sourceFlagSet",
+                "flag": "paidTeamworkCost",
+            },
+            "effects": effects,
+        });
+        if !decisions.is_empty() {
+            rule["declaration"] = json!({
+                "kind": "castingDeclaration",
+                "decisions": decisions,
+            });
+        }
+        return Some(draft(
+            rule,
+            &[
+                "Observe the source becoming tapped",
+                "Require the teamwork-payment event context",
+                "Delegate the resulting instruction",
+            ],
+        ));
+    }
     if let Some(captures) = source_tapped_re.captures(trigger_text)
         && source_reference_matches(&captures[1], face_name)
     {
@@ -5250,6 +5663,34 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
     }
     let damage_quantity_token_re = Regex::new(r"(?i)^create that many (.+? tokens?(?:\..*)?)$")
         .expect("damage-quantity token regex compiles");
+    if event["kind"].as_str() == Some("spellCast")
+        && event["manaSymbol"].is_string()
+        && let Some(captures) = damage_quantity_token_re.captures(instruction)
+    {
+        let token_instruction = format!("Create one {}", captures.get(1)?.as_str());
+        let mut create = create_token_effect(&token_instruction)?;
+        create["quantity"] = json!({
+            "kind": "countManaSymbolsInTriggeringSpell",
+            "symbol": event["manaSymbol"].clone(),
+        });
+        let mut rule = json!({
+            "kind": "triggeredAbility",
+            "source": self_ref(),
+            "event": event,
+            "effects": [create],
+        });
+        if let Some(trigger_limit) = trigger_limit {
+            rule["triggerLimit"] = trigger_limit;
+        }
+        return Some(draft(
+            rule,
+            &[
+                "Filter the cast spell through reusable card criteria",
+                "Count matching mana symbols in the triggering spell's mana cost",
+                "Use that numeric expression as the shared token quantity",
+            ],
+        ));
+    }
     if matches!(
         event["kind"].as_str(),
         Some("combatDamageToPlayer" | "permanentDealtDamage")
@@ -5595,7 +6036,9 @@ pub(in crate::oracle::canonical) fn parse_expansion_triggered(
             ],
         ));
     }
-    if let Some((effects, decisions)) = parse_expansion_instruction(instruction, face_name) {
+    if let Some((mut effects, decisions)) = parse_expansion_instruction(instruction, face_name) {
+        bind_trigger_subject_anaphora(&event, instruction, &mut effects);
+        bind_trigger_player_anaphora(&event, instruction, &mut effects);
         let mut rule = json!({
             "kind": "triggeredAbility",
             "source": self_ref(),
@@ -5710,7 +6153,6 @@ pub(in crate::oracle::canonical) fn parse_remaining_kellan_ability(
     const SUPPORTED: &[&str] = &[
         "{T}: Draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana value. It gains \"When the last time counter is removed from this card, if it's exiled, you may cast it without paying its mana cost. If you cast a creature spell this way, it gains haste until end of turn.\" Then remove a time counter from each other card you own in exile.",
         "Flurry — Whenever you cast your second spell each turn, put a rally counter on this enchantment. Then create a 1/1 white Monk creature token with prowess for each rally counter on it. (Whenever you cast a noncreature spell, the token gets +1/+1 until end of turn.)",
-        "This land enters tapped unless you control two or fewer other lands.",
         "To solve — You control seven or more lands. (If unsolved, solve at the beginning of your end step.)",
         "Solved — You may look at the top card of your library any time, and you may play lands and cast creature and enchantment spells from the top of your library.",
         "{4}, {T}: Target opponent exiles cards from the top of their library until they exile an instant or sorcery card. You may cast that card without paying its mana cost. Then put the exiled cards that weren't cast this way on the bottom of that library in a random order.",

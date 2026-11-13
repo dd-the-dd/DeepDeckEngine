@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "spell-snare-rejects-mana-value-three-spell",
+  "seed": 25,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "compare",
+            "operator": "==",
+            "left": {
+              "kind": "manaValueOf",
+              "object": { "kind": "candidate" }
+            },
+            "right": { "kind": "integer", "value": 2 }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Spell Snare pilot",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "spell-snare",
+          "name": "Spell Snare",
+          "typeLine": "Instant",
+          "manaCost": "{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetSpell",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "spells",
+                  "where": {
+                    "kind": "compare",
+                    "operator": "==",
+                    "left": {
+                      "kind": "manaValueOf",
+                      "object": { "kind": "candidate" }
+                    },
+                    "right": { "kind": "integer", "value": 2 }
+                  }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "counterSpell",
+              "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["C", "C", "R"],
+        "hand": [{
+          "id": "mana-value-three-spell",
+          "name": "Mana Value Three Spell",
+          "typeLine": "Instant",
+          "manaCost": "{2}{R}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [{
+    "kind": "castSpell",
+    "controllerId": "player-1",
+    "sourceDefinitionId": "mana-value-three-spell"
+  }],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spell-snare",
+      "equals": false
+    },
+    { "kind": "stackDepth", "equals": 1 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "spell-snare",
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

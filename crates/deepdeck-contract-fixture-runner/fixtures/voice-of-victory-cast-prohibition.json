@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "voice-of-victory/opponents-cannot-cast-during-controller-turn",
+  "cardName": "Voice of Victory",
+  "oracleId": "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "prohibitCast",
+      "players": {
+        "kind": "opponentsOf",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      },
+      "duringTurnOf": { "kind": "controllerOf", "object": { "kind": "self" } }
+    }]
+  }
+}

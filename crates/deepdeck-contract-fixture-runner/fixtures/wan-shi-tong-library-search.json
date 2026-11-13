@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "wan-shi-tong/opponent-library-search-counter-draw-is-executable",
+  "cardName": "Wan Shi Tong, Librarian",
+  "oracleId": "2bace3ea-7d28-4a1c-857a-d3c3a1c11b59",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "librarySearched",
+      "anyPlayer": true,
+      "opponentOfSourceController": true
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "self" },
+        "counter": "+1/+1",
+        "count": { "kind": "integer", "value": 1 }
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  }
+}

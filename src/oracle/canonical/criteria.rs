@@ -6,6 +6,7 @@ pub(super) fn singular_card_term(value: &str) -> String {
         ("Allies", "Ally"),
         ("Dwarves", "Dwarf"),
         ("Elves", "Elf"),
+        ("Heroes", "Hero"),
         ("Mice", "Mouse"),
         ("Oxen", "Ox"),
         ("Plains", "Plains"),
@@ -556,6 +557,15 @@ pub(super) fn parse_permanent_criteria(value: &str, face_name: &str) -> Option<V
         ]));
     }
 
+    let attacking_alone_re = Regex::new(r"(?i)^(.+?) that(?:'|\x{2019})s attacking alone$")
+        .expect("attacking-alone permanent criteria regex compiles");
+    if let Some(captures) = attacking_alone_re.captures(description) {
+        return Some(and(vec![
+            parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            json!({ "kind": "isAttackingAlone" }),
+        ]));
+    }
+
     let lower_description = description.to_ascii_lowercase();
     if lower_description == "creature that entered this turn" {
         return Some(and(vec![
@@ -715,7 +725,15 @@ pub(super) fn parse_permanent_criteria(value: &str, face_name: &str) -> Option<V
         };
     }
 
-    if let Some(captures) = Regex::new(r"(?i)^(.+?) that are one or more colors$")
+    if let Some(captures) = Regex::new(r"(?i)^(.+?) that dealt damage this turn$")
+        .expect("damage-dealing history criteria regex compiles")
+        .captures(description)
+    {
+        predicates.push(and(vec![
+            parse_permanent_criteria(captures.get(1)?.as_str(), face_name)?,
+            json!({ "kind": "dealtDamageThisTurn" }),
+        ]));
+    } else if let Some(captures) = Regex::new(r"(?i)^(.+?) that are one or more colors$")
         .expect("colored-card criteria regex compiles")
         .captures(description)
     {
@@ -951,7 +969,7 @@ pub(super) fn parse_controlled_permanent_condition(value: &str, face_name: &str)
 
 pub(super) fn mana_cast_restriction_filter(effect_text: &str) -> Option<Value> {
     let captures = Regex::new(
-        r"Spend this mana only to cast (?:an? )?(.+?) spells?(?:[.,]| (?:and|or) activate)",
+        r"Spend this mana only to cast (?:an? )?(.+?) spells?(?:[.,]| (?:and|or)(?: to)? activate)",
     )
     .expect("mana cast restriction regex compiles")
     .captures(effect_text)?;
