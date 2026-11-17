@@ -3,12 +3,12 @@
 //! comma before the body, or the sentence end after it); this child owns only
 //! the Boolean program over typed state propositions. Every atom is a reusable
 //! proposition that the engine evaluates continuously, not a card recipe.
-use super::super::{MachineResult, OracleTokenCursor};
+use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
     BooleanConditionNode, ControlledCountDirection, LocalConditionNode, NumericAtom,
     ObjectPredicate, recognize_boolean_condition_list_before_separator, recognize_numeric_atom,
-    recognize_search_card_selector, recognize_source_reference, recognize_trigger_guard_atom,
-    source_reference_starts_at,
+    recognize_object_query_before_condition_connector, recognize_search_card_selector,
+    recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -27,6 +27,15 @@ pub(in crate::oracle::canonical) enum ControllerTurnEvent {
     SpellCast,
 }
 
+/// What a `last turn` spell-cast condition asserts about the previous turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum LastTurnSpellCasts {
+    /// No player cast a spell.
+    None,
+    /// One player cast at least this many spells.
+    SomePlayerAtLeast(i64),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum StaticConditionAtom {
     /// Controller permanent presence / fixed-count atoms shared with guards.
@@ -36,7 +45,30 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
         event: ControllerTurnEvent,
         threshold: i64,
     },
-    ControllerGainedLifeThisTurn,
+    /// `you gained life this turn` (threshold 1) / `gained N or more life`.
+    ControllerGainedLifeThisTurn {
+        threshold: i64,
+    },
+    /// `you attacked this turn`: the controller declared an attacker.
+    ControllerAttackedThisTurn,
+    ControllerLostLifeThisTurn,
+    /// `an opponent lost life this turn` (any opponent of the controller).
+    OpponentLostLifeThisTurn,
+    /// `you have N or more life` / `N or less life`: the controller's life total.
+    ControllerLifeTotal {
+        threshold: i64,
+        direction: ControlledCountDirection,
+    },
+    /// `a creature died this turn`, `three or more Elves died this turn`:
+    /// permanents of every player put into a graveyard from the battlefield.
+    /// `subject` is a card type or subtype.
+    PermanentsDiedThisTurn {
+        threshold: i64,
+        subject: ObjectPredicate,
+    },
+    /// `no spells were cast last turn` / `a player cast N or more spells last
+    /// turn`: spell casts during the turn before the current one.
+    SpellsCastLastTurn(LastTurnSpellCasts),
     CardsInControllerGraveyard {
         threshold: i64,
         direction: ControlledCountDirection,
@@ -93,9 +125,26 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     }
     if contraction_is(cursor, 0, "you", "ve")
         || (word_is(cursor, 0, "you")
-            && (word_is(cursor, 1, "have") || word_is(cursor, 1, "gained")))
+            && (word_is(cursor, 1, "have")
+                || word_is(cursor, 1, "gained")
+                || word_is(cursor, 1, "attacked")
+                || word_is(cursor, 1, "lost")))
     {
         return recognize_controller_history_atom(cursor);
+    }
+    if word_is(cursor, 0, "no") || (word_is(cursor, 0, "a") && word_is(cursor, 1, "player")) {
+        return recognize_last_turn_spell_atom(cursor);
+    }
+    if word_is(cursor, 0, "an") && word_is(cursor, 1, "opponent") {
+        return recognize_opponent_life_loss_atom(cursor);
+    }
+    if word_is(cursor, 0, "a")
+        || word_is(cursor, 0, "an")
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.parse::<i64>().is_ok() || parse_number_word(raw).is_some())
+    {
+        return recognize_permanents_died_atom(cursor);
     }
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {
         return recognize_graveyard_count_atom(cursor);
@@ -233,11 +282,20 @@ fn recognize_controller_history_atom(
     } else {
         cursor.consume("you")?;
         // `you gained life this turn` is the simple-past form of the same history.
-        if !word_is(cursor, 0, "gained") {
+        if !(word_is(cursor, 0, "gained")
+            || word_is(cursor, 0, "lost")
+            || word_is(cursor, 0, "attacked"))
+        {
             cursor.consume("have")?;
         }
     }
     cursor.enter("condition.static.controller-history.verb");
+    if cursor.peek().is_some_and(|raw| {
+        !raw.eq_ignore_ascii_case("an")
+            && (raw.parse::<i64>().is_ok() || parse_number_word(raw).is_some())
+    }) {
+        return recognize_life_total_atom(cursor);
+    }
     let verb = cursor
         .peek()
         .map(str::to_ascii_lowercase)
@@ -264,14 +322,134 @@ fn recognize_controller_history_atom(
         "gained" => {
             cursor.consume("gained")?;
             cursor.enter("condition.static.controller-history.life");
+            let threshold = if word_is(cursor, 0, "life") {
+                1
+            } else {
+                let (threshold, direction, _) = recognize_count_comparison(cursor)?;
+                cursor.require(
+                    direction == ControlledCountDirection::OrMore && threshold >= 1,
+                    "an `or more` life-gain count of at least one",
+                )?;
+                threshold
+            };
             cursor.consume("life")?;
             cursor.consume_phrase(&["this", "turn"])?;
-            Ok(StaticConditionAtom::ControllerGainedLifeThisTurn)
+            Ok(StaticConditionAtom::ControllerGainedLifeThisTurn { threshold })
+        }
+        "attacked" => {
+            cursor.consume("attacked")?;
+            cursor.enter("condition.static.controller-history.attack");
+            cursor.consume_phrase(&["this", "turn"])?;
+            Ok(StaticConditionAtom::ControllerAttackedThisTurn)
+        }
+        "lost" => {
+            cursor.consume("lost")?;
+            cursor.enter("condition.static.controller-history.life");
+            cursor.consume("life")?;
+            cursor.consume_phrase(&["this", "turn"])?;
+            Ok(StaticConditionAtom::ControllerLostLifeThisTurn)
         }
         "an" => {
             cursor.consume_phrase(&["an", "enduring", "story"])?;
             Ok(StaticConditionAtom::ControllerHasEnduringStory)
         }
-        _ => Err(cursor.fail("`drawn`, `cast`, `gained` or an enduring story")),
+        _ => {
+            Err(cursor.fail("`drawn`, `cast`, `gained`, `lost`, a life total or an enduring story"))
+        }
     }
+}
+
+/// `N or more life` / `N or less life` after `you have`: the controller's life
+/// total compared with a fixed bound.
+fn recognize_life_total_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.life-total.threshold");
+    let threshold = match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) => value,
+        NumericAtom::VariableX => return Err(cursor.fail("a fixed life threshold")),
+    };
+    cursor.consume("or")?;
+    cursor.enter("condition.static.life-total.direction");
+    let direction = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("more" | "greater") => ControlledCountDirection::OrMore,
+        Some("less" | "fewer") => ControlledCountDirection::OrFewer,
+        _ => return Err(cursor.fail("`more`, `greater`, `less` or `fewer`")),
+    };
+    let word = cursor.peek().expect("direction was checked").to_string();
+    cursor.consume(&word)?;
+    cursor.enter("condition.static.life-total.noun");
+    cursor.consume("life")?;
+    Ok(StaticConditionAtom::ControllerLifeTotal {
+        threshold,
+        direction,
+    })
+}
+
+/// `an opponent lost life this turn`.
+fn recognize_opponent_life_loss_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.opponent-life.subject");
+    cursor.consume_phrase(&["an", "opponent"])?;
+    cursor.enter("condition.static.opponent-life.verb");
+    cursor.consume_phrase(&["lost", "life", "this", "turn"])?;
+    Ok(StaticConditionAtom::OpponentLostLifeThisTurn)
+}
+
+/// `a creature died this turn`, `two or more Elves died this turn`: the
+/// count of this-turn deaths of permanents described by one card type or
+/// subtype, owned by any player.
+fn recognize_permanents_died_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    let (threshold, direction, _) = recognize_count_comparison(cursor)?;
+    cursor.require(
+        direction == ControlledCountDirection::OrMore,
+        "an `or more` this-turn death count",
+    )?;
+    cursor.enter("condition.static.died.subject");
+    let query = recognize_object_query_before_condition_connector(cursor)?;
+    cursor.require(
+        query.controller.is_none(),
+        "a death count without a controller relation",
+    )?;
+    cursor.require(
+        matches!(
+            query.predicate,
+            ObjectPredicate::CardType(_) | ObjectPredicate::Subtype(_)
+        ),
+        "one card type or subtype of the permanents that died",
+    )?;
+    cursor.enter("condition.static.died.verb");
+    cursor.consume_phrase(&["died", "this", "turn"])?;
+    Ok(StaticConditionAtom::PermanentsDiedThisTurn {
+        threshold,
+        subject: query.predicate,
+    })
+}
+
+/// `no spells were cast last turn`, `a player cast two or more spells last turn`.
+fn recognize_last_turn_spell_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.last-turn.subject");
+    if word_is(cursor, 0, "no") {
+        cursor.consume_phrase(&["no", "spells", "were", "cast", "last", "turn"])?;
+        return Ok(StaticConditionAtom::SpellsCastLastTurn(
+            LastTurnSpellCasts::None,
+        ));
+    }
+    cursor.consume_phrase(&["a", "player", "cast"])?;
+    let (threshold, direction, singular) = recognize_count_comparison(cursor)?;
+    cursor.require(
+        direction == ControlledCountDirection::OrMore,
+        "an `or more` last-turn spell count",
+    )?;
+    cursor.enter("condition.static.last-turn.noun");
+    cursor.consume(if singular { "spell" } else { "spells" })?;
+    cursor.consume_phrase(&["last", "turn"])?;
+    Ok(StaticConditionAtom::SpellsCastLastTurn(
+        LastTurnSpellCasts::SomePlayerAtLeast(threshold),
+    ))
 }

@@ -78,9 +78,12 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
                     CardSelectionQuantityNode::Exactly(amount)
                     | CardSelectionQuantityNode::UpTo(amount) => independent_number(amount),
                     CardSelectionQuantityNode::AnyNumber => true,
+                    CardSelectionQuantityNode::All { .. } => false,
                 }
         }
-        CardOperandNode::ZoneCollection(_) | CardOperandNode::Targets(_) => false,
+        CardOperandNode::ZoneCollection(_)
+        | CardOperandNode::Targets(_)
+        | CardOperandNode::LibraryTop(_) => false,
     }
 }
 
@@ -130,6 +133,8 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
                 *owner == LocalPlayerReference::Controller && independent_number(count)
             }
             CardActionNode::Reveal(operand) => simple_operand(operand),
+            // A permission window is lowered by the native collection lowerer.
+            CardActionNode::Permit(_) | CardActionNode::RevealUntil { .. } => false,
             CardActionNode::Move { cards, destination } => {
                 simple_operand(cards)
                     && match destination.owner {
@@ -185,7 +190,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::UntapPermanents(_)
         | LocalEffectNode::TapPermanents(_)
         | LocalEffectNode::Regenerate(_)
+        | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
+        | LocalEffectNode::Choose(_)
         | LocalEffectNode::TemporaryPlayerPermission(_) => false,
     })
 }
@@ -260,12 +267,15 @@ impl CollectionScope {
                 let maximum = match &selection.quantity {
                     CardSelectionQuantityNode::Exactly(amount)
                     | CardSelectionQuantityNode::UpTo(amount) => literal(amount),
-                    CardSelectionQuantityNode::AnyNumber => None,
+                    CardSelectionQuantityNode::AnyNumber
+                    | CardSelectionQuantityNode::All { .. } => None,
                 };
                 self.mention(maximum);
                 Ok(())
             }
-            CardOperandNode::ZoneCollection(_) | CardOperandNode::Targets(_) => {
+            CardOperandNode::ZoneCollection(_)
+            | CardOperandNode::Targets(_)
+            | CardOperandNode::LibraryTop(_) => {
                 unreachable!("outside the checked scope slice")
             }
         }
@@ -343,6 +353,9 @@ fn resolve_sequence(
                 }
                 CardActionNode::Reveal(operand) => collections.operand(operand)?,
                 CardActionNode::Move { cards, .. } => collections.operand(cards)?,
+                CardActionNode::Permit(_) | CardActionNode::RevealUntil { .. } => {
+                    unreachable!("a permission window is outside the checked scope slice")
+                }
             },
             // Nested sequence declarations neither borrow nor escape player
             // scope. The existing lowerer has an independent player registry.
@@ -393,7 +406,9 @@ fn resolve_sequence(
             | LocalEffectNode::UntapPermanents(_)
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
+            | LocalEffectNode::Choose(_)
             | LocalEffectNode::TemporaryPlayerPermission(_) => {
                 unreachable!("outside the checked scope slice")
             }

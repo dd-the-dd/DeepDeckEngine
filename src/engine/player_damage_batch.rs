@@ -183,7 +183,7 @@ impl GameEngine {
                     batch.events.extend(frame.events);
                     batch.removals.extend(frame.counter_removals);
                     if life_locked && !infect {
-                        batch.events.push(DeferredDamageEvent {kind:"lifeChangePrevented",player_id:Some(player_id.clone()),card_id:Some(source.into()),detail:json!({"amount":-frame.amount,"reason":"lifeTotalCannotChange"})});
+                        batch.events.push(DeferredDamageEvent {kind:"lifeChangePrevented",player_id:Some(player_id.clone()),card_id:Some(source.into()),detail:json!({"amount":-frame.amount,"reason":"lifeTotalCannotChange"}),shield:None});
                     }
                     batch.states.push(PlayerStatePlan {
                         id: player_id.clone(),
@@ -201,6 +201,18 @@ impl GameEngine {
                         .checked_add(frame.amount)
                         .ok_or_else(|| EngineError::new("damage total overflow"))?;
                 }
+            }
+        }
+        // Each recipient is prepared against the same shield state; a finite
+        // shield consumed by several recipients needs an ordered choice.
+        let mut finite_shields = BTreeSet::new();
+        for event in &batch.events {
+            if let Some((shield_id, _)) = event.shield
+                && !finite_shields.insert(shield_id)
+            {
+                return Err(EngineError::new(
+                    "one finite prevention shield applying to several simultaneous recipients requires ordered replacement choices",
+                ));
             }
         }
         if total > 0

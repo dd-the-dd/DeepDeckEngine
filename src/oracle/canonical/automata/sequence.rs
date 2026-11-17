@@ -664,9 +664,13 @@ fn recognize_effect_sequence_attempt_internal(
                             super::CollectionOperandAttempt::NotClaimed
                             | super::CollectionOperandAttempt::RejectedCandidate(_) => {}
                         }
-                        if let Ok(Some(action)) = attempt
-                            .attempt(|child| super::recognize_card_action(child, move_ellipsis))
-                        {
+                        if let Ok(Some(action)) = attempt.attempt(|child| {
+                            super::recognize_card_action(
+                                child,
+                                move_ellipsis,
+                                action_context.preposed_duration.as_ref(),
+                            )
+                        }) {
                             return Ok(LocalEffectNode::CardAction(action));
                         }
                         let legacy = attempt.attempt(|child| {
@@ -808,7 +812,8 @@ fn recognize_effect_sequence_attempt_internal(
                                 return Err(failure);
                             }
                             let mut trial = cursor.clone();
-                            let Ok(duration) = super::recognize_effect_duration(&mut trial) else {
+                            let Ok(duration) = super::recognize_play_window_duration(&mut trial)
+                            else {
                                 return Err(failure);
                             };
                             if trial.consume(",").is_err() {
@@ -829,6 +834,9 @@ fn recognize_effect_sequence_attempt_internal(
                         LocalEffectNode::TemporaryKeywordGrant(node) => &node.duration == duration,
                         LocalEffectNode::BecomeTypes(node) => {
                             node.duration.as_ref() == Some(duration)
+                        }
+                        LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
+                            &node.duration == duration
                         }
                         _ => false,
                     };
@@ -920,6 +928,27 @@ fn recognize_effect_sequence_attempt_internal(
                                 effect_index,
                                 slot_index: 0,
                             });
+                    }
+                }
+                if let LocalEffectNode::Choose(choice) = &effect {
+                    // The chosen target is the antecedent of a later `it`,
+                    // `that creature` or `that player`; a plural choice is not.
+                    let singular = choice.declared_targets().is_some_and(|targets| {
+                        targets.slots.len() == 1 && targets.slots[0].cardinality.maximum == 1
+                    });
+                    match &choice.domain {
+                        super::ChoiceDomainNode::PermanentTargets(_) => {
+                            memory.last_target = singular.then_some(TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            });
+                        }
+                        super::ChoiceDomainNode::PlayerTarget(_) => {
+                            memory.last_player_target = Some(PlayerTargetBinding { effect_index });
+                        }
+                        // A characteristic choice introduces no object or
+                        // player antecedent; earlier antecedents remain.
+                        super::ChoiceDomainNode::CreatureType => {}
                     }
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect
@@ -1362,12 +1391,28 @@ fn recognize_effect(
     }
     if cursor
         .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("choose"))
+    {
+        // `choose DOMAIN` owns its verb: every domain either binds or fails
+        // at its own typed state (CR 115.1, 608.2d). The failure stays
+        // tentative so modal parents keep their own claim on mode choices.
+        return super::recognize_choose_instruction(cursor).map(LocalEffectNode::Choose);
+    }
+    if cursor
+        .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("attach"))
     {
         let mut trial = cursor.clone();
         let node = super::recognize_attach_effect(&mut trial, name_links, name_failure, context)?;
         *cursor = trial;
         return Ok(LocalEffectNode::Attach(node));
+    }
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("prevent"))
+    {
+        return super::recognize_prevent_damage_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::PreventDamage);
     }
     if cursor
         .peek()

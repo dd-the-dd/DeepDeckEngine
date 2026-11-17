@@ -1,12 +1,30 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::*;
+use crate::oracle::canonical::{
+    BooleanConditionNode, EffectRecognitionContext, SentenceConditionAtom,
+};
+
+fn guard(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Option<SentenceConditionNode>> {
+    let effects = EffectRecognitionContext::default();
+    recognize_trigger_guard(
+        cursor,
+        &SentenceConditionContext {
+            name_links: &[],
+            name_failure: None,
+            effects: &effects,
+            card_target: None,
+            card_focus: false,
+            departed_targets: &[],
+        },
+    )
+}
 
 #[test]
 fn optional_guard_does_not_consume_an_effect_body() {
     let tokens = recognize_entities("draw a card.");
     let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-    assert_eq!(recognize_trigger_guard(&mut cursor).unwrap(), None);
+    assert_eq!(guard(&mut cursor).unwrap(), None);
     assert_eq!(cursor.position(), 0);
 }
 
@@ -19,8 +37,9 @@ fn presence_and_object_union_leave_the_parent_comma() {
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-        let Some(BooleanConditionNode::Atom(LocalConditionNode::ControlledPermanentCount(atom))) =
-            recognize_trigger_guard(&mut cursor).expect(text)
+        let Some(BooleanConditionNode::Atom(SentenceConditionAtom::Local(
+            LocalConditionNode::ControlledPermanentCount(atom),
+        ))) = guard(&mut cursor).expect(text)
         else {
             panic!("one typed presence atom: {text}");
         };
@@ -41,8 +60,7 @@ fn full_subject_boolean_conditions_preserve_precedence() {
         "if you control an artifact or you control an enchantment and you control two or more creatures, draw a card.",
     );
     let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-    let Some(BooleanConditionNode::Or(branches)) = recognize_trigger_guard(&mut cursor).unwrap()
-    else {
+    let Some(BooleanConditionNode::Or(branches)) = guard(&mut cursor).unwrap() else {
         panic!("OR owns the expression root");
     };
     assert_eq!(branches.len(), 2);
@@ -56,8 +74,7 @@ fn serial_boolean_commas_require_a_later_explicit_connector() {
         "if you control an artifact, you control an enchantment, and you control two or more creatures, draw a card.",
     );
     let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-    let Some(BooleanConditionNode::And(items)) = recognize_trigger_guard(&mut cursor).unwrap()
-    else {
+    let Some(BooleanConditionNode::And(items)) = guard(&mut cursor).unwrap() else {
         panic!("three complete condition atoms form one conjunction");
     };
     assert_eq!(items.len(), 3);
@@ -71,7 +88,7 @@ fn an_effect_with_its_own_and_is_not_a_condition_list_item() {
     let tokens =
         recognize_entities("if you control an artifact, you gain 1 life and you gain 2 life.");
     let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-    let Some(BooleanConditionNode::Atom(_)) = recognize_trigger_guard(&mut cursor).unwrap() else {
+    let Some(BooleanConditionNode::Atom(_)) = guard(&mut cursor).unwrap() else {
         panic!("the single presence condition remains atomic");
     };
     cursor.consume(",").unwrap();
@@ -84,7 +101,7 @@ fn bare_serial_comma_does_not_invent_boolean_meaning() {
     let tokens =
         recognize_entities("if you control an artifact, you control an enchantment, draw a card.");
     let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-    let Some(BooleanConditionNode::Atom(_)) = recognize_trigger_guard(&mut cursor).unwrap() else {
+    let Some(BooleanConditionNode::Atom(_)) = guard(&mut cursor).unwrap() else {
         panic!("an unresolved comma remains the parent's boundary");
     };
     cursor.consume(",").unwrap();
@@ -100,7 +117,7 @@ fn prefix_negation_is_typed_and_repeated_not_cancels() {
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-        let node = recognize_trigger_guard(&mut cursor).unwrap().unwrap();
+        let node = guard(&mut cursor).unwrap().unwrap();
         assert_eq!(matches!(node, BooleanConditionNode::Not(_)), negated);
         assert_eq!(cursor.peek(), Some(","));
     }
@@ -120,6 +137,6 @@ fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-        assert!(recognize_trigger_guard(&mut cursor).is_err(), "{text}");
+        assert!(guard(&mut cursor).is_err(), "{text}");
     }
 }

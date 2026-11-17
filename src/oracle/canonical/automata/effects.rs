@@ -99,7 +99,7 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. } => true,
-        SelectorPredicate::Status(_) => false,
+        SelectorPredicate::Status(_) | SelectorPredicate::ChosenCreatureType => false,
         SelectorPredicate::Not(operand) => {
             matches!(
                 operand.as_ref(),
@@ -262,7 +262,7 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
     }
 }
 
-fn damage_target_supported(selector: &TargetSelector) -> bool {
+pub(in crate::oracle::canonical) fn damage_target_supported(selector: &TargetSelector) -> bool {
     match selector {
         TargetSelector::Any | TargetSelector::Player(_) => true,
         TargetSelector::Union(branches) => {
@@ -292,6 +292,7 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. }
         | SelectorPredicate::ObjectKind(_)
+        | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::Not(_) => false,
         SelectorPredicate::Intersection(operands) => {
             operands.iter().any(damageable_object_predicate)
@@ -642,7 +643,9 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
             *permanent_domains += 1;
             true
         }
+        // A target selector is declared before any resolution choice.
         SelectorPredicate::CardType(_)
+        | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell) => false,
         SelectorPredicate::Not(operand) => matches!(
             operand.as_ref(),

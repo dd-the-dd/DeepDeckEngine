@@ -5,6 +5,8 @@ use super::super::*;
 pub(in crate::oracle::canonical) struct CardCollectionMemory {
     view: Option<Value>,
     view_maximum: Option<i64>,
+    /// The verb that produced `view` when a later `VERBed this way` restates it.
+    view_verb: Option<CardCollectionVerb>,
     selected: Vec<Value>,
     complement_basis: Option<(Value, Option<i64>)>,
     complement_exclusions: Vec<Value>,
@@ -30,6 +32,9 @@ fn fresh(base: &str, next: &mut usize) -> String {
     }
 }
 
+fn value_kind_name(value: &Value) -> Option<&str> {
+    value.get("kind").and_then(Value::as_str)
+}
 fn bound(name: &str) -> Value {
     json!({"kind":"boundObjects", "binding":name})
 }
@@ -63,6 +68,7 @@ impl CardCollectionMemory {
     pub(in crate::oracle::canonical) fn restore_scope(&mut self, snapshot: &Self) {
         self.view = snapshot.view.clone();
         self.view_maximum = snapshot.view_maximum;
+        self.view_verb = snapshot.view_verb;
         self.selected = snapshot.selected.clone();
         self.complement_basis = snapshot.complement_basis.clone();
         self.complement_exclusions = snapshot.complement_exclusions.clone();
@@ -75,6 +81,7 @@ impl CardCollectionMemory {
     pub(in crate::oracle::canonical) fn same_scope(&self, other: &Self) -> bool {
         self.view == other.view
             && self.view_maximum == other.view_maximum
+            && self.view_verb == other.view_verb
             && self.selected == other.selected
             && self.complement_basis == other.complement_basis
             && self.complement_exclusions == other.complement_exclusions
@@ -89,6 +96,7 @@ impl CardCollectionMemory {
         self.complement_basis = None;
         self.complement_exclusions.clear();
         self.view_maximum = None;
+        self.view_verb = None;
         self.singular_focus = None;
         self.plural_focus = None;
         self.removed_up_to_size = 0;
@@ -258,6 +266,18 @@ impl CardCollectionMemory {
         Ok(initialize)
     }
 
+    /// A freshly produced collection becomes the sole antecedent scope: its
+    /// remainder, singular and plural references all read this one binding.
+    fn observe(&mut self, id: &str, maximum: Option<i64>) {
+        self.clear_antecedent();
+        self.view = Some(bound(id));
+        self.view_maximum = maximum;
+        self.complement_basis = Some((bound(id), maximum));
+        self.mention((bound(id), maximum));
+        // A one-card observation can still be referenced as a collection.
+        self.plural_focus = Some((bound(id), maximum));
+    }
+
     fn operand(
         &mut self,
         cursor: &OracleTokenCursor<'_>,
@@ -301,6 +321,27 @@ impl CardCollectionMemory {
                 _ => None,
             };
             return Ok((json!({"kind":"chosenTargets","id":id}), maximum));
+        }
+        if let CardOperandNode::LibraryTop(top) = operand {
+            cursor.require(
+                top.owner == LocalPlayerReference::Controller,
+                "a supported explicit library owner",
+            )?;
+            let count_ir = lower_targetless_numeric_expression(&top.count, declarations)
+                .map_err(|error| cursor.fail(error.expectation()))?;
+            let maximum = match &top.count {
+                NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+                _ => None,
+            };
+            let id = fresh("topCards", &mut self.next_view);
+            self.allocated_ids.insert(id.clone());
+            self.observe(&id, maximum);
+            // The set is fixed when the action starts (CR 608.2c): later verbs
+            // read these identities, not whatever is on top afterwards.
+            effects.push(json!({"kind":"bind", "id":id,
+                "value":{"kind":"libraryTopCards",
+                    "zone":{"kind":"library", "player":controller()}, "count":count_ir}}));
+            return Ok((bound(&id), maximum));
         }
         if let CardOperandNode::ZoneCollection(query) = operand {
             cursor.require(
@@ -362,6 +403,29 @@ impl CardCollectionMemory {
             .predicate
             .as_ref()
             .map(lower_card_object_predicate);
+        if let CardSelectionQuantityNode::All { via } = &selection.quantity {
+            // No player choice: the selected set is the filtered view itself,
+            // and `the rest` is whatever this set leaves in the view.
+            if let Some(via) = via {
+                cursor.require(
+                    self.view_verb == Some(*via),
+                    "a collection produced by the verb restated with `this way`",
+                )?;
+            }
+            let result = predicate.as_ref().map_or_else(
+                || from.clone(),
+                |predicate| json!({"kind":"filterObjects", "objects":from, "where":predicate}),
+            );
+            self.selected.push(result.clone());
+            self.complement_exclusions.push(result.clone());
+            let maximum = if predicate.is_none() {
+                source_maximum
+            } else {
+                None
+            };
+            self.mention((result.clone(), maximum));
+            return Ok((result, maximum));
+        }
         let filtered = predicate.as_ref().map_or_else(
             || from.clone(),
             |predicate| json!({"kind":"filterObjects", "objects":from, "where":predicate}),
@@ -389,6 +453,9 @@ impl CardCollectionMemory {
                 )
             }
             CardSelectionQuantityNode::AnyNumber => (integer(0), available, false, None),
+            CardSelectionQuantityNode::All { .. } => {
+                unreachable!("an unconditional selection returns before any player choice")
+            }
         };
         let id = fresh("cardsForHand", &mut self.next_selection);
         self.allocated_ids.insert(id.clone());
@@ -440,16 +507,11 @@ impl CardCollectionMemory {
                     .map_err(|error| cursor.fail(error.expectation()))?;
                 let id = fresh("lookedCards", &mut self.next_view);
                 self.allocated_ids.insert(id.clone());
-                self.clear_antecedent();
-                self.view = Some(bound(&id));
-                self.view_maximum = match amount {
+                let maximum = match amount {
                     NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
                     _ => None,
                 };
-                self.complement_basis = Some((bound(&id), self.view_maximum));
-                self.mention((bound(&id), self.view_maximum));
-                // A one-card observation can still be referenced as a collection.
-                self.plural_focus = Some((bound(&id), self.view_maximum));
+                self.observe(&id, maximum);
                 effects.push(json!({"kind":"lookAtTopCards", "zone":{"kind":"library", "player":controller()}, "count":amount_ir, "bind":id}));
             }
             CardActionNode::Reveal(operand) => {
@@ -461,6 +523,78 @@ impl CardCollectionMemory {
                     target_decisions,
                 )?;
                 effects.push(json!({"kind":"revealCards", "cards":cards}));
+                if matches!(operand, CardOperandNode::LibraryTop(_)) {
+                    self.view_verb = Some(CardCollectionVerb::Revealed);
+                }
+            }
+            CardActionNode::RevealUntil {
+                quantity,
+                predicate,
+                owner,
+            } => {
+                cursor.require(
+                    *owner == LocalPlayerReference::Controller,
+                    "a supported explicit library owner",
+                )?;
+                let count_ir = lower_targetless_numeric_expression(quantity, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                let maximum = match quantity {
+                    NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+                    _ => None,
+                };
+                let id = fresh("revealedCards", &mut self.next_view);
+                self.allocated_ids.insert(id.clone());
+                let matching = json!({"kind":"filterObjects", "objects":bound(&id),
+                    "where":lower_card_object_predicate(predicate)});
+                effects.push(json!({"kind":"revealFromTopUntilCount",
+                    "zone":{"kind":"library", "player":controller()},
+                    "count":count_ir, "where":lower_card_object_predicate(predicate), "bind":id}));
+                // Every revealed card is observed; the matching cards are what a
+                // later `that card` names and what `the rest` excludes.
+                self.observe(&id, None);
+                self.view_verb = Some(CardCollectionVerb::Revealed);
+                self.selected.push(matching.clone());
+                self.complement_exclusions.push(matching.clone());
+                self.mention((matching, maximum));
+            }
+            CardActionNode::Permit(permit) => {
+                let (cards, maximum) = self.operand(
+                    cursor,
+                    &permit.cards,
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
+                cursor.enter("lower.card-action.permit");
+                let card = match value_kind_name(&cards) {
+                    Some("boundObjects") if maximum.is_some_and(|maximum| maximum <= 1) => {
+                        json!({"kind":"boundObject", "binding":cards["binding"]})
+                    }
+                    Some("boundObjects" | "decisionResult") => cards,
+                    _ => {
+                        return Err(cursor.fail("a bound card collection as the permission object"));
+                    }
+                };
+                let duration = match &permit.duration {
+                    EffectDurationNode::UntilEndOfCurrentTurn => {
+                        json!({"kind":"untilEndOfCurrentTurn"})
+                    }
+                    EffectDurationNode::UntilEndOfNextTurn {
+                        player: LocalPlayerReference::Controller,
+                    } => json!({"kind":"untilEndOfNextTurn", "player":controller()}),
+                    _ => {
+                        return Err(cursor.fail(
+                            "a permission window the runtime can end: this turn or the end of your next turn",
+                        ));
+                    }
+                };
+                effects.push(json!({"kind":"grantPermission", "player":controller(),
+                    "action":{"kind":match permit.verb {
+                            CardPermissionVerb::Play => "play",
+                            CardPermissionVerb::Cast => "cast",
+                        },
+                        "card":card, "normalTimingApplies":true, "normalCostsApply":true},
+                    "duration":duration}));
             }
             CardActionNode::Move {
                 cards: operand,
@@ -526,6 +660,11 @@ impl CardCollectionMemory {
                     destination.zone != CardZoneName::Battlefield && !destination.tapped,
                     "a nonbattlefield destination in this card-collection lowering boundary",
                 )?;
+                if matches!(operand, CardOperandNode::LibraryTop(_))
+                    && destination.zone == CardZoneName::Exile
+                {
+                    self.view_verb = Some(CardCollectionVerb::Exiled);
+                }
                 let mut movement = json!({"kind":"moveCards", "cards":cards, "to":to});
                 if let Some(order) = order {
                     movement["order"] = order;
@@ -536,3 +675,7 @@ impl CardCollectionMemory {
         Ok(effects)
     }
 }
+
+#[cfg(test)]
+#[path = "library_top_operand_tests.rs"]
+mod library_top_operand_tests;

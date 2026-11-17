@@ -24,7 +24,9 @@ pub(in crate::oracle::canonical) enum EffectSequenceLoweringContext {
     ValidateXAfterCardComposition,
 }
 
-use crate::oracle::contextual_binding::WHERE_X_BINDING_ID;
+use crate::oracle::contextual_binding::{
+    RESOLUTION_CREATURE_TYPE_DECISION, WHERE_X_BINDING_ID, references_resolution_creature_type,
+};
 
 enum EffectSequenceLoweringFailure {
     UnsupportedSupportLimit(MachineFailure),
@@ -53,6 +55,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
             player:
                 LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
         } => return None,
+        // No continuous-effect primitive reads the end-of-next-turn window.
+        EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
     })
 }
 
@@ -179,9 +183,23 @@ fn lower_local_effect_sequence_with_collections(
                     lower_target_selector_candidates(&slot.selector).map(|(id, _)| id)
                 })
                 .collect::<Vec<_>>(),
+            LocalEffectNode::Choose(choice) => choice
+                .permanent_targets()
+                .into_iter()
+                .flat_map(|targets| targets.slots.iter())
+                .filter_map(|slot| {
+                    lower_target_selector_candidates(&slot.selector).map(|(id, _)| id)
+                })
+                .collect::<Vec<_>>(),
             LocalEffectNode::DealDamage(damage) => {
                 default_damage_target_id(damage).into_iter().collect()
             }
+            LocalEffectNode::PreventDamage(prevent) => [&prevent.recipient, &prevent.source]
+                .into_iter()
+                .filter_map(|party| damage_party_targets(party))
+                .filter_map(|targets| lower_target_slot_candidates(&targets.slots[0]))
+                .map(|(id, _)| id)
+                .collect(),
             LocalEffectNode::ZoneChange(zone_change) => {
                 lower_zone_change_target_candidates(zone_change)
                     .map(|(id, _, _, _)| vec![id])
@@ -203,7 +221,12 @@ fn lower_local_effect_sequence_with_collections(
     let player_target_bindings = sequence
         .effects
         .iter()
-        .filter_map(|effect| match effect {
+        .enumerate()
+        .filter_map(|(effect_index, effect)| match effect {
+            LocalEffectNode::Choose(ChooseInstructionNode {
+                domain: ChoiceDomainNode::PlayerTarget(_),
+                ..
+            }) => Some(PlayerTargetBinding { effect_index }),
             LocalEffectNode::TargetPlayerLife(life) if life.declares_target => Some(life.player),
             LocalEffectNode::PlayerAction(PlayerActionNode {
                 player: PlayerEffectSubject::DeclaredTarget { binding, .. },
@@ -225,8 +248,23 @@ fn lower_local_effect_sequence_with_collections(
 
     // JSON positions where each action's lowering begins, for scoping `where X`.
     let mut action_starts = Vec::with_capacity(sequence.effects.len() + 1);
+    // A reference to the creature type chosen on resolution must follow its
+    // choice in program order (CR 608.2d); it is never borrowed backwards.
+    let mut creature_type_chosen = false;
+    let mut unbound_creature_type_from = 0_usize;
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        if !creature_type_chosen
+            && effects[unbound_creature_type_from..]
+                .iter()
+                .any(references_resolution_creature_type)
+        {
+            cursor.enter("lower.choose.creature-type.binding");
+            return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+                "a `choose a creature type` action before the chosen-type reference",
+            )));
+        }
+        unbound_creature_type_from = effects.len();
         conditional_scopes.at_boundary(
             cursor,
             sequence,
@@ -769,6 +807,124 @@ fn lower_local_effect_sequence_with_collections(
                     "attachment": attachment.clone(),
                     "to": recipient.clone(),
                 }));
+            }
+            LocalEffectNode::PreventDamage(prevent) => {
+                cursor.enter("lower.prevent.parties");
+                let mut parties = Vec::with_capacity(2);
+                for party in [&prevent.recipient, &prevent.source] {
+                    parties.push(match party {
+                        None => None,
+                        Some(DamagePartyNode::Targets(targets)) => {
+                            let slot = &targets.slots[0];
+                            let (base_id, candidates) = lower_target_slot_candidates(slot)
+                                .ok_or_else(|| {
+                                    cursor.fail("a supported damage prevention party query")
+                                })?;
+                            let ordinal = used_target_base_ids
+                                .iter()
+                                .filter(|candidate| **candidate == base_id)
+                                .count();
+                            let target_count = permanent_target_base_ids
+                                .iter()
+                                .filter(|candidate| **candidate == base_id)
+                                .count();
+                            let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
+                            used_target_base_ids.push(base_id);
+                            decisions.push(target_decision(
+                                &target_id,
+                                candidates,
+                                i64::from(slot.cardinality.minimum),
+                                i64::from(slot.cardinality.maximum),
+                            ));
+                            Some(chosen_target(&target_id))
+                        }
+                        Some(DamagePartyNode::Object(PermanentOperandNode::BoundReference(
+                            reference,
+                        ))) => Some(lower_bound_permanent_reference(
+                            cursor,
+                            *reference,
+                            &target_bindings,
+                        )?),
+                        Some(party) => Some(
+                            lower_nontargeted_damage_party(party)
+                                .map_err(|error| cursor.fail(error.expectation()))?,
+                        ),
+                    });
+                }
+                let declarations = match context {
+                    EffectSequenceLoweringContext::NoExternalX => {
+                        TargetlessDeclarationSupport::None
+                    }
+                    EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                        TargetlessDeclarationSupport::XValue
+                    }
+                };
+                cursor.enter("lower.prevent.amount");
+                let amount = lower_prevention_amount(prevent, declarations).map_err(|error| {
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail(error.expectation()),
+                    )
+                })?;
+                let source = parties.pop().flatten();
+                let recipient = parties.pop().flatten();
+                effects.push(lower_prevent_damage_shield(
+                    prevent, amount, recipient, source,
+                ));
+            }
+            LocalEffectNode::Choose(choice) => {
+                // `choose target ...` is the target declaration itself (CR
+                // 115.1, 601.2c): it registers the slot and its binding and
+                // adds no resolution step.
+                match &choice.domain {
+                    ChoiceDomainNode::PermanentTargets(targets) => {
+                        cursor.enter("lower.choose.permanent-targets");
+                        lower_ordinary_permanent_subject(
+                            cursor,
+                            &PermanentOperandNode::Targets(targets.clone()),
+                            effect_index,
+                            false,
+                            &permanent_target_base_ids,
+                            &mut used_target_base_ids,
+                            &mut decisions,
+                            &mut target_bindings,
+                        )?;
+                    }
+                    ChoiceDomainNode::PlayerTarget(targets) => {
+                        cursor.enter("lower.choose.player-target");
+                        let binding = PlayerTargetBinding { effect_index };
+                        let [slot] = targets.slots.as_slice() else {
+                            return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                                cursor.fail("one declared player target slot"),
+                            ));
+                        };
+                        let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+                            .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+                        let ordinal = player_target_bindings
+                            .iter()
+                            .position(|value| *value == binding)
+                            .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+                        let target_id =
+                            player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+                        decisions.push(target_decision(&target_id, candidates, 1, 1));
+                        declared_player_targets.push((binding, target_id));
+                    }
+                    ChoiceDomainNode::CreatureType => {
+                        // CR 608.2d: the controller chooses while the program
+                        // resolves; later `of the chosen type` reads this id.
+                        cursor.enter("lower.choose.creature-type");
+                        if creature_type_chosen {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail("one creature-type choice per effect program"),
+                            ));
+                        }
+                        creature_type_chosen = true;
+                        effects.push(json!({
+                            "kind": "chooseCreatureType",
+                            "id": RESOLUTION_CREATURE_TYPE_DECISION,
+                            "player": controller(),
+                        }));
+                    }
+                }
             }
             LocalEffectNode::UntapTarget(untap) => {
                 cursor.enter("lower.untap-target.permanent-binding");

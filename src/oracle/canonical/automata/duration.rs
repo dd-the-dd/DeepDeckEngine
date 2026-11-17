@@ -79,6 +79,48 @@ pub(in crate::oracle::canonical) fn recognize_effect_duration(
     }
 }
 
+/// The permission-window superset of `recognize_effect_duration`: it also reads
+/// `until [the] end of your next turn`. A parent that needs the wider window asks
+/// for it explicitly; no existing reader changes its accepted language.
+pub(in crate::oracle::canonical) fn recognize_play_window_duration(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EffectDurationNode> {
+    cursor.enter("duration.play-window.boundary");
+    let checkpoint = cursor.checkpoint();
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("until"))
+    {
+        cursor.consume("until")?;
+        let article = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("the"));
+        if article {
+            cursor.consume("the")?;
+        }
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("end"))
+        {
+            cursor.consume_phrase(&["end", "of"])?;
+            cursor.enter("duration.play-window.possessor");
+            if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+            {
+                cursor.consume_phrase(&["your", "next", "turn"])?;
+                return Ok(EffectDurationNode::UntilEndOfNextTurn {
+                    player: super::LocalPlayerReference::Controller,
+                });
+            }
+            cursor.consume("turn")?;
+            return Ok(EffectDurationNode::UntilEndOfCurrentTurn);
+        }
+        cursor.rollback(checkpoint);
+    }
+    recognize_effect_duration(cursor)
+}
+
 /// A continuous-effect action owns exactly one duration. A sentence-level
 /// preposed duration (`Until end of turn, X and Y.`, CR 611.2a) is supplied by
 /// the enclosing sequence and replaces the trailing reader; a second trailing

@@ -261,6 +261,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "installCreatureDeathLifeGainUntilEndOfTurn"
             | "installDamageMultiplier"
             | "preventCombatDamageFromPermanent"
+            | "preventDamage"
             | "installCounterLinkedCharacteristics"
             | "increaseOpponentSpellCostUntilNextTurn"
             | "installAdditionalManaOnLandTap"

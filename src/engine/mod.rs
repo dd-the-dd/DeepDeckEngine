@@ -111,8 +111,8 @@ mod damage_preparation;
 mod death_trigger_batch;
 mod declaration_result;
 mod destruction_batch;
-mod event_batch;
 mod effect_domains;
+mod event_batch;
 mod invariants;
 mod keyword_programs;
 mod landwalk;
@@ -157,6 +157,7 @@ mod mana_public_path_tests;
 mod mana_value_execution;
 mod nominal_choices;
 mod numeric_evaluation;
+mod previous_turn_events;
 mod object_condition;
 mod object_context;
 mod object_identity;
@@ -2746,6 +2747,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 && expression.get("where").is_none_or(card_filter_supported)
                 && expression.get("fromZone").is_none_or(Value::is_string)
         }
+        Some("countEventsPreviousTurn") => {
+            previous_turn_events::previous_turn_event_count_supported(expression)
+        }
         Some("countTurnsTaken") => singular_player_reference_supported(&expression["player"]),
         Some("boundValue") => expression["id"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
@@ -2798,6 +2802,10 @@ fn object_expression_supported(expression: &Value) -> bool {
                     .is_none_or(object_expression_supported)
         }
         Some("cardsExiledWithSource") => true,
+        Some("libraryTopCards") => {
+            library_zone_supported(&expression["zone"])
+                && numeric_expression_supported(&expression["count"])
+        }
         Some("boundObjects") => expression["binding"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("setDifference") => {
@@ -4389,7 +4397,7 @@ fn activated_cost_supported(cost: &Value) -> bool {
 fn permission_card_reference_supported(reference: &Value) -> bool {
     (matches!(
         value_kind(reference),
-        Some("boundObject" | "singleBoundObject")
+        Some("boundObject" | "singleBoundObject" | "boundObjects")
     ) && reference["binding"].is_string())
         || (value_kind(reference) == Some("decisionResult") && reference["decisionId"].is_string())
         || target_reference_supported(reference)
@@ -4796,7 +4804,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("permanentEntered") => {
             event_batch::event_aggregation_supported(event)
                 && (event["anyController"].as_bool() == Some(true)
-                || player_reference_supported(&event["player"]))
+                    || player_reference_supported(&event["player"]))
                 && card_filter_supported(&event["where"])
                 && (event["excludeSource"].is_null() || event["excludeSource"].is_boolean())
                 && (event["nontoken"].is_null() || event["nontoken"].is_boolean())
@@ -9835,6 +9843,7 @@ impl GameEngine {
                         .count() as i32,
                 )
             }
+            Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("devotion") => {
                 let symbol = match expression["color"].as_str()?.to_ascii_lowercase().as_str() {
                     "white" => "W",
@@ -31355,6 +31364,7 @@ impl GameEngine {
                         .count() as i32,
                 )
             }
+            Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("sumEventValuesThisTurn") => {
                 let player_id =
                     self.resolve_player(&expression["player"], stack_object, bindings)?;
@@ -32185,6 +32195,32 @@ impl GameEngine {
                 )
             }
             Some("self" | "abilitySource") => Some(vec![stack_object.card.instance_id.clone()]),
+            // The top N cards of a library, top first (CR 401.2). The set is
+            // identified when evaluated; a `bind` fixes it for later verbs.
+            Some("libraryTopCards") => {
+                let player_id =
+                    self.resolve_player(&expression["zone"]["player"], stack_object, bindings)?;
+                let player_index = self.player_index(&player_id).ok()?;
+                let count = self
+                    .checked_runtime_numeric_expression(
+                        &expression["count"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                        "libraryTopCards.count",
+                    )
+                    .ok()?
+                    .max(0) as usize;
+                Some(
+                    self.state.players[player_index]
+                        .library
+                        .iter()
+                        .rev()
+                        .take(count)
+                        .map(|card| card.instance_id.clone())
+                        .collect(),
+                )
+            }
             Some("attachedObject") if value_kind(&expression["attachment"]) == Some("self") => {
                 stack_object
                     .card
@@ -33631,8 +33667,14 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         // One instruction is one simultaneous event (CR 603.2c).
         let scope = self.begin_event_batch();
-        let result =
-            self.execute_effect_in_batch(effect, next_effect, stack_object, bindings, decisions, provider);
+        let result = self.execute_effect_in_batch(
+            effect,
+            next_effect,
+            stack_object,
+            bindings,
+            decisions,
+            provider,
+        );
         self.end_event_batch(scope);
         result
     }

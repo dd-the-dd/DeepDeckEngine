@@ -52,7 +52,8 @@ struct OwnerLibraryRevealFrame {
 fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
     match predicate {
         ObjectPredicate::ObjectKind(ObjectKind::Permanent) => true,
-        ObjectPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell) => false,
+        ObjectPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell)
+        | ObjectPredicate::ChosenCreatureType => false,
         ObjectPredicate::Not(operand) => predicate_is_valid_permanent_target(operand),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
             operands.iter().all(predicate_is_valid_permanent_target)

@@ -67,6 +67,10 @@ fn lower_object_predicate(
             "value": cost.as_oracle_cost(),
         })),
         ObjectPredicate::Status(status) => Some(json!({ "kind": status.ir_kind() })),
+        ObjectPredicate::ChosenCreatureType => Some(json!({
+            "kind": "chosenCreatureType",
+            "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,
+        })),
         ObjectPredicate::HasKeyword(keyword) => Some(json!({
             "kind": "hasKeyword",
             "value": keyword.canonical_name(),

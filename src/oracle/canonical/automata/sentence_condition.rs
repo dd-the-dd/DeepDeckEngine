@@ -120,6 +120,18 @@ fn consume_current(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.consume(&raw)
 }
 
+/// Atoms of the shared static reader that open with a quantity or player
+/// noun: `no spells were cast last turn`, `an opponent lost life this turn`,
+/// `a creature died this turn`, `two or more Elves died this turn`.
+fn static_condition_event_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_is(cursor, 0, "no")
+        || word_is(cursor, 0, "a")
+        || word_is(cursor, 0, "an")
+        || cursor.peek().is_some_and(|raw| {
+            raw.parse::<i64>().is_ok() || super::super::parse_number_word(raw).is_some()
+        })
+}
+
 /// True at a sentence-initial `if` whose condition this child may read.
 pub(in crate::oracle::canonical) fn sentence_condition_starts(
     cursor: &OracleTokenCursor<'_>,
@@ -149,7 +161,7 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition(
     Ok(condition)
 }
 
-fn recognize_sentence_condition_atom(
+pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<SentenceConditionAtom> {
@@ -159,9 +171,13 @@ fn recognize_sentence_condition_atom(
     }
     if contraction_is(cursor, 0, "you", "ve")
         || (word_is(cursor, 0, "you")
-            && (word_is(cursor, 1, "have") || word_is(cursor, 1, "gained")))
+            && (word_is(cursor, 1, "have")
+                || word_is(cursor, 1, "gained")
+                || word_is(cursor, 1, "attacked")
+                || word_is(cursor, 1, "lost")))
         || word_is(cursor, 0, "there")
         || contraction_is(cursor, 0, "there", "s")
+        || static_condition_event_count_starts(cursor)
     {
         return recognize_static_condition_atom(
             cursor,

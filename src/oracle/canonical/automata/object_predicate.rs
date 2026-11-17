@@ -52,6 +52,10 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     HasKeyword(GrantedKeyword),
     ObjectKind(ObjectKind),
     Status(ObjectStatus),
+    /// Has the creature type chosen by an earlier `choose a creature type`
+    /// instruction of the same effect program (CR 608.2d). The binding is
+    /// symbolic; the program lowering proves its producer.
+    ChosenCreatureType,
     NumericComparison {
         left: SelectorNumericProperty,
         operator: NumericComparisonOperator,
@@ -104,6 +108,7 @@ impl ObjectPredicate {
             | Self::HasKeyword(_)
             | Self::ObjectKind(_)
             | Self::Status(_)
+            | Self::ChosenCreatureType
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
         }
@@ -128,6 +133,7 @@ impl ObjectPredicate {
             | Self::Supertype(_)
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
+            | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
             Self::Status(_) => domain == ObjectKind::Permanent,
@@ -170,6 +176,7 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => false,
         }
     }
@@ -202,6 +209,7 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => false,
         }
     }

@@ -120,6 +120,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
+        | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)
         | ObjectPredicate::NumericComparison { .. } => false,
     }

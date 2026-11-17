@@ -99,6 +99,7 @@ mod player_counter_sweep;
 
 mod casting_permission;
 mod permanent_operand;
+mod damage_prevention;
 mod permanent_selection;
 mod player_permission;
 mod player_spell_tax_draw;
@@ -237,6 +238,7 @@ pub(super) use player_counter_sweep::*;
 
 pub(super) use casting_permission::*;
 pub(super) use permanent_operand::*;
+pub(super) use damage_prevention::*;
 pub(super) use permanent_selection::*;
 pub(super) use player_permission::*;
 pub(super) use player_spell_tax_draw::*;
@@ -303,6 +305,9 @@ mod for_each_multiplier_tests;
 #[cfg(test)]
 #[path = "regenerate_tests.rs"]
 mod regenerate_tests;
+#[cfg(test)]
+#[path = "choose_instruction_tests.rs"]
+mod choose_instruction_tests;
 
 #[cfg(test)]
 #[path = "attach_tests.rs"]

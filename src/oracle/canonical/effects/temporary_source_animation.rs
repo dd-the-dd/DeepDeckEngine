@@ -60,6 +60,9 @@ fn lower_animation_duration(duration: Option<&EffectDurationNode>) -> Value {
                 }
             },
         }),
+        Some(EffectDurationNode::UntilEndOfNextTurn { .. }) => {
+            unreachable!("source animation reads only the continuous-effect durations")
+        }
     }
 }
 

@@ -276,7 +276,11 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::QuantifiedPlayerAction(_)
         | LocalEffectNode::TemporaryPlayerPermission(_)
         | LocalEffectNode::UntapPermanents(_)
-            | LocalEffectNode::TapPermanents(_) | LocalEffectNode::Regenerate(_) | LocalEffectNode::Attach(_)
+        | LocalEffectNode::TapPermanents(_)
+        | LocalEffectNode::Regenerate(_)
+        | LocalEffectNode::PreventDamage(_)
+        | LocalEffectNode::Attach(_)
+        | LocalEffectNode::Choose(_)
         | LocalEffectNode::UntapTarget(_) => false,
     });
     let mut decisions = uses_x.then(x_value).into_iter().collect::<Vec<_>>();
@@ -302,7 +306,11 @@ fn lower_local_effect_sequence(
             LocalEffectNode::Retarget(_)
             | LocalEffectNode::CreateExplicitTokens(_)
             | LocalEffectNode::UntapPermanents(_)
-            | LocalEffectNode::TapPermanents(_) | LocalEffectNode::Regenerate(_) | LocalEffectNode::Attach(_) => {
+            | LocalEffectNode::TapPermanents(_)
+            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PreventDamage(_)
+            | LocalEffectNode::Attach(_)
+            | LocalEffectNode::Choose(_) => {
                 return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
             }
             LocalEffectNode::TemporaryPlayerPermission(_) => {
@@ -501,7 +509,11 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
                 ..
             }) | LocalEffectNode::PlayerAction(_)
                 | LocalEffectNode::UntapPermanents(_)
-            | LocalEffectNode::TapPermanents(_) | LocalEffectNode::Regenerate(_) | LocalEffectNode::Attach(_)
+                | LocalEffectNode::TapPermanents(_)
+                | LocalEffectNode::Regenerate(_)
+                | LocalEffectNode::PreventDamage(_)
+                | LocalEffectNode::Attach(_)
+                | LocalEffectNode::Choose(_)
                 | LocalEffectNode::DiscardCards(_)
                 | LocalEffectNode::Scry(_)
                 | LocalEffectNode::Retarget(_)
@@ -573,7 +585,11 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::QuantifiedPlayerAction(_)
             | LocalEffectNode::TemporaryPlayerPermission(_)
             | LocalEffectNode::UntapPermanents(_)
-            | LocalEffectNode::TapPermanents(_) | LocalEffectNode::Regenerate(_) | LocalEffectNode::Attach(_)
+            | LocalEffectNode::TapPermanents(_)
+            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PreventDamage(_)
+            | LocalEffectNode::Attach(_)
+            | LocalEffectNode::Choose(_)
             | LocalEffectNode::UntapTarget(_) => None,
         })
         .expect("the conditional damage automaton always emits its antecedent branch");
@@ -589,7 +605,11 @@ fn lower_conditional_damage_effect(
                 LocalEffectNode::Retarget(_)
                 | LocalEffectNode::CreateExplicitTokens(_)
                 | LocalEffectNode::UntapPermanents(_)
-            | LocalEffectNode::TapPermanents(_) | LocalEffectNode::Regenerate(_) | LocalEffectNode::Attach(_) => None,
+                | LocalEffectNode::TapPermanents(_)
+                | LocalEffectNode::Regenerate(_)
+                | LocalEffectNode::PreventDamage(_)
+                | LocalEffectNode::Attach(_)
+                | LocalEffectNode::Choose(_) => None,
                 LocalEffectNode::DealDamage(effect) => Some({
                     let DamageRecipientNode::Targets(_) = effect.recipient else {
                         unreachable!("conditional damage replacement keeps a targeted recipient")

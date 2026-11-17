@@ -32,6 +32,7 @@ mod bound_collection_untap;
 mod bound_object_condition;
 mod card_action;
 mod card_collection_operand;
+mod card_library_top;
 mod card_move_destination;
 mod card_selection_operand;
 mod card_target_operand;
@@ -42,6 +43,7 @@ mod cast_quota;
 mod casting_permission;
 mod casting_reduction;
 mod characteristic;
+mod choose_instruction;
 mod chosen_card_name;
 mod chosen_creature_type;
 mod chosen_land_type;
@@ -76,6 +78,7 @@ mod delve;
 mod destroy_collection;
 mod destroy_regeneration;
 mod regenerate;
+mod damage_prevention;
 mod draw_move;
 mod duration;
 mod early_turn_entry;
@@ -254,6 +257,7 @@ pub(super) use bound_collection_untap::*;
 pub(super) use bound_object_condition::*;
 pub(super) use card_action::*;
 pub(super) use card_collection_operand::*;
+pub(super) use card_library_top::*;
 pub(super) use card_move_destination::*;
 pub(super) use card_selection_operand::*;
 pub(super) use card_target_operand::*;
@@ -264,6 +268,7 @@ pub(super) use cast_quota::*;
 pub(super) use casting_permission::*;
 pub(super) use casting_reduction::*;
 pub(super) use characteristic::*;
+pub(super) use choose_instruction::*;
 pub(super) use chosen_card_name::*;
 pub(super) use chosen_creature_type::*;
 pub(super) use chosen_land_type::*;
@@ -298,6 +303,7 @@ pub(super) use delve::*;
 pub(super) use destroy_collection::*;
 pub(super) use destroy_regeneration::*;
 pub(super) use regenerate::*;
+pub(super) use damage_prevention::*;
 pub(super) use draw_move::*;
 pub(super) use duration::*;
 pub(super) use early_turn_entry::*;
@@ -1035,6 +1041,10 @@ impl GrantedKeyword {
 pub(super) enum EffectDurationNode {
     UntilEndOfCurrentTurn,
     UntilNextTurn { player: LocalPlayerReference },
+    /// Through the cleanup of the player's next turn (CR 514.2). Produced only
+    /// by `recognize_play_window_duration`; the continuous-effect readers keep
+    /// the narrower `recognize_effect_duration` and never see this window.
+    UntilEndOfNextTurn { player: LocalPlayerReference },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1587,8 +1597,11 @@ pub(super) enum LocalEffectNode {
     UntapPermanents(UntapPermanentsEffectNode),
     TapPermanents(TapPermanentsEffectNode),
     Regenerate(RegenerateEffectNode),
+    PreventDamage(PreventDamageEffectNode),
     Attach(AttachEffectNode),
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),
+    /// `choose DOMAIN`: a typed decision whose binding later references use.
+    Choose(ChooseInstructionNode),
 }
 
 /// Verb frame `tap OBJECT`: the object slot is the shared permanent operand

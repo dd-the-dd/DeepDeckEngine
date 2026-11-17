@@ -274,6 +274,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             effect.untap,
             lower_nontargeted_permanent_operand(&effect.targets)?,
         )),
+        LocalEffectNode::PreventDamage(effect) => lower_targetless_prevent_damage(effect, declarations),
         LocalEffectNode::Regenerate(effect) => Ok(lower_regeneration_shield(
             lower_nontargeted_permanent_operand(&effect.targets)?,
         )),
@@ -301,6 +302,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         | LocalEffectNode::ModifyStats(_)
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::Attach(_)
+        | LocalEffectNode::Choose(_)
         | LocalEffectNode::UntapTarget(_) => Err(TargetlessLoweringError::RequiresTarget),
         LocalEffectNode::MoveCards(_)
         | LocalEffectNode::CreateExplicitTokens(_)

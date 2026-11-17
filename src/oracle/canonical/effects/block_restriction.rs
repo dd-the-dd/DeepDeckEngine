@@ -25,6 +25,27 @@ fn without_creature_domain(predicate: &ObjectPredicate) -> Option<ObjectPredicat
     }
 }
 
+/// `creatures that are not QUERY`: the complement of a characteristic inside
+/// the creature domain. A query that is only `creature` has no complement.
+pub(in crate::oracle::canonical) fn complement_within_creatures(
+    predicate: &ObjectPredicate,
+) -> Option<Value> {
+    if matches!(
+        predicate,
+        ObjectPredicate::CardType(ObjectCardType::Creature)
+    ) {
+        return None;
+    }
+    let qualifier = without_creature_domain(predicate).unwrap_or_else(|| predicate.clone());
+    let lowered = lower_permanent_object_predicate(&qualifier);
+    (!lowered.is_null()).then(|| {
+        and(vec![
+            card_type(ObjectCardType::Creature.ir_name()),
+            not(lowered),
+        ])
+    })
+}
+
 pub(in crate::oracle::canonical) fn parse_promoted_block_only(
     input: &AbilityInput<'_>,
 ) -> MachineResult<CanonicalRuleDraft> {

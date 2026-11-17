@@ -180,6 +180,7 @@ fn object_noun(predicate: &SelectorPredicate, noun: &str) -> bool {
         | SelectorPredicate::Not(_)
         | SelectorPredicate::Supertype(_)
         | SelectorPredicate::ExactManaCost(_)
+        | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::NumericComparison { .. } => false,
         SelectorPredicate::Intersection(operands) | SelectorPredicate::Union(operands) => {
             operands.iter().any(|operand| object_noun(operand, noun))

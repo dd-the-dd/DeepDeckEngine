@@ -97,7 +97,9 @@ fn predicate_is_permanent_card_type(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::NumericComparison { .. } => true,
-        SelectorPredicate::ObjectKind(_) | SelectorPredicate::Supertype(_) => false,
+        SelectorPredicate::ObjectKind(_)
+        | SelectorPredicate::Supertype(_)
+        | SelectorPredicate::ChosenCreatureType => false,
     }
 }
 

@@ -193,6 +193,7 @@ fn predicate_contains_batch(predicate: &SelectorPredicate, expected: Characteris
         | SelectorPredicate::Status(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::ObjectKind(_)
+        | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::NumericComparison { .. } => false,
     }
 }

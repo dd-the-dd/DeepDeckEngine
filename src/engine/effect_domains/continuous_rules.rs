@@ -61,6 +61,19 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && integer_value(&effect["factor"]).is_some_and(|factor| factor > 1)
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
         }
+        // CR 615: a prevention shield over a damage amount (`all` or a numeric
+        // expression), optionally restricted to combat damage, one recipient
+        // and one source, lasting for the current turn.
+        Some("preventDamage") => {
+            (value_kind(&effect["amount"]) == Some("all")
+                || numeric_expression_supported(&effect["amount"]))
+                && effect.get("combatOnly").is_none_or(Value::is_boolean)
+                && effect
+                    .get("recipient")
+                    .is_none_or(prevention_party_supported)
+                && effect.get("source").is_none_or(prevention_party_supported)
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
         Some("installCounterLinkedCharacteristics") => {
             target_reference_supported(&effect["object"])
                 && effect["counter"].is_string()
@@ -116,7 +129,33 @@ fn supports_known_effect(effect: &Value) -> bool {
     }
 }
 
+/// A damage source or recipient: the ability's own source, a target/bound
+/// object reference or a player reference.
+fn prevention_party_supported(reference: &Value) -> bool {
+    matches!(value_kind(reference), Some("self" | "abilitySource"))
+        || target_reference_supported(reference)
+        || player_reference_supported(reference)
+}
+
 impl GameEngine {
+    fn resolve_prevention_party(
+        &self,
+        reference: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Option<TargetRef> {
+        if matches!(value_kind(reference), Some("self" | "abilitySource")) {
+            return Some(TargetRef::Permanent {
+                instance_id: stack_object.card.instance_id.clone(),
+            });
+        }
+        if target_reference_supported(reference) {
+            return self.resolve_target(reference, stack_object, bindings);
+        }
+        self.resolve_player(reference, stack_object, bindings)
+            .map(|player_id| TargetRef::Player { player_id })
+    }
+
     pub(super) fn execute_continuous_rules_domain<P: DecisionProvider>(
         &mut self,
         effect: &Value,
@@ -277,6 +316,68 @@ impl GameEngine {
                         "expiresAfterTurn": self.state.turn_number,
                     }));
                 }
+            }
+            Some("preventDamage") => {
+                // `all` prevents every matching damage event; otherwise the
+                // shield holds the resolved amount (CR 615.7).
+                let remaining = if value_kind(&effect["amount"]) == Some("all") {
+                    None
+                } else {
+                    let amount = self
+                        .runtime_numeric_expression(
+                            &effect["amount"],
+                            stack_object,
+                            bindings,
+                            decisions,
+                        )
+                        .unwrap_or(0);
+                    if amount <= 0 {
+                        return Ok(());
+                    }
+                    Some(amount)
+                };
+                // A party whose reference no longer resolves (an illegal
+                // target) leaves the effect without a shield.
+                let recipient = match effect.get("recipient") {
+                    None => Value::Null,
+                    Some(reference) => {
+                        match self.resolve_prevention_party(reference, stack_object, bindings) {
+                            Some(TargetRef::Player { player_id }) => {
+                                json!({ "playerId": player_id })
+                            }
+                            Some(TargetRef::Permanent { instance_id }) => {
+                                json!({ "permanentId": instance_id })
+                            }
+                            _ => return Ok(()),
+                        }
+                    }
+                };
+                let source = match effect.get("source") {
+                    None => Value::Null,
+                    Some(reference) => {
+                        match self.resolve_prevention_party(reference, stack_object, bindings) {
+                            Some(TargetRef::Permanent { instance_id }) => json!(instance_id),
+                            _ => return Ok(()),
+                        }
+                    }
+                };
+                let shield_id = self
+                    .state
+                    .rule_modifiers
+                    .iter()
+                    .filter(|modifier| value_kind(modifier) == Some("damagePreventionShield"))
+                    .filter_map(|modifier| modifier["shieldId"].as_u64())
+                    .max()
+                    .map_or(1, |id| id + 1);
+                self.state.rule_modifiers.push(json!({
+                    "kind": "damagePreventionShield",
+                    "shieldId": shield_id,
+                    "remaining": remaining,
+                    "combatOnly": effect["combatOnly"].as_bool().unwrap_or(false),
+                    "recipient": recipient,
+                    "sourcePermanentId": source,
+                    "expiresAfterTurn": self.state.turn_number,
+                }));
             }
             Some("installCounterLinkedCharacteristics") => {
                 let Some(TargetRef::Permanent { instance_id }) =

@@ -30,7 +30,7 @@ impl TriggerBodyNode {
 #[derive(Clone, Debug)]
 pub(in crate::oracle::canonical) struct TriggeredProgramNode {
     pub event: SyntaxNode<GenericTriggerEventNode>,
-    pub guard: Option<SyntaxNode<BooleanConditionNode>>,
+    pub guard: Option<SyntaxNode<SentenceConditionNode>>,
     pub program: SyntaxNode<TriggerBodyNode>,
     /// `This ability triggers only once each turn.`
     pub once_each_turn: bool,
@@ -43,7 +43,22 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<TriggeredProgramNode> {
     let start = cursor.position();
-    let guard = recognize_trigger_guard(cursor)?.map(|value| SyntaxNode {
+    // The guard is read before the effect program, so only the ability's own
+    // source can be a referent: no declared target or observed object is
+    // bound yet, and the shared condition atoms fail explicitly otherwise.
+    let guard_context = trigger_guard_context(&event.value);
+    let guard = recognize_trigger_guard(
+        cursor,
+        &SentenceConditionContext {
+            name_links,
+            name_failure,
+            effects: &guard_context,
+            card_target: None,
+            card_focus: false,
+            departed_targets: &[],
+        },
+    )?
+    .map(|value| SyntaxNode {
         tokens: start..cursor.position(),
         value,
     });
@@ -76,23 +91,9 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     }
     // Ability source and observed object have separate roles. OR branches
     // select an event; they do not multiply objects within its occurrence.
-    let mut context = match &event.value {
-        GenericTriggerEventNode::SourceTransition(_)
-        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked { .. })
-        | GenericTriggerEventNode::Local(LocalTriggerEventNode::CombatDamageToPlayer { .. })
-        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. }) => {
-            EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
-                .with_source_event_subject(LocalObjectReference::SourceSelf)
-        }
-        _ => EffectRecognitionContext::default(),
-    };
+    let mut context = trigger_guard_context(&event.value);
     if let Some(object) = event.value.observed_object() {
         context = context.with_observed_event_object(object);
-    }
-    if event.value.observed_object_is_source() {
-        context.source = Some(LocalObjectReference::SourceSelf);
-        context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
-        context.observed_source_relationship = ObservedSourceRelationship::SameEnteringObject;
     }
     let mut context = context
         .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
@@ -126,4 +127,25 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         },
         once_each_turn,
     })
+}
+
+/// The referents available to a trigger's intervening `if` (CR 603.4): the
+/// ability source and, for a source event, the source as the event subject.
+fn trigger_guard_context(event: &GenericTriggerEventNode) -> EffectRecognitionContext {
+    let mut context = match event {
+        GenericTriggerEventNode::SourceTransition(_)
+        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked { .. })
+        | GenericTriggerEventNode::Local(LocalTriggerEventNode::CombatDamageToPlayer { .. })
+        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. }) => {
+            EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
+                .with_source_event_subject(LocalObjectReference::SourceSelf)
+        }
+        _ => EffectRecognitionContext::default(),
+    };
+    if event.observed_object_is_source() {
+        context.source = Some(LocalObjectReference::SourceSelf);
+        context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
+        context.observed_source_relationship = ObservedSourceRelationship::SameEnteringObject;
+    }
+    context
 }

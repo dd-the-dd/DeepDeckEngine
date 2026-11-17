@@ -949,14 +949,17 @@ fn parse_existing_native_rule(
         };
     }
 
-    if let StaticSourceCombatRestrictionAttempt::Parsed(draft) =
-        try_parse_static_source_combat_restriction(input)
-    {
-        return CanonicalParseOutcome::Parsed {
-            draft,
-            recognizer: RecognizerProvenance::Native,
+    let source_combat_restriction_rejection =
+        match try_parse_static_source_combat_restriction(input) {
+            StaticSourceCombatRestrictionAttempt::Parsed(draft) => {
+                return CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                };
+            }
+            StaticSourceCombatRestrictionAttempt::Rejected(failure) => Some(failure),
+            StaticSourceCombatRestrictionAttempt::NotClaimed => None,
         };
-    }
 
     if claims_promoted_simple_keyword_family(input) {
         return match parse_promoted_simple_keyword(input) {
@@ -2124,7 +2127,7 @@ fn parse_existing_native_rule(
         SacrificeTriggerProgramParseAttempt::NotClaimed => {}
     }
 
-    match static_continuous_rejection {
+    match static_continuous_rejection.or(source_combat_restriction_rejection) {
         Some(failure) => CanonicalParseOutcome::Failed {
             failure,
             recognizer: RecognizerProvenance::Native,

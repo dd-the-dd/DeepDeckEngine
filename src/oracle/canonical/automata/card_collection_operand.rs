@@ -51,6 +51,25 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
             }
             CardCollectionReferenceNode::Selected
         }
+        Some("all") => {
+            // `all other cards revealed this way` is the remainder role again.
+            if let Err(f) = trial.consume_phrase(&["all", "other", "cards"]) {
+                return CollectionOperandAttempt::RejectedCandidate(f);
+            }
+            let verb = trial.peek().map(str::to_ascii_lowercase);
+            if !matches!(verb.as_deref(), Some("revealed" | "exiled")) {
+                return CollectionOperandAttempt::RejectedCandidate(
+                    trial.fail("`revealed` or `exiled` after `all other cards`"),
+                );
+            }
+            if let Err(f) = trial
+                .consume(verb.as_deref().unwrap_or("revealed"))
+                .and_then(|()| trial.consume_phrase(&["this", "way"]))
+            {
+                return CollectionOperandAttempt::FailedCommitted(f);
+            }
+            CardCollectionReferenceNode::Remainder
+        }
         Some("the") => {
             if let Err(f) = trial.consume("the") {
                 return CollectionOperandAttempt::RejectedCandidate(f);

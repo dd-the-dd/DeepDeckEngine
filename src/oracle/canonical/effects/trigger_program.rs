@@ -80,7 +80,18 @@ fn compile_recognized_trigger_program(
     let condition = node
         .guard
         .as_ref()
-        .map(|guard| lower_trigger_guard(&guard.value));
+        .map(|guard| {
+            lower_sentence_condition(
+                cursor,
+                &guard.value,
+                &ConditionObjectBindings {
+                    permanent_targets: &[],
+                    card_targets: &[],
+                    card_focus: None,
+                },
+            )
+        })
+        .transpose()?;
     construction.push((
         "Compose the typed condition and effect sequence within their token ranges".into(),
         json!({"syntax":"triggeredProgram", "event":event,
@@ -124,11 +135,11 @@ fn compile_recognized_trigger_program(
     Ok(result)
 }
 
-fn guard_excludes_source(guard: &BooleanConditionNode) -> bool {
+fn guard_excludes_source(guard: &SentenceConditionNode) -> bool {
     match guard {
-        BooleanConditionNode::Atom(LocalConditionNode::ControlledPermanentCount(count)) => {
-            count.exclude_source
-        }
+        BooleanConditionNode::Atom(SentenceConditionAtom::Local(
+            LocalConditionNode::ControlledPermanentCount(count),
+        )) => count.exclude_source,
         BooleanConditionNode::Atom(_) => false,
         BooleanConditionNode::And(items) | BooleanConditionNode::Or(items) => {
             items.iter().any(guard_excludes_source)
@@ -140,3 +151,7 @@ fn guard_excludes_source(guard: &BooleanConditionNode) -> bool {
 #[cfg(test)]
 #[path = "generic_trigger_attempt_tests.rs"]
 mod generic_trigger_attempt_tests;
+
+#[cfg(test)]
+#[path = "trigger_guard_condition_tests.rs"]
+mod trigger_guard_condition_tests;

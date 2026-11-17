@@ -8,6 +8,9 @@ pub(super) struct DeferredDamageEvent {
     pub player_id: Option<String>,
     pub card_id: Option<String>,
     pub detail: Value,
+    /// A finite prevention shield that this event consumed: its id and the
+    /// prevented amount. Applied when the event is published (CR 615.7).
+    pub shield: Option<(u64, i32)>,
 }
 #[derive(Default)]
 struct DamageEventCollector {
@@ -26,6 +29,7 @@ impl DamageEventCollector {
             player_id,
             card_id,
             detail,
+            shield: None,
         });
     }
 }
@@ -413,6 +417,49 @@ impl GameEngine {
                 );
             }
         }
+        if !damage_cannot_be_prevented {
+            // CR 615.1, 615.7: each applicable prevention shield prevents
+            // damage in turn; a finite shield is reduced by what it prevented.
+            for shield in self.state.rule_modifiers.iter().filter(|modifier| {
+                value_kind(modifier) == Some("damagePreventionShield")
+                    && self.damage_prevention_shield_applies(modifier, &target, source, combat)
+            }) {
+                if amount <= 0 {
+                    break;
+                }
+                let remaining = shield["remaining"].as_i64();
+                let prevented = remaining
+                    .map(|remaining| i32::try_from(remaining).unwrap_or(i32::MAX).min(amount))
+                    .unwrap_or(amount);
+                if prevented <= 0 {
+                    continue;
+                }
+                amount -= prevented;
+                let (player_id, card_id) = match &target {
+                    TargetRef::Player { player_id } => {
+                        (Some(player_id.clone()), Some(source.to_string()))
+                    }
+                    TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                        (None, Some(instance_id.clone()))
+                    }
+                    TargetRef::StackObject { .. } => (None, None),
+                };
+                events.records.push(DeferredDamageEvent {
+                    kind: "damagePrevented",
+                    player_id,
+                    card_id,
+                    detail: json!({
+                        "amount": prevented,
+                        "source": source,
+                        "combat": combat,
+                        "reason": "preventionShield",
+                    }),
+                    shield: remaining
+                        .and(shield["shieldId"].as_u64())
+                        .map(|id| (id, prevented)),
+                });
+            }
+        }
         if amount <= 0 {
             return Ok(PreparedDamage::Prevented {
                 events: events.records,
@@ -489,12 +536,50 @@ impl GameEngine {
             counter_removals,
         }))
     }
+    /// A `damagePreventionShield` (CR 615) applies to one damage event when it
+    /// is live this turn, has amount left, and its optional combat-only,
+    /// recipient and source restrictions all match.
+    fn damage_prevention_shield_applies(
+        &self,
+        shield: &Value,
+        target: &TargetRef,
+        source: &str,
+        combat: bool,
+    ) -> bool {
+        shield["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
+            && (!shield["combatOnly"].as_bool().unwrap_or(false) || combat)
+            && shield["remaining"]
+                .as_i64()
+                .is_none_or(|remaining| remaining > 0)
+            && match (&shield["recipient"], target) {
+                (Value::Null, _) => true,
+                (recipient, TargetRef::Player { player_id }) => {
+                    recipient["playerId"].as_str() == Some(player_id.as_str())
+                }
+                (recipient, TargetRef::Permanent { instance_id }) => {
+                    recipient["permanentId"].as_str() == Some(instance_id.as_str())
+                }
+                _ => false,
+            }
+            && shield["sourcePermanentId"]
+                .as_str()
+                .is_none_or(|expected| expected == source)
+    }
     pub(super) fn publish_prepared_damage_events(
         &mut self,
         events: Vec<DeferredDamageEvent>,
         batch_id: Option<usize>,
     ) {
         for mut event in events {
+            if let Some((shield_id, prevented)) = event.shield
+                && let Some(shield) = self.state.rule_modifiers.iter_mut().find(|modifier| {
+                    value_kind(modifier) == Some("damagePreventionShield")
+                        && modifier["shieldId"].as_u64() == Some(shield_id)
+                })
+                && let Some(remaining) = shield["remaining"].as_i64()
+            {
+                shield["remaining"] = json!((remaining - i64::from(prevented)).max(0));
+            }
             if let Some(batch_id) = batch_id {
                 event.detail["batchId"] = json!(batch_id);
             }

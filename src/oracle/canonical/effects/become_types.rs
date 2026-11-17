@@ -10,7 +10,10 @@ fn lower_become_types_duration(duration: Option<&EffectDurationNode>) -> Option<
         Some(EffectDurationNode::UntilEndOfCurrentTurn) => {
             Some(json!({ "kind": "untilEndOfCurrentTurn" }))
         }
-        Some(EffectDurationNode::UntilNextTurn { .. }) => None,
+        Some(
+            EffectDurationNode::UntilNextTurn { .. }
+            | EffectDurationNode::UntilEndOfNextTurn { .. },
+        ) => None,
     }
 }
 

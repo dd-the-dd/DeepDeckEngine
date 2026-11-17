@@ -8,6 +8,23 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     Selection(CardSelectionOperandNode),
     ZoneCollection(CardZoneCollectionNode),
     Targets(CardTargetOperandNode),
+    LibraryTop(CardLibraryTopNode),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardPermissionVerb {
+    Play,
+    Cast,
+}
+
+/// `you may play|cast COLLECTION DURATION`: a player permission over cards that
+/// were already bound by an earlier action. The window is part of the action,
+/// either trailing or supplied by a preposed sentence duration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CardPermissionNode {
+    pub verb: CardPermissionVerb,
+    pub cards: CardOperandNode,
+    pub duration: EffectDurationNode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -17,16 +34,32 @@ pub(in crate::oracle::canonical) enum CardActionNode {
         owner: LocalPlayerReference,
     },
     Reveal(CardOperandNode),
+    /// `reveal cards from the top of your library until you reveal QUANTITY
+    /// PREDICATE`: every revealed card is the observed collection; the last
+    /// QUANTITY matching cards are the antecedent of `that card`.
+    RevealUntil {
+        quantity: NumericExpression,
+        predicate: ObjectPredicate,
+        owner: LocalPlayerReference,
+    },
     Move {
         cards: CardOperandNode,
         destination: CardMoveDestinationNode,
     },
+    Permit(CardPermissionNode),
 }
 
 fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode> {
     match try_recognize_card_target_operand(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => {
             return Ok(CardOperandNode::Targets(fragment.node));
+        }
+        CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+        CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
+    }
+    match try_recognize_card_library_top(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => {
+            return Ok(CardOperandNode::LibraryTop(fragment.node));
         }
         CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
@@ -63,10 +96,22 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
 pub(in crate::oracle::canonical) fn recognize_card_action(
     cursor: &mut OracleTokenCursor<'_>,
     move_ellipsis: bool,
+    supplied_duration: Option<&EffectDurationNode>,
 ) -> MachineResult<Option<CardActionNode>> {
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
+    if head.eq_ignore_ascii_case("you")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("play") || raw.eq_ignore_ascii_case("cast"))
+    {
+        return recognize_card_permission(cursor, supplied_duration)
+            .map(|node| Some(CardActionNode::Permit(node)));
+    }
     if head.eq_ignore_ascii_case("look") {
         cursor.enter("card-action.look.source");
         cursor.consume_phrase(&["look", "at", "the", "top"])?;
@@ -95,6 +140,15 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     }
     if head.eq_ignore_ascii_case("reveal") {
         cursor.consume("reveal")?;
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
+        {
+            return recognize_reveal_until(cursor).map(Some);
+        }
         return operand(cursor).map(|value| Some(CardActionNode::Reveal(value)));
     }
     if head.eq_ignore_ascii_case("exile") {
@@ -114,6 +168,85 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     let cards = operand(cursor)?;
     let destination = recognize_card_action_destination(cursor, "move")?;
     Ok(Some(CardActionNode::Move { cards, destination }))
+}
+
+fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActionNode> {
+    cursor.enter("card-action.reveal-until.source");
+    cursor.consume_phrase(&["cards", "from", "the", "top", "of", "your", "library"])?;
+    cursor.enter("card-action.reveal-until.condition");
+    cursor.consume_phrase(&["until", "you", "reveal"])?;
+    cursor.enter("card-action.reveal-until.quantity");
+    let quantity = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+    {
+        let article = cursor.peek().unwrap_or("a").to_owned();
+        cursor.consume(&article)?;
+        NumericExpression::from(1)
+    } else {
+        recognize_numeric_expression(cursor, None)?
+    };
+    if let NumericExpression::Atom(NumericAtom::Integer(value)) = &quantity {
+        cursor.require(*value > 0, "a positive reveal-until quantity")?;
+    }
+    cursor.enter("card-action.reveal-until.predicate");
+    let query = recognize_object_query_before_separator(cursor)?;
+    cursor.require(
+        query.controller.is_none()
+            && query.predicate.has_domain(ObjectKind::Card)
+            && query.predicate.supports_domain(ObjectKind::Card),
+        "an unscoped card-domain predicate for the revealed cards",
+    )?;
+    Ok(CardActionNode::RevealUntil {
+        quantity,
+        predicate: query.predicate,
+        owner: LocalPlayerReference::Controller,
+    })
+}
+
+fn recognize_card_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    supplied_duration: Option<&EffectDurationNode>,
+) -> MachineResult<CardPermissionNode> {
+    cursor.enter("card-action.permit.head");
+    cursor.consume_phrase(&["you", "may"])?;
+    let verb = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("play"))
+    {
+        cursor.consume("play")?;
+        CardPermissionVerb::Play
+    } else {
+        cursor.consume("cast")?;
+        CardPermissionVerb::Cast
+    };
+    cursor.enter("card-action.permit.cards");
+    let cards = operand(cursor)?;
+    cursor.require(
+        matches!(
+            cards,
+            CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+        ),
+        "a previously bound card collection as the permission object",
+    )?;
+    cursor.enter("card-action.permit.window");
+    let duration = match supplied_duration {
+        Some(duration) => {
+            cursor.require(
+                !cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("until")),
+                "no second duration after a sentence-level preposed duration",
+            )?;
+            duration.clone()
+        }
+        None => recognize_play_window_duration(cursor)?,
+    };
+    Ok(CardPermissionNode {
+        verb,
+        cards,
+        duration,
+    })
 }
 
 pub(in crate::oracle::canonical) fn recognize_card_action_destination(

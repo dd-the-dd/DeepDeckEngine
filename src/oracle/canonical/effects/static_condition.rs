@@ -41,11 +41,68 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             }),
             integer(*threshold),
         ),
-        StaticConditionAtom::ControllerGainedLifeThisTurn => compare(
+        StaticConditionAtom::ControllerGainedLifeThisTurn { threshold } => compare(
             ">=",
             json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
+            integer(*threshold),
+        ),
+        StaticConditionAtom::ControllerAttackedThisTurn => compare(
+            ">=",
+            json!({
+                "kind": "countEventsThisTurn",
+                "event": "attackerDeclared",
+                "player": controller(),
+                "where": Value::Null,
+            }),
             integer(1),
         ),
+        StaticConditionAtom::ControllerLostLifeThisTurn => compare(
+            ">=",
+            json!({ "kind": "lifeLostThisTurn", "player": controller() }),
+            integer(1),
+        ),
+        StaticConditionAtom::OpponentLostLifeThisTurn => compare(
+            ">=",
+            json!({ "kind": "countOpponentsWhoLostLifeThisTurn", "player": controller() }),
+            integer(1),
+        ),
+        StaticConditionAtom::ControllerLifeTotal {
+            threshold,
+            direction,
+        } => compare(
+            match direction {
+                ControlledCountDirection::OrMore => ">=",
+                ControlledCountDirection::OrFewer => "<=",
+            },
+            json!({ "kind": "lifeTotal", "player": controller() }),
+            integer(*threshold),
+        ),
+        StaticConditionAtom::PermanentsDiedThisTurn { threshold, subject } => compare(
+            ">=",
+            json!({
+                "kind": "countEventsThisTurn",
+                "event": "permanentDied",
+                "where": lower_card_object_predicate(subject),
+            }),
+            integer(*threshold),
+        ),
+        StaticConditionAtom::SpellsCastLastTurn(reading) => {
+            let (aggregate, operator, bound) = match reading {
+                LastTurnSpellCasts::None => ("total", "==", 0),
+                LastTurnSpellCasts::SomePlayerAtLeast(threshold) => {
+                    ("greatestPerPlayer", ">=", *threshold)
+                }
+            };
+            compare(
+                operator,
+                json!({
+                    "kind": "countEventsPreviousTurn",
+                    "event": "spellCast",
+                    "aggregate": aggregate,
+                }),
+                integer(bound),
+            )
+        }
         StaticConditionAtom::CardsInControllerGraveyard {
             threshold,
             direction,

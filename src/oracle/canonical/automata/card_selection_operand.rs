@@ -12,6 +12,19 @@ pub(in crate::oracle::canonical) enum CardSelectionQuantityNode {
     Exactly(NumericExpression),
     UpTo(NumericExpression),
     AnyNumber,
+    /// Every member, with no player choice: `all creature cards from among them`
+    /// or `all cards revealed this way`. `via` names the verb of the producing
+    /// action when the text states it; the lowerer checks it against the scope.
+    All {
+        via: Option<CardCollectionVerb>,
+    },
+}
+
+/// The action verb that produced a collection and is restated as `VERBed this way`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardCollectionVerb {
+    Revealed,
+    Exiled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -19,6 +32,22 @@ pub(in crate::oracle::canonical) struct CardSelectionOperandNode {
     pub quantity: CardSelectionQuantityNode,
     pub predicate: Option<ObjectPredicate>,
     pub from: CardCollectionReferenceNode,
+}
+
+fn recognize_this_way_verb(trial: &mut OracleTokenCursor<'_>) -> MachineResult<CardCollectionVerb> {
+    trial.enter("collection.selection.this-way");
+    let verb = if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("revealed"))
+    {
+        trial.consume("revealed")?;
+        CardCollectionVerb::Revealed
+    } else {
+        trial.consume("exiled")?;
+        CardCollectionVerb::Exiled
+    };
+    trial.consume_phrase(&["this", "way"])?;
+    Ok(verb)
 }
 
 pub(in crate::oracle::canonical) type CardSelectionOperandAttempt =
@@ -42,6 +71,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 trial.consume_phrase(&["any", "number"])?;
                 CardSelectionQuantityNode::AnyNumber
             }
+            Some("all") => {
+                trial.consume("all")?;
+                CardSelectionQuantityNode::All { via: None }
+            }
             Some("up") => {
                 trial.consume_phrase(&["up", "to"])?;
                 CardSelectionQuantityNode::UpTo(recognize_numeric_expression(&mut trial, None)?)
@@ -51,7 +84,23 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             }
         };
         trial.enter("collection.selection.predicate-or-source");
-        let predicate = if trial
+        let mut quantity = quantity;
+        let mut this_way_source = false;
+        let predicate = if matches!(quantity, CardSelectionQuantityNode::All { .. })
+            && trial
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
+            && trial.peek_ahead(1).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
+            }) {
+            trial.consume("cards")?;
+            this_way_source = true;
+            quantity = CardSelectionQuantityNode::All {
+                via: Some(recognize_this_way_verb(&mut trial)?),
+            };
+            committed = true;
+            None
+        } else if trial
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
         {
@@ -70,10 +119,29 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 "an explicit card-domain predicate",
             )?;
             trial.enter("collection.selection.source-relation");
-            trial.consume_phrase(&["from", "among"])?;
+            if matches!(quantity, CardSelectionQuantityNode::All { .. })
+                && trial.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("revealed") || raw.eq_ignore_ascii_case("exiled")
+                })
+            {
+                this_way_source = true;
+                quantity = CardSelectionQuantityNode::All {
+                    via: Some(recognize_this_way_verb(&mut trial)?),
+                };
+            } else {
+                trial.consume_phrase(&["from", "among"])?;
+            }
             committed = true;
             Some(query.predicate)
         };
+        if this_way_source {
+            // `VERBed this way` restates the antecedent scope itself.
+            return Ok(CardSelectionOperandNode {
+                quantity,
+                predicate,
+                from: CardCollectionReferenceNode::Antecedent,
+            });
+        }
         trial.enter("collection.selection.source");
         let from = match try_recognize_card_collection_reference(&mut trial) {
             CollectionOperandAttempt::Recognized(fragment) => fragment.node,

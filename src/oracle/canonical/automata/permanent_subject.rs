@@ -109,6 +109,13 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(subject_after_operand(&node.recipient, effect_index))
         }
         LocalEffectNode::UntapTarget(node) => Local(Some(node.permanent)),
+        LocalEffectNode::Choose(node) => match &node.domain {
+            ChoiceDomainNode::CreatureType => previous,
+            ChoiceDomainNode::PermanentTargets(targets) => {
+                Local(singular_permanent_target(targets, effect_index))
+            }
+            ChoiceDomainNode::PlayerTarget(_) => Local(None),
+        },
         LocalEffectNode::DealDamage(node) => Local(match &node.recipient {
             DamageRecipientNode::Targets(targets) => {
                 singular_permanent_target(targets, effect_index)
@@ -160,6 +167,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::Scry(_)
         | LocalEffectNode::Surveil(_)
         | LocalEffectNode::Earthbend(_)
+        | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::MoveCards(_)
         | LocalEffectNode::ZoneBatch(_)
@@ -236,6 +244,12 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::Regenerate(node) => &node.targets,
         LocalEffectNode::Attach(node) => &node.recipient,
+        LocalEffectNode::Choose(node) => {
+            return node
+                .permanent_targets()
+                .and_then(|targets| targets.slots.get(slot_index))
+                .map(|slot| &slot.selector);
+        }
         _ => return None,
     };
     match operand {

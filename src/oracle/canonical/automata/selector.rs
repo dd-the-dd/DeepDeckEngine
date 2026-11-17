@@ -509,6 +509,16 @@ fn recognize_object_query_with_cardinality_policy(
                         });
                         ObjectQueryState::ReadPostnominalQualifier
                     }
+                } else if let Some(length) = chosen_creature_type_qualifier_length(cursor) {
+                    // `of the chosen type` / `of that [creature] type`: the
+                    // creature type chosen earlier in the program (CR 608.2d).
+                    cursor.enter("selector.chosen-creature-type-qualifier");
+                    cursor.advance_to(cursor.position() + length)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::ChosenCreatureType,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if cursor.peek().is_some_and(|token| {
                     token.eq_ignore_ascii_case("that's") || token.eq_ignore_ascii_case("that’s")
                 }) {
@@ -736,7 +746,29 @@ fn recognize_keyword_qualifier(
             || raw.eq_ignore_ascii_case("first"),
         "a supported keyword after `with`",
     )?;
-    recognize_parameterless_keyword(cursor).map(SelectorPredicate::HasKeyword)
+    let first = recognize_parameterless_keyword(cursor).map(SelectorPredicate::HasKeyword)?;
+    // `with flying or reach`: a disjunction of keyword qualifiers on the same
+    // head. `or` continues the list only before another keyword word, so a
+    // following branch with its own head (`or creatures with ...`) is untouched.
+    let mut alternatives = vec![first];
+    while cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            parameterless_keyword_from_oracle_word(raw).is_some()
+                || raw.eq_ignore_ascii_case("double")
+                || raw.eq_ignore_ascii_case("first")
+        })
+    {
+        cursor.consume("or")?;
+        cursor.enter("selector.keyword-qualifier.alternative");
+        alternatives
+            .push(recognize_parameterless_keyword(cursor).map(SelectorPredicate::HasKeyword)?);
+    }
+    Ok(match alternatives.len() {
+        1 => alternatives.remove(0),
+        _ => SelectorPredicate::Union(alternatives),
+    })
 }
 
 /// In Oracle phrases such as `artifact or enchantment spell`, the final
@@ -1765,3 +1797,25 @@ mod negative_modifier_tests;
 #[cfg(test)]
 #[path = "selector_coordinated_article_tests.rs"]
 mod coordinated_article_tests;
+
+/// Token length of `of the chosen [creature] type` / `of that [creature] type`
+/// at the cursor, the postnominal reference to a creature-type choice.
+fn chosen_creature_type_qualifier_length(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !word(0, "of") {
+        return None;
+    }
+    let determiner = if word(1, "the") && word(2, "chosen") {
+        3
+    } else if word(1, "that") {
+        2
+    } else {
+        return None;
+    };
+    let noun = determiner + usize::from(word(determiner, "creature"));
+    word(noun, "type").then_some(noun + 1)
+}
