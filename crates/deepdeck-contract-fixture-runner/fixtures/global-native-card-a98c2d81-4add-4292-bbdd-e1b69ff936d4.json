@@ -1,0 +1,30 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/a98c2d81-4add-4292-bbdd-e1b69ff936d4/complete-rule-set",
+    "cardName":  "Planar Cleansing",
+    "oracleId":  "a98c2d81-4add-4292-bbdd-e1b69ff936d4",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "not",
+                                                                          "operand":  {
+                                                                                          "kind":  "cardTypeContains",
+                                                                                          "value":  "Land"
+                                                                                      }
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

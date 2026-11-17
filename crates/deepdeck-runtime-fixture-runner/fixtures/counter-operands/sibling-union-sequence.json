@@ -1,0 +1,246 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "permanent-counter-operands/union-once-and-following-action",
+  "seed": 70122,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            ]
+          },
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "counter": "ice",
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "pure-creature",
+            "name": "pure-creature",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "pure-artifact",
+            "name": "pure-artifact",
+            "typeLine": "Artifact",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "dual",
+            "name": "dual",
+            "typeLine": "Artifact Creature",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "pure-land",
+            "name": "pure-land",
+            "typeLine": "Land",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "spell",
+            "name": "spell",
+            "typeLine": "Sorcery",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "eachPermanent",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      },
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "counter": "ice",
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "manaCost": "{G}"
+          }
+        ],
+        "manaPool": [
+          "G"
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-creature",
+            "name": "opponent-creature",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "pure-creature",
+      "counter": "ice",
+      "equals": 2
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "pure-artifact",
+      "counter": "ice",
+      "equals": 2
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "dual",
+      "counter": "ice",
+      "equals": 2
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "pure-land",
+      "counter": "ice",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "opponent-creature",
+      "counter": "ice",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 3
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

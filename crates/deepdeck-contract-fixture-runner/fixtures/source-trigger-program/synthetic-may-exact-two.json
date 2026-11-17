@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "source-trigger-program/synthetic-may-exact-two",
+  "cardName": "Synthetic source program",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentDied",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

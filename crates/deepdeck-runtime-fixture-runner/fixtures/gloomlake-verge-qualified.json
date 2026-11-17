@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "gloomlake-verge-adds-black-when-controller-has-island",
+  "seed": 50,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "activationCondition": {
+      "kind": "controlsPermanent",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "subtypeContains", "value": "Island" },
+          { "kind": "subtypeContains", "value": "Swamp" }
+        ]
+      }
+    },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{B}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Gloomlake Verge pilot",
+        "battlefield": [
+          {
+            "id": "gloomlake-verge",
+            "name": "Gloomlake Verge",
+            "typeLine": "Land"
+          },
+          {
+            "id": "qualifying-island",
+            "name": "Qualifying Island",
+            "typeLine": "Basic Land — Island"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "gloomlake-verge",
+    "manaSymbols": ["B"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["B"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "gloomlake-verge",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

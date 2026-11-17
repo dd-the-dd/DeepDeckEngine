@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rest-in-peace-entry-exiles-every-graveyard",
+  "seed": 42,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "effects": [{ "kind": "exileAllGraveyards" }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rest in Peace pilot",
+        "manaPool": ["C", "W"],
+        "hand": [{
+          "id": "rest-in-peace",
+          "name": "Rest in Peace",
+          "typeLine": "Enchantment",
+          "manaCost": "{1}{W}",
+          "rules": [
+            {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+              "effects": [{ "kind": "exileAllGraveyards" }]
+            },
+            {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "replaceGraveyardDestination",
+                "graveyardOwners": { "kind": "eachPlayer" },
+                "where": null,
+                "from": { "kind": "anyZone" },
+                "to": { "kind": "exile" }
+              }]
+            }
+          ]
+        }],
+        "graveyard": [{
+          "id": "pilots-dead-card",
+          "name": "Pilot's Dead Card",
+          "typeLine": "Sorcery"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "graveyard": [{
+          "id": "opponents-dead-card",
+          "name": "Opponent's Dead Card",
+          "typeLine": "Creature - Spirit",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "rest-in-peace" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "graveyard", "equals": 0 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "pilots-dead-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "opponents-dead-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "rest-in-peace", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardExiled", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

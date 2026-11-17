@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "underground-sea-chooses-blue-mana",
+  "seed": 53,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{U}", "{B}"] }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Underground Sea pilot",
+        "battlefield": [{
+          "id": "underground-sea",
+          "name": "Underground Sea",
+          "typeLine": "Land — Island Swamp"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "underground-sea",
+    "manaSymbols": ["U"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "underground-sea", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

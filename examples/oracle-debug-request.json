@@ -1,0 +1,8 @@
+{
+  "cardName": "Young Pyromancer",
+  "typeLine": "Creature — Human Shaman",
+  "manaCost": "{1}{R}",
+  "oracleText": "Whenever you cast an instant or sorcery spell, create a 1/1 red Elemental creature token.",
+  "layout": "normal",
+  "faces": []
+}

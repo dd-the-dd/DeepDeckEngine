@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "murktide-regent-delve-filters-entering-counters-and-preserves-colored-cost",
+  "seed": 98,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "replacement": [{
+      "kind": "putEnteringCounters",
+      "counter": "+1/+1",
+      "count": {
+        "kind": "countDecisionCardsMatching",
+        "decisionId": "delveCards",
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Instant" },
+            { "kind": "cardTypeContains", "value": "Sorcery" }
+          ]
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Murktide pilot",
+        "manaPool": ["C", "C", "U", "U"],
+        "hand": [{
+          "id": "murktide-regent",
+          "name": "Murktide Regent",
+          "typeLine": "Creature - Dragon",
+          "manaCost": "{5}{U}{U}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [
+            {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "delve" }
+            },
+            {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "flying" }
+            },
+            {
+              "kind": "replacementEffect",
+              "source": { "kind": "self" },
+              "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+              "replacement": [{
+                "kind": "putEnteringCounters",
+                "counter": "+1/+1",
+                "count": {
+                  "kind": "countDecisionCardsMatching",
+                  "decisionId": "delveCards",
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      { "kind": "cardTypeContains", "value": "Instant" },
+                      { "kind": "cardTypeContains", "value": "Sorcery" }
+                    ]
+                  }
+                }
+              }]
+            },
+            {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "cardsLeftGraveyard",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "cardTypeContains", "value": "Instant" },
+                    { "kind": "cardTypeContains", "value": "Sorcery" }
+                  ]
+                },
+                "aggregation": "perCard"
+              },
+              "effects": [{
+                "kind": "putCounters",
+                "permanent": { "kind": "self" },
+                "counter": "+1/+1",
+                "count": { "kind": "integer", "value": 1 }
+              }]
+            }
+          ]
+        }],
+        "graveyard": [
+          { "id": "delve-instant", "name": "Delve Instant", "typeLine": "Instant" },
+          { "id": "delve-sorcery", "name": "Delve Sorcery", "typeLine": "Sorcery" },
+          { "id": "delve-creature", "name": "Delve Creature", "typeLine": "Creature" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "murktide-regent",
+      "declarationDecisions": {
+        "delveCards": [
+          "player-0:delve-instant:1",
+          "player-0:delve-sorcery:2",
+          "player-0:delve-creature:3"
+        ]
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "murktide-regent", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "delve-instant", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "delve-sorcery", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "delve-creature", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "murktide-regent", "counter": "+1/+1", "equals": 2 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "murktide-regent", "power": 5, "toughness": 5 },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "murktide-regent", "keyword": "flying", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardsExiledForDelve", "playerId": "player-0", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

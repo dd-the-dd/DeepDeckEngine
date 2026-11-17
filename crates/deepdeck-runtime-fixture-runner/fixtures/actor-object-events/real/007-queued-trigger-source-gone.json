@@ -1,0 +1,346 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mirkwood-provisional/queued-trigger-outlives-source-and-future-creation-does-not-trigger",
+  "seed": 1150636,
+  "rule": {
+    "effects": [
+      {
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "loseLife",
+        "player": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      }
+    ],
+    "event": {
+      "events": [
+        {
+          "kind": "tokenCreated",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "isToken"
+          }
+        },
+        {
+          "kind": "permanentSacrificed",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "isToken"
+          }
+        }
+      ],
+      "kind": "oneOf"
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "15f035df-784a-4dc8-b7f5-77139a4e6e99",
+            "name": "Mirkwood Bats",
+            "typeLine": "Creature — Bat",
+            "manaCost": "{3}{B}",
+            "power": "2",
+            "toughness": "3",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "flying"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "effects": [
+                  {
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "events": [
+                    {
+                      "kind": "tokenCreated",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "isToken"
+                      }
+                    },
+                    {
+                      "kind": "permanentSacrificed",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "isToken"
+                      }
+                    }
+                  ],
+                  "kind": "oneOf"
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "event-driver",
+            "name": "Event Driver",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": 2,
+                    "token": {
+                      "name": "Proof Resource",
+                      "types": [
+                        "Artifact"
+                      ],
+                      "subtypes": [
+                        "Treasure"
+                      ],
+                      "power": 0,
+                      "toughness": 0,
+                      "abilities": []
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isToken"
+                    },
+                    "count": 1
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "phaseOutPermanent",
+                    "permanent": {
+                      "kind": "eachPermanent",
+                      "where": {
+                        "kind": "nameEquals",
+                        "value": "Mirkwood Bats"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "nameEquals",
+                      "value": "Mirkwood Bats"
+                    },
+                    "count": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "event-driver",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "event-driver",
+      "abilityRuleIndex": 3
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "event-driver",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 18
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 4,
+      "playerId": "p0"
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1,
+      "playerId": "p0"
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "15f035df-784a-4dc8-b7f5-77139a4e6e99",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

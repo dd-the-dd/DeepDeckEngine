@@ -1,0 +1,790 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "composable-target-card-move",
+  "cases": [
+    {
+      "id": "real-hall-full-source",
+      "request": {
+        "cardName": "Hall of Heliod's Generosity",
+        "typeLine": "Legendary Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{1}{W}, {T}: Put target enchantment card from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{C}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCardOperand"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "top"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCardOperand",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Enchantment"
+                      }
+                    }
+                  }
+                ]
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{1}{W}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-card-query-bottom-and-independent-life",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target artifact or enchantment card with mana value 3 or less from your graveyard on the bottom of your library. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCardOperand"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "bottom"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCardOperand",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "or",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Artifact"
+                              },
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Enchantment"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "compare",
+                            "operator": "<=",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "right": {
+                              "kind": "integer",
+                              "value": 3
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-optional-multitarget-public-graveyards-order",
+      "request": {
+        "cardName": "Synthetic ordered card movement",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Put up to two target artifact cards from graveyards on top of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "chooseOrder",
+                  "id": "remainderOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "chosenTargets",
+                    "id": "targetCardOperand"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "remainderOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "top"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "remainderOrder"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCardOperand",
+                    "kind": "chooseTargets",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    }
+                  }
+                ]
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spell-not-card-domain",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target enchantment spell from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-source-zone-owner-is-not-implicit-controller",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target enchantment card from graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "traceContainsState": "card-target.source-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unproved-hidden-source-zone",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target enchantment card from your library on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-candidate-controller-is-not-zone-owner",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target enchantment card you control from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unproved-card-colors-keep-common-syntax",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target red enchantment card from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unproved-card-power-keeps-common-syntax",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target creature card with power 2 or less from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "owner-projection-must-not-drop-your-source-zone",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target artifact card from your graveyard on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-mana-x-not-borrowed-by-tap-activation",
+      "request": {
+        "cardName": "Synthetic unbound activated numeric query",
+        "typeLine": "Artifact",
+        "manaCost": "{X}",
+        "oracleText": "{T}: Put target artifact card with mana value X from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-later-clause-never-partial-success",
+      "request": {
+        "cardName": "Synthetic targeted card movement",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put target enchantment card from your graveyard on top of your library. Sparkle a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-cauldron-timing-and-battlefield-debt-not-covered",
+      "request": {
+        "cardName": "Cauldron of Essence",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "Whenever a creature you control dies, each opponent loses 1 life and you gain 1 life.\n{1}{B}{G}, {T}, Sacrifice a creature: Return target creature card from your graveyard to the battlefield. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "compat-return-type-union",
+      "request": {
+        "cardName": "Synthetic previous target-card capability",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Return target artifact or enchantment card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          }
+                        ]
+                      },
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetCard",
+                    "kind": "chosenTargets"
+                  },
+                  "from": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "compat-owner-library-top",
+      "request": {
+        "cardName": "Synthetic previous target-card capability",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Put target card from a graveyard on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      }
+                    },
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetCard",
+                    "kind": "chosenTargets"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "id": "targetCard",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    "position": "top"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "compat-activated-target-card",
+      "request": {
+        "cardName": "Synthetic previous target-card capability",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Return target artifact card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{2}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "targetGraveyardCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetGraveyardCard",
+                    "kind": "chosenTargets"
+                  },
+                  "from": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

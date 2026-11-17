@@ -1,0 +1,23 @@
+[package]
+name = "deepdeck-oracle-engine-contracts"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+parser-standalone = []
+ci-test-partition = []
+ci-unit-tests-1 = ["ci-test-partition"]
+ci-unit-tests-2 = ["ci-test-partition"]
+ci-unit-tests-3 = ["ci-test-partition"]
+ci-unit-tests-4 = ["ci-test-partition"]
+
+[dependencies]
+deepdeck-engine-runtime = { path = "../deepdeck-engine-runtime", default-features = false }
+deepdeck-oracle = { path = "../deepdeck-oracle" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lib]
+name = "deepdeck_oracle_engine_contracts"
+path = "src/lib.rs"

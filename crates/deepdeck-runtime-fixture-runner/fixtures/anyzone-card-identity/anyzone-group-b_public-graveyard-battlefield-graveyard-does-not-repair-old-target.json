@@ -1,0 +1,277 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "anyzone-group-b/public-graveyard-battlefield-graveyard-does-not-repair-old-target",
+  "seed": 261115,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "chosenTargets",
+          "id": "card"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "abilityController"
+          },
+          "position": "top"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "card",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "abilityController"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Player Zero",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "writer-source",
+            "name": "Writer Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "card"
+                    },
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "abilityController"
+                      },
+                      "position": "top"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "card",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "abilityController"
+                          }
+                        },
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "returnCardsFromGraveyard",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "controller": {
+                      "kind": "abilityController"
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "count": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "base",
+            "name": "Base",
+            "typeLine": "Instant",
+            "manaCost": "{0}"
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "entrant",
+            "name": "Entrant",
+            "typeLine": "Creature - Bear",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Player One",
+        "life": 20,
+        "library": [
+          {
+            "id": "other-base",
+            "name": "Other Base",
+            "typeLine": "Instant",
+            "manaCost": "{0}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "writer-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "card": {
+          "kind": "cardDefinition",
+          "definitionId": "entrant"
+        }
+      }
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "writer-source",
+      "abilityRuleIndex": 1,
+      "targets": {}
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "entrant",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityFizzled",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentEnteredBattlefield",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1
+    }
+  ]
+}

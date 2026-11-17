@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "thoughtseize-targeted-hand-disruption-and-life-loss",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "players" }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "revealHand",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "discardedCard",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "minimum": { "kind": "integer", "value": 1 },
+        "maximum": { "kind": "integer", "value": 1 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" }
+          },
+          "where": {
+            "kind": "not",
+            "operand": { "kind": "cardTypeContains", "value": "Land" }
+          }
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "cards": { "kind": "decisionResult", "decisionId": "discardedCard" }
+      },
+      {
+        "kind": "loseLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "amount": { "kind": "integer", "value": 2 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Thoughtseize pilot",
+        "life": 20,
+        "hand": [
+          {
+            "id": "thoughtseize",
+            "name": "Thoughtseize",
+            "typeLine": "Sorcery",
+            "manaCost": "{B}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target player",
+        "hand": [
+          {
+            "id": "eligible-creature",
+            "name": "Eligible Creature",
+            "typeLine": "Creature",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ineligible-land",
+            "name": "Ineligible Land",
+            "typeLine": "Basic Land"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "thoughtseize",
+    "targets": {
+      "targetPlayer": { "player": { "playerId": "player-1" } }
+    }
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "hand", "equals": 1 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "graveyard", "equals": 1 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "eligible-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "ineligible-land",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "lifeLost", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "token-options/ab8d5f5c-1976-4f77-8ed2-8d28ee666741",
+  "cardName": "Tireless Provisioner",
+  "oracleId": "ab8d5f5c-1976-4f77-8ed2-8d28ee666741",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5dbc2162-238d-492b-b629-94f771230d92",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Tireless Provisioner",
+      "typeLine": "Creature — Elf Scout",
+      "manaCost": "{2}{G}",
+      "oracleText": "Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

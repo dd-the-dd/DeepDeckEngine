@@ -1,0 +1,954 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "ordinary-sacrifice-query",
+  "cases": [
+    {
+      "id": "whole-real-source",
+      "request": {
+        "cardName": "Cycle of Renewal",
+        "typeLine": "Instant — Lesson",
+        "manaCost": "{2}{G}",
+        "oracleText": "Sacrifice a land. Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 2,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": true
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-artifacts",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice two artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-two-type-union",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice two artifacts and/or creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "one-exclusive-types",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature or an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    ]
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "one-three-exclusive-types",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature, an artifact, or a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    ]
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "noncreature-permanent",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a noncreature permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "not",
+                    "operand": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "red-creature",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a red creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "colorContains",
+                        "value": "Red"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "old-source-exact",
+      "request": {
+        "cardName": "Reference Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: Sacrifice this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-mana-x",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}",
+        "oracleText": "Sacrifice X creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "count": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-x",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice X creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflow-count",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice 2147483648 creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflow-filter",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature with power 2147483648 or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-filter-x",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature with power X or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-controller",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-card-zone",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature card from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-tail",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a land. Frobnicate a relic.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-tail",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a land if you control a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-or",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice an artifact or a permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-or-first",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a permanent or an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "range-not-fixed",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice up to two creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "separate-quotas-and-or",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature and/or an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "separate-quotas-and",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature and an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "separate-quotas-comma-and",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature, an artifact, and a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "separate-quotas-mixed",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice two artifacts and a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "separate-quotas-mixed-or",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice two artifacts or a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-needs-exclusion",
+      "request": {
+        "cardName": "Ordinary Resolution Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice another creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-face-x-is-not-producer",
+      "request": {
+        "cardName": "Two Faces",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{0} // {X}",
+        "oracleText": "Sacrifice X creatures.",
+        "layout": "split",
+        "faces": [
+          {
+            "id": "front",
+            "name": "Unbound Front",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "oracleText": "Sacrifice X creatures."
+          },
+          {
+            "id": "back",
+            "name": "Bound Back",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}",
+            "oracleText": "You gain X life."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

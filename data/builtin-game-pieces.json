@@ -39,6 +39,36 @@
         "urlFront": ""
       }
     ],
+    "heartwood": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "heartwood",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Heartwood",
+        "oracleText": "{T}: Add {R} or {G}.",
+        "colors": [
+          "R",
+          "G"
+        ],
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "lander": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "lander",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Lander",
+        "oracleText": "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
     "map": [
       {
         "setCode": "builtin",
@@ -48,6 +78,19 @@
         "layout": "token",
         "typeLine": "Token Artifact - Map",
         "oracleText": "{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "mutagen": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "mutagen",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Mutagen",
+        "oracleText": "{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.",
         "manaValue": 0,
         "urlFront": ""
       }

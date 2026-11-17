@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-retirement/replaceArtifactTokensWithDragons",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceArtifactTokensWithDragons",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "ability": "vraskaCompleated",
+        "token": "Food",
+        "additionalTokens": [
+          "Treasure"
+        ]
+      }
+    ]
+  }
+}

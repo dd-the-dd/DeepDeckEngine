@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "force-of-negation/counter-exile-replacement-is-executable",
+  "cardName": "Force of Negation",
+  "oracleId": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "not",
+            "operand": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" },
+      "exileInstead": true
+    }]
+  }
+}

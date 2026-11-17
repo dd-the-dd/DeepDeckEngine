@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-operand-cards/abandoned-air-temple/complete-card",
+  "cardName": "Abandoned Air Temple",
+  "oracleId": "9575d7ce-f26d-4b90-87a3-6329e9799572",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "condition": {
+        "kind": "not",
+        "operand": {
+          "kind": "controlsPermanent",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "typeLineContains",
+                "value": "Basic"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            ]
+          }
+        }
+      },
+      "event": {
+        "kind": "wouldEnterBattlefield",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "kind": "replacementEffect",
+      "replacement": [
+        {
+          "kind": "setEnteringState",
+          "object": {
+            "kind": "self"
+          },
+          "tapped": true
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "costs": [
+        {
+          "kind": "tap",
+          "object": {
+            "kind": "self"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "kind": "addMana",
+          "mana": "{W}",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      ],
+      "kind": "manaAbility",
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "costs": [
+        {
+          "kind": "payMana",
+          "manaCost": "{3}{W}"
+        },
+        {
+          "kind": "tap",
+          "object": {
+            "kind": "self"
+          }
+        }
+      ],
+      "declaration": {
+        "decisions": [],
+        "kind": "castingDeclaration"
+      },
+      "effects": [
+        {
+          "count": {
+            "kind": "integer",
+            "value": 1
+          },
+          "counter": "+1/+1",
+          "kind": "putCounters",
+          "permanent": {
+            "kind": "eachPermanent",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ],
+      "kind": "activatedAbility",
+      "source": {
+        "kind": "self"
+      }
+    }
+  ]
+}

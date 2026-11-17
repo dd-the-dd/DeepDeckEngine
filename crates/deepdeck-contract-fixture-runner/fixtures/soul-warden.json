@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "soul-warden/permanent-entered-is-executable",
+  "cardName": "Soul Warden",
+  "oracleId": "f3fad295-1af2-4ecc-8546-b121ad6be27b",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "where": { "kind": "cardTypeContains", "value": "Creature" },
+      "anyController": true,
+      "excludeSource": true
+    },
+    "effects": [{
+      "kind": "gainLife",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 1 }
+    }]
+  }
+}

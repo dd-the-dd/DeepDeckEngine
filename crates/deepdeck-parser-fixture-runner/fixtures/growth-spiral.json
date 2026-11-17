@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "growth-spiral/draw-optional-card-deployment",
+  "cardName": "Growth Spiral",
+  "oracleId": "34bcc217-dd91-45a0-90d7-a94d02f1f317",
+  "cases": [
+    {
+      "id": "exact-growth-spiral",
+      "request": {
+        "cardName": "Growth Spiral",
+        "typeLine": "Instant",
+        "manaCost": "{G}{U}",
+        "oracleText": "Draw a card. You may put a land card from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "count": { "kind": "integer", "value": 1 }
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "minimum": { "kind": "integer", "value": 0 },
+                  "maximum": { "kind": "integer", "value": 1 },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                    },
+                    "where": { "kind": "cardTypeContains", "value": "Land" }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": { "kind": "decisionResult", "decisionId": "optionalCardDeployment" },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "artifact-from-graveyard-enters-tapped",
+      "request": {
+        "cardName": "Recovered Construction",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw two cards. You may put an artifact card from your graveyard onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/count/value", "equals": 2 },
+              { "pointer": "/effects/1/candidates/zone/kind", "equals": "graveyard" },
+              { "pointer": "/effects/1/candidates/where/value", "equals": "Artifact" },
+              { "pointer": "/effects/1/minimum/value", "equals": 0 },
+              { "pointer": "/effects/2/to/tapped", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "spell-noun-near-miss",
+      "request": {
+        "cardName": "Malformed Spiral",
+        "typeLine": "Instant",
+        "manaCost": "{G}{U}",
+        "oracleText": "Draw a card. You may put a land spell from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+            {
+              "abilityIndex": 0,
+              "code": "oracle_machine_failure",
+              "automaton": "contextual-effect-program",
+              "state": "selector.resolution-card.domain",
+              "expected": "an explicit card-domain query",
+              "found": "from",
+              "traceContainsState": "effect.optional-card-deployment.filter"
+            }
+          ]
+      }
+    }
+  ]
+}

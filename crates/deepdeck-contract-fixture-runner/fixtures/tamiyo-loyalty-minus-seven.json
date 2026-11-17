@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "tamiyo-seasoned-scholar/rounded-library-draw-and-emblem-is-executable",
+  "cardName": "Tamiyo, Seasoned Scholar",
+  "oracleId": "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{
+      "kind": "payLoyalty",
+      "object": { "kind": "self" },
+      "amount": { "kind": "integer", "value": -7 }
+    }],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": {
+          "kind": "divide",
+          "left": {
+            "kind": "countCards",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": null
+          },
+          "right": { "kind": "integer", "value": 2 },
+          "round": "up"
+        }
+      },
+      {
+        "kind": "createEmblem",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "modifiers": [{
+          "kind": "noMaximumHandSize",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }]
+      }
+    ]
+  }
+}

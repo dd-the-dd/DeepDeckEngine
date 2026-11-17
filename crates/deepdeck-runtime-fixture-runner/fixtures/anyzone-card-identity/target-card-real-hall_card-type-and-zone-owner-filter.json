@@ -1,0 +1,275 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-card-real-hall/card-type-and-zone-owner-filter",
+  "seed": 261115,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{1}{W}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "cards",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Enchantment"
+            },
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          "id": "targetCardOperand",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "cards": {
+          "id": "targetCardOperand",
+          "kind": "chosenTargets"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "top"
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Hall controller",
+        "manaPool": [
+          "C",
+          "W"
+        ],
+        "battlefield": [
+          {
+            "id": "f08dfd99-59fa-4a6c-bd69-c647f639de4d",
+            "name": "Hall of Heliod's Generosity",
+            "typeLine": "Legendary Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{C}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{1}{W}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Enchantment"
+                        },
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      },
+                      "id": "targetCardOperand",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cards": {
+                      "id": "targetCardOperand",
+                      "kind": "chosenTargets"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "position": "top"
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "original-top",
+            "name": "original-top",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "enchantment",
+            "name": "enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "artifact",
+            "name": "artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent",
+        "graveyard": [
+          {
+            "id": "opponent-enchantment",
+            "name": "opponent-enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "f08dfd99-59fa-4a6c-bd69-c647f639de4d",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "targetCardOperand": {
+          "kind": "cardDefinition",
+          "definitionId": "enchantment"
+        }
+      },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "f08dfd99-59fa-4a6c-bd69-c647f639de4d",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "targetCardOperand": {
+          "kind": "cardDefinition",
+          "definitionId": "artifact"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "f08dfd99-59fa-4a6c-bd69-c647f639de4d",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "targetCardOperand": {
+          "kind": "cardDefinition",
+          "definitionId": "opponent-enchantment"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "C",
+        "W"
+      ]
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 0
+    }
+  ]
+}

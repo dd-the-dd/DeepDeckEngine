@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "voice-of-victory-mobilize-cleans-up-only-captured-token-batch",
+  "seed": 113,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "declaredAttacker",
+      "object": { "kind": "self" }
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 2 },
+        "tapped": true,
+        "attacking": true,
+        "bind": "mobilizeTokens",
+        "token": {
+          "types": ["Creature"],
+          "subtypes": ["Warrior"],
+          "colors": ["Red"],
+          "power": 1,
+          "toughness": 1
+        }
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "endStep",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "captureBindings": ["mobilizeTokens"],
+        "effects": [{
+          "kind": "sacrificePermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "objects": { "kind": "boundObjects", "binding": "mobilizeTokens" }
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Voice controller",
+        "battlefield": [
+          {
+            "id": "voice-of-victory",
+            "name": "Voice of Victory",
+            "typeLine": "Creature - Human Bard",
+            "power": "1",
+            "toughness": "3"
+          },
+          {
+            "id": "unrelated-warrior",
+            "name": "Unrelated Warrior",
+            "typeLine": "Creature - Warrior",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "voice-of-victory"
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 2 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "tokenCreated", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "abilityPerformed", "equals": 0 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "voice-of-victory", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "unrelated-warrior", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

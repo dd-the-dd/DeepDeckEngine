@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "post-cost-conditional/intrinsic-conditional-tap",
+  "seed": 8173,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{G}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "life-source",
+            "name": "Life Source",
+            "typeLine": "Basic Land \u2014 Forest",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "life-multiplier",
+            "name": "Life Multiplier",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "condition": {
+                  "kind": "controlsPermanent",
+                  "where": {
+                    "kind": "isTapped"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "multiplyManaProduction",
+                    "factor": 2,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "life-source"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G",
+        "G"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "life-source",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,308 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/counter-overflow-after-life-public-pop-rollback",
+  "seed": 99217,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": 2
+      },
+      {
+        "kind": "chooseCards",
+        "id": "optionalCardDeployment",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "==",
+                "right": {
+                  "kind": "add",
+                  "left": {
+                    "kind": "countCounters",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "counter": "verse"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2147483647
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "optionalCardDeployment"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [],
+        "battlefield": [
+          {
+            "id": "synthetic-query-source",
+            "name": "synthetic-query-source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": 2
+                  },
+                  {
+                    "kind": "chooseCards",
+                    "id": "optionalCardDeployment",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "==",
+                            "right": {
+                              "kind": "add",
+                              "left": {
+                                "kind": "countCounters",
+                                "object": {
+                                  "kind": "self"
+                                },
+                                "counter": "verse"
+                              },
+                              "right": {
+                                "kind": "integer",
+                                "value": 2147483647
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "decisionResult",
+                      "decisionId": "optionalCardDeployment"
+                    },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    }
+                  }
+                ]
+              }
+            ],
+            "counters": {
+              "verse": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "synthetic-query-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "unresolved or invalid numeric expression"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "synthetic-query-source",
+      "equals": true
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "synthetic-query-source",
+      "counter": "verse",
+      "equals": 1
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 0
+    }
+  ]
+}

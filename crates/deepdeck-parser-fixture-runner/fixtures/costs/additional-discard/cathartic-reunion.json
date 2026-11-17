@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "additional-discard/cathartic-reunion.json",
+  "cardName": "Cathartic Reunion",
+  "oracleId": "0f3c3e5f-6af3-4af2-8703-4ccc8ed8f675",
+  "cases": [
+    {
+      "id": "complete-real-oracle",
+      "request": {
+        "cardName": "Cathartic Reunion",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "As an additional cost to cast this spell, discard two cards.\nDraw three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "additionalCostCard",
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": null
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    }
+                  }
+                ],
+                "additionalCosts": [
+                  {
+                    "kind": "discardCard",
+                    "card": {
+                      "kind": "chosenObject",
+                      "id": "additionalCostCard:0"
+                    }
+                  },
+                  {
+                    "kind": "discardCard",
+                    "card": {
+                      "kind": "chosenObject",
+                      "id": "additionalCostCard:1"
+                    }
+                  }
+                ]
+              },
+              "effects": []
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

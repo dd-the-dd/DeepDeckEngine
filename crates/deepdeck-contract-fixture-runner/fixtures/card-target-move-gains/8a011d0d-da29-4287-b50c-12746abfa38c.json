@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/8a011d0d-da29-4287-b50c-12746abfa38c",
+  "cardName": "Tilling Treefolk",
+  "oracleId": "8a011d0d-da29-4287-b50c-12746abfa38c",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "8e4a10d0-214d-4e7b-9683-c84034f8f6b7",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Tilling Treefolk",
+      "typeLine": "Creature — Treefolk Druid",
+      "manaCost": "{2}{G}",
+      "oracleText": "When this creature enters, you may return up to two target land cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

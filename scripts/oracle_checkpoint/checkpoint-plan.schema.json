@@ -1,0 +1,417 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deepdeck-checkpoint-plan/v1",
+  "$defs": {
+    "fileRef": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9A-F]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "parent",
+    "sourceFreeze",
+    "sourceMode",
+    "artifacts",
+    "gates",
+    "corpora",
+    "allowedIRChanges",
+    "setCorpora",
+    "setsExpected",
+    "ledger",
+    "officialDigestScript",
+    "knownGaps",
+    "notes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "deepdeck-checkpoint-plan/v1"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parent": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "sourceFreeze": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "sourceMode": {
+      "enum": [
+        "live",
+        "root-attested-history"
+      ]
+    },
+    "historicalCertificate": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "profile"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile": {
+            "enum": [
+              "runtime",
+              "parser",
+              "contract",
+              "root-attested-analyzer",
+              "root-attested-gate"
+            ]
+          },
+          "binary": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "metadata": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "wrapperScript": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "commonScript": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "attestation": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "gateReport": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "gateLog": {
+            "$ref": "#/$defs/fileRef"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "format",
+          "evidence",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "format": {
+            "enum": [
+              "rust-test-log",
+              "parser-log",
+              "contract-log",
+              "runtime-log",
+              "strict-audit",
+              "architecture"
+            ]
+          },
+          "evidence": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "expected": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "wrapperReport": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "enum": [
+              "nativeOnly",
+              "full"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "corpora": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "before",
+          "after",
+          "input"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "before": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "after": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "input": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "allowedIRChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "oracleId",
+          "abilityIndex",
+          "beforeRule",
+          "afterRule",
+          "afterStatus",
+          "reason"
+        ],
+        "properties": {
+          "oracleId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "abilityIndex": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "beforeRule": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "afterRule": {
+            "$ref": "#/$defs/fileRef"
+          },
+          "afterStatus": {
+            "enum": [
+              "canonical",
+              "unsupported"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "setCorpora": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "setsExpected": {
+      "type": "object",
+      "required": [
+        "occurrences",
+        "partition",
+        "uniqueOracleIds",
+        "uniquePartition"
+      ],
+      "properties": {
+        "occurrences": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "partition": {
+          "type": "object",
+          "required": [
+            "completeNonempty",
+            "partial",
+            "none",
+            "emptyCanonical",
+            "emptyUnsupported"
+          ],
+          "properties": {
+            "completeNonempty": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "partial": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "none": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "emptyCanonical": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "emptyUnsupported": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "uniqueOracleIds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uniquePartition": {
+          "type": "object",
+          "required": [
+            "completeNonempty",
+            "partial",
+            "none",
+            "emptyCanonical",
+            "emptyUnsupported"
+          ],
+          "properties": {
+            "completeNonempty": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "partial": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "none": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "emptyCanonical": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "emptyUnsupported": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ledger": {
+      "type": "object",
+      "required": [
+        "before",
+        "after",
+        "appendOracleIds",
+        "repinOracleIds",
+        "corpus",
+        "beforeAudit",
+        "fixtureHashes"
+      ],
+      "properties": {
+        "before": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "after": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "appendOracleIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "repinOracleIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "corpus": {
+          "type": "string",
+          "minLength": 1
+        },
+        "beforeAudit": {
+          "$ref": "#/$defs/fileRef"
+        },
+        "fixtureHashes": {
+          "$ref": "#/$defs/fileRef"
+        }
+      },
+      "additionalProperties": false
+    },
+    "officialDigestScript": {
+      "$ref": "#/$defs/fileRef"
+    },
+    "knownGaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "blocking",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "$ref": "#/$defs/fileRef"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "plural-destruction/Hex",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "kind": "chooseTargets",
+            "id": "targetPermanent",
+            "minimum": 6,
+            "maximum": 6,
+            "candidates": {
+              "kind": "permanents",
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "chosenTargets",
+            "id": "targetPermanent"
+          }
+        }
+      ]
+    }
+  ]
+}

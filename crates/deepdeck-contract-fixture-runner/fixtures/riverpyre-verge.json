@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "riverpyre-verge/all-native-rules-are-executable",
+  "cardName": "Riverpyre Verge",
+  "oracleId": "510a6ac5-f098-4145-ac07-771b1b6f7cdf",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{R}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "activationCondition": {
+        "kind": "controlsPermanent",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "subtypeContains", "value": "Island" },
+            { "kind": "subtypeContains", "value": "Mountain" }
+          ]
+        }
+      },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{U}"
+      }]
+    }
+  ]
+}

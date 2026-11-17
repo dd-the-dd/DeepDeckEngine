@@ -1,0 +1,29 @@
+[package]
+name = "deepdeck-oracle"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["parser-standalone"]
+parser-standalone = []
+automata-trace = []
+audit-cli = ["dep:ureq"]
+ci-test-partition = []
+ci-unit-tests-1 = ["ci-test-partition"]
+ci-unit-tests-2 = ["ci-test-partition"]
+ci-unit-tests-3 = ["ci-test-partition"]
+ci-unit-tests-4 = ["ci-test-partition"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = { version = "2", features = ["json"], optional = true }
+
+[lib]
+name = "deepdeck_oracle"
+path = "src/lib.rs"
+
+[[example]]
+name = "audit_parser_set"
+path = "examples/audit_parser_set.rs"
+required-features = ["audit-cli"]

@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-source-or-filtered-entry-tapped",
+  "seed": 184,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "oneOf",
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "self"
+          },
+          "entryState": {
+            "tapped": true
+          }
+        },
+        {
+          "kind": "permanentEntered",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "anyController": true,
+          "entryState": {
+            "tapped": true
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "entry-source-observer",
+            "name": "Entry Source Observer",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "oneOf",
+                  "events": [
+                    {
+                      "kind": "enterBattlefield",
+                      "object": {
+                        "kind": "self"
+                      },
+                      "entryState": {
+                        "tapped": true
+                      }
+                    },
+                    {
+                      "kind": "permanentEntered",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "anyController": true,
+                      "entryState": {
+                        "tapped": true
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "entry-source-observer"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "entry-source-observer",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

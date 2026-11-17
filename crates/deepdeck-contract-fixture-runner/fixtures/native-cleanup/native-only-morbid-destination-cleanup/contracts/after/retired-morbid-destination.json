@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-morbid-destination",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "cards"
+        },
+        "to": {
+          "kind": "handOrBattlefieldMorbid",
+          "player": {
+            "kind": "abilityController"
+          },
+          "tapped": false
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "post-cost-independent/remove-counter-dynamic-quantity-to-zero",
+  "seed": 817,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "kind": "removeCounters",
+        "counter": "charge",
+        "count": 1,
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "fixedMana",
+          "symbol": "G",
+          "amount": {
+            "kind": "countCounters",
+            "object": {
+              "kind": "self"
+            },
+            "counter": "charge"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "cost-sensitive-color-source",
+            "name": "Cost-Sensitive Color Source",
+            "typeLine": "Artifact",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "removeCounters",
+                    "counter": "charge",
+                    "count": 1,
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "fixedMana",
+                      "symbol": "G",
+                      "amount": {
+                        "kind": "countCounters",
+                        "object": {
+                          "kind": "self"
+                        },
+                        "counter": "charge"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "counters": {
+              "charge": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "cost-sensitive-color-source"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "cost-sensitive-color-source",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "cost-sensitive-color-source",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "cost-sensitive-color-source",
+      "counter": "charge",
+      "equals": 0
+    }
+  ]
+}

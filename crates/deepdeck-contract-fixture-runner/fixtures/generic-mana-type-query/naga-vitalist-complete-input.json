@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "mana-type/naga-vitalist-complete-input",
+  "cardName": "Naga Vitalist",
+  "oracleId": "9cea8783-c7d7-49f9-b23d-324309efc140",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "ce9a8551-8788-47ea-b774-477f0f3ff22a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Naga Vitalist",
+      "typeLine": "Creature — Snake Druid",
+      "manaCost": "{1}{G}",
+      "oracleText": "{T}: Add one mana of any type that a land you control could produce.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

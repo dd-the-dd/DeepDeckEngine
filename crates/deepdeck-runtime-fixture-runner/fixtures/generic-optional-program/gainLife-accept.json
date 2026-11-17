@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "optional-sibling/gainLife/accept",
+  "seed": 10401,
+  "rule": {
+    "effects": [
+      {
+        "effects": [
+          {
+            "amount": {
+              "kind": "integer",
+              "value": 1
+            },
+            "kind": "gainLife",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "anyPlayer": true,
+      "kind": "spellCast",
+      "where": {
+        "kind": "colorContains",
+        "value": "Blue"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "real-source",
+            "name": "Kraken's Eye",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "effects": [
+                      {
+                        "amount": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "kind": "gainLife",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    ],
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "anyPlayer": true,
+                  "kind": "spellCast",
+                  "where": {
+                    "kind": "colorContains",
+                    "value": "Blue"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20,
+        "manaPool": [
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "blue-probe",
+            "name": "Synthetic blue spell event probe",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "blue-probe"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rakdos-signet-is-unavailable-without-one-mana",
+  "seed": 93,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{B}{R}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rakdos pilot",
+        "battlefield": [{
+          "id": "rakdos-signet",
+          "name": "Rakdos Signet",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "rakdos-signet",
+      "manaSymbols": ["B", "R"],
+      "equals": false
+    },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "rakdos-signet",
+      "equals": false
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

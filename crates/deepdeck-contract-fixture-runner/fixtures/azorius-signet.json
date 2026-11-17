@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "azorius-signet/mana-payment-tap-and-fixed-output-are-executable",
+  "cardName": "Azorius Signet",
+  "oracleId": "e018773f-95b3-49a3-9674-6f04ddef2092",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{W}{U}"
+    }]
+  }
+}

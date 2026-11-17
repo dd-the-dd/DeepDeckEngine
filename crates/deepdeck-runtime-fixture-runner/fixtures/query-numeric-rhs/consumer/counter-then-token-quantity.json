@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/counter-then-token-quantity-live-public-activation",
+  "seed": 19513,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "self"
+        },
+        "counter": "muster",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "quantity": {
+          "kind": "countCounters",
+          "object": {
+            "kind": "self"
+          },
+          "counter": "muster"
+        },
+        "token": {
+          "power": 1,
+          "toughness": 1,
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Soldier"
+          ],
+          "abilities": [
+            {
+              "kind": "haste"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "muster-source",
+            "name": "Muster Source",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "self"
+                    },
+                    "counter": "muster",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "countCounters",
+                      "object": {
+                        "kind": "self"
+                      },
+                      "counter": "muster"
+                    },
+                    "token": {
+                      "power": 1,
+                      "toughness": 1,
+                      "types": [
+                        "Creature"
+                      ],
+                      "subtypes": [
+                        "Soldier"
+                      ],
+                      "abilities": [
+                        {
+                          "kind": "haste"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "muster-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "muster-source",
+      "counter": "muster",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

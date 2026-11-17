@@ -1,0 +1,27 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/c9ed8b01-959a-47d6-891e-0abbdccf6e4f/complete-rule-set",
+    "cardName":  "Armageddon",
+    "oracleId":  "c9ed8b01-959a-47d6-891e-0abbdccf6e4f",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Land"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

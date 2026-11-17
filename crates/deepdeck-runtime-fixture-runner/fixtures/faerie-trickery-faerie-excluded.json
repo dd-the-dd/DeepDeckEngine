@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "faerie-trickery/faerie-excluded",
+  "seed": 1,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "subtypeContains",
+                "value": "Faerie"
+              }
+            }
+          },
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "exileInstead": true,
+        "kind": "counterSpell",
+        "spell": {
+          "id": "targetSpell",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Counterspell pilot",
+        "manaPool": [
+          "C",
+          "U",
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "faerie-trickery",
+            "name": "Faerie Trickery",
+            "typeLine": "Kindred Instant — Faerie",
+            "manaCost": "{1}{U}{U}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "spells",
+                        "where": {
+                          "kind": "not",
+                          "operand": {
+                            "kind": "subtypeContains",
+                            "value": "Faerie"
+                          }
+                        }
+                      },
+                      "id": "targetSpell",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "exileInstead": true,
+                    "kind": "counterSpell",
+                    "spell": {
+                      "id": "targetSpell",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": [
+          "R"
+        ],
+        "hand": [
+          {
+            "id": "opponent-spell",
+            "name": "Opponent Spell",
+            "typeLine": "Kindred Instant — Faerie",
+            "manaCost": "{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-spell"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "faerie-trickery",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "faerie-trickery",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    }
+  ]
+}

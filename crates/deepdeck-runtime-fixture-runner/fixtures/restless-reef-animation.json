@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "restless-reef-activation-pays-mana-and-temporarily-animates-source",
+  "seed": 70,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+    "effects": [
+      {
+        "kind": "becomeCreature",
+        "object": { "kind": "self" },
+        "addTypes": ["Creature"],
+        "addSubtypes": ["Shark"],
+        "addColors": ["U", "B"],
+        "basePower": { "kind": "integer", "value": 4 },
+        "baseToughness": { "kind": "integer", "value": 4 },
+        "retainExistingTypes": true,
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": { "kind": "self" },
+        "keyword": "deathtouch",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reef pilot",
+        "manaPool": ["C", "C", "U", "B"],
+        "battlefield": [{
+          "id": "restless-reef",
+          "name": "Restless Reef",
+          "typeLine": "Land",
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+            "effects": [
+              {
+                "kind": "becomeCreature",
+                "object": { "kind": "self" },
+                "addTypes": ["Creature"],
+                "addSubtypes": ["Shark"],
+                "addColors": ["U", "B"],
+                "basePower": { "kind": "integer", "value": 4 },
+                "baseToughness": { "kind": "integer", "value": 4 },
+                "retainExistingTypes": true,
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              },
+              {
+                "kind": "grantKeyword",
+                "object": { "kind": "self" },
+                "keyword": "deathtouch",
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }
+            ]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "restless-reef"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "restless-reef", "value": "Land", "equals": true },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "restless-reef", "value": "Creature", "equals": true },
+    { "kind": "permanentTypeLineContains", "playerId": "player-0", "definitionId": "restless-reef", "value": "Shark", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "restless-reef", "keyword": "deathtouch", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentBecameCreature", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

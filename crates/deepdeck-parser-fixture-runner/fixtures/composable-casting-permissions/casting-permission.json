@@ -1,0 +1,362 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "compositional-static-casting-permission",
+  "cases": [
+    {
+      "id": "complete-real-omniscience",
+      "request": {
+        "cardName": "Omniscience",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your hand without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castingPermission",
+                  "players": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "sourceZone": "hand",
+                  "where": null,
+                  "withoutPayingManaCost": true,
+                  "asThoughFlash": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "restricted-coordinated-query",
+      "request": {
+        "cardName": "Synthetic Casting Permission restricted-coordinated-query",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast creature or artifact spells from your hand without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castingPermission",
+                  "players": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "sourceZone": "hand",
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    ]
+                  },
+                  "withoutPayingManaCost": true,
+                  "asThoughFlash": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "each-player-permission",
+      "request": {
+        "cardName": "Synthetic Casting Permission each-player-permission",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "Each player may cast spells from their hand without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castingPermission",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "sourceZone": "hand",
+                  "where": null,
+                  "withoutPayingManaCost": true,
+                  "asThoughFlash": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opponents-permission",
+      "request": {
+        "cardName": "Synthetic Casting Permission opponents-permission",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "Your opponents may cast spells from their hands without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castingPermission",
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "sourceZone": "hand",
+                  "where": null,
+                  "withoutPayingManaCost": true,
+                  "asThoughFlash": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "free-graveyard-cap",
+      "request": {
+        "cardName": "Synthetic Casting Permission free-graveyard-cap",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your graveyard without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "library-zone-cap",
+      "request": {
+        "cardName": "Synthetic Casting Permission library-zone-cap",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your library without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-tail-not-claimed",
+      "request": {
+        "cardName": "Synthetic Casting Permission conditional-tail-not-claimed",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your hand without paying their mana costs if you control a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability",
+            "messageContains": "No token-driven native automaton claimed this ability."
+          }
+        ]
+      }
+    },
+    {
+      "id": "temporary-tail-not-static",
+      "request": {
+        "cardName": "Synthetic Casting Permission temporary-tail-not-static",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your hand without paying their mana costs until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability",
+            "messageContains": "No token-driven native automaton claimed this ability."
+          }
+        ]
+      }
+    },
+    {
+      "id": "extra-sentence-not-partial",
+      "request": {
+        "cardName": "Synthetic Casting Permission extra-sentence-not-partial",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "You may cast spells from your hand without paying their mana costs. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability",
+            "messageContains": "No token-driven native automaton claimed this ability."
+          }
+        ]
+      }
+    }
+  ]
+}

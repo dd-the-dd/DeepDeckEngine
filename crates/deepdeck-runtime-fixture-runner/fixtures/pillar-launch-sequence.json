@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "pillar-launch-modifies-grants-and-untaps-the-same-target",
+  "seed": 141189,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "modifyPowerToughness",
+        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "power": { "kind": "integer", "value": 2 },
+        "toughness": { "kind": "integer", "value": 2 },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "keyword": "reach",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "untapPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pillar Launch caster",
+        "hand": [{
+          "id": "pillar-launch",
+          "name": "Pillar Launch",
+          "typeLine": "Instant",
+          "manaCost": "{G}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Creature controller",
+        "battlefield": [
+          {
+            "id": "launch-target",
+            "name": "Launch Target",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "3",
+            "tapped": true
+          },
+          {
+            "id": "bystander",
+            "name": "Bystander",
+            "typeLine": "Creature - Test",
+            "power": "1",
+            "toughness": "4",
+            "tapped": true
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "pillar-launch",
+    "targets": {
+      "targetPermanent": {
+        "permanent": { "instanceId": "player-1:launch-target:0" }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-1",
+      "definitionId": "launch-target",
+      "power": 4,
+      "toughness": 5
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-1",
+      "definitionId": "launch-target",
+      "keyword": "reach",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "launch-target",
+      "equals": false
+    },
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-1",
+      "definitionId": "bystander",
+      "power": 1,
+      "toughness": 4
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-1",
+      "definitionId": "bystander",
+      "keyword": "reach",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "bystander",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "powerToughnessModified", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentUntapped", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/b0dbfd40-ecc5-493b-976b-bc3f62137fcf",
+  "cardName": "Pestered Wellguard",
+  "oracleId": "b0dbfd40-ecc5-493b-976b-bc3f62137fcf",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3e06c99e-ecb2-42e9-ac58-2542de8d54a5",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Pestered Wellguard",
+      "typeLine": "Creature — Merfolk Soldier",
+      "manaCost": "{3}{U}",
+      "oracleText": "Whenever this creature becomes tapped, create a 1/1 blue and black Faerie creature token with flying.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

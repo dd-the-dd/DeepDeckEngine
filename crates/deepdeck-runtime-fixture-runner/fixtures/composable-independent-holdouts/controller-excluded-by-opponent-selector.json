@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "review-holdout/controller-excluded-by-opponent-selector",
+  "seed": 412,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "p1",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [],
+        "manaPool": []
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": [
+          {
+            "id": "opponent-query-permission",
+            "name": "Opponent Query Permission",
+            "typeLine": "Enchantment",
+            "manaCost": "{7}{U}{U}{U}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "castingPermission",
+                    "players": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "sourceZone": "hand",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "not",
+                          "operand": {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        }
+                      ]
+                    },
+                    "withoutPayingManaCost": true,
+                    "asThoughFlash": false
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "holdout-artifact",
+            "name": "Holdout Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{4}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "castSpell",
+        "controllerId": "p1",
+        "sourceDefinitionId": "holdout-artifact",
+        "declarationDecisions": {
+          "withoutPayingManaCost": true
+        }
+      },
+      "expectedErrorContains": "unknown declaration decision withoutPayingManaCost"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "hand",
+      "definitionId": "holdout-artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

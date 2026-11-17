@@ -1,0 +1,132 @@
+{
+  "checkpoint": "5EB1FE74",
+  "accepted": true,
+  "perSet": [
+    {
+      "set": "MBC",
+      "cards": 80,
+      "complete": 8,
+      "vanilla": 0,
+      "partial": 15,
+      "none": 57,
+      "nativeAbilities": 26,
+      "abilities": 181,
+      "outputSha256": "35F67F5C9585E40907A823085F3D7CF739BF81609178C0C9AD25735E87BB9ED6"
+    },
+    {
+      "set": "FRA",
+      "cards": 285,
+      "complete": 39,
+      "vanilla": 2,
+      "partial": 109,
+      "none": 137,
+      "nativeAbilities": 185,
+      "abilities": 562,
+      "outputSha256": "C1D6DE6F3A1E891C87A022FA9FC508B43E9F2334FB7684E3C0D3B41273FB1ACB"
+    },
+    {
+      "set": "HOB",
+      "cards": 193,
+      "complete": 13,
+      "vanilla": 1,
+      "partial": 83,
+      "none": 97,
+      "nativeAbilities": 110,
+      "abilities": 387,
+      "outputSha256": "5692CFA86470AAC585E29BF6804EAC6046CE7728FAB91511550306A25FCC4097"
+    },
+    {
+      "set": "MSH",
+      "cards": 281,
+      "complete": 18,
+      "vanilla": 0,
+      "partial": 142,
+      "none": 121,
+      "nativeAbilities": 198,
+      "abilities": 590,
+      "outputSha256": "C02D3275AE7C598046CC593708E4780B838B51BB668071D0D3C49D1E94B33574"
+    },
+    {
+      "set": "SOS",
+      "cards": 271,
+      "complete": 38,
+      "vanilla": 0,
+      "partial": 97,
+      "none": 136,
+      "nativeAbilities": 181,
+      "abilities": 506,
+      "outputSha256": "D34B6482166ED4FE7EFA89AE79D79B64A9DDA604AAF52812D62CE939D7D41D50"
+    },
+    {
+      "set": "TMT",
+      "cards": 195,
+      "complete": 18,
+      "vanilla": 0,
+      "partial": 80,
+      "none": 97,
+      "nativeAbilities": 116,
+      "abilities": 408,
+      "outputSha256": "45AAEAEC36FD1F7187EAE18B61CBA0F0FE3C65186F74AC0E81423BEFBCC13BDD"
+    },
+    {
+      "set": "ECL",
+      "cards": 273,
+      "complete": 20,
+      "vanilla": 0,
+      "partial": 80,
+      "none": 173,
+      "nativeAbilities": 120,
+      "abilities": 540,
+      "outputSha256": "3D1EAE47002BC9A19574F50B29F54C2DEE957E4C029F6841DC113063AE503ACE"
+    },
+    {
+      "set": "TLA",
+      "cards": 286,
+      "complete": 32,
+      "vanilla": 0,
+      "partial": 96,
+      "none": 158,
+      "nativeAbilities": 177,
+      "abilities": 604,
+      "outputSha256": "D4AD25CE07897E5202CB6C0C47E8434D2C23811AB10F3EE4643E95847D590303"
+    },
+    {
+      "set": "SPM",
+      "cards": 193,
+      "complete": 13,
+      "vanilla": 0,
+      "partial": 88,
+      "none": 92,
+      "nativeAbilities": 115,
+      "abilities": 400,
+      "outputSha256": "36015DC16590232A606CC99072E407645B5EF222F54CCD0300CAEB198AF78751"
+    },
+    {
+      "set": "EOE",
+      "cards": 266,
+      "complete": 20,
+      "vanilla": 0,
+      "partial": 85,
+      "none": 161,
+      "nativeAbilities": 129,
+      "abilities": 519,
+      "outputSha256": "88F9040FB69E90658CBDA3FCCEFD20457227D6B3FA4E553705E43D687517D54F"
+    }
+  ],
+  "perSetOccurrences": 2323,
+  "deduplicatedUnion": {
+    "cards": 2279,
+    "complete": 176,
+    "vanilla": 3,
+    "partial": 874,
+    "none": 1229,
+    "nativeAbilities": 1313,
+    "abilities": 4652
+  },
+  "since55": {
+    "complete": 3,
+    "nativeAbilities": 5
+  },
+  "oracleMutations": 0,
+  "unmanifestedRegressions": 0
+}

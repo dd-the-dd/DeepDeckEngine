@@ -1,0 +1,537 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "source-owner-vs-proved-anaphor-scope",
+  "cases": [
+    {
+      "id": "cast-other-spell-not-owner",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sacrificed-other-permanent-not-owner",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you sacrifice a permanent, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "played-other-land-not-owner",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you play a land, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-entering-object-not-owner",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever a creature enters, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-target-overrides-source-event",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, target creature gets +1/+1 until end of turn. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-target-overrides-source-entry",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "When this artifact enters, target creature gets +1/+1 until end of turn. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plural-clears-source-event",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, creatures you control get +1/+1 until end of turn. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "draw-clears-singular-subject",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, draw a card. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-spell-then-player-action-still-not-owner",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, you gain 1 life. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "targeted-player-is-not-source",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, target player gains 1 life. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-owner-after-cast",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, Source Binding Witness deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": null
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-owner-after-land-play",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you play a land, Source Binding Witness deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "landPlayed",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "proved-source-tapped",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "proved-source-died",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "When this artifact dies, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-source-survives-local-target",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, target creature gets +1/+1 until end of turn. Source Binding Witness deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/source",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/effects/1/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              {
+                "pointer": "/effects/1/recipient",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-explicit-source-can-bind-after-other-event",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, this creature gets +1/+1 until end of turn. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/source",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/effects/1/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              {
+                "pointer": "/effects/1/recipient",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

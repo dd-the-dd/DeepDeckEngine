@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/06494c26-3822-43ee-bedf-611c9ec7cc6b",
+  "cardName": "Puppet Conjurer",
+  "oracleId": "06494c26-3822-43ee-bedf-611c9ec7cc6b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cc6ee904-95ca-4ec3-ad7d-ee084aa0c00f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Puppet Conjurer",
+      "typeLine": "Artifact Creature — Human Wizard",
+      "manaCost": "{1}{B}",
+      "oracleText": "{U}, {T}: Create a 0/1 blue Homunculus artifact creature token.\nAt the beginning of your upkeep, sacrifice a Homunculus.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

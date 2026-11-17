@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/destroyOptionalPermanentOfTriggeringPlayer",
+  "cardName": "Specialized effect audit batch04",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "destroyOptionalPermanentOfTriggeringPlayer",
+        "player": {
+          "kind": "abilityController"
+        }
+      }
+    ]
+  }
+}

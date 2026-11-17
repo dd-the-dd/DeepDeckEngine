@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mass-destruction-freezes-graveyard-replacement-before-removing-its-source",
+  "seed": 502,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "player": { "kind": "opponentsOf", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Land" } }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ultimatum caster",
+        "hand": [{
+          "id": "opponent-nonland-destruction",
+          "name": "Opponent Nonland Destruction",
+          "typeLine": "Sorcery",
+          "manaCost": "",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": {
+                "kind": "eachPermanent",
+                "player": { "kind": "opponentsOf", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Land" } }
+              }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Replacement controller",
+        "battlefield": [
+          {
+            "id": "graveyard-replacement-source",
+            "name": "Graveyard Replacement Source",
+            "typeLine": "Enchantment",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+              "modifiers": [{
+                "kind": "replaceGraveyardDestination",
+                "graveyardOwners": { "kind": "eachPlayer" },
+                "where": null,
+                "from": { "kind": "anyZone" },
+                "to": { "kind": "exile" }
+              }]
+            }]
+          },
+          {
+            "id": "replacement-batch-victim",
+            "name": "Replacement Batch Victim",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "opponent-nonland-destruction" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "graveyard-replacement-source", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "replacement-batch-victim", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "replacement-batch-victim", "equals": false },
+    { "kind": "eventCount", "eventKind": "graveyardDestinationReplaced", "playerId": "player-1", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

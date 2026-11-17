@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "independent-c-actor-predicate-combination-compiler-link",
+  "cases": [
+    {
+      "id": "opponents-artifact-and-not-creature-unchanged-runtime-rule",
+      "request": {
+        "cardName": "Opponent Query Permission",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}{U}{U}{U}",
+        "oracleText": "Your opponents may cast artifact noncreature spells from their hands without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castingPermission",
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "sourceZone": "hand",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    ]
+                  },
+                  "withoutPayingManaCost": true,
+                  "asThoughFlash": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

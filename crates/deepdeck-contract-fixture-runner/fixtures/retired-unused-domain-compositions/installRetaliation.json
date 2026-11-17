@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/installRetaliation",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "installRetaliation",
+        "object": {
+          "kind": "self"
+        },
+        "duration": {
+          "kind": "untilNextTurn",
+          "player": {
+            "kind": "abilityController"
+          }
+        }
+      }
+    ]
+  }
+}

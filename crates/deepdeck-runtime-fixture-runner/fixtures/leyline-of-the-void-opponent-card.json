@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "leyline-of-the-void-exiles-an-opponents-resolved-card",
+  "seed": 14403,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "isToken"
+          }
+        },
+        "from": {
+          "kind": "anyZone"
+        },
+        "to": {
+          "kind": "exile"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Leyline controller",
+        "battlefield": [
+          {
+            "id": "leyline-of-the-void",
+            "name": "Leyline of the Void",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "openingHandBattlefield"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "graveyardOwners": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "kind": "replaceGraveyardDestination",
+                    "to": {
+                      "kind": "exile"
+                    },
+                    "where": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "isToken"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": [
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "opponent-instant",
+            "name": "Opponent Instant",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-instant"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opponent-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-instant",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "graveyardDestinationReplaced",
+      "playerId": "player-1",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

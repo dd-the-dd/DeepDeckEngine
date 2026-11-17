@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "distinct-colors/actual-bloom-distinct-colors",
+  "seed": 421,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "mana": {
+          "kind": "eachColorAmongPermanents",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "bloom-tender",
+            "name": "Bloom Tender",
+            "typeLine": "Creature — Elf Druid",
+            "manaCost": "{1}{G}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "eachColorAmongPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "red",
+            "name": "red",
+            "typeLine": "Artifact",
+            "manaCost": "{R}",
+            "rules": []
+          },
+          {
+            "id": "red-duplicate",
+            "name": "red-duplicate",
+            "typeLine": "Artifact",
+            "manaCost": "{R}",
+            "rules": []
+          },
+          {
+            "id": "white-red",
+            "name": "white-red",
+            "typeLine": "Artifact",
+            "manaCost": "{W}{R}",
+            "rules": []
+          },
+          {
+            "id": "colorless",
+            "name": "colorless",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-blue",
+            "name": "opponent-blue",
+            "typeLine": "Artifact",
+            "manaCost": "{U}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "bloom-tender"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "W",
+        "R",
+        "G"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "bloom-tender",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    }
+  ]
+}

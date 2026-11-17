@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rhythm-of-the-wild-grants-typed-riot-entry-choices",
+  "seed": 114,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "grantKeyword",
+      "objects": {
+        "kind": "permanents",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "not", "operand": { "kind": "isToken" } },
+            { "kind": "cardTypeContains", "value": "Creature" }
+          ]
+        }
+      },
+      "keyword": "riot"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rhythm controller",
+        "manaPool": ["C", "C", "C", "C"],
+        "battlefield": [{
+          "id": "rhythm-of-the-wild",
+          "name": "Rhythm of the Wild",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+            "modifiers": [{
+              "kind": "grantKeyword",
+              "objects": {
+                "kind": "permanents",
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    { "kind": "not", "operand": { "kind": "isToken" } },
+                    { "kind": "cardTypeContains", "value": "Creature" }
+                  ]
+                }
+              },
+              "keyword": "riot"
+            }]
+          }]
+        }],
+        "hand": [
+          {
+            "id": "riot-counter-creature",
+            "name": "Riot Counter Creature",
+            "typeLine": "Creature - Beast",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "riot-haste-creature",
+            "name": "Riot Haste Creature",
+            "typeLine": "Creature - Beast",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "riot-counter-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "riot-haste-creature" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "riot-counter-creature", "counter": "+1/+1", "equals": 1 },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "riot-counter-creature", "keyword": "haste", "equals": false },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "riot-haste-creature", "counter": "+1/+1", "equals": 0 },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "riot-haste-creature", "keyword": "haste", "equals": true },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

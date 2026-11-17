@@ -2909,6 +2909,7 @@ mod tests {
             revision: 1,
             state: crate::engine::GameState {
                 schema_version: "mtg-game/v1".to_string(),
+                battlefield_incarnation_sequence: 0,
                 game_mode: GameMode::Free,
                 status: crate::engine::GameStatus::InProgress,
                 turn_number: 1,

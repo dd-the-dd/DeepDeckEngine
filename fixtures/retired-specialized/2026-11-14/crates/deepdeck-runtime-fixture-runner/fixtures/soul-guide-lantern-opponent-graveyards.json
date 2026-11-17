@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "soul-guide-lantern-exiles-only-opponent-graveyards",
+  "seed": 9901,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [{
+      "kind": "exileAllGraveyards",
+      "exceptPlayer": { "kind": "controllerOf", "object": { "kind": "self" } }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lantern pilot",
+        "battlefield": [{
+          "id": "soul-guide-lantern-purge",
+          "name": "Soul-Guide Lantern",
+          "typeLine": "Artifact",
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [
+              { "kind": "tap", "object": { "kind": "self" } },
+              { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+            ],
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "exileAllGraveyards",
+              "exceptPlayer": { "kind": "controllerOf", "object": { "kind": "self" } }
+            }]
+          }]
+        }],
+        "graveyard": [{ "id": "pilot-card", "name": "Pilot Card", "typeLine": "Instant" }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent One",
+        "graveyard": [{ "id": "opponent-one-card", "name": "Opponent One Card", "typeLine": "Sorcery" }]
+      },
+      {
+        "id": "player-2",
+        "name": "Opponent Two",
+        "graveyard": [{ "id": "opponent-two-card", "name": "Opponent Two Card", "typeLine": "Creature", "power": "1", "toughness": "1" }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "soul-guide-lantern-purge",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "pilot-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "opponent-one-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-2", "zone": "exile", "definitionId": "opponent-two-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "soul-guide-lantern-purge", "equals": true },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

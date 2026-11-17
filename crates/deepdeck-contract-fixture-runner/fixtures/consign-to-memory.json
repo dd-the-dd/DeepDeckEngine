@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "consign-to-memory/heterogeneous-stack-counter-is-executable",
+  "cardName": "Consign to Memory",
+  "oracleId": "16c39265-72d9-4c86-a961-8dd38ff9adcd",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetStackObject",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "stackItems",
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "isTriggeredAbility" },
+                {
+                  "kind": "and",
+                  "operands": [
+                    { "kind": "isColorless" },
+                    { "kind": "isSpell" }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "counterStackObject",
+        "object": { "kind": "chosenTarget", "id": "targetStackObject" }
+      }
+    ]
+  }
+}

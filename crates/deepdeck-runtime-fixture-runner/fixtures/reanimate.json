@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "reanimate-captures-mana-value-before-moving-an-opponents-card-under-caster-control",
+  "seed": 119,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "targetGraveyardCard",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "anyGraveyard" },
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetManaValue",
+        "value": {
+          "kind": "manaValueOf",
+          "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "boundValue", "id": "targetManaValue" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reanimate caster",
+        "life": 20,
+        "manaPool": ["B"],
+        "hand": [{
+          "id": "reanimate",
+          "name": "Reanimate",
+          "typeLine": "Sorcery",
+          "manaCost": "{B}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "kind": "chooseTargets",
+                "id": "targetGraveyardCard",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "cards",
+                  "zone": { "kind": "anyGraveyard" },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [
+              {
+                "kind": "bind",
+                "id": "targetManaValue",
+                "value": {
+                  "kind": "manaValueOf",
+                  "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+                }
+              },
+              {
+                "kind": "moveCards",
+                "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+                "to": {
+                  "kind": "battlefield",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "tapped": false
+                }
+              },
+              {
+                "kind": "loseLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "boundValue", "id": "targetManaValue" }
+              }
+            ]
+          }]
+        }],
+        "graveyard": [{
+          "id": "ineligible-instant",
+          "name": "Ineligible Instant",
+          "typeLine": "Instant",
+          "manaCost": "{8}{U}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Creature owner",
+        "graveyard": [{
+          "id": "opponent-creature",
+          "name": "Opponent Creature",
+          "typeLine": "Creature - Sphinx",
+          "manaCost": "{3}{U}{U}",
+          "power": "5",
+          "toughness": "5"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "reanimate" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "opponent-creature", "equals": true },
+    { "kind": "permanentController", "playerId": "player-0", "definitionId": "opponent-creature", "equals": "player-0" },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "opponent-creature", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "ineligible-instant", "equals": true },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 15 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "reanimate", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

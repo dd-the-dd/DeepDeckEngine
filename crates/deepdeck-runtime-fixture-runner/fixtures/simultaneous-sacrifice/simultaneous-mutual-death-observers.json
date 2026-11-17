@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "known-gap/sacrifice-collection/simultaneous-mutual-death-observers",
+  "seed": 1892,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "triggeringPlayer"
+        },
+        "objects": {
+          "kind": "eachPermanent",
+          "player": {
+            "kind": "triggeringPlayer"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Source controller",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Sacrificing player",
+        "battlefield": [
+          {
+            "id": "observer-a",
+            "name": "observer-a",
+            "typeLine": "Creature - Scout",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentDied",
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": true,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "observer-b",
+            "name": "observer-b",
+            "typeLine": "Creature - Scout",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentDied",
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": true,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source",
+    "decisions": {
+      "triggeringPlayerId": "player-1"
+    }
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 2
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 2
+    }
+  ]
+}

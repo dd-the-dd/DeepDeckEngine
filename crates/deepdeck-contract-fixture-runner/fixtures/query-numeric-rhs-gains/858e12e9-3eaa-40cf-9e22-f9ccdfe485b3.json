@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/858e12e9-3eaa-40cf-9e22-f9ccdfe485b3",
+  "cardName": "Broken Bond",
+  "oracleId": "858e12e9-3eaa-40cf-9e22-f9ccdfe485b3",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b4dcb59f-2a47-4461-9831-204ad15696b5",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Broken Bond",
+      "typeLine": "Sorcery",
+      "manaCost": "{1}{G}",
+      "oracleText": "Destroy target artifact or enchantment. You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

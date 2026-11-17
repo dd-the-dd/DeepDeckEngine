@@ -1,0 +1,400 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/spell-cost-reduction",
+  "cases": [
+    {
+      "id": "exact-goblin-anarchomancer",
+      "request": {
+        "cardName": "Goblin Anarchomancer",
+        "typeLine": "Creature — Goblin Shaman",
+        "manaCost": "{R}{G}",
+        "oracleText": "Each spell you cast that's red or green costs {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "rule": {
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "reduceCastingCost",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "colorContains", "value": "Red" },
+                  { "kind": "colorContains", "value": "Green" }
+                ]
+              },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "artifact-spell-sibling",
+      "request": {
+        "cardName": "Artifact Reducer",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Artifact spells you cast cost {2} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/where/kind", "equals": "cardTypeContains" },
+            { "pointer": "/modifiers/0/where/value", "equals": "Artifact" },
+            { "pointer": "/modifiers/0/amount/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "all-spells-domain-only-lowers-to-null-filter",
+      "request": {
+        "cardName": "All-Spells Reducer",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/kind", "equals": "reduceCastingCost" },
+            { "pointer": "/modifiers/0/where", "equals": null },
+            { "pointer": "/modifiers/0/amount/value", "equals": 1 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "color-type-union-sibling",
+      "request": {
+        "cardName": "Mixed Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red or artifact spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/where/kind", "equals": "or" },
+            { "pointer": "/modifiers/0/where/operands/0/kind", "equals": "colorContains" },
+            { "pointer": "/modifiers/0/where/operands/1/kind", "equals": "cardTypeContains" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "opponent-scope-is-explicitly-unsupported",
+      "request": {
+        "cardName": "Opponent Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells your opponents cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.caster-scope"
+        }]
+      }
+    },
+    {
+      "id": "colored-reduction-is-rejected",
+      "request": {
+        "cardName": "Colored Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {R} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.cost",
+          "expectedContains": "positive generic"
+        }]
+      }
+    },
+    {
+      "id": "unbound-x-reduction-is-rejected",
+      "request": {
+        "cardName": "Variable Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {X} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.cost",
+          "expectedContains": "positive generic"
+        }]
+      }
+    },
+    {
+      "id": "zero-reduction-is-rejected",
+      "request": {
+        "cardName": "Zero Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {0} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.cost",
+          "expectedContains": "positive generic"
+        }]
+      }
+    },
+    {
+      "id": "multi-symbol-reduction-is-rejected",
+      "request": {
+        "cardName": "Mixed Mana Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {1}{R} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.cost",
+          "expectedContains": "positive generic"
+        }]
+      }
+    },
+    {
+      "id": "overflow-reduction-is-rejected",
+      "request": {
+        "cardName": "Overflow Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {2147483648} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.cost",
+          "expectedContains": "positive generic"
+        }]
+      }
+    },
+    {
+      "id": "nonpermanent-source-is-rejected",
+      "request": {
+        "cardName": "Impossible Instant Reducer",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Red spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.start",
+            "expectedContains": "a supported effect subject",
+            "found": "Red"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-continuation-is-explicitly-rejected",
+      "request": {
+        "cardName": "Conditional Reducer",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red spells you cast cost {1} less to cast if it is your turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native", "abilityType": "staticAbility" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "casting-reduction.terminator",
+          "expected": ".",
+          "found": "if"
+        }]
+      }
+    },
+    {
+      "id": "shared-relative-query-permanent-entry-consumer",
+      "request": {
+        "cardName": "Relative Entry Watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature that's red or green enters, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "ruleAssertions": [
+            { "pointer": "/event/where/kind", "equals": "and" },
+            { "pointer": "/event/where/operands/0/kind", "equals": "cardTypeContains" },
+            { "pointer": "/event/where/operands/0/value", "equals": "Creature" },
+            { "pointer": "/event/where/operands/1/kind", "equals": "or" },
+            { "pointer": "/effects/0/kind", "equals": "gainLife" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "empty-relative-query-is-not-accepted",
+      "request": {
+        "cardName": "Broken Relative Entry Watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature that's enters, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "triggeredAbility"
+        }],
+        "diagnostics": [{ "abilityIndex": 0, "code": "unsupported_oracle_ability" }]
+      }
+    }
+  ]
+}
+

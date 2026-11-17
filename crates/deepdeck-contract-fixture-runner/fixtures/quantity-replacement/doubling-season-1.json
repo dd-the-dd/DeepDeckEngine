@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-replacement/doubling-season/1",
+  "cardName": "doubling-season",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceEventQuantity",
+        "event": {
+          "kind": "counterPlacement",
+          "origin": "effect",
+          "minimum": 1,
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "recipientKind": "permanent"
+        },
+        "quantity": {
+          "kind": "multiply",
+          "left": {
+            "kind": "integer",
+            "value": 2
+          },
+          "right": {
+            "kind": "eventQuantity"
+          }
+        }
+      }
+    ]
+  }
+}

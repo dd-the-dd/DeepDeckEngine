@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/abfa5753-8c02-4e2f-8f98-b0636907293a",
+  "cardName": "Blood Fountain",
+  "oracleId": "abfa5753-8c02-4e2f-8f98-b0636907293a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1b0c4931-3260-411a-9c7d-b67c87e7aecc",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Blood Fountain",
+      "typeLine": "Artifact",
+      "manaCost": "{B}",
+      "oracleText": "When this artifact enters, create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")\n{3}{B}, {T}, Sacrifice this artifact: Return up to two target creature cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "fabled-passage-empty-search-does-not-untap-an-unbound-object",
+  "seed": 134,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      { "kind": "shuffleZone", "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countPermanents",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Land" },
+            "excludeSource": false
+          },
+          "right": { "kind": "integer", "value": 4 }
+        },
+        "then": [{
+          "kind": "untapPermanents",
+          "objects": { "kind": "decisionResult", "decisionId": "searchedCards" }
+        }],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Passage pilot",
+        "battlefield": [
+          { "id": "fabled-passage", "name": "Fabled Passage", "typeLine": "Land" },
+          { "id": "land-a", "name": "Land A", "typeLine": "Land" },
+          { "id": "land-b", "name": "Land B", "typeLine": "Land" },
+          { "id": "land-c", "name": "Land C", "typeLine": "Land" },
+          { "id": "land-d", "name": "Land D", "typeLine": "Land" }
+        ],
+        "library": [
+          { "id": "nonbasic-forest", "name": "Nonbasic Forest", "typeLine": "Land - Forest" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "activateAbility", "controllerId": "player-0", "sourceDefinitionId": "fabled-passage", "abilityRuleIndex": 0 },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 4 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "nonbasic-forest", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentUntapped", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

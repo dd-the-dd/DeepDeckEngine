@@ -1,0 +1,1090 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "universal-context-domain",
+  "cases": [
+    {
+      "id": "real-great-divide-guide-full",
+      "request": {
+        "cardName": "Great Divide Guide",
+        "typeLine": "Creature — Human Scout Ally",
+        "manaCost": "{1}{G}",
+        "oracleText": "Each land and Ally you control has \"{T}: Add one mana of any color.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Ally"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": {
+                          "kind": "chooseColor",
+                          "amount": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-plural-equivalent-of-each-nominals",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All lands and Allies you control have \"{T}: Add one mana of any color.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Ally"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": {
+                          "kind": "chooseColor",
+                          "amount": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-artifact-or-wizard-fixed-mana",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All artifacts and Wizards you control have \"{T}: Add {C}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Wizard"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": "{C}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "bare-subtype-explicit-context",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each Ally you control has \"{T}: Add {U}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "subtypeContains",
+                      "value": "Ally"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": "{U}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-exclusion-composes-after-quantifier",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All other artifacts you control have \"{T}: Add {C}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": "{C}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "branch-local-keywords-stay-local",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each artifact with flying and creature with reach you control has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "hasKeyword",
+                              "value": "flying"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "hasKeyword",
+                              "value": "reach"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": "{G}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "top-level-universal-domain-is-true",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All permanents you control have \"{T}: Add {C}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": null,
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": "{C}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-legendary-subtype-alternative-mana",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each other legendary artifact and Shaman you control has \"{T}: Add {R} or {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "isLegendary"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Shaman"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": {
+                          "kind": "chooseOne",
+                          "options": [
+                            "{R}",
+                            "{G}"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legacy-bare-lantern-full-ir-preserved",
+      "request": {
+        "cardName": "Chromatic Lantern",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Lands you control have \"{T}: Add one mana of any color.\"\n{T}: Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "mana": {
+                          "kind": "chooseColor",
+                          "amount": 1
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "incompatible-instant-permanent-domain",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each instant you control has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "adjective-is-not-a-nominal-head",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each red you control has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-domain-or-filter-not-narrowed",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All permanents or artifacts you control have \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "local-controller-not-hoisted",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each artifact you control or Ally has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "temporary-tail-not-static",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each land and Ally you control has \"{T}: Add {G}.\" until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "extra-sentence-not-partially-claimed",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each land and Ally you control has \"{T}: Add {G}.\" Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-static-number-stays-unsupported",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each artifact with mana value X or less you control has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-granted-activation",
+            "state": "static.granted-activation.permanent-domain",
+            "expected": "a bound static collection predicate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nonpermanent-alternative-not-erased",
+      "request": {
+        "cardName": "Universal Collection Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Each land and instant you control has \"{T}: Add {G}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    }
+  ]
+}

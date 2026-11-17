@@ -1,0 +1,335 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "aether-vial/real-optional-decline",
+  "seed": 99217,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "==",
+                "right": {
+                  "counter": "charge",
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          },
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "optionalCardDeployment",
+        "kind": "chooseCards",
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "optionalCardDeployment",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "eligible-two",
+            "name": "eligible-two",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "11e8d2fd-b132-4807-9410-8edeffa519ed",
+            "name": "Aether Vial",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "effects": [
+                      {
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "counter": "charge",
+                        "kind": "putCounters",
+                        "permanent": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "stepBegan",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "step": "upkeep"
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "==",
+                            "right": {
+                              "counter": "charge",
+                              "kind": "countCounters",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "optionalCardDeployment",
+                    "kind": "chooseCards",
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "optionalCardDeployment",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "counters": {
+              "charge": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "11e8d2fd-b132-4807-9410-8edeffa519ed",
+      "abilityRuleIndex": 1
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 0,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "eligible-two",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "eligible-two",
+      "equals": false
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "11e8d2fd-b132-4807-9410-8edeffa519ed",
+      "counter": "charge",
+      "equals": 2
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "11e8d2fd-b132-4807-9410-8edeffa519ed",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "checked-token-count-stack",
+  "seed": 912,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "quantity": {
+          "kind": "subtract",
+          "left": {
+            "kind": "multiply",
+            "left": {
+              "kind": "countCards",
+              "zone": {
+                "kind": "hand",
+                "player": {
+                  "kind": "abilityController"
+                }
+              },
+              "where": null
+            },
+            "right": {
+              "kind": "integer",
+              "value": 2147483647
+            }
+          },
+          "right": {
+            "kind": "integer",
+            "value": 2147483647
+          }
+        },
+        "token": {
+          "power": 1,
+          "toughness": 1,
+          "colors": [
+            "Red"
+          ],
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Elemental"
+          ],
+          "abilities": []
+        }
+      }
+    ],
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "maker",
+            "name": "maker",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "subtract",
+                      "left": {
+                        "kind": "multiply",
+                        "left": {
+                          "kind": "countCards",
+                          "zone": {
+                            "kind": "hand",
+                            "player": {
+                              "kind": "abilityController"
+                            }
+                          },
+                          "where": null
+                        },
+                        "right": {
+                          "kind": "integer",
+                          "value": 2147483647
+                        }
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 2147483647
+                      }
+                    },
+                    "token": {
+                      "power": 1,
+                      "toughness": 1,
+                      "colors": [
+                        "Red"
+                      ],
+                      "types": [
+                        "Creature"
+                      ],
+                      "subtypes": [
+                        "Elemental"
+                      ],
+                      "abilities": []
+                    }
+                  }
+                ],
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "one",
+            "name": "one",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "two",
+            "name": "two",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "maker",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "numeric expression",
+      "retry": false
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    }
+  ]
+}

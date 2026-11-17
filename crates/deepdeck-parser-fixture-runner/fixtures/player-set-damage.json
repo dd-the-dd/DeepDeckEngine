@@ -1,0 +1,579 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic-player-set-damage",
+  "cases": [
+    {
+      "id": "exact-impact-complete-source",
+      "request": {
+        "cardName": "Impact Tremors",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent",
+      "request": {
+        "cardName": "Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-player",
+      "request": {
+        "cardName": "Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "eachPlayer"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-your-opponents",
+      "request": {
+        "cardName": "Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to your opponents.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "population-action-then-controller-action",
+      "request": {
+        "cardName": "Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each opponent and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "declared-x-same-spell-face",
+      "request": {
+        "cardName": "Population X Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "This spell deals X damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/recipient",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/amount",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-targeted-multi-sentence-native-compatibility",
+      "request": {
+        "cardName": "Targeted Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}{W}",
+        "oracleText": "This spell deals 3 damage to any target. You gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-permanent-collection-native-compatibility",
+      "request": {
+        "cardName": "Collection Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to each creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "eachPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bad-plural-role",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each opponents.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unconsumed-population-alternative",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each player or opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-player-relative-condition",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2 damage to each opponent who has more life than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-spell-x",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals X damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "runtime-integer-range",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2147483648 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "range-in-legacy-damage-life-parent",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 2147483648 damage to each opponent and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unrelated-action-suffix-is-not-partial-success",
+      "request": {
+        "cardName": "Unsupported Population Spark",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to each opponent and sings a song.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "trigger-cannot-borrow-source-mana-x",
+      "request": {
+        "cardName": "Unsupported X Trigger",
+        "typeLine": "Enchantment",
+        "manaCost": "{X}{R}",
+        "oracleText": "Whenever a creature you control enters, this enchantment deals X damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "observed-creature-pronoun-is-not-current-source",
+      "request": {
+        "cardName": "Unsupported Observed Source",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever a creature you control enters, it deals 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

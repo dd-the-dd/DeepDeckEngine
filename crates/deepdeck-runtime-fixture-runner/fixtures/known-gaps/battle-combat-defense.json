@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "known-gap-combat-damage-does-not-remove-battle-defense",
+  "seed": 115,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 0 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Battle protector",
+        "battlefield": [{
+          "id": "battle-under-test",
+          "name": "Battle Under Test",
+          "typeLine": "Battle - Siege",
+          "rules": [],
+          "counters": { "defense": 4 }
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "battle-draw", "name": "Battle Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [{
+          "id": "battle-attacker",
+          "name": "Battle Attacker",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 1 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "battle-under-test", "counter": "defense", "equals": 2 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

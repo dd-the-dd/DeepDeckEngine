@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/fa19c9d7-fe93-4e93-a5ef-9af9c6cd1a5e",
+  "cardName": "Leonin Squire",
+  "oracleId": "fa19c9d7-fe93-4e93-a5ef-9af9c6cd1a5e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5a5320ff-1fe6-492a-b27f-86a84a1768ed",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Leonin Squire",
+      "typeLine": "Creature — Cat Soldier",
+      "manaCost": "{1}{W}",
+      "oracleText": "When this creature enters, return target artifact card with mana value 1 or less from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

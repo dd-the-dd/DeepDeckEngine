@@ -1,0 +1,390 @@
+//! Mechanical domain adapter. Existing mutation/validation bodies are preserved.
+//! `None`/`Ok(false)` means not handled; `Some(false)` means recognized but invalid.
+//! A handled early no-op still returns `Ok(true)`. The root owns transactions.
+use super::super::*;
+
+pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
+    Some(supports_known_effect(effect))
+}
+
+fn supports_known_effect(effect: &Value) -> bool {
+    match value_kind(effect) {
+        Some("installUntapRestriction") => {
+            target_reference_supported(&effect["permanent"])
+                && matches!(
+                    value_kind(&effect["duration"]),
+                    Some("nextUntapStep" | "whileSourceControlled")
+                )
+        }
+        Some("installRegenerationShield") => {
+            (matches!(
+                value_kind(&effect["object"]),
+                Some("self" | "abilitySource")
+            ) || target_reference_supported(&effect["object"]))
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        // CR 701.15a over a collection: `objects` is a shared object expression.
+        Some("installRegenerationShields") => {
+            object_expression_supported(&effect["objects"])
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        Some("preventCombatDamageFromPermanent") => {
+            target_reference_supported(&effect["permanent"])
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        Some("increaseOpponentSpellCostUntilNextTurn") => {
+            player_reference_supported(&effect["player"])
+                && card_filter_supported(&effect["where"])
+                && integer_value(&effect["amount"]).is_some_and(|amount| amount > 0)
+        }
+        Some("installDeathExileReplacement") => {
+            target_reference_supported(&effect["object"])
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        Some("installRuleModifier") => {
+            (value_kind(&effect["modifier"]) == Some("damageCantBePrevented")
+                || (value_kind(&effect["modifier"]) == Some("reduceCastingCost")
+                    && battlefield_static_modifier_supported(&effect["modifier"])))
+                && matches!(
+                    value_kind(&effect["duration"]),
+                    Some("untilEndOfCurrentTurn" | "untilNextTurn" | "permanent")
+                )
+                && (value_kind(&effect["duration"]) != Some("untilNextTurn")
+                    || player_reference_supported(&effect["duration"]["player"]))
+        }
+        Some("installCreatureDeathLifeGainUntilEndOfTurn") => {
+            player_reference_supported(&effect["player"])
+                && integer_value(&effect["amount"]).is_some_and(|amount| amount > 0)
+        }
+        Some("installDamageMultiplier") => {
+            player_reference_supported(&effect["player"])
+                && integer_value(&effect["factor"]).is_some_and(|factor| factor > 1)
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        Some("installCounterLinkedCharacteristics") => {
+            target_reference_supported(&effect["object"])
+                && effect["counter"].is_string()
+                && effect["addSubtypes"].as_array().is_some_and(|subtypes| {
+                    !subtypes.is_empty() && subtypes.iter().all(Value::is_string)
+                })
+                && effect["keywords"].as_array().is_some_and(|keywords| {
+                    !keywords.is_empty()
+                        && keywords.iter().all(|keyword| {
+                            keyword.as_str().is_some_and(|kind| {
+                                keyword_kind_supported(&json!({ "kind": kind }))
+                            })
+                        })
+                })
+        }
+        Some("installAdditionalManaOnLandTap") => {
+            card_filter_supported(&effect["where"])
+                && effect.get("player").is_none_or(player_reference_supported)
+                && matches!(
+                    effect["mana"].as_str(),
+                    Some("W" | "U" | "B" | "R" | "G" | "C")
+                )
+                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+        }
+        Some("installLinkedKeyword") => {
+            target_reference_supported(&effect["object"])
+                && effect["keyword"]
+                    .as_str()
+                    .is_some_and(|keyword| keyword_kind_supported(&json!({ "kind": keyword })))
+                && (effect["whileSourceControlled"].as_bool() == Some(true)
+                    || value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield"))
+        }
+        Some("installLinkedAbilityLoss") => {
+            target_reference_supported(&effect["object"])
+                && value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield")
+        }
+        Some("installLinkedDamagePrevention") => {
+            target_reference_supported(&effect["source"])
+                && value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield")
+        }
+        Some("installOneShotModifier") => {
+            value_kind(&effect["expires"]) == Some("endOfCurrentTurn")
+                && value_kind(&effect["match"]) == Some("spellCast")
+                && (value_kind(&effect["apply"]) == Some("modifyStackObject")
+                    || effect["apply"].as_array().is_some_and(|operations| {
+                        operations.iter().all(|operation| {
+                            value_kind(operation) == Some("modifyStackObject")
+                                && value_kind(&operation["modifier"]) == Some("cantBeCountered")
+                        })
+                    }))
+        }
+        _ => false,
+    }
+}
+
+impl GameEngine {
+    pub(super) fn execute_continuous_rules_domain<P: DecisionProvider>(
+        &mut self,
+        effect: &Value,
+        _next_effect: Option<&Value>,
+        stack_object: &StackObject,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+        decisions: &mut BTreeMap<String, Value>,
+        _provider: &mut P,
+    ) -> Result<bool, EngineError> {
+        self.execute_continuous_rules_domain_known(effect, stack_object, bindings, decisions)
+            .map(|()| true)
+    }
+
+    fn execute_continuous_rules_domain_known(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+        decisions: &mut BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        match value_kind(effect) {
+            Some("installUntapRestriction") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["permanent"], stack_object, bindings)
+                {
+                    let kind = if value_kind(&effect["duration"]) == Some("nextUntapStep") {
+                        "skipNextUntap"
+                    } else {
+                        "doesNotUntapWhileSourceControlled"
+                    };
+                    self.state.rule_modifiers.push(json!({
+                        "kind": kind,
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                        "cardInstanceId": instance_id,
+                    }));
+                }
+            }
+            Some("installRegenerationShield") => {
+                let instance_id = match value_kind(&effect["object"]) {
+                    Some("self" | "abilitySource") => stack_object.card.instance_id.clone(),
+                    _ => self
+                        .resolve_target(&effect["object"], stack_object, bindings)
+                        .and_then(|target| match target {
+                            TargetRef::Permanent { instance_id } => Some(instance_id),
+                            _ => None,
+                        })
+                        .unwrap_or_default(),
+                };
+                self.install_regeneration_shield(&instance_id);
+            }
+            Some("installRegenerationShields") => {
+                let mut attempted = BTreeSet::new();
+                for instance_id in self
+                    .resolve_runtime_object_ids(
+                        &effect["objects"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )
+                    .unwrap_or_default()
+                {
+                    if attempted.insert(instance_id.clone()) {
+                        self.install_regeneration_shield(&instance_id);
+                    }
+                }
+            }
+            Some("installDeathExileReplacement") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                    && self.permanent_position(&instance_id).is_some()
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "exileIfWouldDie",
+                        "cardInstanceId": instance_id,
+                        "expiresAfterTurn": self.state.turn_number,
+                    }));
+                }
+            }
+            Some("installRuleModifier") => {
+                let modifier = if value_kind(&effect["modifier"]) == Some("reduceCastingCost") {
+                    let Some(player_id) =
+                        self.resolve_player(&effect["modifier"]["player"], stack_object, bindings)
+                    else {
+                        return Ok(());
+                    };
+                    let amount = self
+                        .runtime_numeric_expression(
+                            &effect["modifier"]["amount"],
+                            stack_object,
+                            bindings,
+                            decisions,
+                        )
+                        .unwrap_or(0)
+                        .max(0);
+                    json!({
+                        "kind": "temporaryCastingCostReduction",
+                        "playerId": player_id,
+                        "where": effect["modifier"]["where"],
+                        "amount": amount,
+                        "expiresAfterTurn": self.state.turn_number,
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                    })
+                } else {
+                    json!({
+                        "duration": effect["duration"],
+                        "expiresAfterTurn": self.state.turn_number,
+                        "modifier": effect["modifier"],
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                    })
+                };
+                self.state.rule_modifiers.push(modifier.clone());
+                self.record_event(
+                    "ruleModifierInstalled",
+                    Some(stack_object.controller.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    modifier,
+                );
+            }
+            Some("installCreatureDeathLifeGainUntilEndOfTurn") => {
+                if let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "creatureDeathLifeGainUntilEndOfTurn",
+                        "playerId": player_id,
+                        "amount": integer_value(&effect["amount"]).unwrap_or(1),
+                        "expiresAfterTurn": self.state.turn_number,
+                    }));
+                }
+            }
+            Some("installDamageMultiplier") => {
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let modifier = json!({
+                    "kind": "damageMultiplier",
+                    "playerId": player_id,
+                    "factor": effect["factor"],
+                    "expiresAfterTurn": self.state.turn_number,
+                });
+                self.state.rule_modifiers.push(modifier.clone());
+                self.record_event(
+                    "damageMultiplierInstalled",
+                    Some(player_id),
+                    Some(stack_object.card.instance_id.clone()),
+                    modifier,
+                );
+            }
+            Some("preventCombatDamageFromPermanent") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["permanent"], stack_object, bindings)
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "preventCombatDamageByPermanent",
+                        "permanentId": instance_id,
+                        "expiresAfterTurn": self.state.turn_number,
+                    }));
+                }
+            }
+            Some("installCounterLinkedCharacteristics") => {
+                let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                self.state.rule_modifiers.push(json!({
+                    "kind": "counterLinkedCharacteristics",
+                    "cardInstanceId": instance_id,
+                    "counter": effect["counter"],
+                    "addSubtypes": effect["addSubtypes"],
+                    "keywords": effect["keywords"],
+                }));
+            }
+            Some("increaseOpponentSpellCostUntilNextTurn") => {
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let expires_before_turn = self
+                    .next_turn_number_for_player(&player_id)
+                    .unwrap_or_else(|| self.state.turn_number.saturating_add(1));
+                self.state.rule_modifiers.push(json!({
+                    "kind": "temporaryOpponentSpellCostIncrease",
+                    "playerId": player_id,
+                    "where": effect["where"].clone(),
+                    "amount": effect["amount"].clone(),
+                    "expiresBeforeTurn": expires_before_turn,
+                }));
+            }
+            Some("installAdditionalManaOnLandTap") => {
+                let mut modifier = json!({
+                    "kind": "additionalManaOnLandTap",
+                    "where": effect["where"],
+                    "mana": effect["mana"],
+                    "expiresAfterTurn": self.state.turn_number,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                });
+                if let Some(player_id) = effect
+                    .get("player")
+                    .and_then(|player| self.resolve_player(player, stack_object, bindings))
+                {
+                    modifier["playerId"] = Value::String(player_id);
+                }
+                self.state.rule_modifiers.push(modifier);
+            }
+            Some("installLinkedKeyword") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "linkedKeyword",
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                        "sourceController": stack_object.controller,
+                        "requiresSameController": effect["whileSourceControlled"]
+                            .as_bool()
+                            .unwrap_or(false),
+                        "targetCardInstanceId": instance_id,
+                        "keyword": effect["keyword"],
+                    }));
+                }
+            }
+            Some("installLinkedAbilityLoss") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "linkedAbilityLoss",
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                        "targetCardInstanceId": instance_id,
+                    }));
+                }
+            }
+            Some("installLinkedDamagePrevention") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["source"], stack_object, bindings)
+                {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "linkedDamagePrevention",
+                        "sourceCardInstanceId": stack_object.card.instance_id,
+                        "damagingCardInstanceId": instance_id,
+                    }));
+                }
+            }
+            Some("installOneShotModifier") => {
+                let modifier = json!({
+                    "expiresAfterTurn": self.state.turn_number,
+                    "kind": "nextSpellCantBeCountered",
+                    "playerId": stack_object.controller,
+                    "sourceCardInstanceId": stack_object.card.instance_id,
+                });
+                self.state.rule_modifiers.push(modifier.clone());
+                self.record_event(
+                    "oneShotModifierInstalled",
+                    Some(stack_object.controller.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    modifier,
+                );
+            }
+            _ => {
+                return Err(EngineError::new(format!(
+                    "unsupported effect reached execution: {}",
+                    value_kind(effect).unwrap_or("missingKind")
+                )));
+            }
+        }
+        Ok(())
+    }
+}

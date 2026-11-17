@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "spell-cast-event-programs/synthetic-union",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "spellCast",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "where": {
+        "kind": "or",
+        "operands": [
+          {
+            "kind": "cardTypeContains",
+            "value": "Artifact"
+          },
+          {
+            "kind": "cardTypeContains",
+            "value": "Enchantment"
+          }
+        ]
+      }
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

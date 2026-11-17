@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-composite/after/chooseAndSetSourceColor",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseAndSetSourceColor"
+      }
+    ]
+  }
+}

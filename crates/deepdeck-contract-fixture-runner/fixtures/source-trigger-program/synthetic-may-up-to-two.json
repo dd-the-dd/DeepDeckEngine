@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "source-trigger-program/synthetic-may-up-to-two",
+  "cardName": "Synthetic source program",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentDied",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "chooseNumber",
+        "id": "optionalDrawCount0",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "optionalDrawCount0"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "goblin-anarchomancer/static-spell-reduction-is-executable",
+  "cardName": "Goblin Anarchomancer",
+  "oracleId": "e9319f13-1f2b-429c-9d61-e58a3cbec86a",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "reduceCastingCost",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "colorContains", "value": "Red" },
+          { "kind": "colorContains", "value": "Green" }
+        ]
+      },
+      "amount": { "kind": "integer", "value": 1 }
+    }]
+  }
+}
+

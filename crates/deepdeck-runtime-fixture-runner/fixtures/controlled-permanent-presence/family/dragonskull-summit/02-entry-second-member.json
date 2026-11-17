@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "checkland-family/63398c02-6fb1-481d-9d9f-81063532fbc0/02-entry-second-member",
+  "seed": 151115,
+  "rule": {
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "controlsPermanent",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            {
+              "kind": "subtypeContains",
+              "value": "Swamp"
+            },
+            {
+              "kind": "subtypeContains",
+              "value": "Mountain"
+            }
+          ]
+        }
+      }
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "replacementEffect",
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "33e29673-5cf3-4b63-b526-0d9865873d64",
+            "name": "Dragonskull Summit",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Swamp"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Mountain"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "chooseOne",
+                      "options": [
+                        "{B}",
+                        "{R}"
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "witness",
+            "name": "Witness",
+            "typeLine": "Land - Mountain",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "33e29673-5cf3-4b63-b526-0d9865873d64"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "33e29673-5cf3-4b63-b526-0d9865873d64",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "33e29673-5cf3-4b63-b526-0d9865873d64",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

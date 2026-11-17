@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "independent-query/numeric-children-graveyard-tapped-life",
+  "cases": [
+    {
+      "id": "independent-unseen-composition",
+      "request": {
+        "cardName": "Independent Query Reliquary",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: You may put an artifact card with mana value equal to the number of emberlace counters on this artifact plus half the number of cards in your library, rounded down from your graveyard onto the battlefield tapped. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "add",
+                            "left": {
+                              "kind": "countCounters",
+                              "object": {
+                                "kind": "self"
+                              },
+                              "counter": "emberlace"
+                            },
+                            "right": {
+                              "kind": "divide",
+                              "left": {
+                                "kind": "countCards",
+                                "zone": {
+                                  "kind": "library",
+                                  "player": {
+                                    "kind": "controllerOf",
+                                    "object": {
+                                      "kind": "self"
+                                    }
+                                  }
+                                },
+                                "where": null
+                              },
+                              "right": {
+                                "kind": "integer",
+                                "value": 2
+                              },
+                              "round": "down"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": true
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

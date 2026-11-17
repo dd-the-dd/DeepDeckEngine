@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/6eff5e17-946b-4433-9f48-88f103844c42/part-0",
+  "cardName": "Griffnaut Tracker",
+  "oracleId": "6eff5e17-946b-4433-9f48-88f103844c42",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "95f5d048-226f-49a4-a2ce-a6fa99aa9e8a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Griffnaut Tracker",
+      "typeLine": "Creature — Human Detective",
+      "manaCost": "{3}{W}",
+      "oracleText": "Flying\nWhen this creature enters, exile up to two target cards from a single graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,289 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "entomb-provisional/full-cast-mandatory-result",
+  "seed": 115082,
+  "rule": {
+    "effects": [
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": null,
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "searchedCards",
+        "kind": "chooseCards",
+        "maximum": 1,
+        "minimum": 1,
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "recordLibrarySearch",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "manaPool": [
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "3caa9c55-5e3b-436b-84a9-b7ccebf63799",
+            "name": "Entomb",
+            "typeLine": "Instant",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 1,
+                    "minimum": 1,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "chosen-creature",
+            "name": "Chosen Creature",
+            "typeLine": "Creature",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "remaining-artifact",
+            "name": "Remaining Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "library": [
+          {
+            "id": "opponent-card",
+            "name": "Opponent Card",
+            "typeLine": "Sorcery",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "3caa9c55-5e3b-436b-84a9-b7ccebf63799"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "3caa9c55-5e3b-436b-84a9-b7ccebf63799",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "chosen-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "remaining-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "library",
+      "definitionId": "opponent-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "librarySearched",
+      "equals": 1,
+      "playerId": "p0"
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "zoneShuffled",
+      "equals": 1,
+      "playerId": "p0"
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

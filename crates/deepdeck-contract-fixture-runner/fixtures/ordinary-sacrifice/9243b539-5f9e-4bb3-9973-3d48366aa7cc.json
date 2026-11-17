@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/9243b539-5f9e-4bb3-9973-3d48366aa7cc",
+  "cardName": "Perilous Research",
+  "oracleId": "9243b539-5f9e-4bb3-9973-3d48366aa7cc",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "f425b017-8c4d-457f-919a-f2686d71bcac",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Perilous Research",
+      "typeLine": "Instant",
+      "manaCost": "{1}{U}",
+      "oracleText": "Draw two cards, then sacrifice a permanent.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

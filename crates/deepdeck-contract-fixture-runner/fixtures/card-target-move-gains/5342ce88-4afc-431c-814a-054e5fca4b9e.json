@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5342ce88-4afc-431c-814a-054e5fca4b9e",
+  "cardName": "Warden of the Eye",
+  "oracleId": "5342ce88-4afc-431c-814a-054e5fca4b9e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "04135bf7-2bcf-4a92-80f0-6d5eefca551b",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Warden of the Eye",
+      "typeLine": "Creature — Djinn Wizard",
+      "manaCost": "{2}{U}{R}{W}",
+      "oracleText": "When this creature enters, return target noncreature, nonland card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

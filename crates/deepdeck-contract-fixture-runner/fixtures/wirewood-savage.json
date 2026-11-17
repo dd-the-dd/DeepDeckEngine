@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "wirewood-savage/permanent-entered-is-executable",
+  "cardName": "Wirewood Savage",
+  "oracleId": "45579312-499f-41de-b16e-a231d65a2053",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "where": { "kind": "subtypeContains", "value": "Beast" },
+      "anyController": true
+    },
+    "effects": [{
+      "kind": "optionalEffects",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }]
+    }]
+  }
+}

@@ -1,0 +1,27 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/f671e3c3-cd59-4d06-a1af-5d04892cf74d/complete-rule-set",
+    "cardName":  "Tranquility",
+    "oracleId":  "f671e3c3-cd59-4d06-a1af-5d04892cf74d",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Enchantment"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

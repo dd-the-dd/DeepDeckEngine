@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "color-does-not-contain-uses-effective-color-for-targeting",
+  "seed": 101110,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              { "kind": "colorDoesNotContain", "value": "Blue" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "dealDamage",
+      "source": { "kind": "self" },
+      "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "amount": { "kind": "integer", "value": 5 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Chromatic Nullifier caster",
+        "manaPool": ["C"],
+        "hand": [{
+          "id": "chromatic-nullifier",
+          "name": "Chromatic Nullifier",
+          "typeLine": "Instant",
+          "manaCost": "{1}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      { "kind": "cardTypeContains", "value": "Creature" },
+                      { "kind": "colorDoesNotContain", "value": "Blue" }
+                    ]
+                  }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+              "amount": { "kind": "integer", "value": 5 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "printed-blue-made-colorless",
+            "name": "Printed Blue Made Colorless",
+            "typeLine": "Creature — Test",
+            "manaCost": "{U}",
+            "power": "4",
+            "toughness": "4",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "setColor",
+                "objects": { "kind": "self" },
+                "colors": []
+              }]
+            }]
+          },
+          {
+            "id": "still-blue-creature",
+            "name": "Still Blue Creature",
+            "typeLine": "Creature — Test",
+            "manaCost": "{U}",
+            "power": "4",
+            "toughness": "4",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "chromatic-nullifier" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "chromatic-nullifier", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "printed-blue-made-colorless", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "still-blue-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "still-blue-creature", "equals": false },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

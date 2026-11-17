@@ -1,0 +1,430 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/trigger-count-comparative-prefix",
+  "cases": [
+    {
+      "id": "synthetic-at-least-word",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at least two creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-at-most-numeric",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at most 1 artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": "<=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-suffix-or-more-preserved",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control two or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-suffix-or-fewer-preserved",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control one or fewer artifacts, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": "<=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-threshold",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at least X creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-prefix-comparator",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at roughly two creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-missing-prefix-threshold",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at least creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-mixed-prefix-suffix",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at most two or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-missing-prefix-comparator",
+      "request": {
+        "cardName": "Comparative Guard Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control at two creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-roiling-canopy-other-binding-remains-unsupported",
+      "request": {
+        "cardName": "Roiling Canopy",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\nWhenever a Forest you control enters, if you control at least five other Forests, target creature you control gets +3/+3 until end of turn.\n{T}: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/payManaOrSacrificeSource",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "payManaOrSacrificeSource",
+        "manaCost": "{1}"
+      }
+    ]
+  }
+}

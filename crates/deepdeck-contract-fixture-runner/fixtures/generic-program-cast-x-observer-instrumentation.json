@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "generic-effect-program/test-only-stored-cast-x-observer",
+  "cardName": "Synthetic observer instrumentation (not parsed Oracle)",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "activatedAbility",
+      "source": {
+        "kind": "self"
+      },
+      "costs": [
+        {
+          "kind": "payMana",
+          "manaCost": "{0}"
+        }
+      ],
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": []
+      },
+      "effects": [
+        {
+          "kind": "putCounters",
+          "permanent": {
+            "kind": "self"
+          },
+          "counter": "castXWitness",
+          "count": {
+            "kind": "sourceCastXValue"
+          }
+        }
+      ]
+    }
+  ]
+}

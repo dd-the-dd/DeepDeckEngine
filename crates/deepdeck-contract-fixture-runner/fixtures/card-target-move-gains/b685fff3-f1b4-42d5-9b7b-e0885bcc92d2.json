@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/b685fff3-f1b4-42d5-9b7b-e0885bcc92d2",
+  "cardName": "Ghoulcaller's Chant",
+  "oracleId": "b685fff3-f1b4-42d5-9b7b-e0885bcc92d2",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "2b8c1b10-2155-404a-8f20-eb8f643849d6",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Ghoulcaller's Chant",
+      "typeLine": "Sorcery",
+      "manaCost": "{B}",
+      "oracleText": "Choose one —\n• Return target creature card from your graveyard to your hand.\n• Return two target Zombie cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

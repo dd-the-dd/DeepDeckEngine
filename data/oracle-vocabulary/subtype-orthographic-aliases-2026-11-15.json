@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "deepdeck-subtype-orthographic-aliases/v1",
+  "source": {
+    "oracleInputPath": ".tmp\\oracle-global-input-39288.json",
+    "oracleInputSHA256": "47DD40FBDDF789A4AFF07AE27DCC3775AAE76FFF962C58E66C2C5DA05640EC02",
+    "canonicalCreatureRegistryPath": "data\\oracle-vocabulary\\creature-subtypes-cr-205.3m-2026-11-06.json",
+    "canonicalCreatureRegistrySHA256": "29015BA7FCD1297F57306ED72F814AAC720B348C5AED9D06DF9A61EDB9F3E061",
+    "comprehensiveRulesPath": ".tmp/MagicCompRules-20261106.txt",
+    "comprehensiveRulesSHA256": "524F5195A1E5F54BB13C735EDF399AC717A4458E2713F398D1A3E6877186B829"
+  },
+  "policy": "Exact witnessed nominal aliases only; no general apostrophe, Unicode, JSON, ID or hyphen normalization.",
+  "aliases": [
+    {
+      "surface": "C'tan",
+      "canonical": "C\u2019tan",
+      "witness": {
+        "sourceRow": 31868,
+        "oracleId": "d04d2434-121e-4420-abfc-fa21ad5577c3",
+        "printingId": "41dd0b55-3dbb-4b65-a949-20c2a12f7edd",
+        "name": "Shard of the Void Dragon",
+        "set": "40k",
+        "collector": "56",
+        "faceIndex": null,
+        "typeLine": "Creature \u2014 C'tan"
+      }
+    },
+    {
+      "surface": "Jem'Hadar",
+      "canonical": "Jem\u2019Hadar",
+      "witness": {
+        "sourceRow": 27003,
+        "oracleId": "b093916c-cc0a-4b3b-9de6-8a2db53cdfe0",
+        "printingId": "28a55f63-1cbd-4362-a192-e42a06f44686",
+        "name": "Dominion Assault Force",
+        "set": "trk",
+        "collector": "194",
+        "faceIndex": null,
+        "typeLine": "Creature \u2014 Jem'Hadar Warrior"
+      }
+    },
+    {
+      "surface": "Na'kuhl",
+      "canonical": "Na\u2019kuhl",
+      "witness": {
+        "sourceRow": 7322,
+        "oracleId": "306002e6-d68d-47ad-879b-e6060efebeff",
+        "printingId": "b0bb51a7-1ae2-45d0-8be9-5454a3c8f751",
+        "name": "Temporal Conqueror",
+        "set": "trk",
+        "collector": "219",
+        "faceIndex": null,
+        "typeLine": "Creature \u2014 Na'kuhl Warrior"
+      }
+    },
+    {
+      "surface": "Shi'ar",
+      "canonical": "Shi\u2019ar",
+      "witness": {
+        "sourceRow": 37155,
+        "oracleId": "f20ec8e2-d6e4-4707-9b86-107dbc09ac63",
+        "printingId": "7fb26734-efbf-4d0b-9fcc-63a2db68adba",
+        "name": "Shi'ar Soldier",
+        "set": "msc",
+        "collector": "637",
+        "faceIndex": null,
+        "typeLine": "Creature \u2014 Shi'ar Soldier"
+      }
+    },
+    {
+      "surface": "Vau-N'Akat",
+      "canonical": "Vau-N\u2019Akat",
+      "witness": {
+        "sourceRow": 20327,
+        "oracleId": "852c38fe-8bfa-420b-b961-7b91af9b38d1",
+        "printingId": "a82f5db5-787e-4e4a-ab3c-4a488c6f4990",
+        "name": "Gwyndala, the Progeny",
+        "set": "trk",
+        "collector": "61",
+        "faceIndex": null,
+        "typeLine": "Legendary Creature \u2014 Vau-N'Akat Advisor"
+      }
+    }
+  ]
+}

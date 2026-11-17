@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "bitter-triumph-pays-discard-branch-and-destroys-target",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "cardTypeContains", "value": "Planeswalker" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Bitter Triumph pilot",
+        "life": 2,
+        "manaPool": ["C", "B"],
+        "hand": [
+          {
+            "id": "bitter-triumph",
+            "name": "Bitter Triumph",
+            "typeLine": "Instant",
+            "manaCost": "{1}{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "additionalCostMode",
+                      "kind": "chooseModes",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "options": ["discard", "payLife"]
+                    },
+                    {
+                      "id": "discardCost1",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": { "kind": "self" }
+                          }
+                        },
+                        "where": null
+                      },
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "discard"
+                      }
+                    }
+                  ],
+                  "additionalCosts": [
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "discard"
+                      },
+                      "then": [
+                        {
+                          "kind": "discardCard",
+                          "card": { "kind": "chosenTarget", "id": "discardCost1" }
+                        }
+                      ],
+                      "else": []
+                    },
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "payLife"
+                      },
+                      "then": [
+                        {
+                          "kind": "payLife",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": { "kind": "self" }
+                          },
+                          "amount": { "kind": "integer", "value": 3 }
+                        }
+                      ],
+                      "else": []
+                    }
+                  ]
+                },
+                "effects": []
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            { "kind": "cardTypeContains", "value": "Creature" },
+                            { "kind": "cardTypeContains", "value": "Planeswalker" }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "discard-payment",
+            "name": "Discard Payment",
+            "typeLine": "Sorcery",
+            "manaCost": "{G}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "target-creature",
+            "name": "Target Creature",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "bitter-triumph" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 2 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "discard-payment",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "target-creature",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

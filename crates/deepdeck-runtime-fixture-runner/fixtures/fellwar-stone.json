@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "fellwar-stone-uses-only-colors-opposing-lands-could-produce",
+  "seed": 115,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": {
+          "kind": "manaColorsLandsOpponentsControlCouldProduce",
+          "amount": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Fellwar Stone pilot",
+        "battlefield": [
+          {
+            "id": "fellwar-stone",
+            "name": "Fellwar Stone",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          },
+          {
+            "id": "fellwar-stone-probe",
+            "name": "Fellwar Stone",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Blue opponent",
+        "battlefield": [
+          {
+            "id": "opposing-island",
+            "name": "Island",
+            "typeLine": "Basic Land — Island"
+          },
+          {
+            "id": "opposing-green-rock",
+            "name": "Green Mana Rock",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": { "kind": "self" }
+                    },
+                    "mana": "{G}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Red-colorless opponent",
+        "battlefield": [
+          {
+            "id": "opposing-mountain",
+            "name": "Mountain",
+            "typeLine": "Basic Land — Mountain"
+          },
+          {
+            "id": "opposing-wastes",
+            "name": "Wastes",
+            "typeLine": "Basic Land — Wastes",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": { "kind": "self" },
+                "costs": [
+                  { "kind": "tap", "object": { "kind": "self" } }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": { "kind": "self" }
+                    },
+                    "mana": "{C}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "fellwar-stone",
+      "manaSymbols": ["R"]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": ["R"]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "fellwar-stone",
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "fellwar-stone-probe",
+      "manaSymbols": ["U"],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "fellwar-stone-probe",
+      "manaSymbols": ["R"],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "fellwar-stone-probe",
+      "manaSymbols": ["G"],
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "fellwar-stone-probe",
+      "manaSymbols": ["C"],
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "fellwar-stone-probe",
+      "equals": false
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-aware-order/permutation-budget-5",
+  "seed": 261115,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 4
+      },
+      {
+        "kind": "bind",
+        "id": "all",
+        "value": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "abilityController"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "order",
+        "player": {
+          "kind": "abilityController"
+        },
+        "objects": {
+          "kind": "boundObjects",
+          "binding": "all"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "order"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "abilityController"
+          },
+          "position": "top"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Player Zero",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "ordering-source",
+            "name": "Ordering Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": 4
+                  },
+                  {
+                    "kind": "bind",
+                    "id": "all",
+                    "value": {
+                      "kind": "cardsInZone",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "abilityController"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "chooseOrder",
+                    "id": "order",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "objects": {
+                      "kind": "boundObjects",
+                      "binding": "all"
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "decisionResult",
+                      "decisionId": "order"
+                    },
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "abilityController"
+                      },
+                      "position": "top"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "response"
+                    },
+                    "to": {
+                      "kind": "exile",
+                      "player": {
+                        "kind": "abilityController"
+                      },
+                      "faceDown": false
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "response",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "abilityController"
+                          }
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "card-1",
+            "name": "card-1",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          },
+          {
+            "id": "card-2",
+            "name": "card-2",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          },
+          {
+            "id": "card-3",
+            "name": "card-3",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          },
+          {
+            "id": "card-4",
+            "name": "card-4",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          },
+          {
+            "id": "card-5",
+            "name": "card-5",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          }
+        ],
+        "library": [
+          {
+            "id": "base",
+            "name": "base",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Player One",
+        "life": 20,
+        "library": [
+          {
+            "id": "other-base",
+            "name": "other-base",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "ordering-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "orderCards",
+      "order": "reverse"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 24
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 6
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "p0",
+      "definitionId": "card-5"
+    }
+  ]
+}

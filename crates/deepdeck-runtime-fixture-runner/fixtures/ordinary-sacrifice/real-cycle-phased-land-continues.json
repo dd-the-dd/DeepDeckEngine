@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-sacrifice/real-cycle-phased-land-continues",
+  "seed": 7717,
+  "rule": {
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Land"
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "typeLineContains",
+                "value": "Basic"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            ]
+          },
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "searchedCards",
+        "kind": "chooseCards",
+        "maximum": 2,
+        "minimum": 0,
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": true
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "recordLibrarySearch",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "manaPool": [
+          "C",
+          "C",
+          "C",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "77eda626-5cef-496d-b291-cfa1ee6fc1fb",
+            "name": "Cycle of Renewal",
+            "typeLine": "Instant — Lesson",
+            "manaCost": "{2}{G}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "typeLineContains",
+                            "value": "Basic"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          }
+                        ]
+                      },
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 2,
+                    "minimum": 0,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": true
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "land-0",
+            "name": "land-0",
+            "typeLine": "Basic Land — Forest"
+          }
+        ],
+        "library": [
+          {
+            "id": "searched-forest",
+            "name": "searched-forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "searched-island",
+            "name": "searched-island",
+            "typeLine": "Basic Land — Island"
+          },
+          {
+            "id": "library-spell",
+            "name": "library-spell",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "opponent-card",
+            "name": "opponent-card",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "phaseOutPermanent",
+            "permanent": {
+              "kind": "self"
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "land-0"
+      }
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "77eda626-5cef-496d-b291-cfa1ee6fc1fb"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "77eda626-5cef-496d-b291-cfa1ee6fc1fb",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "searched-forest",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "searched-island",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "searched-forest",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "searched-island",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "librarySearched",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "zoneShuffled",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "land-0",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 0
+    }
+  ]
+}

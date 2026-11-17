@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/94f23a93-cd98-4ee7-9e62-9b7b49ace6fd",
+  "cardName": "Death Denied",
+  "oracleId": "94f23a93-cd98-4ee7-9e62-9b7b49ace6fd",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "73d0a239-4d45-4762-968a-d4b9479346d9",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Death Denied",
+      "typeLine": "Instant — Arcane",
+      "manaCost": "{X}{B}{B}",
+      "oracleText": "Return X target creature cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

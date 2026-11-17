@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/5f4138e9-5471-467f-a15e-89e9e7929f0c",
+  "cardName": "Elvish Pioneer",
+  "oracleId": "5f4138e9-5471-467f-a15e-89e9e7929f0c",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "88244522-1cf3-40a6-9ff7-bb78f2151b60",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Elvish Pioneer",
+      "typeLine": "Creature — Elf Druid",
+      "manaCost": "{G}",
+      "oracleText": "When this creature enters, you may put a basic land card from your hand onto the battlefield tapped.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

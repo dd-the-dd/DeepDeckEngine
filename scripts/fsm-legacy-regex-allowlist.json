@@ -1,0 +1,7 @@
+{
+    "schemaVersion":  "fsm-legacy-regex-allowlist/v1",
+    "policy":  "All Oracle recognition uses shared token-driven automata. No legacy semantic-regex exceptions remain. Pre-removal implementation: archive/legacy-oracle-2026-11-13.",
+    "entries":  [
+
+                ]
+}

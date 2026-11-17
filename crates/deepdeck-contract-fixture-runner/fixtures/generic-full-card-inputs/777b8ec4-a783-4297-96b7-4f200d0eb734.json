@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/777b8ec4-a783-4297-96b7-4f200d0eb734/part-0",
+  "cardName": "Return to Nature",
+  "oracleId": "777b8ec4-a783-4297-96b7-4f200d0eb734",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "7e99f99a-68a1-4f35-853c-794630d313fc",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Return to Nature",
+      "typeLine": "Instant",
+      "manaCost": "{1}{G}",
+      "oracleText": "Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Exile target card from a graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

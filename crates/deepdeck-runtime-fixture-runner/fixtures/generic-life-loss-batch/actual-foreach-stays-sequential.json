@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "life-batch/explicit-foreach-retains-sequential-semantics",
+  "seed": 10943,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "bind": "actualIteration",
+        "effects": [
+          {
+            "kind": "loseLife",
+            "player": {
+              "kind": "boundValue",
+              "id": "actualIteration"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Enchantment",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": []
+      },
+      {
+        "id": "p2",
+        "name": "P2",
+        "battlefield": []
+      },
+      {
+        "id": "p3",
+        "name": "P3",
+        "battlefield": [
+          {
+            "id": "watcher",
+            "name": "watcher",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "lifeLost",
+                  "player": {
+                    "kind": "eachPlayer"
+                  }
+                },
+                "condition": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "countEventsThisTurn",
+                        "event": "lifeLost"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 3
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "lifeLostThisTurn",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "executor"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeLost",
+      "equals": 3
+    }
+  ]
+}

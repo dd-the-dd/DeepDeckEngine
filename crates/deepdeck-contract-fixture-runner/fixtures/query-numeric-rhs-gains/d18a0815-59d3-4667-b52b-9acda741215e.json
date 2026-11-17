@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/d18a0815-59d3-4667-b52b-9acda741215e",
+  "cardName": "Arboreal Grazer",
+  "oracleId": "d18a0815-59d3-4667-b52b-9acda741215e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9eb7b2ae-a364-485b-ae75-10dbb0af5541",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "0",
+    "toughness": "3",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Arboreal Grazer",
+      "typeLine": "Creature — Sloth Beast",
+      "manaCost": "{G}",
+      "oracleText": "Reach\nWhen this creature enters, you may put a land card from your hand onto the battlefield tapped.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

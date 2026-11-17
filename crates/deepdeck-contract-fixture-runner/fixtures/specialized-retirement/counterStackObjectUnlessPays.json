@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/counterStackObjectUnlessPays",
+  "cardName": "Retired combined counter/payment operation",
+  "expectedExecutable": false,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "spells",
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            }
+          },
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "counterStackObjectUnlessPays",
+        "manaCost": "{2}",
+        "spell": {
+          "id": "targetSpell",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

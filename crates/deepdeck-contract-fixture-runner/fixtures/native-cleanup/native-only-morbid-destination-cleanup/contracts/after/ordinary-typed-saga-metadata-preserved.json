@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ordinary-typed-saga-metadata-preserved",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "rulesMarker",
+    "source": {
+      "kind": "self"
+    },
+    "text": "Typed metadata",
+    "marker": "sagaProgression",
+    "finalChapter": {
+      "kind": "integer",
+      "value": 3
+    }
+  }
+}

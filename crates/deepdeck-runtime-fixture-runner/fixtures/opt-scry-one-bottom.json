@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "opt-scry-one-bottom-emits-signal-after-reordering",
+  "seed": 129,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "count": { "kind": "integer", "value": 1 },
+        "bind": "scryLookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "scryBottomCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "from": { "kind": "boundObjects", "binding": "scryLookedCards" },
+        "minimum": { "kind": "integer", "value": 0 },
+        "maximum": {
+          "kind": "countObjects",
+          "objects": { "kind": "boundObjects", "binding": "scryLookedCards" }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "scryBottomOrder",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "objects": { "kind": "decisionResult", "decisionId": "scryBottomCards" }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "scryBottomOrder" },
+        "to": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "position": "bottom"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "scryBottomOrder" }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "scryTopOrder",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "objects": {
+          "kind": "setDifference",
+          "left": { "kind": "boundObjects", "binding": "scryLookedCards" },
+          "right": { "kind": "decisionResult", "decisionId": "scryBottomCards" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "scryTopOrder" },
+        "to": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "position": "top"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "scryTopOrder" }
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "scry",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Opt pilot",
+        "battlefield": [
+          {
+            "id": "scry-watcher",
+            "name": "Scry Watcher",
+            "typeLine": "Creature — Wizard",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": { "kind": "self" },
+                "event": {
+                  "kind": "abilityPerformed",
+                  "abilityId": "scry",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                },
+                "effects": [
+                  {
+                    "kind": "drawCards",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "count": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          { "id": "opt", "name": "Opt", "typeLine": "Instant", "manaCost": "{U}" }
+        ],
+        "library": [
+          { "id": "library-bottom", "name": "Library Bottom", "typeLine": "Land" },
+          { "id": "draw-after-scry", "name": "Draw After Scry", "typeLine": "Instant" },
+          { "id": "scry-to-bottom", "name": "Scry To Bottom", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "opt"
+  },
+  "actions": [
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 2 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "scry-to-bottom",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "draw-after-scry",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "abilityPerformed", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

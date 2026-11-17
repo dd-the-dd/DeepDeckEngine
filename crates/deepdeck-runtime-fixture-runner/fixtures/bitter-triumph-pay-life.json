@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "alternative-additional-cost-pays-life-branch-only",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "additionalCostMode",
+          "kind": "chooseModes",
+          "minimum": 1,
+          "maximum": 1,
+          "options": ["discard", "payLife"]
+        },
+        {
+          "id": "discardCost1",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "hand",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              }
+            },
+            "where": null
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "kind": "decisionResult",
+              "decisionId": "additionalCostMode"
+            },
+            "value": "discard"
+          }
+        }
+      ],
+      "additionalCosts": [
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "kind": "decisionResult",
+              "decisionId": "additionalCostMode"
+            },
+            "value": "discard"
+          },
+          "then": [
+            {
+              "kind": "discardCard",
+              "card": { "kind": "chosenTarget", "id": "discardCost1" }
+            }
+          ],
+          "else": []
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "kind": "decisionResult",
+              "decisionId": "additionalCostMode"
+            },
+            "value": "payLife"
+          },
+          "then": [
+            {
+              "kind": "payLife",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              },
+              "amount": { "kind": "integer", "value": 3 }
+            }
+          ],
+          "else": []
+        }
+      ]
+    },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Alternative-cost pilot",
+        "life": 20,
+        "manaPool": ["C", "B"],
+        "hand": [
+          {
+            "id": "alternative-cost-spell",
+            "name": "Alternative Cost Spell",
+            "typeLine": "Instant",
+            "manaCost": "{1}{B}"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "alternative-cost-spell"
+    }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 17 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "equals": 0 },
+    { "kind": "stackDepth", "equals": 1 }
+  ]
+}

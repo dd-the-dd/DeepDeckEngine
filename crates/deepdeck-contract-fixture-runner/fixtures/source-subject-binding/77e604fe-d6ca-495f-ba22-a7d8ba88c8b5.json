@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/77e604fe-d6ca-495f-ba22-a7d8ba88c8b5",
+  "cardName": "Corrupt Eunuchs",
+  "oracleId": "77e604fe-d6ca-495f-ba22-a7d8ba88c8b5",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9875f1c7-f818-40d6-a559-1b8835bc340f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Corrupt Eunuchs",
+      "typeLine": "Creature — Human Advisor",
+      "manaCost": "{3}{R}",
+      "oracleText": "When this creature enters, it deals 2 damage to target creature.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

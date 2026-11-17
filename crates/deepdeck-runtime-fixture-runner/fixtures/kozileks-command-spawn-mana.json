@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "kozileks-command-embedded-spawn-rule-sacrifices-source-for-colorless-mana",
+  "seed": 13502,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      {
+        "kind": "sacrificePermanent",
+        "permanent": { "kind": "self" }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Kozilek Spawn controller",
+        "battlefield": [
+          {
+            "id": "kozilek-spawn-proof",
+            "name": "Eldrazi Spawn",
+            "typeLine": "Creature - Eldrazi Spawn",
+            "power": "0",
+            "toughness": "1"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "kozilek-spawn-proof"
+    }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C"] },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "kozilek-spawn-proof",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "kozilek-spawn-proof",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

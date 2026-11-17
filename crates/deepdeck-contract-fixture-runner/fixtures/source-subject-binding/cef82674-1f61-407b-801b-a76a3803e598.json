@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/cef82674-1f61-407b-801b-a76a3803e598",
+  "cardName": "Voldaren Epicure",
+  "oracleId": "cef82674-1f61-407b-801b-a76a3803e598",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "e8fe855c-fe94-4de7-a033-9892a9d6ee0e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Voldaren Epicure",
+      "typeLine": "Creature — Vampire",
+      "manaCost": "{R}",
+      "oracleText": "When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-prohibition/library-move-common-boundary",
+  "seed": 1914,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "self"
+        },
+        "from": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "cage",
+            "name": "Grafdigger's Cage",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitEnterBattlefieldFromZones",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitCastFromZones",
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "candidate",
+            "name": "candidate",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "candidate"
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "candidate",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "candidate",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardMovedToBattlefield",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    }
+  ]
+}

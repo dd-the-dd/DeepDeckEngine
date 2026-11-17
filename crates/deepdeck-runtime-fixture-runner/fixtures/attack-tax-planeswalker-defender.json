@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "attack-tax-does-not-protect-a-planeswalker",
+  "seed": 112,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Protected player",
+        "battlefield": [
+          {
+            "id": "tax-source",
+            "name": "Tax Source",
+            "typeLine": "Enchantment",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "attackTax",
+                "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 2 }
+              }]
+            }]
+          },
+          {
+            "id": "defended-planeswalker",
+            "name": "Defended Planeswalker",
+            "typeLine": "Legendary Planeswalker - Test",
+            "rules": [],
+            "counters": { "loyalty": 4 }
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "planeswalker-attack-draw", "name": "Planeswalker Attack Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [{
+          "id": "planeswalker-attacker",
+          "name": "Planeswalker Attacker",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "defended-planeswalker", "counter": "loyalty", "equals": 2 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

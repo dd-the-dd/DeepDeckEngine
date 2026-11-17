@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "11e12a84-e7be-4afc-a230-c2e644743fa8",
+  "oracleId": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Dark Ritual",
+    "setCode": "msc",
+    "collectorNumber": "793",
+    "typeLine": "Instant",
+    "manaCost": "{B}",
+    "oracleText": "Add {B}{B}{B}."
+  },
+  "abilities": [{
+    "id": "dark-ritual:ability:1",
+    "reviewStatus": "verified",
+    "source": {
+      "text": "Add {B}{B}{B}.",
+      "lineStart": 0,
+      "lineEnd": 0
+    },
+    "expectedRule": {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [{
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": "{B}{B}{B}"
+      }]
+    }
+  }]
+}

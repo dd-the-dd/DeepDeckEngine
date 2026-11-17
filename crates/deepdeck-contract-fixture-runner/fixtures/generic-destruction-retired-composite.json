@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/destroyPermanentsByManaValue",
+  "cardName": "Retired composite guard",
+  "expectedExecutable": false,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "id": "xValue",
+          "kind": "chooseNumber",
+          "minimum": 0
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "count": {
+          "decisionId": "xValue",
+          "kind": "decisionResult"
+        },
+        "counter": "energy",
+        "kind": "addPlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "id": "paidPlayerCounters",
+        "kind": "chooseNumber",
+        "maximum": {
+          "counter": "energy",
+          "kind": "countPlayerCounters",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "decisionId": "paidPlayerCounters",
+          "kind": "decisionResult"
+        },
+        "counter": "energy",
+        "kind": "removePlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "kind": "destroyPermanentsByManaValue",
+        "maximum": {
+          "decisionId": "paidPlayerCounters",
+          "kind": "decisionResult"
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            },
+            {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            {
+              "kind": "cardTypeContains",
+              "value": "Enchantment"
+            }
+          ]
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

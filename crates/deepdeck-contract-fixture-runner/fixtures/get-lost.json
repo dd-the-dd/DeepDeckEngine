@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "get-lost/controller-snapshot-and-catalog-map-creation-are-executable",
+  "cardName": "Get Lost",
+  "oracleId": "522dd417-364b-44ab-8ca9-fb55db5f26a6",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              { "kind": "cardTypeContains", "value": "Enchantment" },
+              { "kind": "cardTypeContains", "value": "Planeswalker" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "changedPermanentController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "changedPermanentController" },
+        "quantity": { "kind": "integer", "value": 2 },
+        "token": { "kind": "namedToken", "name": "Map" }
+      }
+    ]
+  }
+}

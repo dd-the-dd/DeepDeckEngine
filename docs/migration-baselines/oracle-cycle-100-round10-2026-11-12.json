@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 10,
+  "generatedDate": "2026-11-12",
+  "status": "certified",
+  "concept": "genericStaticSpellCastingCostIncrease",
+  "finalParserFingerprint": "F92B198017939234D084332B50CDFB8A2CB5D611057A786EE036EE6C839B0612",
+  "priorityCards": [
+    {
+      "name": "Thalia, Guardian of Thraben",
+      "oracleId": "9b7f1d05-707c-4ed3-9f0e-8ced1232c2ee"
+    }
+  ],
+  "architecture": {
+    "parent": "fixed additional spell casting cost",
+    "selectorChild": "ObjectQuery",
+    "manaChild": "ManaCost",
+    "primitive": "additionalCastingCost",
+    "requiresPermanentSource": true,
+    "rejectsUnboundX": true,
+    "chosenNameFamilyPrecedesGenericFamily": true,
+    "newCompositeEngineOperation": false
+  },
+  "proofs": {
+    "parser": {
+      "passed": 140,
+      "total": 140,
+      "compileSeconds": 13.65,
+      "executionSeconds": 0.697,
+      "path": ".tmp/spell-cost-increase-parser-final-build.json"
+    },
+    "repositoryContracts": {
+      "passed": 219,
+      "total": 219,
+      "path": ".tmp/spell-cost-increase-contract-regression.jsonl"
+    },
+    "generatedContracts": {
+      "gainedAbilities": { "passed": 13, "total": 13 },
+      "gainedFullCards": { "passed": 11, "total": 11 },
+      "combined": { "passed": 24, "total": 24 },
+      "executionSeconds": 0.022,
+      "path": ".tmp/spell-tax-generated-contract-run-F92B1980.json"
+    },
+    "exactThaliaRuntime": {
+      "fixtures": 2,
+      "assertions": 12,
+      "status": "passed",
+      "rulesEqualParserAndContract": true
+    },
+    "disruptorFluteRegression": {
+      "status": "passed",
+      "finalEquals74DEByteForByte": true,
+      "path": ".tmp/spell-tax-disruptor-flute-restoration-F92B1980.json"
+    },
+    "castingCostUnits": {
+      "passed": 12,
+      "total": 12,
+      "compileSeconds": 38.552,
+      "executionSeconds": 1.538,
+      "path": ".tmp/casting-total-cost-unit-final-timing.json"
+    },
+    "runtimeGate": {
+      "passed": 369,
+      "total": 369,
+      "assertions": 2299,
+      "executionSeconds": 1.439,
+      "fingerprintVerified": true,
+      "path": ".tmp/casting-total-cost-runtime-final.json"
+    },
+    "independentGlobalVerification": {
+      "status": "passed",
+      "path": ".tmp/spell-tax-global-root-verification-F92B1980.json"
+    }
+  },
+  "coverage": {
+    "round8": {
+      "cards": 100,
+      "preservedNativeAbilities": 27,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 1,
+      "regressions": 0
+    },
+    "queue450": {
+      "cards": 450,
+      "preservedNativeAbilities": 252,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 1,
+      "regressions": 0
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "preservedNativeAbilities": 1129,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 0,
+      "regressions": 0
+    },
+    "global": {
+      "cards": 39288,
+      "preservedNativeAbilities": 14520,
+      "gainedNativeAbilities": 13,
+      "gainedFullyNativeCards": 11,
+      "regressions": 0
+    }
+  },
+  "gainShapes": {
+    "fullyNativeCards": {
+      "simple": [
+        "Chill",
+        "Feroz's Ban",
+        "Glowrider",
+        "Lodestone Golem",
+        "Sphere of Resistance",
+        "Squeeze",
+        "Thalia, Guardian of Thraben",
+        "Thorn of Amethyst",
+        "Vryn Wingmare"
+      ],
+      "union": ["High Seas", "Irini Sengir"]
+    },
+    "partialAbilityGains": ["Gloom", "Charitable Levy"]
+  },
+  "timings": {
+    "analyzerLinkSeconds": 1.116,
+    "round8AuditWallSeconds": 0.526,
+    "queue450AuditWallSeconds": 0.566,
+    "sevenSetsAuditWallSeconds": 2.58,
+    "globalAuditWallSeconds": 31.345,
+    "globalParserSeconds": 30.347,
+    "trackerWallSeconds": 3453.43,
+    "correctiveLoops": 5
+  },
+  "refill": {
+    "retained": 99,
+    "removed": {
+      "name": "Thalia, Guardian of Thraben",
+      "oracleId": "9b7f1d05-707c-4ed3-9f0e-8ced1232c2ee"
+    },
+    "added": {
+      "name": "Dark Depths",
+      "oracleId": "c9b82110-7dfd-4617-9399-9510be449043",
+      "source": "league",
+      "rotatingGlobalRank": 165
+    },
+    "batch": {
+      "path": ".tmp/rotating-next-100-round9.json",
+      "sha256": "3B15331E726A40CCF6DE9B571EDF3F007AFBB06DD4F485930759EE7DBF8E4F8E"
+    },
+    "input": {
+      "path": ".tmp/rotating-next-100-round9-input.json",
+      "sha256": "3F02AE397D7115DCF0F350D406DF4ED0D576BB112AAC02C9E3DE4B9626818C36"
+    }
+  },
+  "tracker": ".tmp/card-migration-timings/round9-thalia-static-spell-tax.json"
+}

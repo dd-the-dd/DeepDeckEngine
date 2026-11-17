@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "3b69b12e-ef29-455c-8939-eacf44c6c3f6",
+  "oracleId": "c8b143ad-43ec-4e0d-a440-e348daa31391",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Swiftfoot Boots",
+    "setCode": "trc",
+    "collectorNumber": "501",
+    "typeLine": "Artifact — Equipment",
+    "manaCost": "{2}",
+    "oracleText": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)"
+  },
+  "abilities": [
+    {
+      "id": "swiftfoot-boots:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "battlefield" }
+        },
+        "modifiers": [
+          {
+            "kind": "grantKeyword",
+            "objects": {
+              "kind": "attachedPermanent",
+              "attachment": { "kind": "self" }
+            },
+            "keyword": "hexproof"
+          },
+          {
+            "kind": "grantKeyword",
+            "objects": {
+              "kind": "attachedPermanent",
+              "attachment": { "kind": "self" }
+            },
+            "keyword": "haste"
+          }
+        ]
+      }
+    },
+    {
+      "id": "swiftfoot-boots:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Equip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": {
+          "kind": "equip",
+          "costs": [{ "kind": "payMana", "manaCost": "{1}" }]
+        }
+      }
+    }
+  ]
+}
+

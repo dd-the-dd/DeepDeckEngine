@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/createReflexiveTriggeredAbility",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createReflexiveTriggeredAbility",
+        "player": {
+          "kind": "abilityController"
+        },
+        "decisionId": "selectedCard",
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "abilityController"
+            }
+          },
+          "where": null
+        },
+        "maximumManaValue": {
+          "kind": "integer",
+          "value": 2
+        },
+        "effects": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "abilityController"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

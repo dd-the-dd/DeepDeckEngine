@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "temporary-power-toughness/ordinary-effect-sequence",
+  "cardName": "Pillar Launch",
+  "oracleId": "a39c758d-82be-4d8c-bb3e-8ee8a6c6788b",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Pillar Launch",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +2/+2 and gains reach until end of turn. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "rule": {
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [
+              {
+                "kind": "modifyPowerToughness",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "power": { "kind": "integer", "value": 2 },
+                "toughness": { "kind": "integer", "value": 2 },
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              },
+              {
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "reach",
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              },
+              {
+                "kind": "untapPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+              }
+            ]
+          }
+        }]
+      }
+    },
+    {
+      "id": "draw-sibling",
+      "request": {
+        "cardName": "Growth Lesson",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Target creature gets +3/+3 until end of turn. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "modifyPowerToughness" },
+            { "pointer": "/effects/1/kind", "equals": "drawCards" },
+            { "pointer": "/effects/1/count/value", "equals": 1 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "plural-anaphor-near-miss",
+      "request": {
+        "cardName": "Malformed Reflex",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +2/+2 until end of turn. Untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "numeric.atom.start",
+          "found": "them"
+        }]
+      }
+    }
+  ]
+}

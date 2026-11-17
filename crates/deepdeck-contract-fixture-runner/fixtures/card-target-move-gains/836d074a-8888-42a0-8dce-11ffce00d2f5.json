@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/836d074a-8888-42a0-8dce-11ffce00d2f5",
+  "cardName": "Cruel Revival",
+  "oracleId": "836d074a-8888-42a0-8dce-11ffce00d2f5",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5f4b76ac-550e-4450-bade-66b176add109",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Cruel Revival",
+      "typeLine": "Instant",
+      "manaCost": "{4}{B}",
+      "oracleText": "Destroy target non-Zombie creature. It can't be regenerated. Return up to one target Zombie card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

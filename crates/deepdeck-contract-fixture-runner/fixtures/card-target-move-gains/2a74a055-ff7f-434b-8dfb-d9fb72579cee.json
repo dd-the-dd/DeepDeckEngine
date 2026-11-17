@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/2a74a055-ff7f-434b-8dfb-d9fb72579cee",
+  "cardName": "Hazel's Nocturne",
+  "oracleId": "2a74a055-ff7f-434b-8dfb-d9fb72579cee",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "239363df-4de8-4b64-80fc-a1f4b5c36027",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Hazel's Nocturne",
+      "typeLine": "Instant",
+      "manaCost": "{3}{B}",
+      "oracleText": "Return up to two target creature cards from your graveyard to your hand. Each opponent loses 2 life and you gain 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

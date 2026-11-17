@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/support-protection",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "preventOpponentForcedSacrifice",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  }
+}

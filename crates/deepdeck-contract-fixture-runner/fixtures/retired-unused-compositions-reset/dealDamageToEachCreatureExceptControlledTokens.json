@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/dealDamageToEachCreatureExceptControlledTokens",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "dealDamageToEachCreatureExceptControlledTokens",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

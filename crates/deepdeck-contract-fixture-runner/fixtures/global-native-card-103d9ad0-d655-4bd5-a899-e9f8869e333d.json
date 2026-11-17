@@ -1,0 +1,49 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/103d9ad0-d655-4bd5-a899-e9f8869e333d/complete-rule-set",
+    "cardName":  "Gaze of Granite",
+    "oracleId":  "103d9ad0-d655-4bd5-a899-e9f8869e333d",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "not",
+                                                                                               "operand":  {
+                                                                                                               "kind":  "cardTypeContains",
+                                                                                                               "value":  "Land"
+                                                                                                           }
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "compare",
+                                                                                               "left":  {
+                                                                                                            "kind":  "manaValueOf",
+                                                                                                            "object":  {
+                                                                                                                           "kind":  "candidate"
+                                                                                                                       }
+                                                                                                        },
+                                                                                               "operator":  "\u003c=",
+                                                                                               "right":  {
+                                                                                                             "decisionId":  "xValue",
+                                                                                                             "kind":  "decisionResult"
+                                                                                                         }
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

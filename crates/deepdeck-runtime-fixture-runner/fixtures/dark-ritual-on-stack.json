@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "dark-ritual-waits-on-the-stack-before-adding-mana",
+  "seed": 6901,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "addMana",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "mana": "{B}{B}{B}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Dark Ritual pilot",
+        "manaPool": ["B"],
+        "hand": [{
+          "id": "dark-ritual",
+          "name": "Dark Ritual",
+          "typeLine": "Instant",
+          "manaCost": "{B}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "addMana",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              },
+              "mana": "{B}{B}{B}"
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "dark-ritual" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "dark-ritual", "equals": false },
+    { "kind": "stackDepth", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

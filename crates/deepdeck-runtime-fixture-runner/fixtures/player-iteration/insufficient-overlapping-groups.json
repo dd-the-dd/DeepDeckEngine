@@ -1,0 +1,222 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "seed": 1891,
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source"
+  },
+  "id": "synthetic/player-loop/insufficient-overlapping-groups",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "loop:player",
+        "effects": [
+          {
+            "kind": "bind",
+            "id": "candidates",
+            "value": {
+              "kind": "eachPermanent",
+              "player": {
+                "kind": "boundValue",
+                "id": "loop:player"
+              }
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "artifact",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "from": {
+              "kind": "boundObjects",
+              "binding": "candidates"
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "creature",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "from": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "candidates"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "artifact"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ],
+        "collect": {
+          "bind": "kept",
+          "objects": {
+            "kind": "union",
+            "sets": [
+              {
+                "kind": "decisionResult",
+                "decisionId": "artifact"
+              },
+              {
+                "kind": "decisionResult",
+                "decisionId": "creature"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "forEachObject",
+        "objects": {
+          "kind": "boundObjects",
+          "binding": "kept"
+        },
+        "bind": "recipient",
+        "effects": [
+          {
+            "kind": "putCounters",
+            "counter": "+1/+1",
+            "count": {
+              "kind": "integer",
+              "value": 1
+            },
+            "permanent": {
+              "kind": "boundValue",
+              "id": "recipient"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player0",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "overlap",
+            "name": "overlap",
+            "typeLine": "Artifact Creature - Construct",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "plain-creature",
+            "name": "plain-creature",
+            "typeLine": "Creature - Scout",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Player1",
+        "battlefield": [
+          {
+            "id": "only-artifact",
+            "name": "only-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Player2"
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "overlap",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "plain-creature",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "only-artifact",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-2",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

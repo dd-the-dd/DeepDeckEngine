@@ -1,0 +1,196 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "land-types-domain",
+  "cases": [
+    {
+      "id": "reflecting-pool-exact",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add one mana of any type that a land you control could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "manaTypesLandsYouControlCouldProduce",
+                    "amount": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "land-types-amount-sibling",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add three mana of any type that a land you control could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "manaTypesLandsYouControlCouldProduce",
+                    "amount": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-object",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add one mana of any type that an artifact you control could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-controller",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add one mana of any type that a land an opponent controls could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-domain",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add one mana of any type.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "trailing-qualifier",
+      "request": {
+        "cardName": "Reflecting Pool",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add one mana of any type that a land you control could produce except blue.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

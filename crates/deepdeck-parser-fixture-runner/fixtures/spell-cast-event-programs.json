@@ -1,0 +1,552 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/spell-cast-event-programs",
+  "cases": [
+    {
+      "id": "exact-real-lotho",
+      "request": {
+        "cardName": "Lotho, Corrupt Shirriff",
+        "typeLine": "Legendary Creature — Halfling Rogue",
+        "manaCost": "{W}{B}",
+        "oracleText": "Whenever a player casts their second spell each turn, you lose 1 life and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "anyPlayer": true,
+                "where": null,
+                "spellCastOrdinal": 2
+              },
+              "effects": [
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Treasure"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-real-beast-whisperer",
+      "request": {
+        "cardName": "Beast Whisperer",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever you cast a creature spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-controller-union",
+      "request": {
+        "cardName": "Synthetic union watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast an artifact or enchantment spell, draw two cards and gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Enchantment"
+                    }
+                  ]
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-opponent-first-spell",
+      "request": {
+        "cardName": "Synthetic opponent watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever an opponent casts their first spell each turn, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "opponentOfSourceController": true,
+                "where": null,
+                "spellCastOrdinal": 1
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-filtered-ordinal",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast your second creature spell each turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.ordinal-basis"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-missing-spell-domain",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.spell-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-ordinal-missing-period",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever a player casts their second spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.ordinal-period"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-double-caster",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a creature spell you cast, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.caster-identity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-intervening-if-now-composed-by-shared-parent",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a spell, if you control a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-nonpermanent-source",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "trigger.program.permanent-face",
+            "expected": "a permanent source face for this battlefield triggered ability",
+            "found": "draw",
+            "tokenIndex": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-event-qualifier-not-ignored",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a spell from your graveyard, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.spell-cast.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-unproved-any-player-filter",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever a player casts a creature spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "anyPlayer": true,
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-unbound-x-body",
+      "request": {
+        "cardName": "Synthetic cast near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{X}{G}",
+        "oracleText": "Whenever you cast a spell, draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

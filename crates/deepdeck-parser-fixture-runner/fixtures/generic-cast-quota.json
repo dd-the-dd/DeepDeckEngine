@@ -1,0 +1,360 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/atomic-cast-quota",
+  "cases": [
+    {
+      "id": "complete-real-card",
+      "request": {
+        "cardName": "Deafening Silence",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than one noncreature spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castLimitPerTurn",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "where": {
+                    "kind": "not",
+                    "operand": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "numeric-or-sibling",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player cannot cast more than 2 instant or sorcery spells each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castLimitPerTurn",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Instant"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Sorcery"
+                      }
+                    ]
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "intersection-sibling",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than 1 artifact creature spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castLimitPerTurn",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-spell-quota",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than one spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castLimitPerTurn",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "where": null,
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-player-scope",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Your opponents can't cast more than one noncreature spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "zero-limit",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than 0 noncreature spells each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "variable-limit",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than X noncreature spells each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "color-history-cap",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than one red spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nonpermanent-source",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more than one noncreature spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "malformed-operator",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each player can't cast more under one noncreature spell each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

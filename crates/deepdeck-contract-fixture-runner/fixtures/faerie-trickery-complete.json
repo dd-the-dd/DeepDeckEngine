@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "faerie-trickery/complete-exact-input",
+  "cardName": "Faerie Trickery",
+  "oracleId": "bbe370ba-412b-4052-89d9-2d0ae4928118",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "defb9f0b-195e-4aeb-92c1-8f827ad6724b",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Faerie Trickery",
+      "typeLine": "Kindred Instant — Faerie",
+      "manaCost": "{1}{U}{U}",
+      "oracleText": "Counter target non-Faerie spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

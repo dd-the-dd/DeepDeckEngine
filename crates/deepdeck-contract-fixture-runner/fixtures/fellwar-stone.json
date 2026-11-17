@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "fellwar-stone/opposing-land-color-domain-is-executable",
+  "cardName": "Fellwar Stone",
+  "oracleId": "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": {
+          "kind": "manaColorsLandsOpponentsControlCouldProduce",
+          "amount": 1
+        }
+      }
+    ]
+  }
+}

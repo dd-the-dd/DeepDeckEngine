@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/9d4b34cc-0452-42a4-90e4-2a48e7ffadc0",
+  "cardName": "Barrow Witches",
+  "oracleId": "9d4b34cc-0452-42a4-90e4-2a48e7ffadc0",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "45707c22-fce8-4dbd-9d19-73f08c68f449",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Barrow Witches",
+      "typeLine": "Creature — Human Warlock",
+      "manaCost": "{4}{B}",
+      "oracleText": "When this creature enters, return target Knight card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

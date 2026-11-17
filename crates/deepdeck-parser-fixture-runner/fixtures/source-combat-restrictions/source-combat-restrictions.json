@@ -1,0 +1,463 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-source-combat-restriction",
+  "cases": [
+    {
+      "id": "real-complete-carrion-feeder",
+      "request": {
+        "cardName": "Carrion Feeder",
+        "typeLine": "Creature \u2014 Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block.\nSacrifice a creature: Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "keyword": "cantBlock"
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "id": "activationCostPermanent0",
+                    "kind": "chosenObject"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "activationCostPermanent0",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "+1/+1",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-selected-sacrifice-and-counter-unchanged",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "Sacrifice a creature: Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "id": "activationCostPermanent0",
+                    "kind": "chosenObject"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "activationCostPermanent0",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "+1/+1",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cannot-attack-not-defender",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't attack.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "keyword": "cantAttack"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cannot-be-blocked",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't be blocked.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "keyword": "cantBeBlocked"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unicode-prohibition",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can\u2019t block.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "keyword": "cantBlock"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed-noncreature-permanent",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Artifact",
+        "manaCost": "{B}",
+        "oracleText": "This artifact can't block.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "keyword": "cantBlock"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-tail",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block unless you control an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duration-tail",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mixed-action-tail",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't attack or block.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qualified-passive-tail",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't be blocked by red creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    }
+  ]
+}

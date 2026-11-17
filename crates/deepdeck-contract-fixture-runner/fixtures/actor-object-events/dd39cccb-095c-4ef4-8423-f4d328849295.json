@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/dd39cccb-095c-4ef4-8423-f4d328849295",
+  "cardName": "Burdened Aerialist",
+  "oracleId": "dd39cccb-095c-4ef4-8423-f4d328849295",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "8387bc7c-2e0a-4ff2-9882-e5e7c92c8463",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Burdened Aerialist",
+      "typeLine": "Creature — Human Pirate",
+      "manaCost": "{2}{U}",
+      "oracleText": "When this creature enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")\nWhenever you sacrifice a token, this creature gains flying until end of turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

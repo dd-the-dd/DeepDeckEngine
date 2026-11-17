@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/keyword-qualifier-is-executable",
+  "cardName": "Whirlwind",
+  "oracleId": "d3946df7-cb24-47c0-a8b0-1bdf95d99926",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Creature" },
+            { "kind": "hasKeyword", "value": "flying" }
+          ]
+        }
+      }
+    }]
+  }
+}

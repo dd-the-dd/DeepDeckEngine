@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/exileNamedCardsFromZones",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "exileNamedCardsFromZones",
+        "all": false,
+        "chooser": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "nameFromCard": {
+          "id": "targetNamedCard",
+          "kind": "chosenTarget"
+        },
+        "player": {
+          "id": "targetNamedCard",
+          "kind": "chosenTarget"
+        },
+        "shuffleLibrary": true,
+        "zones": [
+          "graveyard",
+          "hand",
+          "library"
+        ]
+      }
+    ]
+  }
+}

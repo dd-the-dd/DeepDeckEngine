@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/player-loop/reject-unknown-collection",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "loop:player",
+        "effects": [
+          {
+            "kind": "bind",
+            "id": "candidates",
+            "value": {
+              "kind": "eachPermanent",
+              "player": {
+                "kind": "boundValue",
+                "id": "loop:player"
+              }
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "artifact",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "from": {
+              "kind": "boundObjects",
+              "binding": "candidates"
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "creature",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "from": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "candidates"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "artifact"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ],
+        "collect": {
+          "bind": "collected",
+          "objects": {
+            "kind": "unknown-collection"
+          }
+        }
+      }
+    ]
+  }
+}

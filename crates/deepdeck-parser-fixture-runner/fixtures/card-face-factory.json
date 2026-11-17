@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "structure/card-face-factory",
+  "cases": [
+    {
+      "id": "unknown-layout",
+      "request": {
+        "cardName": "Structure Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card.",
+        "layout": "unimplemented_future_layout",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 0,
+        "diagnostics": [
+          {
+            "code": "card_face_factory_missing",
+            "automaton": "card-face-factory",
+            "state": "factory.layout"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-multipart-layout",
+      "request": {
+        "cardName": "Structure Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card.",
+        "layout": null,
+        "faces": [
+          {
+            "id": "a",
+            "name": "Part A",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "oracleText": "Draw a card."
+          },
+          {
+            "id": "b",
+            "name": "Part B",
+            "typeLine": "Sorcery",
+            "manaCost": "{U}",
+            "oracleText": "Draw a card."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 0,
+        "diagnostics": [
+          {
+            "code": "card_face_factory_missing",
+            "automaton": "card-face-factory",
+            "state": "factory.layout-required"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-second-transform-face",
+      "request": {
+        "cardName": "Structure Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card.",
+        "layout": "transform",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 0,
+        "diagnostics": [
+          {
+            "code": "card_face_structure_invalid",
+            "automaton": "card-face-factory",
+            "state": "structure.parts"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-hela-vengeance-profile-is-not-an-adventure",
+      "request": {
+        "cardName": "Hela, Mistress of Darkness // Dark Tutor",
+        "typeLine": "Legendary Creature — God Sorcerer Villain // Sorcery — Vengeance",
+        "manaCost": "{4}{B}{B} // {1}{B}{B}",
+        "oracleText": null,
+        "layout": "adventure",
+        "faces": [
+          {
+            "id": "7750d4bb-0463-43fd-bdf3-a14271cace20:face-0",
+            "name": "Hela, Mistress of Darkness",
+            "typeLine": "Legendary Creature — God Sorcerer Villain",
+            "manaCost": "{4}{B}{B}",
+            "oracleText": "Whenever a player loses life during your turn, you may create that many tapped 2/2 black Zombie creature tokens. Do this only once each turn.",
+            "power": "6",
+            "toughness": "6",
+            "loyalty": null
+          },
+          {
+            "id": "7750d4bb-0463-43fd-bdf3-a14271cace20:face-1",
+            "name": "Dark Tutor",
+            "typeLine": "Sorcery — Vengeance",
+            "manaCost": "{1}{B}{B}",
+            "oracleText": "(Cast only from your graveyard. Then exile it.)\nSearch your library for a card, put it into your hand or graveyard, then shuffle. You lose 3 life.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 0,
+        "diagnostics": [
+          {
+            "code": "card_face_factory_missing",
+            "automaton": "card-face-factory",
+            "state": "factory.alternative-spell-profile",
+            "messageContains": "Vengeance"
+          }
+        ]
+      }
+    }
+  ]
+}

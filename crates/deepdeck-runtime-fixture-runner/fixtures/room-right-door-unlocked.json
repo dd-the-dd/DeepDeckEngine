@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "room-right-door-trigger-activates-when-right-door-is-cast",
+  "seed": 12102,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "roomDoorIndex": 1,
+    "event": {
+      "kind": "stepBegan",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "step": "endStep"
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Room controller",
+        "hand": [
+          {
+            "id": "two-door-room",
+            "name": "Left Door // Right Door",
+            "typeLine": "Enchantment — Room // Enchantment — Room",
+            "manaCost": "{5}{R} // {0}"
+          }
+        ],
+        "library": [
+          { "id": "room-draw", "name": "Room Draw", "typeLine": "Instant" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "two-door-room",
+      "declarationDecisions": { "roomDoor": 1 }
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 2 }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "room-draw",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "two-door-room",
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

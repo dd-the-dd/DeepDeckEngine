@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ponder/top-cards-reorder-and-optional-shuffle-is-executable",
+  "cardName": "Ponder",
+  "oracleId": "02090581-61aa-4348-ad57-451be8ee91c2",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "count": { "kind": "integer", "value": 3 },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "topOrder",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "topOrder" },
+        "to": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "position": "top"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "topOrder" }
+      },
+      {
+        "kind": "optionalEffects",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "effects": [{
+          "kind": "shuffleZone",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+        }]
+      }
+    ]
+  }
+}

@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "deserters-disciple-excludes-self-keeps-controller-and-power-predicates",
+  "seed": 2185,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "excludeSource": true,
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "keyword": "cantBeBlocked",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Disciple controller",
+        "battlefield": [
+          {
+            "id": "disciple",
+            "name": "Deserter's Disciple",
+            "typeLine": "Creature — Human Rebel Ally",
+            "manaCost": "{1}{R}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "excludeSource": true,
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "compare",
+                              "operator": "<=",
+                              "left": {
+                                "kind": "powerOf",
+                                "object": {
+                                  "kind": "candidate"
+                                }
+                              },
+                              "right": {
+                                "kind": "integer",
+                                "value": 2
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "keyword": "cantBeBlocked",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "small-ally",
+            "name": "Small Ally",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "large-ally",
+            "name": "Large Ally",
+            "typeLine": "Creature",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "enemy-creature",
+            "name": "Enemy Creature",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "disciple",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "disciple"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "disciple",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "small-ally"
+        }
+      },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "disciple",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "large-ally"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "disciple",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "enemy-creature"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "disciple",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

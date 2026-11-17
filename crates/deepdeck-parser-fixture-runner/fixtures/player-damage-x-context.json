@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-damage/producer-context-deferral",
+  "cases": [
+    {
+      "id": "damage-x-gain-x-missing-producer",
+      "request": {
+        "cardName": "Population Context Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals X damage to each opponent and you gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "literal-damage-gain-x-missing-producer",
+      "request": {
+        "cardName": "Population Context Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to each opponent and you gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "damage-x-gain-x-implicit-same-face-mana-x",
+      "request": {
+        "cardName": "Population Context Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "This spell deals X damage to each opponent and you gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  },
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "consumer-cannot-borrow-other-face-mana-x",
+      "request": {
+        "cardName": "Producer Face // Consumer Face",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{X}{R} // {R}",
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "producer",
+            "name": "Producer Face",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{R}",
+            "oracleText": "This spell deals 1 damage to each opponent."
+          },
+          {
+            "id": "consumer",
+            "name": "Consumer Face",
+            "typeLine": "Sorcery",
+            "manaCost": "{R}",
+            "oracleText": "This spell deals X damage to each opponent."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source",
+            "abilityIndex": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "karakas-returns-stolen-legendary-creature-to-owner-hand",
+  "seed": 41,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "isLegendary" },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "returnToOwnersHand",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Karakas pilot and creature owner",
+        "battlefield": [
+          {
+            "id": "karakas",
+            "name": "Karakas",
+            "typeLine": "Legendary Land"
+          },
+          {
+            "id": "borrowed-legend",
+            "name": "Borrowed Legend",
+            "typeLine": "Legendary Creature - Spirit",
+            "power": "2",
+            "toughness": "2",
+            "controllerId": "player-1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Current creature controller",
+        "battlefield": [{
+          "id": "ordinary-creature",
+          "name": "Ordinary Creature",
+          "typeLine": "Creature - Human",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "karakas",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "borrowed-legend"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "borrowed-legend",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "borrowed-legend",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "karakas",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ordinary-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "borrowed-legend",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "ordinary-creature",
+      "equals": false
+    },
+    { "kind": "eventCount", "eventKind": "permanentReturned", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

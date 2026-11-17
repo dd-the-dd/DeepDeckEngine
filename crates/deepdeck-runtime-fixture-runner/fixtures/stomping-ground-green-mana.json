@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "stomping-ground-chooses-green-mana",
+  "seed": 125,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{R}", "{G}"] }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Stomping Ground pilot",
+        "battlefield": [{
+          "id": "stomping-ground",
+          "name": "Stomping Ground",
+          "typeLine": "Land — Mountain Forest"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "stomping-ground",
+    "manaSymbols": ["G"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["G"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "stomping-ground", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

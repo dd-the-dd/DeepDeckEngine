@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "fry/shared-relative-object-query-is-executable",
+  "cardName": "Fry",
+  "oracleId": "3a747893-a514-4689-8486-ecccf654fecb",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "stack" }
+      },
+      "modifiers": [{
+        "kind": "cantBeCountered",
+        "object": { "kind": "self" }
+      }]
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "cardTypeContains", "value": "Creature" },
+                    { "kind": "cardTypeContains", "value": "Planeswalker" }
+                  ]
+                },
+                {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "colorContains", "value": "White" },
+                    { "kind": "colorContains", "value": "Blue" }
+                  ]
+                }
+              ]
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "recipient": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "amount": { "kind": "integer", "value": 5 }
+      }]
+    }
+  ]
+}

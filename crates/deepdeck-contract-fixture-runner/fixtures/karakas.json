@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "karakas/legendary-creature-owner-hand-is-executable",
+  "cardName": "Karakas",
+  "oracleId": "59119143-c0fa-49dd-adf0-e2fd3029c48b",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "isLegendary" },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "returnToOwnersHand",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+    }]
+  }
+}

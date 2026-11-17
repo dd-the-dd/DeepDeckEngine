@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "disdainful-stroke-counters-mana-value-four-spell",
+  "seed": 18,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "compare",
+            "operator": ">=",
+            "left": {
+              "kind": "manaValueOf",
+              "object": { "kind": "candidate" }
+            },
+            "right": { "kind": "integer", "value": 4 }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Disdainful Stroke pilot",
+        "manaPool": ["C", "U"],
+        "hand": [{
+          "id": "disdainful-stroke",
+          "name": "Disdainful Stroke",
+          "typeLine": "Instant",
+          "manaCost": "{1}{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetSpell",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "spells",
+                  "where": {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "manaValueOf",
+                      "object": { "kind": "candidate" }
+                    },
+                    "right": { "kind": "integer", "value": 4 }
+                  }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "counterSpell",
+              "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["C", "C", "C", "R"],
+        "hand": [{
+          "id": "mana-value-four-spell",
+          "name": "Mana Value Four Spell",
+          "typeLine": "Instant",
+          "manaCost": "{3}{R}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "mana-value-four-spell"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "disdainful-stroke"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "disdainful-stroke",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "mana-value-four-spell",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

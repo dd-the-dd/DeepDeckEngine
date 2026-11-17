@@ -1,0 +1,212 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "primitive-surveil/synthetic-one-empty-library-still-performed",
+  "seed": 73,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "bind": "surveilLookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "surveilGraveyardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "surveilLookedCards"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "boundObjects",
+            "binding": "surveilLookedCards"
+          }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "surveilGraveyardOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "surveilGraveyardCards"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "surveilGraveyardOrder"
+        },
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "surveilGraveyardOrder"
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "surveilTopOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "objects": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "surveilLookedCards"
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "surveilGraveyardCards"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "surveilTopOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "top"
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "surveilTopOrder"
+        }
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "surveil",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [],
+        "hand": [
+          {
+            "id": "surveil-source",
+            "name": "Synthetic Surveil Source",
+            "typeLine": "Sorcery"
+          }
+        ],
+        "library": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "surveil-source"
+  },
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "surveilled",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

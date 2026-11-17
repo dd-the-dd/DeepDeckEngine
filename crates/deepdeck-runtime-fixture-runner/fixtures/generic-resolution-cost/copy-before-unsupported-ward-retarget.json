@@ -1,0 +1,272 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "try-pay-cost/copy-before-unsupported-ward-retarget",
+  "seed": 99122,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "spell",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "copyStackItem",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "spell"
+        },
+        "controller": {
+          "kind": "abilityController"
+        },
+        "mayChooseNewTargets": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "p0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "friendly",
+            "name": "friendly",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": [
+          {
+            "id": "copier",
+            "name": "copier",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "spell",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "copyStackItem",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "spell"
+                    },
+                    "controller": {
+                      "kind": "abilityController"
+                    },
+                    "mayChooseNewTargets": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "p1",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "warded",
+            "name": "warded",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "ward",
+                  "cost": {
+                    "kind": "behold",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "count": 1
+                  }
+                }
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": [
+          {
+            "id": "original",
+            "name": "original",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "recipient",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "recipient"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p1",
+      "sourceDefinitionId": "original"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "copier"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "unsupported resolution cost program"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 2
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "stackObjectCopied",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 2
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "friendly",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "warded",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityCountered",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 0
+    }
+  ]
+}

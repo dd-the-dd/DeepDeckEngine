@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ward-resource/hexing-complete",
+  "cardName": "Hexing Squelcher",
+  "oracleId": "96c2d71e-0fc9-42aa-bc6b-6d0ae3f66f8b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "674960ce-ff33-4d5e-a24a-a4582b2e9809",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Hexing Squelcher",
+      "typeLine": "Creature — Goblin Sorcerer",
+      "manaCost": "{1}{R}",
+      "oracleText": "This spell can't be countered.\nWard—Pay 2 life.\nSpells you control can't be countered.\nOther creatures you control have \"Ward—Pay 2 life.\"",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

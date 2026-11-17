@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "temporary-land-allowance/two-additional-lands-three-total",
+  "seed": 10982,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "grantAdditionalLandPlays",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "manaPool": [
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "allowance",
+            "name": "Synthetic allowance",
+            "typeLine": "Sorcery",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "grantAdditionalLandPlays",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "land-1",
+            "name": "land-1",
+            "typeLine": "Basic Land ? Forest",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "land-2",
+            "name": "land-2",
+            "typeLine": "Basic Land ? Forest",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "land-3",
+            "name": "land-3",
+            "typeLine": "Basic Land ? Forest",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "land-4",
+            "name": "land-4",
+            "typeLine": "Basic Land ? Forest",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "allowance"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-1"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-2"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-3"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "equals": 3
+    },
+    {
+      "kind": "landPlayAvailable",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-4",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 3
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

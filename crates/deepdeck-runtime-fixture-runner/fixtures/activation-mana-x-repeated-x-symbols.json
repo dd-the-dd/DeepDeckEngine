@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "activation-mana-x/repeated-x-symbols",
+  "seed": 1471,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{X}{X}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseNumber",
+          "id": "xValue",
+          "minimum": 0
+        },
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "keyword": "cantBeBlocked",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sightbender controller",
+        "manaPool": [
+          "C",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "battlefield": [
+          {
+            "id": "minamo-sightbender",
+            "name": "Generic Repeated-X Adept",
+            "typeLine": "Creature — Human Wizard",
+            "manaCost": "{1}{U}",
+            "power": "1",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{X}{X}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseNumber",
+                      "id": "xValue",
+                      "minimum": 0
+                    },
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "compare",
+                              "operator": "<=",
+                              "left": {
+                                "kind": "powerOf",
+                                "object": {
+                                  "kind": "candidate"
+                                }
+                              },
+                              "right": {
+                                "kind": "decisionResult",
+                                "decisionId": "xValue"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "keyword": "cantBeBlocked",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "chosen-creature",
+            "name": "chosen-creature",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "5"
+          },
+          {
+            "id": "larger-creature",
+            "name": "larger-creature",
+            "typeLine": "Creature",
+            "power": "4",
+            "toughness": "5"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "minamo-sightbender",
+      "abilityRuleIndex": 0,
+      "declarationDecisions": {
+        "xValue": 2
+      },
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "chosen-creature"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "C"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "minamo-sightbender",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "chosen-creature",
+      "keyword": "cantBeBlocked",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "larger-creature",
+      "keyword": "cantBeBlocked",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

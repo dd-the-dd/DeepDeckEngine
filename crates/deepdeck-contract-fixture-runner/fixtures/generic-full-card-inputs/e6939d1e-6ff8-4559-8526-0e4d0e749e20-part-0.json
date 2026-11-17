@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/e6939d1e-6ff8-4559-8526-0e4d0e749e20/part-0",
+  "cardName": "Fugitive Listener",
+  "oracleId": "e6939d1e-6ff8-4559-8526-0e4d0e749e20",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "bd04c738-b4e3-481e-9a68-d257524bf40e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Fugitive Listener",
+      "typeLine": "Creature — El-Aurian Scout",
+      "manaCost": "{2}{B}",
+      "oracleText": "When this creature enters, each opponent discards a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

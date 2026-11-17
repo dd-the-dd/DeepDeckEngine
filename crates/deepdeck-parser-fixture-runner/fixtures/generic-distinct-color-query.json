@@ -1,0 +1,565 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/distinct-effective-color-query",
+  "cases": [
+    {
+      "id": "exact-bloom-complete-source",
+      "request": {
+        "cardName": "Bloom Tender",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{1}{G}",
+        "oracleText": "Vivid — {T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-faeburrow-complete-source-stays-partial-static-held",
+      "request": {
+        "cardName": "Faeburrow Elder",
+        "typeLine": "Creature — Treefolk Druid",
+        "manaCost": "{1}{G}{W}",
+        "oracleText": "Vigilance\nThis creature gets +1/+1 for each color among permanents you control.\n{T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 3,
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "selector.predicate.start",
+            "found": "color"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unlabeled-sibling",
+      "request": {
+        "cardName": "Shared Query Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "bounded-two-of-each-color",
+      "request": {
+        "cardName": "Shared Query Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add two mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": 2
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "bounded-ten-of-each-color",
+      "request": {
+        "cardName": "Shared Query Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add ten mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": 10
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-label-is-nonsemantic-fixed-mana",
+      "request": {
+        "cardName": "Shared Query Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Vivid — {T}: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{G}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mana-type-is-distinct-from-color",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each mana type among permanents you control, add one mana of that type.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "color-identity-is-not-current-color",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color in your color identity, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "opponent-query-not-implicitly-own",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents your opponents control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "creature-filter-is-not-all-permanents",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among creatures you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-bound-color-reference",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "zero-amount-is-explicit-parser-cap",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add zero mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "amount-eleven-is-explicit-parser-cap",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add eleven mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-variable-not-zero",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{T}: For each color among permanents you control, add X mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-label-not-registered",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "FutureLabel — {T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-label-needs-boundary",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Vivid {T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

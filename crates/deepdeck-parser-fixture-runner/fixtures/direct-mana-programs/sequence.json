@@ -1,0 +1,373 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-add-led-spell-program-envelope",
+  "cases": [
+    {
+      "id": "two-local-policies-then-life",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Spend this mana only to cast a creature spell, and that spell can't be countered. Add {U}. Spend this mana only to cast an artifact spell. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{W}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "cantBeCountered": true
+                  }
+                },
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{U}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    }
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "legacy-unqualified-three-action-control",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Add {U}. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{W}"
+                },
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{U}"
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-tail-through-shared-program",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. You may gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{W}"
+                },
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "gainLife",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "amount": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "targeted-tail-declaration-through-shared-program",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Target creature gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{W}"
+                },
+                {
+                  "kind": "grantKeyword",
+                  "keyword": "flying",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "atomic-qualified-old-ir-control",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Spend this mana only to cast a creature spell, and that spell can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{W}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "cantBeCountered": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "malformed-policy-does-not-defer",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Spend this mana only to cast a creature spell, and that spell draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-followup-not-partial-success",
+      "request": {
+        "cardName": "Independent Composed Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {W}. Gain a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

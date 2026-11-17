@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/indestructible-is-checked-before-and-does-not-consume-a-shield-counter",
+  "seed": 602,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "<=",
+                "right": {
+                  "kind": "integer",
+                  "value": 100
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "shield-preservation-destroy",
+            "name": "Shield Preservation Destroy",
+            "typeLine": "Sorcery",
+            "manaCost": ""
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Protected controller",
+        "battlefield": [
+          {
+            "id": "shield-indestructible-lord",
+            "name": "Shield Indestructible Lord",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "excludeSource": true
+                    },
+                    "keyword": "indestructible"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "indestructible-shielded-creature",
+            "name": "Indestructible Shielded Creature",
+            "typeLine": "Creature - Test",
+            "power": "3",
+            "toughness": "3",
+            "counters": {
+              "shield": 1
+            },
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "shield-preservation-destroy"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "shield-indestructible-lord",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "indestructible-shielded-creature",
+      "equals": true
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "indestructible-shielded-creature",
+      "counter": "shield",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "destructionPrevented",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

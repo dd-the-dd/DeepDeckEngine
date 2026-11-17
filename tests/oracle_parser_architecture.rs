@@ -3,12 +3,6 @@ use std::path::{Path, PathBuf};
 
 use regex::Regex;
 
-const LEGACY_LONG_EXACT_COMPARISON_LIMIT: usize = 312;
-const LEGACY_TEXT_MATCH_LIMIT: usize = 35;
-// This ceiling dropped from 300 when activated abilities stopped embedding
-// whole Oracle sentences and began composing typed grammar primitives.
-const LEGACY_LONG_ANCHORED_REGEX_LIMIT: usize = 289;
-
 fn rust_sources(directory: &Path) -> Vec<PathBuf> {
     let mut sources = Vec::new();
     for entry in fs::read_dir(directory).expect("canonical parser directory must be readable") {
@@ -22,6 +16,11 @@ fn rust_sources(directory: &Path) -> Vec<PathBuf> {
         }
     }
     sources
+}
+
+fn is_production_source(path: &Path) -> bool {
+    let name = path.file_name().unwrap().to_string_lossy();
+    name != "tests.rs" && !name.ends_with("_tests.rs")
 }
 
 fn long_exact_text_comparisons(source: &str) -> usize {
@@ -60,12 +59,11 @@ fn long_anchored_regexes(source: &str) -> usize {
 }
 
 #[test]
-fn complete_oracle_text_matching_can_only_shrink_across_the_parser() {
+fn canonical_parser_has_no_whole_text_recognizer() {
     let canonical = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/oracle/canonical");
-    let test_corpus = canonical.join("tests.rs");
     let production_sources = rust_sources(&canonical)
         .into_iter()
-        .filter(|path| path != &test_corpus)
+        .filter(|path| is_production_source(path))
         .map(|path| fs::read_to_string(path).expect("canonical source must be readable"))
         .collect::<Vec<_>>();
     let comparisons = production_sources
@@ -82,16 +80,16 @@ fn complete_oracle_text_matching_can_only_shrink_across_the_parser() {
         .sum::<usize>();
 
     assert!(
-        comparisons <= LEGACY_LONG_EXACT_COMPARISON_LIMIT,
-        "complete Oracle text comparisons increased from {LEGACY_LONG_EXACT_COMPARISON_LIMIT} to {comparisons}; compose grammar primitives instead"
+        comparisons == 0,
+        "found {comparisons} complete Oracle text comparisons; compose token automata instead"
     );
     assert!(
-        matches <= LEGACY_TEXT_MATCH_LIMIT,
-        "match text blocks increased from {LEGACY_TEXT_MATCH_LIMIT} to {matches}; dispatch through grammar primitives instead"
+        matches == 0,
+        "found {matches} match text blocks; dispatch through token automata instead"
     );
     assert!(
-        anchored_regexes <= LEGACY_LONG_ANCHORED_REGEX_LIMIT,
-        "whole-ability-shaped regexes increased from {LEGACY_LONG_ANCHORED_REGEX_LIMIT} to {anchored_regexes}; decompose the ability into grammar primitives instead"
+        anchored_regexes == 0,
+        "found {anchored_regexes} whole-ability regexes; compose token automata instead"
     );
 }
 
@@ -108,11 +106,25 @@ fn canonical_root_only_composes_parser_domains() {
 }
 
 #[test]
-fn activated_abilities_compose_typed_grammar_instead_of_inline_regexes() {
-    let source = include_str!("../src/oracle/canonical/abilities/activated.rs");
-    assert_eq!(
-        source.matches("Regex::new").count(),
-        0,
-        "activated abilities must call semantic grammar primitives instead of matching Oracle sentences inline",
-    );
+fn entire_oracle_parser_has_no_regex_or_opaque_effect_fallback() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/oracle");
+    for path in rust_sources(&root)
+        .into_iter()
+        .filter(|path| is_production_source(path))
+    {
+        let source = fs::read_to_string(&path).expect("Oracle source must be readable");
+        for forbidden in [
+            "Regex::new",
+            "regex::Regex",
+            "regex!",
+            "regex_cache",
+            "resolveTriggeredInstruction",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "{} reintroduces `{forbidden}` into the strict parser",
+                path.display()
+            );
+        }
+    }
 }

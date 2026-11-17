@@ -1,0 +1,400 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "complete-card-pending-parser-link/invalid-graveyard-target-fizzles-before-mana",
+  "seed": 10943,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "cards",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            },
+            "zone": {
+              "kind": "anyGraveyard"
+            }
+          },
+          "id": "targetCard",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "cards": {
+          "id": "targetCard",
+          "kind": "chosenTargets"
+        },
+        "kind": "exileTargetCards"
+      },
+      {
+        "kind": "addMana",
+        "mana": {
+          "amount": 1,
+          "kind": "chooseColor"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Player 0",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "Deathrite Shaman",
+            "typeLine": "Creature — Elf Shaman",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        },
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        }
+                      },
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cards": {
+                      "id": "targetCard",
+                      "kind": "chosenTargets"
+                    },
+                    "kind": "exileTargetCards"
+                  },
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "amount": 1,
+                      "kind": "chooseColor"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{B}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Instant"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Sorcery"
+                            }
+                          ]
+                        },
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        }
+                      },
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cards": {
+                      "id": "targetCard",
+                      "kind": "chosenTargets"
+                    },
+                    "kind": "exileTargetCards"
+                  },
+                  {
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{G}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        }
+                      },
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cards": {
+                      "id": "targetCard",
+                      "kind": "chosenTargets"
+                    },
+                    "kind": "exileTargetCards"
+                  },
+                  {
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "power": "1",
+            "toughness": "2",
+            "manaCost": "{B/G}"
+          }
+        ],
+        "hand": [
+          {
+            "id": "rescue",
+            "name": "Rescue",
+            "typeLine": "Instant",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "rescueCard",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "rescueCard"
+                    },
+                    "to": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "ownerOf",
+                        "object": {
+                          "kind": "chosenTarget",
+                          "id": "rescueCard"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Player 1",
+        "battlefield": [],
+        "graveyard": [
+          {
+            "id": "land-card",
+            "name": "land-card",
+            "typeLine": "Land",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "executor",
+      "targets": {
+        "targetCard": {
+          "kind": "cardDefinition",
+          "definitionId": "land-card"
+        }
+      },
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "rescue"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "hand",
+      "definitionId": "land-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "exile",
+      "definitionId": "land-card",
+      "equals": false
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityFizzled",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAdded",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

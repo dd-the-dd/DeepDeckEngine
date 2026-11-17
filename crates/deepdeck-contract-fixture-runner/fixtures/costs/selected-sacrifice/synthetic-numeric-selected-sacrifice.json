@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic-numeric-cost/same-x-producer",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{X}"
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent1"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseNumber",
+          "id": "xValue",
+          "minimum": 0
+        },
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent1",
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

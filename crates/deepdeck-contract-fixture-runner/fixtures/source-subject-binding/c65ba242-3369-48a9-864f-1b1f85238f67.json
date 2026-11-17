@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/c65ba242-3369-48a9-864f-1b1f85238f67",
+  "cardName": "Emmara, Soul of the Accord",
+  "oracleId": "c65ba242-3369-48a9-864f-1b1f85238f67",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "41b930ee-e16b-4612-87de-c03ecc6ff6db",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Emmara, Soul of the Accord",
+      "typeLine": "Legendary Creature — Elf Cleric",
+      "manaCost": "{G}{W}",
+      "oracleText": "Whenever Emmara becomes tapped, create a 1/1 white Soldier creature token with lifelink.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

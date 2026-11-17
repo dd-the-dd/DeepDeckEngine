@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "attack-tax-controller-may-choose-fewer-attackers",
+  "seed": 111,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Protected player",
+        "battlefield": [{
+          "id": "tax-source",
+          "name": "Tax Source",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "attackTax",
+              "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 2 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "choice-draw", "name": "Choice Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [
+          { "id": "chosen-attacker", "name": "Chosen Attacker", "typeLine": "Creature - Test", "power": "2", "toughness": "2", "rules": [] },
+          { "id": "declined-attacker", "name": "Declined Attacker", "typeLine": "Creature - Test", "power": "2", "toughness": "2", "rules": [] },
+          {
+            "id": "choice-land-a",
+            "name": "Choice Land A",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "choice-land-b",
+            "name": "Choice Land B",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "choice-land-c",
+            "name": "Choice Land C",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          },
+          {
+            "id": "choice-land-d",
+            "name": "Choice Land D",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": { "kind": "fixedMana", "symbol": "C", "amount": { "kind": "integer", "value": 1 } } }]
+            }]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "chosen-attacker", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "declined-attacker", "equals": false },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "choice-land-a", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "choice-land-b", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "choice-land-c", "equals": false },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "choice-land-d", "equals": false },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

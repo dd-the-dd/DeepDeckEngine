@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "untap-attempt/already-untapped",
+  "seed": 7311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "choosePermanents",
+        "id": "chosenUntapPermanents",
+        "player": {
+          "kind": "abilityController"
+        },
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        },
+        "minimum": 1,
+        "maximum": 1
+      },
+      {
+        "kind": "untapPermanents",
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "chosenUntapPermanents"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "Executor",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": [
+          {
+            "id": "land",
+            "name": "Land",
+            "typeLine": "Land",
+            "tapped": false,
+            "counters": {
+              "stun": 1
+            },
+            "rules": []
+          },
+          {
+            "id": "otherLand",
+            "name": "Other Land",
+            "typeLine": "Land",
+            "tapped": true,
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "executor"
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "land",
+      "equals": false
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p1",
+      "definitionId": "land",
+      "counter": "stun",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentUntapped",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "counterRemoved",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "otherLand",
+      "equals": true
+    }
+  ]
+}

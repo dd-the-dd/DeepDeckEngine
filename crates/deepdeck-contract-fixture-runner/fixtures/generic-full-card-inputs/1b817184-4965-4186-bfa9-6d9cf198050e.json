@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/1b817184-4965-4186-bfa9-6d9cf198050e/part-0",
+  "cardName": "Crossroads Candleguide",
+  "oracleId": "1b817184-4965-4186-bfa9-6d9cf198050e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5cad1524-9e75-47e0-b817-47110634802a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Crossroads Candleguide",
+      "typeLine": "Artifact Creature — Scarecrow",
+      "manaCost": "{4}",
+      "oracleText": "When this creature enters, exile up to one target card from a graveyard.\n{2}: Add one mana of any color.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

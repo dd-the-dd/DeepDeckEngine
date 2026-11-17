@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/separateGraveyardCardsIntoPiles",
+  "cardName": "Specialized effect audit batch03",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "separateGraveyardCardsIntoPiles",
+        "player": {
+          "kind": "abilityController"
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        },
+        "chosenPileDestination": "exile",
+        "otherPileDestination": "battlefield"
+      }
+    ]
+  }
+}

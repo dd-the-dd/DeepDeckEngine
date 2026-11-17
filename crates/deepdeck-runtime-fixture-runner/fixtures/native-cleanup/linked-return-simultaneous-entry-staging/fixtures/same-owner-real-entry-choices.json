@@ -1,0 +1,286 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shared-battlefield-entry-batch/same-owner-real-entry-choices",
+  "seed": 6103,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "returnees"
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "returnees"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Owner zero",
+        "library": [
+          {
+            "id": "watcher-a",
+            "name": "watcher-a",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "anyController": true,
+                  "excludeSource": true,
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "watcher-b",
+            "name": "watcher-b",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "anyController": true,
+                  "excludeSource": true,
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "batch-source",
+            "name": "Synthetic movement source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "keyword": "riot"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Owner one",
+        "library": []
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "batch-source",
+    "decisions": {}
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    },
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "playerId": "player-0",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "playerId": "player-1",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentEnteredBattlefield",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "permanentController",
+      "playerId": "player-0",
+      "definitionId": "watcher-a",
+      "equals": "player-0"
+    },
+    {
+      "kind": "permanentController",
+      "playerId": "player-0",
+      "definitionId": "watcher-b",
+      "equals": "player-0"
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 20
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "watcher-a",
+      "keyword": "haste",
+      "equals": true
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "watcher-a",
+      "counter": "+1/+1",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "watcher-b",
+      "counter": "+1/+1",
+      "equals": 1
+    }
+  ]
+}

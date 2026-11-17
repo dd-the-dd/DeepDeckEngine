@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "checkland-family/027dd013-baa7-4111-b3c9-f4d1414e9c45/03-entry-nonmember",
+  "seed": 151115,
+  "rule": {
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "controlsPermanent",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            {
+              "kind": "subtypeContains",
+              "value": "Plains"
+            },
+            {
+              "kind": "subtypeContains",
+              "value": "Island"
+            }
+          ]
+        }
+      }
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "replacementEffect",
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "d306154a-7adb-4b35-b0cf-9c8d2fc1f72f",
+            "name": "Glacial Fortress",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Plains"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Island"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "chooseOne",
+                      "options": [
+                        "{W}",
+                        "{U}"
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "witness",
+            "name": "Witness",
+            "typeLine": "Land - Swamp",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "d306154a-7adb-4b35-b0cf-9c8d2fc1f72f"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "d306154a-7adb-4b35-b0cf-9c8d2fc1f72f",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "d306154a-7adb-4b35-b0cf-9c8d2fc1f72f",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

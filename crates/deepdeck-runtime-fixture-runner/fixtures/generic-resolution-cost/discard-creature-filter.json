@@ -1,0 +1,349 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ward-positive/discard-creature-filter",
+  "seed": 99123,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "recipient",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "tapPermanent",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "recipient"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Payer",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "payer-creature",
+            "name": "payer-creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "payer-artifact",
+            "name": "payer-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "targeting-spell",
+            "name": "targeting-spell",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "recipient",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "recipient"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "payer-hand-creature",
+            "name": "payer-hand-creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "payer-hand-instant",
+            "name": "payer-hand-instant",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Ward controller",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "ward-source",
+            "name": "ward-source",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "ward",
+                  "cost": {
+                    "kind": "discardCard",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              }
+            ],
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "nonpayer-artifact",
+            "name": "nonpayer-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "nonpayer-hand-creature",
+            "name": "nonpayer-hand-creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "targeting-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityCountered",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 1,
+      "playerId": "p0"
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 0,
+      "playerId": "p1"
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "ward-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "ward-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "nonpayer-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "hand",
+      "definitionId": "nonpayer-hand-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "payer-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "payer-hand-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "targeting-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "payer-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "payer-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "payer-hand-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "payer-hand-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p1",
+      "definitionId": "ward-source",
+      "counter": "-1/-1",
+      "equals": 0
+    }
+  ]
+}

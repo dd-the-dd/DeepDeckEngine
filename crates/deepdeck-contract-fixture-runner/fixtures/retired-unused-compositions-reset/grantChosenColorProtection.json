@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/grantChosenColorProtection",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "grantChosenColorProtection",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "permanent"
+        },
+        "player": {
+          "kind": "abilityController"
+        },
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  }
+}

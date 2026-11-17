@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/94c47804-bb64-4a91-85c5-9241c39685aa/part-0",
+  "cardName": "Creakwood Ghoul",
+  "oracleId": "94c47804-bb64-4a91-85c5-9241c39685aa",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3d4e94d3-0df5-4d2b-a5d9-178fe1350ceb",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Creakwood Ghoul",
+      "typeLine": "Creature — Plant Zombie",
+      "manaCost": "{4}{B}",
+      "oracleText": "{B/G}{B/G}: Exile target card from a graveyard. You gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

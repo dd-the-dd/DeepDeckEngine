@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/49a7c053-81e9-47b7-af5c-c62cd0389ed4",
+  "cardName": "Lethal Protection",
+  "oracleId": "49a7c053-81e9-47b7-af5c-c62cd0389ed4",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d98f0e44-f5c7-4e08-8a4a-d0280f22d132",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Lethal Protection",
+      "typeLine": "Sorcery",
+      "manaCost": "{3}{B}",
+      "oracleText": "Destroy target creature. Return up to one target creature card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

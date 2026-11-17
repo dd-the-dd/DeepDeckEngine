@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/ownerChoosesSecondFromTopOrBottom",
+  "cardName": "Specialized effect audit batch04",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "ownerChoosesSecondFromTopOrBottom",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "object"
+        }
+      }
+    ]
+  }
+}

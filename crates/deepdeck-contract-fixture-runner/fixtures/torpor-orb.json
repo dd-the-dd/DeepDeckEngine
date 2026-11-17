@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "torpor-orb/entering-object-trigger-suppression-is-executable",
+  "cardName": "Torpor Orb",
+  "oracleId": "97326cad-b13c-4e52-82ce-850a39e5ff08",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "suppressTriggerCreation",
+      "causedBy": {
+        "kind": "enterBattlefield",
+        "object": {
+          "kind": "eventObject",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }
+    }]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/f25351e3-539b-4bbc-b92d-6480acf4d722",
+  "cardName": "City of Brass",
+  "oracleId": "f25351e3-539b-4bbc-b92d-6480acf4d722",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c21565d0-fc40-4d89-9b27-87c03385e0af",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "City of Brass",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "Whenever this land becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

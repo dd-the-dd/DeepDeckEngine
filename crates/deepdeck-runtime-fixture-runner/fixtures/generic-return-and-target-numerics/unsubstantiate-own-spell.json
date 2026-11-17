@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "return-domain/unsubstantiate-own-spell",
+  "seed": 19701,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "union",
+            "sets": [
+              {
+                "kind": "spells"
+              },
+              {
+                "kind": "permanents",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ]
+          },
+          "id": "targetObject",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "returnToOwnersHand",
+        "object": {
+          "id": "targetObject",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Return caster",
+        "life": 20,
+        "manaPool": [
+          "U",
+          "U",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "source",
+            "name": "Unsubstantiate",
+            "typeLine": "Instant",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "union",
+                        "sets": [
+                          {
+                            "kind": "spells"
+                          },
+                          {
+                            "kind": "permanents",
+                            "where": {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          }
+                        ]
+                      },
+                      "id": "targetObject",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": {
+                      "id": "targetObject",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "manaCost": "{1}{U}"
+          },
+          {
+            "id": "target",
+            "name": "Stack target",
+            "typeLine": "Sorcery",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": []
+              }
+            ],
+            "manaCost": "{0}"
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20,
+        "manaPool": [
+          "C"
+        ],
+        "hand": [],
+        "battlefield": [
+          {
+            "id": "opponent-land",
+            "name": "Opponent land",
+            "typeLine": "Land",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "target"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "source"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "target",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "target",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellReturned",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentReturned",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opponent-land",
+      "equals": true
+    }
+  ]
+}

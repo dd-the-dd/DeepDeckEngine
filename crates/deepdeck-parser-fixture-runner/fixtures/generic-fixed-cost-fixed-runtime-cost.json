@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "flashback/fixed-runtime-cost-validation",
+  "cases": [
+    {
+      "id": "unknown-variable",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {Y}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-symbol",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {NOPE}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "numeric-hybrid",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2/W}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-total-overflow",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2147483647}{1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "colored-total-overflow",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2147483647}{R}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    }
+  ]
+}

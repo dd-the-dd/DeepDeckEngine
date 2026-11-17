@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "eternal-witness-can-decline-after-targeting",
+  "seed": 302,
+  "rule": {
+    "kind": "triggeredAbility", "source": { "kind": "self" }, "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "declaration": { "kind": "castingDeclaration", "decisions": [{ "id": "targetCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1, "candidates": { "kind": "cards", "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "where": null } }] },
+    "effects": [{ "kind": "optionalEffects", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "effects": [{ "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetCard" }, "from": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } }] }]
+  },
+  "initialState": { "activePlayerId": "player-0", "players": [
+    { "id": "player-0", "name": "Witness controller", "manaPool": ["C", "G", "G"], "hand": [{ "id": "eternal-witness", "name": "Eternal Witness", "typeLine": "Creature - Human Shaman", "manaCost": "{1}{G}{G}", "power": "2", "toughness": "1", "rules": [{ "kind": "triggeredAbility", "source": { "kind": "self" }, "event": { "kind": "enterBattlefield", "object": { "kind": "self" } }, "declaration": { "kind": "castingDeclaration", "decisions": [{ "id": "targetCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1, "candidates": { "kind": "cards", "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "where": null } }] }, "effects": [{ "kind": "optionalEffects", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "effects": [{ "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetCard" }, "from": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } }] }] }] }], "graveyard": [{ "id": "declined-card", "name": "Declined Card", "typeLine": "Instant", "rules": [] }] },
+    { "id": "player-1", "name": "Opponent" }
+  ] },
+  "actions": [{ "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "eternal-witness" }, { "kind": "resolveTopStack" }, { "kind": "resolveTopStack" }],
+  "decisions": [{ "kind": "chooseOption", "index": 0 }, { "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "declined-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "declined-card", "equals": false },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 0 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

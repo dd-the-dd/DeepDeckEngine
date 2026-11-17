@@ -1,0 +1,196 @@
+{
+  "scope": "TEN_LOCAL_SETS_SELECTION_2026_11_13",
+  "rows": [
+    {
+      "code": "trk",
+      "name": "Star Trek",
+      "cards": 311,
+      "partition": {
+        "completeNonempty": 45,
+        "partial": 118,
+        "none": 148,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 210,
+      "completeDelta": 0
+    },
+    {
+      "code": "mbc",
+      "name": "Mystery Booster Commander Edition",
+      "cards": 80,
+      "partition": {
+        "completeNonempty": 10,
+        "partial": 20,
+        "none": 50,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 36,
+      "completeDelta": 0
+    },
+    {
+      "code": "fra",
+      "name": "Reality Fracture",
+      "cards": 285,
+      "partition": {
+        "completeNonempty": 55,
+        "partial": 121,
+        "none": 107,
+        "emptyCanonical": 2,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 234,
+      "completeDelta": 0
+    },
+    {
+      "code": "hob",
+      "name": "The Hobbit",
+      "cards": 193,
+      "partition": {
+        "completeNonempty": 23,
+        "partial": 91,
+        "none": 78,
+        "emptyCanonical": 1,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 135,
+      "completeDelta": 0
+    },
+    {
+      "code": "msh",
+      "name": "Marvel Super Heroes",
+      "cards": 281,
+      "partition": {
+        "completeNonempty": 32,
+        "partial": 137,
+        "none": 112,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 228,
+      "completeDelta": 0
+    },
+    {
+      "code": "sos",
+      "name": "Secrets of Strixhaven",
+      "cards": 271,
+      "partition": {
+        "completeNonempty": 63,
+        "partial": 107,
+        "none": 101,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 241,
+      "completeDelta": 0
+    },
+    {
+      "code": "tmt",
+      "name": "Teenage Mutant Ninja Turtles",
+      "cards": 195,
+      "partition": {
+        "completeNonempty": 43,
+        "partial": 76,
+        "none": 76,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 158,
+      "completeDelta": 0
+    },
+    {
+      "code": "ecl",
+      "name": "Lorwyn Eclipsed",
+      "cards": 273,
+      "partition": {
+        "completeNonempty": 42,
+        "partial": 87,
+        "none": 144,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 164,
+      "completeDelta": 0
+    },
+    {
+      "code": "tla",
+      "name": "Avatar: The Last Airbender",
+      "cards": 286,
+      "partition": {
+        "completeNonempty": 50,
+        "partial": 108,
+        "none": 128,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 226,
+      "completeDelta": 1
+    },
+    {
+      "code": "spm",
+      "name": "Marvel's Spider-Man",
+      "cards": 193,
+      "partition": {
+        "completeNonempty": 27,
+        "partial": 87,
+        "none": 79,
+        "emptyCanonical": 0,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 143,
+      "completeDelta": 0
+    }
+  ],
+  "totals": {
+    "before": {
+      "cards": 2368,
+      "partition": {
+        "completeNonempty": 389,
+        "partial": 951,
+        "none": 1025,
+        "emptyCanonical": 3,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 1773
+    },
+    "after": {
+      "cards": 2368,
+      "partition": {
+        "completeNonempty": 390,
+        "partial": 952,
+        "none": 1023,
+        "emptyCanonical": 3,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 1775
+    }
+  },
+  "deduplicated": {
+    "before": {
+      "cards": 2319,
+      "partition": {
+        "completeNonempty": 342,
+        "partial": 950,
+        "none": 1024,
+        "emptyCanonical": 3,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 1720
+    },
+    "after": {
+      "cards": 2319,
+      "partition": {
+        "completeNonempty": 343,
+        "partial": 951,
+        "none": 1022,
+        "emptyCanonical": 3,
+        "emptyUnsupported": 0
+      },
+      "nativeAbilities": 1722
+    }
+  },
+  "parserInputsCurrent": true,
+  "reportSHA256": "4030A90B857026FD414D2ACD2DE34A30E9BF488F3E2CD8C152F6FB825D227AD1",
+  "runtimeBehaviorClaim": false
+}

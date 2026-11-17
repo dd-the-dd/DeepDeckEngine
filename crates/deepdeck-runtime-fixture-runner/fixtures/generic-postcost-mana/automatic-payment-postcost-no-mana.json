@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "post-cost-independent/automatic-payment-cannot-spend-vanished-color",
+  "seed": 817,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 1
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "cost-sensitive-color-source",
+            "name": "Cost-Sensitive Color Source",
+            "typeLine": "Artifact",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "eachColorAmongPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "requires-green",
+            "name": "Requires Green",
+            "typeLine": "Sorcery",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": 1
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "castSpell",
+        "controllerId": "player-0",
+        "sourceDefinitionId": "requires-green"
+      },
+      "expectedErrorContains": "canonical spell cast is not currently legal"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "cost-sensitive-color-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "requires-green",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

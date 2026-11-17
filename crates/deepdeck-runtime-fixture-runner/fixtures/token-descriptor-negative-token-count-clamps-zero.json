@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "negative-token-count-clamps-zero",
+  "seed": 912,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "quantity": {
+          "kind": "subtract",
+          "left": {
+            "kind": "integer",
+            "value": 1
+          },
+          "right": {
+            "kind": "integer",
+            "value": 2
+          }
+        },
+        "token": {
+          "power": 1,
+          "toughness": 1,
+          "colors": [
+            "Red"
+          ],
+          "types": [
+            "Creature"
+          ],
+          "subtypes": [
+            "Elemental"
+          ],
+          "abilities": []
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "maker",
+            "name": "maker",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "subtract",
+                      "left": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    },
+                    "token": {
+                      "power": 1,
+                      "toughness": 1,
+                      "colors": [
+                        "Red"
+                      ],
+                      "types": [
+                        "Creature"
+                      ],
+                      "subtypes": [
+                        "Elemental"
+                      ],
+                      "abilities": []
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 1
+    }
+  ],
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "maker"
+  }
+}

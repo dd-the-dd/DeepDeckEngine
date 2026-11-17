@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/032ec6e2-6cc3-4a97-9cc7-3233f5e11904/part-0",
+  "cardName": "Reclamation Sage",
+  "oracleId": "032ec6e2-6cc3-4a97-9cc7-3233f5e11904",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1918ea65-ab7f-4d40-97fd-a656c892a2a1",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Reclamation Sage",
+      "typeLine": "Creature — Elf Shaman",
+      "manaCost": "{2}{G}",
+      "oracleText": "When this creature enters, you may destroy target artifact or enchantment.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

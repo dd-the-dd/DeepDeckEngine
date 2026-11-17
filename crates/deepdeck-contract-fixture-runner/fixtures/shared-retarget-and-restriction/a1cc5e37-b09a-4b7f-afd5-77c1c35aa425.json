@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/a1cc5e37-b09a-4b7f-afd5-77c1c35aa425/complete",
+  "cardName": "Carrion Feeder",
+  "oracleId": "a1cc5e37-b09a-4b7f-afd5-77c1c35aa425",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "0a19da90-880e-4eca-8cf7-6d7baf090d53",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Carrion Feeder",
+      "typeLine": "Creature — Zombie",
+      "manaCost": "{B}",
+      "oracleText": "This creature can't block.\nSacrifice a creature: Put a +1/+1 counter on this creature.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

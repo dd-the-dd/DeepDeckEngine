@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rhystic-study-decline-payment-and-draw",
+  "seed": 96,
+  "rule": {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "spellCast",
+        "opponentOfSourceController": true,
+        "where": null
+      },
+      "effects": [{
+        "kind": "optionalPayCostPerformEffects",
+        "player": { "kind": "triggeringPlayer" },
+        "cost": { "kind": "payMana", "manaCost": "{1}" },
+        "effects": [],
+        "declineEffects": [{
+          "kind": "optionalEffects",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": { "kind": "integer", "value": 1 }
+          }]
+        }]
+      }]
+    },
+  "initialState": {
+      "activePlayerId": "player-1",
+      "players": [
+        {
+          "id": "player-0",
+          "name": "Study controller",
+          "library": [
+            { "id": "study-draw", "name": "Study Draw", "typeLine": "Sorcery" }
+          ],
+          "battlefield": [
+            { "id": "rhystic-study", "name": "Rhystic Study", "typeLine": "Enchantment", "manaCost": "{2}{U}" }
+          ]
+        },
+        {
+          "id": "player-1",
+          "name": "Spell caster"
+        }
+      ]
+    },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "rhystic-study",
+    "decisions": { "triggeringPlayerId": "player-1" }
+  },
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 1 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "study-draw", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 0 },
+    { "kind": "decisionCount", "equals": 2 }
+  ]
+}

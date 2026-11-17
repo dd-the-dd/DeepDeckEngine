@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/4ceb49f3-a997-468d-9653-8ca5ceb2bcfb",
+  "cardName": "Firebrand Ranger",
+  "oracleId": "4ceb49f3-a997-468d-9653-8ca5ceb2bcfb",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "ee05211e-cf08-4dea-9740-ed06f8682153",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Firebrand Ranger",
+      "typeLine": "Creature — Human Soldier Ranger",
+      "manaCost": "{1}{R}",
+      "oracleText": "{G}, {T}: You may put a basic land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

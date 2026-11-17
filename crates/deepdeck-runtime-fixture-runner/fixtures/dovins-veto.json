@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "dovins-veto-resists-a-counter-then-counters-a-noncreature-spell",
+  "seed": 134,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "not",
+            "operand": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Dovin's Veto pilot",
+        "manaPool": ["W", "U"],
+        "hand": [{
+          "id": "dovins-veto",
+          "name": "Dovin's Veto",
+          "typeLine": "Instant",
+          "manaCost": "{W}{U}",
+          "rules": [
+            {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "stack" }
+              },
+              "modifiers": [{
+                "kind": "cantBeCountered",
+                "object": { "kind": "self" }
+              }]
+            },
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetSpell",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "spells",
+                    "where": {
+                      "kind": "not",
+                      "operand": { "kind": "cardTypeContains", "value": "Creature" }
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "counterSpell",
+                "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+              }]
+            }
+          ]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["C", "C", "R", "U"],
+        "hand": [
+          {
+            "id": "opponent-sorcery",
+            "name": "Opponent Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{R}",
+            "rules": [{
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "effects": []
+            }]
+          },
+          {
+            "id": "spell-snare",
+            "name": "Spell Snare",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [{
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetSpell",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "spells",
+                    "where": {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "manaValueOf",
+                        "object": { "kind": "candidate" }
+                      },
+                      "right": { "kind": "integer", "value": 2 }
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "counterSpell",
+                "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+              }]
+            }]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-sorcery"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "dovins-veto"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "spell-snare"
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "counterPrevented", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "dovins-veto",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "spell-snare",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-sorcery",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/unsupported-is-not-empty-executable",
+  "expectedExecutable": false,
+  "expectedParserStatus": "unsupported",
+  "expectedEngineStatus": "incomplete",
+  "input": {
+    "id": "synthetic-unsupported-card",
+    "oracle": {
+      "cardName": "Synthetic Unsupported Card",
+      "typeLine": "Instant",
+      "manaCost": "{U}",
+      "oracleText": "Sing a song.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

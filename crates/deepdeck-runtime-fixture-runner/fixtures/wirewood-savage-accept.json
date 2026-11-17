@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "wirewood-savage-can-draw-for-a-beast-entry",
+  "seed": 101004,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "where": { "kind": "subtypeContains", "value": "Beast" },
+      "anyController": true
+    },
+    "effects": [{
+      "kind": "optionalEffects",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Savage controller",
+        "manaPool": ["G"],
+        "battlefield": [{
+          "id": "wirewood-savage",
+          "name": "Wirewood Savage",
+          "typeLine": "Creature - Elf",
+          "power": "2",
+          "toughness": "2",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "where": { "kind": "subtypeContains", "value": "Beast" },
+              "anyController": true
+            },
+            "effects": [{
+              "kind": "optionalEffects",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "effects": [{
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 }
+              }]
+            }]
+          }]
+        }],
+        "hand": [{
+          "id": "entering-beast",
+          "name": "Entering Beast",
+          "typeLine": "Creature - Beast",
+          "manaCost": "{G}",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }],
+        "library": [{
+          "id": "drawn-card",
+          "name": "Drawn Card",
+          "typeLine": "Sorcery",
+          "rules": []
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "entering-beast" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseOption", "index": 1 }],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 1 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "drawn-card", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

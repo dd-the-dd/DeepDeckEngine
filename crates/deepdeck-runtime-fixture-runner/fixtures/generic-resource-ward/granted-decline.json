@@ -1,0 +1,284 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "resource-ward/granted-decline",
+  "seed": 90431,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "recipient",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "nameEquals",
+              "value": "Ally creature"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "tapPermanent",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "recipient"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Targeting player",
+        "life": 20,
+        "hand": [
+          {
+            "id": "targeting-spell",
+            "name": "Targeting fixture spell",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "recipient",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "nameEquals",
+                          "value": "Ally creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "recipient"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Ward controller",
+        "life": 10,
+        "battlefield": [
+          {
+            "id": "hexing-source",
+            "name": "Hexing Squelcher",
+            "typeLine": "Creature — Goblin Sorcerer",
+            "manaCost": "{1}{R}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "stack"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "cantBeCountered",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "ward",
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "cantBeCountered",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "spells"
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantWard",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "excludeSource": true
+                    },
+                    "cost": {
+                      "kind": "payLife",
+                      "amount": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "ally",
+            "name": "Ally creature",
+            "typeLine": "Creature",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "targeting-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 10
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "ally",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "targeting-spell",
+      "equals": true
+    }
+  ]
+}

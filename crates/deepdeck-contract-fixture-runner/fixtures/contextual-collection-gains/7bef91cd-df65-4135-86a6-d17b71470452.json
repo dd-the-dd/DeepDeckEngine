@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/7bef91cd-df65-4135-86a6-d17b71470452",
+  "cardName": "Thranduil the Strategist",
+  "oracleId": "7bef91cd-df65-4135-86a6-d17b71470452",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "6b4c1515-6127-4d4b-bdd2-e38bb68693e7",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Thranduil the Strategist",
+      "typeLine": "Legendary Creature — Elf Noble",
+      "manaCost": "{3}{G}{U}",
+      "oracleText": "Other Elves you control have \"{T}: Add {G} or {U}.\"\nLandfall — Whenever a land you control enters, create a 1/1 green Elf creature token.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

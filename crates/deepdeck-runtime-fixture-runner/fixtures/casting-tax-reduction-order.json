@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "known-gap-casting-cost-reduction-must-apply-after-additional-tax",
+  "seed": 121,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cost-order pilot",
+        "hand": [
+          {
+            "id": "reduced-spell",
+            "name": "Reduced Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "stackOrCast" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": { "kind": "integer", "value": 2 }
+                  }
+                ]
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "effects": []
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "tax-source",
+            "name": "Generic Spell Tax",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "additionalCastingCost",
+                    "players": { "kind": "eachPlayer" },
+                    "where": { "kind": "cardTypeContains", "value": "Sorcery" },
+                    "cost": { "kind": "payMana", "manaCost": "{1}" }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "reduced-spell",
+      "equals": true
+    },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "reduced-spell", "equals": true },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

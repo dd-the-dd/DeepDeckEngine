@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/cedeea30-b580-4ea7-bbc3-7358fed8ae61",
+  "cardName": "Gretchen Titchwillow",
+  "oracleId": "cedeea30-b580-4ea7-bbc3-7358fed8ae61",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3c8b248e-1460-4650-9721-85c134c21b89",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "0",
+    "toughness": "4",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Gretchen Titchwillow",
+      "typeLine": "Legendary Creature — Halfling Druid",
+      "manaCost": "{G}{U}",
+      "oracleText": "{2}{G}{U}: Draw a card. You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,266 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/multitype-token-destroyed-once",
+  "seed": 91,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "xValue",
+          "kind": "chooseNumber",
+          "minimum": 0
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "addPlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "counter": "energy",
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "xValue"
+        }
+      },
+      {
+        "kind": "chooseNumber",
+        "id": "paidPlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "countPlayerCounters",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "counter": "energy"
+        }
+      },
+      {
+        "kind": "removePlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "counter": "energy",
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "paidPlayerCounters"
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Enchantment"
+                  }
+                ]
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "<=",
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "paidPlayerCounters"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Wrath caster",
+        "hand": [
+          {
+            "id": "wrath-of-the-skies",
+            "name": "Wrath of the Skies",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{W}{W}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected player",
+        "battlefield": [
+          {
+            "id": "pure-artifact",
+            "name": "Pure Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{3}"
+          },
+          {
+            "id": "pure-creature",
+            "name": "Pure Creature",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "pure-enchantment",
+            "name": "Pure Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{1}{W}"
+          },
+          {
+            "id": "expensive-artifact",
+            "name": "Expensive Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{4}"
+          },
+          {
+            "id": "ordinary-land",
+            "name": "Ordinary Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "artifact-creature-token",
+            "name": "Artifact Creature Token",
+            "typeLine": "Artifact Creature - Test",
+            "isToken": true,
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "wrath-of-the-skies",
+    "decisions": {
+      "xValue": 3
+    }
+  },
+  "decisions": [
+    {
+      "kind": "chooseNumber",
+      "value": 3
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "playerCounter",
+      "playerId": "player-0",
+      "counter": "energy",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "pure-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "pure-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "pure-enchantment",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "expensive-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "ordinary-land",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "playerCountersAdded",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "playerCountersRemoved",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 4
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "artifact-creature-token",
+      "equals": false
+    }
+  ]
+}

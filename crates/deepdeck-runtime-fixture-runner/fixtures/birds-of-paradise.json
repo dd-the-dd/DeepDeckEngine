@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "birds-of-paradise-taps-for-a-chosen-color",
+  "seed": 49,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "mana": { "kind": "chooseColor", "amount": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Birds pilot",
+        "battlefield": [{
+          "id": "birds-of-paradise",
+          "name": "Birds of Paradise",
+          "typeLine": "Creature — Bird",
+          "manaCost": "{G}",
+          "power": "0",
+          "toughness": "1"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "birds-of-paradise",
+    "manaSymbols": ["U"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "birds-of-paradise",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

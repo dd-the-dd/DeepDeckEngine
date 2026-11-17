@@ -1,0 +1,285 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/phased-source-explicit-unsupported",
+  "seed": 99217,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "optionalCardDeployment",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "==",
+                "right": {
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "counter": "verse"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "optionalCardDeployment"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [],
+        "battlefield": [
+          {
+            "id": "synthetic-query-source",
+            "name": "synthetic-query-source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "chooseCards",
+                    "id": "optionalCardDeployment",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "==",
+                            "right": {
+                              "kind": "countCounters",
+                              "object": {
+                                "kind": "self"
+                              },
+                              "counter": "verse"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "decisionResult",
+                      "decisionId": "optionalCardDeployment"
+                    },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    }
+                  }
+                ]
+              }
+            ],
+            "counters": {
+              "verse": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "synthetic-query-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "synthetic-query-source"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "phaseOutPermanent",
+            "permanent": {
+              "kind": "self"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "unsupported checked battlefield source context"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "synthetic-query-source",
+      "counter": "verse",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "synthetic-query-source",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentPhasedOut",
+      "equals": 1
+    }
+  ]
+}

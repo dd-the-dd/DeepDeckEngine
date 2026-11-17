@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "kozileks-command/generic-exact-cardinality-modal-actions",
+  "cardName": "Kozilek's Command",
+  "oracleId": "2f2c549d-0293-4b9d-b9a8-ff392800f3a5",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Kozilek's Command",
+        "typeLine": "Kindred Instant — Eldrazi",
+        "manaCost": "{X}{C}{C}",
+        "oracleText": "Choose two —\n• Target player creates X 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice this token: Add {C}.\"\n• Target player scries X, then draws a card.\n• Exile target creature with mana value X or less.\n• Exile up to X target cards from graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/kind", "equals": "chooseModes" },
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 2 },
+            { "pointer": "/declaration/decisions/0/maximum/kind", "equals": "integer" },
+            { "pointer": "/declaration/decisions/0/maximum/value", "equals": 2 },
+            { "pointer": "/declaration/decisions/0/allowRepeated", "equals": false },
+            { "pointer": "/declaration/decisions/1/id", "equals": "xValue" },
+            { "pointer": "/declaration/decisions/2/id", "equals": "mode1:targetPlayer" },
+            { "pointer": "/declaration/decisions/3/id", "equals": "mode2:targetPlayer" },
+            { "pointer": "/declaration/decisions/4/candidates/where/kind", "equals": "and" },
+            { "pointer": "/declaration/decisions/4/candidates/where/operands/1/right/decisionId", "equals": "xValue" },
+            { "pointer": "/declaration/decisions/5/maximum/decisionId", "equals": "xValue" },
+            { "pointer": "/effects/0/kind", "equals": "conditional" },
+            { "pointer": "/effects/0/then/0/kind", "equals": "createTokens" },
+            { "pointer": "/effects/0/then/0/token/subtypes/0", "equals": "Eldrazi" },
+            { "pointer": "/effects/0/then/0/token/subtypes/1", "equals": "Spawn" },
+            { "pointer": "/effects/0/then/0/token/abilities/0/kind", "equals": "manaAbility" },
+            { "pointer": "/effects/0/then/0/token/abilities/0/costs/0/kind", "equals": "sacrificePermanent" },
+            { "pointer": "/effects/0/then/0/token/abilities/0/effects/0/mana", "equals": "{C}" },
+            { "pointer": "/effects/1/then/0/kind", "equals": "lookAtTopCards" },
+            { "pointer": "/effects/1/then/0/count/decisionId", "equals": "xValue" },
+            { "pointer": "/effects/1/then/6/then/0/abilityId", "equals": "scry" },
+            { "pointer": "/effects/1/then/7/kind", "equals": "drawCards" },
+            { "pointer": "/effects/2/then/0/kind", "equals": "exilePermanent" },
+            { "pointer": "/effects/3/then/0/kind", "equals": "exileTargetCards" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "generalized-literal-sibling",
+      "request": {
+        "cardName": "Fractured Invocation",
+        "typeLine": "Instant",
+        "manaCost": "{3}{C}",
+        "oracleText": "Choose two —\n• Target opponent creates two 1/1 green Eldrazi Scion creature tokens with \"Sacrifice this token: Add {G}.\"\n• Target opponent scries two, then draws a card.\n• Exile target artifact with mana value two or less.\n• Exile up to two target cards from graveyards.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 2 },
+            { "pointer": "/effects/0/then/0/quantity/value", "equals": 2 },
+            { "pointer": "/effects/1/then/0/count/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unknown-quoted-token-ability-fails",
+      "request": {
+        "cardName": "Malformed Invocation",
+        "typeLine": "Instant",
+        "manaCost": "{2}{C}",
+        "oracleText": "Choose two —\n• Target player creates two 1/1 colorless Eldrazi Scion creature tokens with \"This token sings.\"\n• Target player scries two, then draws a card.\n• Exile target artifact with mana value two or less.\n• Exile up to two target cards from graveyards.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure"
+        }]
+      }
+    }
+  ]
+}

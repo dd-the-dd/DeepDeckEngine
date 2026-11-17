@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "sacrifice-cost-survives-exile-replacement-without-death-event",
+  "seed": 10204,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 0 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sacrifice payer",
+        "battlefield": [
+          {
+            "id": "replaced-sacrifice-source",
+            "name": "Replaced Sacrifice Source",
+            "typeLine": "Creature - Test",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "replacement-sacrifice-observer",
+            "name": "Replacement Sacrifice Observer",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": { "kind": "self" },
+                "event": {
+                  "kind": "permanentSacrificed",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                },
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": { "kind": "self" },
+                    "counter": "charge",
+                    "count": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Replacement controller",
+        "battlefield": [
+          {
+            "id": "death-exile-replacement",
+            "name": "Death Exile Replacement",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "exileOpponentCreatureInsteadOfDying",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "replaced-sacrifice-source",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "replaced-sacrifice-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "replaced-sacrifice-source",
+      "equals": false
+    },
+    { "kind": "eventCount", "eventKind": "permanentSacrificed", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentDied", "playerId": "player-0", "equals": 0 },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "replacement-sacrifice-observer",
+      "counter": "charge",
+      "equals": 1
+    },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-hinterland-harbor",
+  "cardName": "Hinterland Harbor",
+  "oracleId": "fb5a3403-7f0b-406c-8c4f-d693be010ca6",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "be99af65-ca51-48f4-a004-baf21e267cc8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Hinterland Harbor",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "This land enters tapped unless you control a Forest or an Island.\n{T}: Add {G} or {U}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

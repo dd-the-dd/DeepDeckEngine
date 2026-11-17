@@ -1,0 +1,10 @@
+{
+  "kind": "triggeredAbility",
+  "source": { "kind": "self" },
+  "event": { "kind": "combatDamageToPlayer", "source": { "kind": "self" } },
+  "effects": [{
+    "kind": "drawCards",
+    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    "count": { "kind": "integer", "value": 2 }
+  }]
+}

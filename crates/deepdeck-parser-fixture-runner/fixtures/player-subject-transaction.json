@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-subject/transactional-ownership",
+  "cases": [
+    {
+      "id": "full-real-boseiju-old-ir-byte-semantics",
+      "request": {
+        "cardName": "Boseiju, Who Endures",
+        "typeLine": "Legendary Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {G}.\nChannel \u2014 {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{G}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "activationZone": "hand",
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{1}{G}"
+                },
+                {
+                  "card": {
+                    "kind": "self"
+                  },
+                  "kind": "discardCard"
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "not",
+                                "operand": {
+                                  "kind": "typeLineContains",
+                                  "value": "Basic"
+                                }
+                              },
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Land"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "id": "targetController",
+                  "kind": "bind",
+                  "value": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "effects": [
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Land"
+                            },
+                            {
+                              "kind": "or",
+                              "operands": [
+                                {
+                                  "kind": "subtypeContains",
+                                  "value": "Plains"
+                                },
+                                {
+                                  "kind": "subtypeContains",
+                                  "value": "Island"
+                                },
+                                {
+                                  "kind": "subtypeContains",
+                                  "value": "Swamp"
+                                },
+                                {
+                                  "kind": "subtypeContains",
+                                  "value": "Mountain"
+                                },
+                                {
+                                  "kind": "subtypeContains",
+                                  "value": "Forest"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "zone": {
+                          "kind": "library",
+                          "player": {
+                            "id": "targetController",
+                            "kind": "boundValue"
+                          }
+                        }
+                      },
+                      "id": "searchedCards",
+                      "kind": "chooseCards",
+                      "maximum": 1,
+                      "minimum": 0,
+                      "player": {
+                        "id": "targetController",
+                        "kind": "boundValue"
+                      }
+                    },
+                    {
+                      "cards": {
+                        "decisionId": "searchedCards",
+                        "kind": "decisionResult"
+                      },
+                      "kind": "moveCards",
+                      "to": {
+                        "kind": "battlefield",
+                        "player": {
+                          "id": "targetController",
+                          "kind": "boundValue"
+                        },
+                        "tapped": false
+                      }
+                    },
+                    {
+                      "kind": "shuffleZone",
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "id": "targetController",
+                          "kind": "boundValue"
+                        }
+                      }
+                    },
+                    {
+                      "cards": {
+                        "decisionId": "searchedCards",
+                        "kind": "decisionResult"
+                      },
+                      "kind": "recordLibrarySearch",
+                      "player": {
+                        "id": "targetController",
+                        "kind": "boundValue"
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "id": "targetController",
+                    "kind": "boundValue"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "manaCostReduction": {
+                "kind": "countPermanents",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "isLegendary"
+                    },
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  ]
+                }
+              },
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-that-player-draw-stays-rejected",
+      "request": {
+        "cardName": "Subject Transaction Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "That player draws two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

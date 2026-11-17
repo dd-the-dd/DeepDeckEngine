@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "buried-ruin-pays-all-costs-and-returns-only-an-artifact",
+  "seed": 304,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{2}" },
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "declaration": { "kind": "castingDeclaration", "decisions": [{
+      "id": "targetGraveyardCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1,
+      "candidates": {
+        "kind": "cards",
+        "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "where": { "kind": "cardTypeContains", "value": "Artifact" }
+      }
+    }] },
+    "effects": [{
+      "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+      "from": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+      "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+    }]
+  },
+  "initialState": { "activePlayerId": "player-0", "players": [
+    {
+      "id": "player-0", "name": "Ruin controller", "manaPool": ["C", "C"],
+      "battlefield": [{ "id": "buried-ruin", "name": "Buried Ruin", "typeLine": "Land" }],
+      "graveyard": [
+        { "id": "buried-artifact", "name": "Buried Artifact", "typeLine": "Artifact", "rules": [] },
+        { "id": "buried-sorcery", "name": "Buried Sorcery", "typeLine": "Sorcery", "rules": [] }
+      ]
+    },
+    { "id": "player-1", "name": "Opponent" }
+  ] },
+  "actions": [
+    { "kind": "activateAbility", "controllerId": "player-0", "sourceDefinitionId": "buried-ruin", "targets": { "targetGraveyardCard": { "kind": "cardDefinition", "definitionId": "buried-artifact" } } },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "buried-ruin", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "buried-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "buried-sorcery", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "eventCount", "eventKind": "permanentTapped", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentSacrificed", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

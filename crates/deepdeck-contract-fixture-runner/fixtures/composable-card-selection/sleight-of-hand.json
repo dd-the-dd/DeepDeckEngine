@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "composable-selection/sleight-of-hand/complete-real-source",
+  "cardName": "Sleight of Hand",
+  "oracleId": "05a039ad-1689-4d13-b393-6c1219583b5d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "80dea5c0-ada3-488a-9f2b-f895b92c762f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Sleight of Hand",
+      "typeLine": "Sorcery",
+      "manaCost": "{U}",
+      "oracleText": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

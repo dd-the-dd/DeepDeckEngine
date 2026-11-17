@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/59a82f57-fe2f-4834-a4ee-4b948eef1e12",
+  "cardName": "Horizon of Progress",
+  "oracleId": "59a82f57-fe2f-4834-a4ee-4b948eef1e12",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5ae3a9c8-194e-421b-b77d-9c8784442651",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Horizon of Progress",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "{T}, Pay 1 life: Add one mana of any type that a land you control could produce.\n{3}, {T}: You may put a land card from your hand onto the battlefield tapped.\n{1}, {T}, Sacrifice this land: Draw a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

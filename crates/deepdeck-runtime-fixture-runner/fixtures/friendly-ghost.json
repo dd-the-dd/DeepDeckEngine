@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "friendly-ghost-entry-targets-one-creature-and-modifies-only-that-creature",
+  "seed": 12024,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": { "kind": "self" }
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "modifyPowerToughness",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "power": { "kind": "integer", "value": 2 },
+      "toughness": { "kind": "integer", "value": 4 },
+      "duration": { "kind": "untilEndOfCurrentTurn" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Friendly Ghost controller",
+        "manaPool": ["C", "C", "C", "W"],
+        "battlefield": [
+          {
+            "id": "chosen-creature",
+            "name": "Chosen Creature",
+            "typeLine": "Creature — Test",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "other-creature",
+            "name": "Other Creature",
+            "typeLine": "Creature — Test",
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": [{
+          "id": "friendly-ghost",
+          "name": "Friendly Ghost",
+          "typeLine": "Creature — Spirit",
+          "manaCost": "{3}{W}",
+          "power": "2",
+          "toughness": "4",
+          "rules": [
+            {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": { "kind": "flying" }
+            },
+            {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": { "kind": "self" }
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "modifyPowerToughness",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "power": { "kind": "integer", "value": 2 },
+                "toughness": { "kind": "integer", "value": 4 },
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }]
+            }
+          ]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "friendly-ghost" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "friendly-ghost", "equals": true },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "chosen-creature", "power": 3, "toughness": 5 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "other-creature", "power": 2, "toughness": 2 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "friendly-ghost", "power": 2, "toughness": 4 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "powerToughnessModified", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

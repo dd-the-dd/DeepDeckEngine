@@ -1,0 +1,802 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "controlled-presence-coordinated-articles",
+  "cases": [
+    {
+      "id": "real-drowned-exact-source",
+      "request": {
+        "cardName": "Drowned Catacomb",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a Swamp.\n{T}: Add {U} or {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{U}",
+                      "{B}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-glacial-fortress",
+      "request": {
+        "cardName": "Glacial Fortress",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{W}",
+                      "{U}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-isolated-chapel",
+      "request": {
+        "cardName": "Isolated Chapel",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{W}",
+                      "{B}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-members",
+      "request": {
+        "cardName": "Generic Presence Sibling",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Plains or an Island or a Swamp.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cardtype-members",
+      "request": {
+        "cardName": "Generic Presence Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "",
+        "oracleText": "This artifact enters tapped unless you control an artifact or a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-card-domain",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-spell-domain",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-instant-cardtype",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or an instant.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-unfiltered-domain-last",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-unfiltered-domain-first",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a permanent or an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-unfiltered-domain-legacy-shape",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an artifact or permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-player-domain",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-extra-controller",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a Swamp you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-opponent-controller",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a Swamp an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-missing-head",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-two-articles",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a an Swamp.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-sentence-tail",
+      "request": {
+        "cardName": "Presence Near Miss",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a Swamp. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

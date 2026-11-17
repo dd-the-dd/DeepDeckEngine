@@ -1,0 +1,367 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "full-rule-closure/whole-mdfc-back-play-mana-G",
+  "seed": 151115,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "counter": "+1/+1",
+        "kind": "putCounters",
+        "permanent": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      },
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "keyword": "indestructible",
+        "kind": "grantKeyword",
+        "object": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "03522b6b-31ec-4126-8885-5dbb2248688b",
+            "name": "Revitalizing Repast",
+            "typeLine": "Instant",
+            "manaCost": "{B/G}",
+            "rules": [
+              {
+                "kind": "rulesMarker",
+                "text": "Modal double-faced card faces.",
+                "splitFaces": [
+                  {
+                    "id": "03522b6b-31ec-4126-8885-5dbb2248688b:face-0",
+                    "name": "Revitalizing Repast",
+                    "typeLine": "Instant",
+                    "manaCost": "{B/G}",
+                    "oracleText": "Put a +1/+1 counter on target creature. It gains indestructible until end of turn.",
+                    "power": null,
+                    "toughness": null,
+                    "loyalty": null,
+                    "rules": [
+                      {
+                        "declaration": {
+                          "decisions": [
+                            {
+                              "candidates": {
+                                "kind": "permanents",
+                                "where": {
+                                  "kind": "cardTypeContains",
+                                  "value": "Creature"
+                                }
+                              },
+                              "id": "targetPermanent",
+                              "kind": "chooseTargets",
+                              "maximum": 1,
+                              "minimum": 1
+                            }
+                          ],
+                          "kind": "castingDeclaration"
+                        },
+                        "effects": [
+                          {
+                            "count": {
+                              "kind": "integer",
+                              "value": 1
+                            },
+                            "counter": "+1/+1",
+                            "kind": "putCounters",
+                            "permanent": {
+                              "id": "targetPermanent",
+                              "kind": "chosenTarget"
+                            }
+                          },
+                          {
+                            "duration": {
+                              "kind": "untilEndOfCurrentTurn"
+                            },
+                            "keyword": "indestructible",
+                            "kind": "grantKeyword",
+                            "object": {
+                              "id": "targetPermanent",
+                              "kind": "chosenTarget"
+                            }
+                          }
+                        ],
+                        "kind": "spellAbility",
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "03522b6b-31ec-4126-8885-5dbb2248688b:face-1",
+                    "name": "Old-Growth Grove",
+                    "typeLine": "Land",
+                    "manaCost": "",
+                    "oracleText": "This land enters tapped.\n{T}: Add {B} or {G}.",
+                    "power": null,
+                    "toughness": null,
+                    "loyalty": null,
+                    "rules": [
+                      {
+                        "event": {
+                          "kind": "wouldEnterBattlefield",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "replacementEffect",
+                        "replacement": [
+                          {
+                            "kind": "setEnteringState",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "tapped": true
+                          }
+                        ],
+                        "source": {
+                          "kind": "self"
+                        }
+                      },
+                      {
+                        "costs": [
+                          {
+                            "kind": "tap",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        ],
+                        "effects": [
+                          {
+                            "kind": "addMana",
+                            "mana": {
+                              "kind": "chooseOne",
+                              "options": [
+                                "{B}",
+                                "{G}"
+                              ]
+                            },
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          }
+                        ],
+                        "kind": "manaAbility",
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "explicit-test-untap-setup",
+            "name": "Explicit Test Untap Setup",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "untapSetupTarget",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "untapSetupTarget"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "03522b6b-31ec-4126-8885-5dbb2248688b"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "activateManaAbility",
+        "controllerId": "p0",
+        "sourceDefinitionId": "03522b6b-31ec-4126-8885-5dbb2248688b",
+        "manaSymbols": [
+          "G"
+        ]
+      },
+      "expectedErrorContains": "canonical mana ability is not currently legal"
+    },
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "kind": "chooseTargets",
+              "id": "untapSetupTarget",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "permanents",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                }
+              }
+            }
+          ]
+        },
+        "effects": [
+          {
+            "kind": "untapPermanent",
+            "permanent": {
+              "kind": "chosenTarget",
+              "id": "untapSetupTarget"
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "explicit-test-untap-setup",
+        "targets": {
+          "untapSetupTarget": {
+            "permanent": {
+              "instanceId": "p0:03522b6b-31ec-4126-8885-5dbb2248688b:0"
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "03522b6b-31ec-4126-8885-5dbb2248688b",
+      "manaSymbols": [
+        "G"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "03522b6b-31ec-4126-8885-5dbb2248688b",
+      "equals": true
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "p0",
+      "definitionId": "03522b6b-31ec-4126-8885-5dbb2248688b",
+      "value": "Land",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "03522b6b-31ec-4126-8885-5dbb2248688b",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "composable-missing-binding-errors-and-rolls-back-look-state",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "viewProbe"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "zeroProbe",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "emptyProbe"
+        },
+        "count": {
+          "kind": "integer",
+          "value": 0
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "probe-source",
+            "name": "Probe Source",
+            "typeLine": "Artifact"
+          }
+        ],
+        "library": [
+          {
+            "id": "probe-a",
+            "name": "Probe A",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "probe-b",
+            "name": "Probe B",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ],
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "probe-source"
+        }
+      },
+      "expectedErrorContains": "unresolved runtime collection binding `emptyProbe`"
+    }
+  ]
+}

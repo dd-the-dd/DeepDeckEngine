@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/457bee4c-2332-440c-9336-36f6a69614f9",
+  "cardName": "Goblin Medics",
+  "oracleId": "457bee4c-2332-440c-9336-36f6a69614f9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "deda9adf-43db-481b-840d-518a12873782",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Goblin Medics",
+      "typeLine": "Creature — Goblin Shaman",
+      "manaCost": "{2}{R}",
+      "oracleText": "Whenever this creature becomes tapped, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantity/modified-copy-other-creator",
+  "seed": 6312,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createModifiedTokenCopy",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "copied"
+        },
+        "exileAtNextEndStep": false,
+        "controller": {
+          "kind": "chosenTarget",
+          "id": "creator"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "copied",
+            "name": "copied",
+            "typeLine": "Creature",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Token creator",
+        "battlefield": [
+          {
+            "id": "doubling-season",
+            "name": "Doubling Season",
+            "typeLine": "Enchantment",
+            "manaCost": "{4}{G}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "tokenCreation",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "counterPlacement",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "recipientKind": "permanent"
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor",
+    "targets": {
+      "copied": {
+        "permanent": {
+          "instanceId": "player-0:copied:1"
+        }
+      },
+      "creator": {
+        "player": {
+          "playerId": "player-1"
+        }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 3
+    },
+    {
+      "kind": "permanentGroup",
+      "playerId": "player-1",
+      "definitionId": "token-copy:copied",
+      "count": 2,
+      "controller": "player-1",
+      "owner": "player-1",
+      "powerToughness": {
+        "power": 3,
+        "toughness": 3
+      }
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "playerId": "player-1",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

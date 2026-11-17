@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "thoughtseize/hand-disruption-life-loss-is-executable",
+  "cardName": "Thoughtseize",
+  "oracleId": "edd8d1e8-be43-4c38-bb3a-83081fbaf0b5",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPlayer",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "players" }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "revealHand",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "discardedCard",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": { "kind": "integer", "value": 1 },
+        "maximum": { "kind": "integer", "value": 1 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" }
+          },
+          "where": {
+            "kind": "not",
+            "operand": { "kind": "cardTypeContains", "value": "Land" }
+          }
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "cards": { "kind": "decisionResult", "decisionId": "discardedCard" }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 2 }
+      }
+    ]
+  }
+}

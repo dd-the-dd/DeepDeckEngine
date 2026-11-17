@@ -1,0 +1,401 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-cost-query/full-real-card-baseline",
+  "cases": [
+    {
+      "id": "0370afa0-07d3-4787-8a5b-10272cb3a486",
+      "request": {
+        "cardName": "Oketra's Monument",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{3}",
+        "oracleText": "White creature spells you cast cost {1} less to cast.\nWhenever you cast a creature spell, create a 1/1 white Warrior creature token with vigilance.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "reduceCastingCost",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "colorContains",
+                        "value": "White"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "abilities": [
+                      {
+                        "kind": "vigilance"
+                      }
+                    ],
+                    "colors": [
+                      "White"
+                    ],
+                    "power": 1,
+                    "subtypes": [
+                      "Warrior"
+                    ],
+                    "toughness": 1,
+                    "types": [
+                      "Creature"
+                    ]
+                  }
+                }
+              ],
+              "event": {
+                "kind": "spellCast",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "0ad27d0e-b6c3-4c3f-a389-285d889b6a65",
+      "request": {
+        "cardName": "Ballyrush Banneret",
+        "typeLine": "Creature \u2014 Kithkin Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Kithkin spells and Soldier spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "reduceCastingCost",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Kithkin"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Soldier"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "0c367958-729e-416d-988b-098e90e7a1fd",
+      "request": {
+        "cardName": "Ruby Medallion",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Red spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "reduceCastingCost",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "colorContains",
+                    "value": "Red"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "18f22960-87ec-43cd-82ea-ec5cabf49ad3",
+      "request": {
+        "cardName": "Foundry Inspector",
+        "typeLine": "Artifact Creature \u2014 Construct",
+        "manaCost": "{3}",
+        "oracleText": "Artifact spells you cast cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "reduceCastingCost",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "7a2484a9-04fd-41a0-8224-610c1c07ed10",
+      "request": {
+        "cardName": "Blasphemous Act",
+        "typeLine": "Sorcery",
+        "manaCost": "{8}{R}",
+        "oracleText": "This spell costs {1} less to cast for each creature on the battlefield.\nBlasphemous Act deals 13 damage to each creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stackOrCast"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "amount": {
+                    "allPlayers": true,
+                    "kind": "countPermanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "kind": "reduceOwnGenericCastingCost"
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 13
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,299 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "deadly-dispute-sacrifices-shroud-artifact-then-draws-two-and-creates-treasure",
+  "seed": 1413,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "kind": "namedToken",
+          "name": "Treasure"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Dispute caster",
+        "manaPool": [
+          "B",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "deadly-dispute",
+            "name": "Deadly Dispute",
+            "typeLine": "Instant",
+            "manaCost": "{1}{B}",
+            "rules": [
+              {
+                "declaration": {
+                  "additionalCosts": [
+                    {
+                      "kind": "sacrificePermanent",
+                      "permanent": {
+                        "id": "additionalCostPermanent",
+                        "kind": "chosenObject"
+                      }
+                    }
+                  ],
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          ]
+                        }
+                      },
+                      "id": "additionalCostPermanent",
+                      "kind": "chooseObjects",
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "createTokens",
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "kind": "namedToken",
+                      "name": "Treasure"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "sacrificed-permanent",
+            "name": "Shrouded Relic",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "shroud"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "drawn-one",
+            "name": "Drawn One",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "drawn-two",
+            "name": "Drawn Two",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "deadly-dispute"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "sacrificed-permanent",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "deadly-dispute",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "drawn-one",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "drawn-two",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opponent-artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDied",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 2,
+      "playerId": "player-0"
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "static-collection-keywords/opponent-controller",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": {
+        "kind": "self"
+      },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          "keyword": "reach"
+        }
+      ]
+    }
+  ]
+}

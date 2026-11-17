@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-cost-query/independent-synthetic-parser-composition",
+  "cases": [
+    {
+      "id": "synthetic-unseen-artifact-enchantment-all-graveyards-double",
+      "request": {
+        "cardName": "Synthetic Shared Cost Query",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}",
+        "oracleText": "This spell costs {2} less to cast for each artifact or enchantment card in all graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stackOrCast"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "reduceOwnGenericCastingCost",
+                  "amount": {
+                    "kind": "multiply",
+                    "left": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "kind": "cardsInZone",
+                        "zone": {
+                          "kind": "graveyard",
+                          "players": {
+                            "kind": "eachPlayer"
+                          }
+                        },
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-unseen-blue-spells-hand-instant-sorcery-double",
+      "request": {
+        "cardName": "Synthetic Shared Cost Query",
+        "typeLine": "Enchantment",
+        "manaCost": "{7}",
+        "oracleText": "Blue spells you cast cost {2} less to cast for each instant or sorcery card in your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "reduceCastingCost",
+                  "amount": {
+                    "kind": "multiply",
+                    "left": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "kind": "cardsInZone",
+                        "zone": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Instant"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Sorcery"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "colorContains",
+                    "value": "Blue"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-target-graveyard-no-zone-producer",
+      "request": {
+        "cardName": "Synthetic Shared Cost Query",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}",
+        "oracleText": "This spell costs {1} less to cast for each instant card in target graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "query.zone.holder"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-two-graveyards-choice-no-zone-producer",
+      "request": {
+        "cardName": "Synthetic Shared Cost Query",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}",
+        "oracleText": "This spell costs {1} less to cast for each instant card in two graveyards of your choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "query.zone.holder"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-target-player-zone-no-player-producer",
+      "request": {
+        "cardName": "Synthetic Shared Cost Query",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}",
+        "oracleText": "This spell costs {1} less to cast for each instant card in target player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "query.zone.holder"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-composed/returnRecentGraveyardCards",
+  "cardName": "Synthetic acceptance contract only",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "returnRecentGraveyardCards",
+        "player": {
+          "kind": "abilityController"
+        },
+        "where": null,
+        "all": true,
+        "tapped": false
+      }
+    ]
+  }
+}

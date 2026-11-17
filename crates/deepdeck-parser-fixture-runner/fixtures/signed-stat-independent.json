@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "signed-stat-independent/negative-X",
+  "cases": [
+    {
+      "id": "negative-X-plus-one-flying",
+      "request": {
+        "cardName": "Independent Negative Stat",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Target creature you control gets -X/+1 and gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "subtract",
+                    "left": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    }
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "flying",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

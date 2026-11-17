@@ -1,0 +1,223 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantity-entry-initial-loyalty",
+  "seed": 6301,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "chosenTargets",
+          "id": "entering"
+        },
+        "to": {
+          "kind": "battlefield",
+          "tapped": false,
+          "player": {
+            "kind": "abilityController"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Affected controller",
+        "battlefield": [
+          {
+            "id": "recipient",
+            "name": "recipient",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "doubling-season",
+            "name": "Doubling Season",
+            "typeLine": "Enchantment",
+            "manaCost": "{4}{G}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "tokenCreation",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "counterPlacement",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "recipientKind": "permanent"
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          }
+        ],
+        "hand": [
+          {
+            "id": "entrant",
+            "name": "entrant",
+            "typeLine": "Planeswalker",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "startingLoyalty": {
+                  "kind": "integer",
+                  "value": 3
+                },
+                "costs": [
+                  {
+                    "kind": "payLoyalty",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor",
+    "targets": {
+      "entering": {
+        "card": {
+          "instanceId": "player-0:entrant:0"
+        }
+      }
+    }
+  },
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "entrant",
+      "counter": "loyalty",
+      "equals": 6
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

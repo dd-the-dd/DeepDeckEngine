@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "post-cost-order/lord-then-self-LKI1",
+  "seed": 8012,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent0"
+        }
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "fixedMana",
+          "symbol": "G",
+          "amount": {
+            "kind": "powerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent0",
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "nameEquals",
+              "value": "power-lord"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "power-source",
+            "name": "power-source",
+            "typeLine": "Creature",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "chosenObject",
+                      "id": "activationCostPermanent0"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "fixedMana",
+                      "symbol": "G",
+                      "amount": {
+                        "kind": "powerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseObjects",
+                      "id": "activationCostPermanent0",
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "where": {
+                          "kind": "nameEquals",
+                          "value": "power-lord"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "power-lord",
+            "name": "power-lord",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "modifyPowerToughness",
+                    "power": 2,
+                    "toughness": 2,
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "power-source",
+      "objects": {
+        "activationCostPermanent0": {
+          "kind": "permanentDefinition",
+          "definitionId": "power-lord"
+        }
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "power-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "power-lord",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

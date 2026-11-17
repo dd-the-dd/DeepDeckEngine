@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "overgrown-tomb-chooses-black-mana",
+  "seed": 107,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{B}", "{G}"] }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Overgrown Tomb pilot",
+        "battlefield": [{
+          "id": "overgrown-tomb",
+          "name": "Overgrown Tomb",
+          "typeLine": "Land - Swamp Forest"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "overgrown-tomb",
+    "manaSymbols": ["B"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["B"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "overgrown-tomb", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ponder/plain-draw-is-executable",
+  "cardName": "Ponder",
+  "oracleId": "02090581-61aa-4348-ad57-451be8ee91c2",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "drawCards",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "count": { "kind": "integer", "value": 1 }
+    }]
+  }
+}

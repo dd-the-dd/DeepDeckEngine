@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "optional-sibling/counter/accept",
+  "seed": 10401,
+  "rule": {
+    "effects": [
+      {
+        "effects": [
+          {
+            "count": {
+              "kind": "integer",
+              "value": 1
+            },
+            "counter": "+1/+1",
+            "kind": "putCounters",
+            "permanent": {
+              "kind": "self"
+            }
+          }
+        ],
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "self"
+          }
+        },
+        {
+          "excludeSource": true,
+          "kind": "permanentEntered",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "subtypeContains",
+            "value": "Ally"
+          }
+        }
+      ],
+      "kind": "oneOf"
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "life": 20,
+        "manaPool": [
+          "W"
+        ],
+        "hand": [
+          {
+            "id": "real-source",
+            "name": "Hada Freeblade",
+            "typeLine": "Creature — Human Soldier Ally",
+            "manaCost": "{W}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "effects": [
+                      {
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "counter": "+1/+1",
+                        "kind": "putCounters",
+                        "permanent": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "events": [
+                    {
+                      "kind": "enterBattlefield",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    {
+                      "excludeSource": true,
+                      "kind": "permanentEntered",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Ally"
+                      }
+                    }
+                  ],
+                  "kind": "oneOf"
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "power": "0",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "real-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "real-source",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-0",
+      "definitionId": "real-source",
+      "power": 1,
+      "toughness": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

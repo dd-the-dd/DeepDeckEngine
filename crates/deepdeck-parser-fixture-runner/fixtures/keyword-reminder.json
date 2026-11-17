@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "keyword-reminder/optional-validated-child",
+  "cardName": "Keyword Reminder Fixture",
+  "cases": [
+    {
+      "id": "exact-haste-reminder",
+      "request": {
+        "cardName": "Brazen Scourge",
+        "typeLine": "Creature — Gremlin",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Haste (This creature can attack and {T} as soon as it comes under your control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "keywordAbility",
+          "rule": {
+            "kind": "keywordAbility",
+            "source": { "kind": "self" },
+            "ability": { "kind": "haste" }
+          }
+        }]
+      }
+    },
+    {
+      "id": "sibling-ward-enchantment-reminder",
+      "request": {
+        "cardName": "Protected Enchantment Fixture",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Flying, ward {2} (Whenever this enchantment becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "keywordAbilityGroup",
+          "ruleAssertions": [
+            { "pointer": "/kind", "equals": "keywordAbilityGroup" },
+            { "pointer": "/abilities/0/kind", "equals": "flying" },
+            { "pointer": "/abilities/1/kind", "equals": "ward" },
+            { "pointer": "/abilities/1/cost/kind", "equals": "payMana" },
+            { "pointer": "/abilities/1/cost/manaCost", "equals": "{2}" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-arbitrary-menace-parenthetical",
+      "request": {
+        "cardName": "Malformed Menace Fixture",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{2}{B}",
+        "oracleText": "Menace (Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "keywordAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "simple-keyword-list",
+          "state": "keyword.reminder.body",
+          "expectedContains": "This",
+          "found": "Draw",
+          "traceContainsState": "keyword.reminder.open"
+        }]
+      }
+    },
+    {
+      "id": "exact-persist-reminder",
+      "request": {
+        "cardName": "Persist Exact Fixture",
+        "typeLine": "Creature — Gargoyle",
+        "manaCost": "{3}{B}",
+        "oracleText": "Persist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "keywordAbility",
+          "rule": {
+            "kind": "keywordAbility",
+            "source": { "kind": "self" },
+            "ability": { "kind": "persist" }
+          }
+        }]
+      }
+    },
+    {
+      "id": "near-miss-persist-counter-value",
+      "request": {
+        "cardName": "Persist Counter Fixture",
+        "typeLine": "Creature — Gargoyle",
+        "manaCost": "{3}{B}",
+        "oracleText": "Persist (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "keywordAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "simple-keyword-list",
+          "state": "keyword.persist.reminder.condition-counter",
+          "expectedContains": "Persist -1/-1 condition counter",
+          "found": "+1/+1",
+          "traceContainsState": "keyword.reminder.open"
+        }]
+      }
+    }
+  ]
+}

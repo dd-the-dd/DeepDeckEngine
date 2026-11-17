@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lotus-petal-sacrifices-for-chosen-black-mana",
+  "seed": 38,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": { "kind": "self" }
+      }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "mana": { "kind": "chooseColor", "amount": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lotus Petal pilot",
+        "battlefield": [{
+          "id": "lotus-petal",
+          "name": "Lotus Petal",
+          "typeLine": "Artifact",
+          "manaCost": "{0}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "lotus-petal",
+    "manaSymbols": ["B"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["B"] },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "lotus-petal",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "lotus-petal",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

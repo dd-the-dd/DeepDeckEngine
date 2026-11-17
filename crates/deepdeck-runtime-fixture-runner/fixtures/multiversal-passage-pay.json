@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "multiversal-passage-pays-life-and-enters-untapped-with-chosen-type",
+  "seed": 32,
+  "rule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+        "decisions": [
+          {
+            "id": "basicLandType",
+            "kind": "chooseBasicLandType",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+          },
+          {
+            "id": "optionalLifePayment",
+            "kind": "chooseWhetherToPay",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+          }
+        ],
+        "replacement": [
+          {
+            "kind": "setBasicLandType",
+            "object": { "kind": "self" },
+            "decisionId": "basicLandType"
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "not",
+              "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+            },
+            "then": [
+              {
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }
+            ]
+          }
+        ]
+      },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Passage pilot",
+        "life": 20,
+        "hand": [
+          {
+            "id": "multiversal-passage",
+            "name": "Multiversal Passage",
+            "typeLine": "Land",
+            "rules": [
+              {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+        "decisions": [
+          {
+            "id": "basicLandType",
+            "kind": "chooseBasicLandType",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+          },
+          {
+                  "id": "optionalLifePayment",
+            "kind": "chooseWhetherToPay",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+          }
+        ],
+        "replacement": [
+          {
+            "kind": "setBasicLandType",
+            "object": { "kind": "self" },
+            "decisionId": "basicLandType"
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "not",
+                    "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+            },
+            "then": [
+              {
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }
+            ]
+          }
+        ]
+      },
+              {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "battlefield" }
+        },
+        "modifiers": [
+          { "kind": "retainChosenBasicLandType", "decisionId": "basicLandType" }
+        ]
+      }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 1 }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "multiversal-passage",
+      "equals": true
+    },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 0 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 18 },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "multiversal-passage",
+      "equals": false
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "player-0",
+      "definitionId": "multiversal-passage",
+      "value": "Island",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "landPlayed", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 3 }
+  ]
+}

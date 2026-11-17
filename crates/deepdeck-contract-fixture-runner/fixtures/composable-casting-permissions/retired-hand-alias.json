@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-hand-casting-alias-after-generic-route-replacement",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "castHandSpellsWithoutPayingManaCost",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  }
+}

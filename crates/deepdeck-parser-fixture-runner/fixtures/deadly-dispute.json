@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic-effect-program/exact-deadly-dispute",
+  "cardName": "Deadly Dispute",
+  "oracleId": "457af74a-02b3-4659-846d-63e482667f34",
+  "cases": [
+    {
+      "id": "exact-cost-draw-two-treasure-and-catalog-reminder",
+      "request": {
+        "cardName": "Deadly Dispute",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nDraw two cards and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "additionalCosts": [
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "id": "additionalCostPermanent",
+                      "kind": "chosenObject"
+                    }
+                  }
+                ],
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "additionalCostPermanent",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Treasure"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

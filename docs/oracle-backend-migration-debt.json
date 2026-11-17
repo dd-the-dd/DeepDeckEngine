@@ -1,0 +1,333 @@
+{
+  "schemaVersion": "deepdeck-backend-migration-debt/v1",
+  "purpose": "Persistent runtime gaps independent of parser-only cohort refill; not a full coverage ledger.",
+  "updatedAtUtc": "2026-11-14T23:33:55.525059+00:00",
+  "cards": [
+    {
+      "oracleId": "ae120613-97d6-4393-b39d-c3e6c076f5d6",
+      "name": "Deflecting Swat",
+      "status": "runtime-incomplete",
+      "fullMigrationComplete": false,
+      "sourceInput": {
+        "object": "card",
+        "id": "b4b36435-55b3-4615-8812-af41d4fc64d9",
+        "oracle_id": "ae120613-97d6-4393-b39d-c3e6c076f5d6",
+        "multiverse_ids": [
+          627678
+        ],
+        "resource_id": "71EEDF25C78B618685128A18C3090FB991BF57F8083E8BE2DE4818E8B824D647",
+        "mtgo_id": 114655,
+        "tcgplayer_id": 504494,
+        "cardmarket_id": 722423,
+        "name": "Deflecting Swat",
+        "lang": "en",
+        "released_at": "2023-08-04",
+        "uri": "https://api.scryfall.com/cards/b4b36435-55b3-4615-8812-af41d4fc64d9",
+        "scryfall_uri": "https://scryfall.com/card/cmm/214/deflecting-swat?utm_source=api",
+        "layout": "normal",
+        "highres_image": true,
+        "image_status": "highres_scan",
+        "image_updated_at": "2026-07-13T04:07:36Z",
+        "image_uris": {
+          "small": "https://cards.scryfall.io/small/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656",
+          "normal": "https://cards.scryfall.io/normal/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656",
+          "large": "https://cards.scryfall.io/large/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656",
+          "png": "https://cards.scryfall.io/png/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.png?1783915656",
+          "art_crop": "https://cards.scryfall.io/art_crop/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656",
+          "border_crop": "https://cards.scryfall.io/border_crop/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656",
+          "thumb": "https://cards.scryfall.io/thumb/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.webp?1783915656",
+          "grid": "https://cards.scryfall.io/grid/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.webp?1783915656",
+          "display": "https://cards.scryfall.io/display/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.webp?1783915656",
+          "art": "https://cards.scryfall.io/art/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.webp?1783915656",
+          "crop": "https://cards.scryfall.io/crop/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.webp?1783915656",
+          "jpeg": "https://cards.scryfall.io/normal/front/b/4/b4b36435-55b3-4615-8812-af41d4fc64d9.jpg?1783915656"
+        },
+        "mana_cost": "{2}{R}",
+        "cmc": 3.0,
+        "type_line": "Instant",
+        "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.",
+        "colors": [
+          "R"
+        ],
+        "color_identity": [
+          "R"
+        ],
+        "keywords": [],
+        "legalities": {
+          "standard": "not_legal",
+          "future": "not_legal",
+          "historic": "legal",
+          "timeless": "legal",
+          "gladiator": "legal",
+          "pioneer": "not_legal",
+          "modern": "not_legal",
+          "legacy": "legal",
+          "pauper": "not_legal",
+          "vintage": "legal",
+          "penny": "not_legal",
+          "commander": "legal",
+          "oathbreaker": "legal",
+          "standardbrawl": "not_legal",
+          "brawl": "banned",
+          "competitivebrawl": "legal",
+          "alchemy": "not_legal",
+          "paupercommander": "not_legal",
+          "duel": "banned",
+          "oldschool": "not_legal",
+          "premodern": "not_legal",
+          "predh": "not_legal",
+          "tlr": "banned"
+        },
+        "games": [
+          "paper",
+          "mtgo"
+        ],
+        "reserved": false,
+        "game_changer": false,
+        "foil": true,
+        "nonfoil": true,
+        "finishes": [
+          "nonfoil",
+          "foil"
+        ],
+        "oversized": false,
+        "promo": false,
+        "reprint": true,
+        "variation": false,
+        "set_id": "cd05036f-2698-43e6-a48e-5c8d82f0a551",
+        "set": "cmm",
+        "set_name": "Commander Masters",
+        "set_type": "masters",
+        "set_uri": "https://api.scryfall.com/sets/cd05036f-2698-43e6-a48e-5c8d82f0a551",
+        "set_search_uri": "https://api.scryfall.com/cards/search?order=set&q=e%3Acmm&unique=prints",
+        "scryfall_set_uri": "https://scryfall.com/sets/cmm?utm_source=api",
+        "rulings_uri": "https://api.scryfall.com/cards/b4b36435-55b3-4615-8812-af41d4fc64d9/rulings",
+        "prints_search_uri": "https://api.scryfall.com/cards/search?order=released&q=oracleid%3Aae120613-97d6-4393-b39d-c3e6c076f5d6&unique=prints",
+        "collector_number": "214",
+        "digital": false,
+        "rarity": "rare",
+        "flavor_text": "Archmage attacks are little more than annoyances to Kalamax.",
+        "card_back_id": "0aeebaf5-8c7d-4636-9e82-8c27447861f7",
+        "artist": "Izzy",
+        "artist_ids": [
+          "2c3d2473-ff5d-4309-8194-e0b2def2ab65"
+        ],
+        "illustration_id": "f6211e11-2e62-4b24-bb90-9fb9fafae1c5",
+        "border_color": "black",
+        "frame": "2015",
+        "security_stamp": "oval",
+        "full_art": false,
+        "textless": false,
+        "booster": true,
+        "story_spotlight": false,
+        "edhrec_rank": 74,
+        "preview": {
+          "source": "PC Gamer",
+          "source_uri": "https://www.pcgamer.com/expect-dramatic-spells-and-creatures-of-unusual-size-in-magics-next-set/",
+          "previewed_at": "2023-07-14"
+        },
+        "prices": {
+          "usd": "74.23",
+          "usd_foil": "91.25",
+          "usd_etched": null,
+          "eur": "62.67",
+          "eur_foil": "88.15",
+          "tix": "17.19"
+        },
+        "related_uris": {
+          "gatherer": "https://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid=627678&printed=false",
+          "tcgplayer_infinite_articles": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&trafcat=tcgplayer.com%2Fsearch%2Farticles&u=https%3A%2F%2Fwww.tcgplayer.com%2Fsearch%2Farticles%3FproductLineName%3Dmagic%26q%3DDeflecting%2BSwat",
+          "tcgplayer_infinite_decks": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&trafcat=tcgplayer.com%2Fsearch%2Fdecks&u=https%3A%2F%2Fwww.tcgplayer.com%2Fsearch%2Fdecks%3FproductLineName%3Dmagic%26q%3DDeflecting%2BSwat",
+          "edhrec": "https://edhrec.com/route/?cc=Deflecting+Swat"
+        },
+        "purchase_uris": {
+          "tcgplayer": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&u=https%3A%2F%2Fwww.tcgplayer.com%2Fproduct%2F504494%3Fpage%3D1",
+          "cardmarket": "https://www.cardmarket.com/en/Magic/Products?idProduct=722423&referrer=scryfall&utm_campaign=card_prices&utm_medium=text&utm_source=scryfall",
+          "cardhoarder": "https://www.cardhoarder.com/cards/114655?affiliate_id=scryfall&ref=card-profile&utm_campaign=affiliate&utm_medium=card&utm_source=scryfall"
+        }
+      },
+      "sourceInputFile": ".tmp\\night-oracle-cohort-13\\cohort100-input.json",
+      "sourceInputFileSHA256": "99DB1D643E4BB53601571706C79FFC9BBF5C445D49F24FD9DB80A8ECB9B16D88",
+      "provenance": {
+        "batch_rank": 8,
+        "rotating_global_rank": 17,
+        "selected_source": "priority",
+        "sources": [
+          "priority",
+          "league"
+        ],
+        "set": "cmm",
+        "collector_number": "214"
+      },
+      "sourceQueue": ".tmp\\night-oracle-cohort-13\\cohort100.json",
+      "sourceQueueSHA256": "160B879C020EBA5EA887F664A59C07B486D45F454CB3343DFCA9EB71112F4C69",
+      "knownGaps": [
+        {
+          "concept": "objectIdentity.anyZoneCard",
+          "legalUse": "Choose new targets for a Reanimate spell targeting a card in a graveyard",
+          "currentBehavior": "Explicit unsupported EngineError before reassignment; Card incarnation boundary not implemented.",
+          "closureRequirement": "Shared initial admission, all-zone writers, captured identity, reassignment validation and notifications proved without late identity minting."
+        }
+      ],
+      "candidateProofDirectory": ".tmp/night-retarget-current-boundary-01",
+      "certified": false
+    },
+    {
+      "oracleId": "74a7d880-5a49-412b-af4d-0b4cdb8453ee",
+      "name": "Redirect",
+      "status": "runtime-incomplete",
+      "fullMigrationComplete": false,
+      "sourceInput": {
+        "object": "card",
+        "id": "0eef8431-f63c-44e0-940c-e1a38c338214",
+        "oracle_id": "74a7d880-5a49-412b-af4d-0b4cdb8453ee",
+        "multiverse_ids": [
+          290288
+        ],
+        "mtgo_id": 45396,
+        "mtgo_foil_id": 45397,
+        "tcgplayer_id": 59946,
+        "cardmarket_id": 257043,
+        "name": "Redirect",
+        "lang": "en",
+        "released_at": "2012-07-13",
+        "uri": "https://api.scryfall.com/cards/0eef8431-f63c-44e0-940c-e1a38c338214",
+        "scryfall_uri": "https://scryfall.com/card/m13/64/redirect?utm_source=api",
+        "layout": "normal",
+        "highres_image": true,
+        "image_status": "highres_scan",
+        "image_updated_at": "2026-07-13T11:01:44Z",
+        "image_uris": {
+          "small": "https://cards.scryfall.io/small/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504",
+          "normal": "https://cards.scryfall.io/normal/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504",
+          "large": "https://cards.scryfall.io/large/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504",
+          "png": "https://cards.scryfall.io/png/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.png?1783940504",
+          "art_crop": "https://cards.scryfall.io/art_crop/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504",
+          "border_crop": "https://cards.scryfall.io/border_crop/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504",
+          "thumb": "https://cards.scryfall.io/thumb/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.webp?1783940504",
+          "grid": "https://cards.scryfall.io/grid/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.webp?1783940504",
+          "display": "https://cards.scryfall.io/display/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.webp?1783940504",
+          "art": "https://cards.scryfall.io/art/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.webp?1783940504",
+          "crop": "https://cards.scryfall.io/crop/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.webp?1783940504",
+          "jpeg": "https://cards.scryfall.io/normal/front/0/e/0eef8431-f63c-44e0-940c-e1a38c338214.jpg?1783940504"
+        },
+        "mana_cost": "{U}{U}",
+        "cmc": 2.0,
+        "type_line": "Instant",
+        "oracle_text": "You may choose new targets for target spell.",
+        "colors": [
+          "U"
+        ],
+        "color_identity": [
+          "U"
+        ],
+        "keywords": [],
+        "legalities": {
+          "standard": "not_legal",
+          "future": "not_legal",
+          "historic": "not_legal",
+          "timeless": "not_legal",
+          "gladiator": "not_legal",
+          "pioneer": "not_legal",
+          "modern": "legal",
+          "legacy": "legal",
+          "pauper": "not_legal",
+          "vintage": "legal",
+          "penny": "legal",
+          "commander": "legal",
+          "oathbreaker": "legal",
+          "standardbrawl": "not_legal",
+          "brawl": "not_legal",
+          "competitivebrawl": "not_legal",
+          "alchemy": "not_legal",
+          "paupercommander": "not_legal",
+          "duel": "legal",
+          "oldschool": "not_legal",
+          "premodern": "not_legal",
+          "predh": "legal",
+          "tlr": "legal"
+        },
+        "games": [
+          "paper",
+          "mtgo"
+        ],
+        "reserved": false,
+        "game_changer": false,
+        "foil": true,
+        "nonfoil": true,
+        "finishes": [
+          "nonfoil",
+          "foil"
+        ],
+        "oversized": false,
+        "promo": false,
+        "reprint": true,
+        "variation": false,
+        "set_id": "f9b0c6f4-8a4f-4f36-ad3c-e1e16fb8535d",
+        "set": "m13",
+        "set_name": "Magic 2013",
+        "set_type": "core",
+        "set_uri": "https://api.scryfall.com/sets/f9b0c6f4-8a4f-4f36-ad3c-e1e16fb8535d",
+        "set_search_uri": "https://api.scryfall.com/cards/search?order=set&q=e%3Am13&unique=prints",
+        "scryfall_set_uri": "https://scryfall.com/sets/m13?utm_source=api",
+        "rulings_uri": "https://api.scryfall.com/cards/0eef8431-f63c-44e0-940c-e1a38c338214/rulings",
+        "prints_search_uri": "https://api.scryfall.com/cards/search?order=released&q=oracleid%3A74a7d880-5a49-412b-af4d-0b4cdb8453ee&unique=prints",
+        "collector_number": "64",
+        "digital": false,
+        "rarity": "rare",
+        "flavor_text": "\"It's actually quite simple, but since you've only recently begun to walk upright, it may take some time to explain.\"\n—Jace Beleren, to Garruk Wildspeaker",
+        "card_back_id": "0aeebaf5-8c7d-4636-9e82-8c27447861f7",
+        "artist": "Izzy",
+        "artist_ids": [
+          "2c3d2473-ff5d-4309-8194-e0b2def2ab65"
+        ],
+        "illustration_id": "3da62a9e-0b38-41e9-a688-68dcd2beb977",
+        "border_color": "black",
+        "frame": "2003",
+        "full_art": false,
+        "textless": false,
+        "booster": true,
+        "story_spotlight": false,
+        "edhrec_rank": 9189,
+        "penny_rank": 8243,
+        "prices": {
+          "usd": "0.32",
+          "usd_foil": "1.20",
+          "usd_etched": null,
+          "eur": "0.39",
+          "eur_foil": "0.83",
+          "tix": "0.02"
+        },
+        "related_uris": {
+          "gatherer": "https://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid=290288&printed=false",
+          "tcgplayer_infinite_articles": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&trafcat=tcgplayer.com%2Fsearch%2Farticles&u=https%3A%2F%2Fwww.tcgplayer.com%2Fsearch%2Farticles%3FproductLineName%3Dmagic%26q%3DRedirect",
+          "tcgplayer_infinite_decks": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&trafcat=tcgplayer.com%2Fsearch%2Fdecks&u=https%3A%2F%2Fwww.tcgplayer.com%2Fsearch%2Fdecks%3FproductLineName%3Dmagic%26q%3DRedirect",
+          "edhrec": "https://edhrec.com/route/?cc=Redirect"
+        },
+        "purchase_uris": {
+          "tcgplayer": "https://partner.tcgplayer.com/c/4931599/1830156/21018?subId1=api&u=https%3A%2F%2Fwww.tcgplayer.com%2Fproduct%2F59946%3Fpage%3D1",
+          "cardmarket": "https://www.cardmarket.com/en/Magic/Products?idProduct=257043&referrer=scryfall&utm_campaign=card_prices&utm_medium=text&utm_source=scryfall",
+          "cardhoarder": "https://www.cardhoarder.com/cards/45396?affiliate_id=scryfall&ref=card-profile&utm_campaign=affiliate&utm_medium=card&utm_source=scryfall"
+        }
+      },
+      "sourceInputFile": ".tmp\\oracle-global-input-39288.json",
+      "sourceInputFileSHA256": "47DD40FBDDF789A4AFF07AE27DCC3775AAE76FFF962C58E66C2C5DA05640EC02",
+      "provenance": {
+        "source": "local-global-corpus",
+        "inputIndex": 17832,
+        "set": "m13",
+        "collector_number": "64"
+      },
+      "knownGaps": [
+        {
+          "concept": "objectIdentity.anyZoneCard",
+          "legalUse": "Choose new targets for a Reanimate spell targeting a card in a graveyard",
+          "currentBehavior": "Explicit unsupported EngineError before reassignment; Card incarnation boundary not implemented.",
+          "closureRequirement": "Shared initial admission, all-zone writers, captured identity, reassignment validation and notifications proved without late identity minting."
+        }
+      ],
+      "candidateProofDirectory": ".tmp/night-retarget-current-boundary-01",
+      "certified": false
+    }
+  ]
+}

@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "optional-sibling/returnToHand/accept",
+  "seed": 10401,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "effects": [
+          {
+            "kind": "returnToOwnersHand",
+            "object": {
+              "id": "targetPermanent",
+              "kind": "chosenTarget"
+            }
+          }
+        ],
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "life": 20,
+        "manaPool": [
+          "U",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "real-source",
+            "name": "Dispersal Technician",
+            "typeLine": "Creature — Vedalken Artificer",
+            "manaCost": "{4}{U}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "effects": [
+                      {
+                        "kind": "returnToOwnersHand",
+                        "object": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        }
+                      }
+                    ],
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "power": "3",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "target-artifact",
+            "name": "A return target",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": []
+          },
+          {
+            "id": "other-artifact",
+            "name": "B untouched target sibling",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "real-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "target-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "target-artifact",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "other-artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentReturned",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/f1e8f746-1837-4ea8-9a07-e57946883353",
+  "cardName": "Perilous Myr",
+  "oracleId": "f1e8f746-1837-4ea8-9a07-e57946883353",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5a15c8ef-04ad-4aab-a7f1-c7a90c10eb50",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Perilous Myr",
+      "typeLine": "Artifact Creature — Phyrexian Myr",
+      "manaCost": "{2}",
+      "oracleText": "When this creature dies, it deals 2 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

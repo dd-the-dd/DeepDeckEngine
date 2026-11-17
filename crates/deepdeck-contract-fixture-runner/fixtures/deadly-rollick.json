@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "deadly-rollick/commander-zero-alternative-cost-is-executable",
+  "cardName": "Deadly Rollick",
+  "oracleId": "0456ec64-2c81-4763-a352-8ff64a4c3d6b",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": {
+        "kind": "alternativeCost",
+        "costs": [],
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countPermanents",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "isCommander" },
+            "excludeSource": false
+          },
+          "right": { "kind": "integer", "value": 1 }
+        }
+      }
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      }]
+    }
+  ]
+}

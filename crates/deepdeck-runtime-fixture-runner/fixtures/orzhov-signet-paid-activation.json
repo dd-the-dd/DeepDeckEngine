@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "orzhov-signet-pays-one-taps-and-adds-white-black",
+  "seed": 106,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{W}{B}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Orzhov pilot",
+        "manaPool": ["C"],
+        "battlefield": [{
+          "id": "orzhov-signet",
+          "name": "Orzhov Signet",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "orzhov-signet",
+    "manaSymbols": ["W", "B"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["W", "B"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "orzhov-signet",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

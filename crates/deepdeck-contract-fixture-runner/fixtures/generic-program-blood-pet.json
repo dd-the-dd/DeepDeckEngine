@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "blood-pet",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{B}"
+      }
+    ]
+  },
+  "cardName": "Blood Pet",
+  "oracleId": "e05c6c80-a91a-45e0-b991-0014fd5a6472"
+}

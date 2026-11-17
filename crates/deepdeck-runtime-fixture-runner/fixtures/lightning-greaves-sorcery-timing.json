@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lightning-greaves-equip-is-unavailable-outside-sorcery-timing",
+  "seed": 85,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "equip",
+      "costs": [{ "kind": "payMana", "manaCost": "{0}" }]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "endStep",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lightning Greaves pilot",
+        "battlefield": [
+          {
+            "id": "lightning-greaves",
+            "name": "Lightning Greaves",
+            "typeLine": "Artifact — Equipment",
+            "manaCost": "{2}"
+          },
+          {
+            "id": "own-creature",
+            "name": "Own Creature",
+            "typeLine": "Creature — Elf",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "lightning-greaves",
+      "abilityRuleIndex": 0,
+      "targets": { "equipTarget": { "kind": "permanentDefinition", "definitionId": "own-creature" } },
+      "equals": false
+    },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

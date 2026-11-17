@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "failure-probes/direct-program-restores-earlier-action-and-retries",
+  "seed": 10901,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "abilityController"
+        },
+        "effects": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "abilityController"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "Executor",
+            "typeLine": "Enchantment",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Other"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "player-0",
+          "sourceDefinitionId": "executor"
+        }
+      },
+      "expectedErrorContains": "DATA synthetic permission failure",
+      "providerError": {
+        "atDecision": 1,
+        "message": "DATA synthetic permission failure",
+        "method": "chooseOption",
+        "playerId": "player-0"
+      },
+      "retry": true
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 23
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 2
+    }
+  ]
+}

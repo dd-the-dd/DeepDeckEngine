@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "residual-postwave17/playCardsFromTopLibraryIfSourceSolved",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "playCardsFromTopLibraryIfSourceSolved",
+        "player": {
+          "kind": "abilityController"
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        }
+      }
+    ]
+  }
+}

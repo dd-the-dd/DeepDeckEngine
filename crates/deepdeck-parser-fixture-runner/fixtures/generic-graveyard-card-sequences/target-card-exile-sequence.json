@@ -1,0 +1,514 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/target-card-exile-sequence",
+  "cases": [
+    {
+      "id": "exact-complete-source-pending-runtime",
+      "request": {
+        "cardName": "Deathrite Shaman",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as an instant.)\n{B}, {T}: Exile target instant or sorcery card from a graveyard. Each opponent loses 2 life.\n{G}, {T}: Exile target creature card from a graveyard. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exileTargetCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCard"
+                  }
+                },
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{B}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Instant"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Sorcery"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exileTargetCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCard"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{G}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exileTargetCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCard"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "land-anycolor-no-reminder",
+      "request": {
+        "cardName": "Generic Graveyard Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a graveyard. Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exileTargetCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCard"
+                  }
+                },
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "creature-exile-gain",
+      "request": {
+        "cardName": "Generic Graveyard Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{G}, {T}: Exile target creature card from a graveyard. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{G}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetCard",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exileTargetCards",
+                  "cards": {
+                    "kind": "chosenTargets",
+                    "id": "targetCard"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-source-zone",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a hand. Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-card-domain",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land from a graveyard. Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-annotation",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unclosed-annotation",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as an instant.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "trailing-annotation-action",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Exile target land card from a graveyard. Add one mana of any color. (Activate only as an instant.) Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "targetless-annotation-nonmana-cap",
+      "request": {
+        "cardName": "Generic Negative Source",
+        "typeLine": "Creature â€” Elf Shaman",
+        "manaCost": "{B/G}",
+        "oracleText": "{T}: Add one mana of any color. (Activate only as an instant.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

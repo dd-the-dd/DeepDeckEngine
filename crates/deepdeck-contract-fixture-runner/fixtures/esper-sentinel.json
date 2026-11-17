@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "esper-sentinel/ordinal-filtered-dynamic-spell-tax-is-executable",
+  "cardName": "Esper Sentinel",
+  "oracleId": "5def9f38-0a0b-4e8d-9f9d-29dcb46520b4",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "spellCast",
+      "opponentOfSourceController": true,
+      "where": {
+        "kind": "not",
+        "operand": { "kind": "cardTypeContains", "value": "Creature" }
+      },
+      "spellCastOrdinal": { "kind": "integer", "value": 1 }
+    },
+    "effects": [{
+      "kind": "optionalPayCostPerformEffects",
+      "player": { "kind": "triggeringPlayer" },
+      "cost": {
+        "kind": "payMana",
+        "genericAmount": {
+          "kind": "powerOf",
+          "object": { "kind": "self" }
+        }
+      },
+      "effects": [],
+      "declineEffects": [{
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }]
+    }]
+  }
+}

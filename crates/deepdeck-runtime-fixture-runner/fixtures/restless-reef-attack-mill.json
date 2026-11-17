@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "restless-reef-attack-trigger-mills-target-player-four",
+  "seed": 7002,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPlayer",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "players" }
+      }]
+    },
+    "effects": [{
+      "kind": "mill",
+      "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+      "count": { "kind": "integer", "value": 4 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Restless Reef controller",
+        "battlefield": [{
+          "id": "restless-reef",
+          "name": "Restless Reef",
+          "typeLine": "Land Creature - Shark",
+          "power": "4",
+          "toughness": "4"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Mill target",
+        "library": [
+          { "id": "library-card-1", "name": "Library Card 1", "typeLine": "Sorcery" },
+          { "id": "library-card-2", "name": "Library Card 2", "typeLine": "Sorcery" },
+          { "id": "library-card-3", "name": "Library Card 3", "typeLine": "Sorcery" },
+          { "id": "library-card-4", "name": "Library Card 4", "typeLine": "Sorcery" },
+          { "id": "library-card-5", "name": "Library Card 5", "typeLine": "Sorcery" }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "restless-reef",
+    "targets": {
+      "targetPlayer": { "player": { "playerId": "player-1" } }
+    }
+  },
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "library", "equals": 1 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "graveyard", "equals": 4 },
+    { "kind": "eventCount", "eventKind": "cardMilled", "equals": 4 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -33,6 +33,10 @@ pub struct CatalogPrinting {
     pub mana_cost: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mana_value: Option<f64>,
+    /// Color letters of a token game piece whose colors are printed on the
+    /// token itself (it has no mana cost), in Scryfall notation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colors: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -44,6 +48,37 @@ pub struct CatalogPrinting {
     pub url_front: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url_back: Option<String>,
+}
+
+impl CatalogPrinting {
+    /// Full color names of a token printed with colors, in catalog order.
+    pub fn color_names(&self) -> Vec<&'static str> {
+        self.colors
+            .iter()
+            .flatten()
+            .filter_map(|letter| match letter.as_str() {
+                "W" => Some("white"),
+                "U" => Some("blue"),
+                "B" => Some("black"),
+                "R" => Some("red"),
+                "G" => Some("green"),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The color-indicator marker that gives a catalog token its printed
+    /// colors; the engine reads the same marker for every colored object.
+    pub fn color_indicator_rule(&self) -> Option<Value> {
+        let symbols = self.colors.iter().flatten().cloned().collect::<Vec<_>>();
+        (!symbols.is_empty()).then(|| {
+            serde_json::json!({
+                "kind": "rulesMarker",
+                "text": format!("Color indicator: {}.", symbols.join(", ")),
+                "colorIndicator": symbols,
+            })
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -133,6 +168,18 @@ fn builtin_game_pieces() -> &'static StoredCardCatalog {
     })
 }
 
+/// Tokens whose definition is part of a keyword action (CR 701), such as the
+/// Jace planeswalker token of `empower Jace`. They are consulted after the
+/// external and built-in catalogs and never feed the parser-free runtime
+/// artifact, which only compiles the built-in game pieces.
+fn keyword_action_tokens() -> &'static StoredCardCatalog {
+    static CATALOG: OnceLock<StoredCardCatalog> = OnceLock::new();
+    CATALOG.get_or_init(|| {
+        serde_json::from_str(include_str!("../data/keyword-action-tokens.json"))
+            .expect("keyword-action token catalog must be valid")
+    })
+}
+
 fn select_named_token_printing<'a>(
     catalog: &'a StoredCardCatalog,
     name: &str,
@@ -156,9 +203,11 @@ fn select_named_token_printing<'a>(
 pub fn named_token_printing(name: &str) -> Result<Option<&'static CatalogPrinting>, String> {
     match catalog() {
         Ok(catalog) => Ok(select_named_token_printing(catalog, name)
-            .or_else(|| select_named_token_printing(builtin_game_pieces(), name))),
+            .or_else(|| select_named_token_printing(builtin_game_pieces(), name))
+            .or_else(|| select_named_token_printing(keyword_action_tokens(), name))),
         Err(error) if catalog_path().is_ok() => Err(error),
-        Err(_) => Ok(select_named_token_printing(builtin_game_pieces(), name)),
+        Err(_) => Ok(select_named_token_printing(builtin_game_pieces(), name)
+            .or_else(|| select_named_token_printing(keyword_action_tokens(), name))),
     }
 }
 
@@ -172,6 +221,76 @@ pub fn named_card_printing(name: &str) -> Result<Option<&'static CatalogPrinting
                 && printing.type_line.is_some()
         })
     }))
+}
+
+/// Returns the exact normalized names backed by at least one ordinary-card
+/// printing. Consumers may build read-only indexes from this catalog-owned
+/// name set; the catalog remains the single source of truth.
+// This source file is also compiled into the standalone runtime crate, where
+// Oracle name resolution is intentionally absent.
+#[allow(dead_code)]
+pub(crate) fn ordinary_card_names() -> Result<Vec<&'static str>, String> {
+    Ok(catalog()?
+        .cards
+        .iter()
+        .filter(|(_, printings)| {
+            printings.iter().any(|printing| {
+                !printing.is_token.unwrap_or(false)
+                    && !printing.is_game_piece.unwrap_or(false)
+                    && printing.type_line.is_some()
+            })
+        })
+        .map(|(name, _)| name.as_str())
+        .collect())
+}
+
+/// Returns every exact normalized name backed by an Oracle-defined token game
+/// piece. The external catalog and the built-in fallback are one logical
+/// catalog; callers may build indexes but must not add token-name lists.
+#[allow(dead_code)]
+pub(crate) fn named_token_names() -> Result<Vec<&'static str>, String> {
+    fn collect(catalog: &'static StoredCardCatalog, names: &mut Vec<&'static str>) {
+        names.extend(catalog.cards.iter().filter_map(|(name, printings)| {
+            printings
+                .iter()
+                .any(|printing| {
+                    printing.is_token.unwrap_or(false)
+                        && printing.is_game_piece.unwrap_or(false)
+                        && printing
+                            .oracle_text
+                            .as_deref()
+                            .is_some_and(|text| !text.trim().is_empty())
+                })
+                .then_some(name.as_str())
+        }));
+    }
+
+    let mut names = Vec::new();
+    if let Ok(external) = catalog() {
+        collect(external, &mut names);
+    }
+    collect(builtin_game_pieces(), &mut names);
+    names.sort_unstable();
+    names.dedup();
+    Ok(names)
+}
+
+#[allow(dead_code)]
+pub(crate) fn builtin_named_token_names() -> Vec<&'static str> {
+    let mut names = builtin_game_pieces()
+        .cards
+        .iter()
+        .filter_map(|(name, _)| {
+            select_named_token_printing(builtin_game_pieces(), name).map(|_| name.as_str())
+        })
+        .collect::<Vec<_>>();
+    names.sort_unstable();
+    names
+}
+
+#[allow(dead_code)]
+pub(crate) fn builtin_named_token_printing(name: &str) -> Option<&'static CatalogPrinting> {
+    select_named_token_printing(builtin_game_pieces(), name)
 }
 
 fn game_piece_value(name: &str, printing: &CatalogPrinting) -> Value {

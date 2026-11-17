@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ruinous-ultimatum/nonland-opponent-collection-destruction-is-executable",
+  "cardName": "Ruinous Ultimatum",
+  "oracleId": "a6f38908-aa4f-4f99-a28e-85d11dab52e4",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "not",
+          "operand": { "kind": "cardTypeContains", "value": "Land" }
+        },
+        "player": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          }
+        }
+      }
+    }]
+  }
+}

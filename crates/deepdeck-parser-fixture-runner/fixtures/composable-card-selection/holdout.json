@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "post-freeze-independent-composition",
+  "cases": [
+    {
+      "id": "unseen-quantifier-predicate-reveal-destination-composition",
+      "request": {
+        "cardName": "Independent Collection Composition",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Look at the top six cards of your library. Reveal up to two artifact cards from among them. Put them into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 6
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "filterObjects",
+                          "objects": {
+                            "kind": "boundObjects",
+                            "binding": "lookedCards"
+                          },
+                          "where": {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  }
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

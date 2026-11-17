@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain/cap-changeling-then-set",
+  "seed": 492531,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              },
+              {
+                "kind": "subtypeContains",
+                "value": "Ally"
+              }
+            ]
+          }
+        },
+        "ability": {
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "mana": {
+                "amount": 1,
+                "kind": "chooseColor"
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          ],
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "provider",
+            "name": "Synthetic provider",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Ally"
+                          }
+                        ]
+                      }
+                    },
+                    "ability": {
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "mana": {
+                            "amount": 1,
+                            "kind": "chooseColor"
+                          },
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "holder",
+            "name": "Synthetic holder",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "changeling"
+                }
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "setSubtypes",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "subtypes": [
+                      "Goblin"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": []
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "activateManaAbility",
+        "controllerId": "p0",
+        "sourceDefinitionId": "holder",
+        "manaSymbols": [
+          "U"
+        ]
+      },
+      "expectedErrorContains": "subtype replacement/addition ordering"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "holder",
+      "equals": false
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "playerId": "p0",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

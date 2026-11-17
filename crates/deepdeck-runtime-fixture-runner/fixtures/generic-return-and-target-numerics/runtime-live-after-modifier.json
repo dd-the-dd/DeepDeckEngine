@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-numeric/provisional-live-power-read-after-modifier",
+  "seed": 16302,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "modifyPowerToughness",
+        "object": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        },
+        "power": {
+          "kind": "integer",
+          "value": 2
+        },
+        "toughness": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "amount": {
+          "kind": "powerOf",
+          "object": {
+            "id": "targetPermanent",
+            "kind": "chosenTarget"
+          }
+        },
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "G",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "growth",
+            "name": "Living Target Growth",
+            "typeLine": "Instant",
+            "manaCost": "{1}{G}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "modifyPowerToughness",
+                    "object": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    },
+                    "power": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "amount": {
+                      "kind": "powerOf",
+                      "object": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "target",
+            "name": "Live Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{2}{G}",
+            "power": "2",
+            "toughness": "3",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "growth"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 24
+    },
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-0",
+      "definitionId": "target",
+      "power": 4,
+      "toughness": 5
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

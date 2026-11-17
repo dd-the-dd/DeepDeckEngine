@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shipwreck-marsh-enters-tapped-with-one-other-land",
+  "seed": 14501,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countPermanents",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        },
+        "right": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    },
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Shipwreck Marsh pilot",
+        "battlefield": [
+          {
+            "id": "island",
+            "name": "Island",
+            "typeLine": "Basic Land - Island"
+          }
+        ],
+        "hand": [
+          {
+            "id": "shipwreck-marsh",
+            "name": "Shipwreck Marsh",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "compare",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    "operator": ">=",
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "chooseOne",
+                      "options": [
+                        "{U}",
+                        "{B}"
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "shipwreck-marsh"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "shipwreck-marsh",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "shipwreck-marsh",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

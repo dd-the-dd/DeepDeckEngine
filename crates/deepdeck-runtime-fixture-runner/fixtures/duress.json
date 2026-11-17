@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "duress-targeted-filtered-hand-disruption",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players",
+            "where": {
+              "kind": "isOpponentOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "revealHand",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "discardedCard",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "minimum": { "kind": "integer", "value": 1 },
+        "maximum": { "kind": "integer", "value": 1 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Creature" }
+              },
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Land" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "discardedCard"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Hand disruption pilot",
+        "hand": [
+          {
+            "id": "duress",
+            "name": "Duress",
+            "typeLine": "Sorcery",
+            "manaCost": "{B}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "hand": [
+          {
+            "id": "eligible-instant",
+            "name": "Eligible Instant",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}"
+          },
+          {
+            "id": "ineligible-creature",
+            "name": "Ineligible Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ineligible-land",
+            "name": "Ineligible Land",
+            "typeLine": "Basic Land — Forest"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "duress",
+    "targets": {
+      "targetPlayer": { "player": { "playerId": "player-1" } }
+    }
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "hand", "equals": 2 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "graveyard", "equals": 1 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "eligible-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "ineligible-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "ineligible-land",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

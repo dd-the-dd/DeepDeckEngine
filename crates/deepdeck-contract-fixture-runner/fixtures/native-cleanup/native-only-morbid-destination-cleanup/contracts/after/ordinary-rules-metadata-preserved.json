@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ordinary-rules-metadata-preserved",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "rulesMarker",
+    "text": "Ordinary metadata"
+  }
+}

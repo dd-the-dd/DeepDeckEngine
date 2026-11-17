@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "containment-priest/all-native-rules-are-executable",
+  "cardName": "Containment Priest",
+  "oracleId": "8a76a9b9-3127-45fe-b20f-a8f643276281",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "a24e8dba-5c86-4e32-8a52-61402f7fe9f0",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Containment Priest",
+      "typeLine": "Creature — Human Cleric",
+      "manaCost": "{1}{W}",
+      "oracleText": "Flash\nIf a nontoken creature would enter and it wasn't cast, exile it instead.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

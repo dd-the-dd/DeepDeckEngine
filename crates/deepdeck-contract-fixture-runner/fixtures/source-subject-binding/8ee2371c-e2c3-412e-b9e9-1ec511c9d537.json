@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/8ee2371c-e2c3-412e-b9e9-1ec511c9d537",
+  "cardName": "Moonfolk Puzzlemaker",
+  "oracleId": "8ee2371c-e2c3-412e-b9e9-1ec511c9d537",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c9fa6d4c-78dc-4b40-9ce8-a0e593d4001f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Moonfolk Puzzlemaker",
+      "typeLine": "Artifact Creature — Moonfolk Wizard",
+      "manaCost": "{2}{U}",
+      "oracleText": "Flying\nWhenever this creature becomes tapped, scry 1.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

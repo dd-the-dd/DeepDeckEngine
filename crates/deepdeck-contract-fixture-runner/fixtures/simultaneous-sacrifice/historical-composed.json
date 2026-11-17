@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/historical-composed",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "bind": "selectingPlayer",
+        "effects": [
+          {
+            "kind": "bind",
+            "id": "selectionCandidates",
+            "value": {
+              "kind": "eachPermanent",
+              "player": {
+                "kind": "boundValue",
+                "id": "selectingPlayer"
+              },
+              "where": {
+                "kind": "not",
+                "operand": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                }
+              }
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "keptPermanentsGroup0",
+            "player": {
+              "kind": "boundValue",
+              "id": "selectingPlayer"
+            },
+            "from": {
+              "kind": "boundObjects",
+              "binding": "selectionCandidates"
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          {
+            "kind": "chooseCards",
+            "id": "keptPermanentsGroup1",
+            "player": {
+              "kind": "boundValue",
+              "id": "selectingPlayer"
+            },
+            "from": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "selectionCandidates"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "keptPermanentsGroup0"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ],
+        "collect": {
+          "bind": "unkeptPermanents",
+          "objects": {
+            "kind": "setDifference",
+            "left": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "selectionCandidates"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "keptPermanentsGroup0"
+              }
+            },
+            "right": {
+              "kind": "decisionResult",
+              "decisionId": "keptPermanentsGroup1"
+            }
+          }
+        }
+      },
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "eachPlayer"
+        },
+        "objects": {
+          "kind": "boundObjects",
+          "binding": "unkeptPermanents"
+        }
+      }
+    ]
+  }
+}

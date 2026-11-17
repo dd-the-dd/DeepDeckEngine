@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shared-cost-query-peer/stolen-reducer-controller-not-owner",
+  "seed": 611,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "p1",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Reducer owner",
+        "battlefield": [
+          {
+            "id": "borrowed-reducer",
+            "name": "borrowed-reducer",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "reduceCastingCost",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "amount": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "kind": "cardsInZone",
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Instant"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Sorcery"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "controllerId": "p1"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Caster and reducer controller",
+        "manaPool": [
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "cast-artifact",
+            "name": "cast-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "i1",
+            "name": "i1",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "s1",
+            "name": "s1",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p1",
+      "sourceDefinitionId": "cast-artifact"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p1",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "cast-artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "playerId": "p1",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

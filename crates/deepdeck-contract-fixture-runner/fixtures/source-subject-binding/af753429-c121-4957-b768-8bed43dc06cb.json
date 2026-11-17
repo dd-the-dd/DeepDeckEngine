@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/af753429-c121-4957-b768-8bed43dc06cb",
+  "cardName": "Samite Herbalist",
+  "oracleId": "af753429-c121-4957-b768-8bed43dc06cb",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "409189da-53c9-4daf-b6b2-d155fc14f91a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Samite Herbalist",
+      "typeLine": "Creature — Human Cleric",
+      "manaCost": "{1}{W}",
+      "oracleText": "Whenever this creature becomes tapped, you gain 1 life and scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

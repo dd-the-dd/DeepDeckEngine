@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-required-search-two-success",
+  "seed": 92171,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": null,
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "searchedCards",
+        "kind": "chooseCards",
+        "maximum": 2,
+        "minimum": 2,
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "recordLibrarySearch",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "battlefield": [
+          {
+            "id": "search-source",
+            "name": "Generic search bounds",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 2,
+                    "minimum": 2,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "candidate-0",
+            "name": "Generic candidate 0",
+            "typeLine": "Basic Land - Forest"
+          },
+          {
+            "id": "candidate-1",
+            "name": "Generic candidate 1",
+            "typeLine": "Basic Land - Forest"
+          },
+          {
+            "id": "candidate-2",
+            "name": "Generic candidate 2",
+            "typeLine": "Basic Land - Forest"
+          }
+        ],
+        "name": "Synthetic player-0"
+      },
+      {
+        "id": "player-1",
+        "name": "Synthetic player-1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "search-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "search-source",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "librarySearched",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "zoneShuffled",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 3
+    }
+  ]
+}

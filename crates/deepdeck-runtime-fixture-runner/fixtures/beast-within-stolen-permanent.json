@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "beast-within-snapshots-stolen-permanent-controller",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "permanents", "where": null }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "changedPermanentController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "changedPermanentController" },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "colors": ["Green"],
+          "types": ["Creature"],
+          "subtypes": ["Beast"],
+          "power": 3,
+          "toughness": 3,
+          "abilities": []
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Beast Within pilot",
+        "manaPool": ["C", "C", "G"],
+        "hand": [{
+          "id": "beast-within",
+          "name": "Beast Within",
+          "typeLine": "Instant",
+          "manaCost": "{2}{G}"
+        }],
+        "battlefield": [{
+          "id": "stolen-permanent",
+          "name": "Stolen Permanent",
+          "typeLine": "Artifact",
+          "controllerId": "player-1"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Current controller"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "beast-within"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "stolen-permanent",
+      "equals": true
+    },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "generic/mixed-entry-death-cannot-produce-entry-observation",
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "oneOf",
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "self"
+          },
+          "entryState": {
+            "tapped": true
+          }
+        },
+        {
+          "kind": "permanentDied",
+          "object": {
+            "kind": "self"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "untapPermanent",
+        "permanent": {
+          "kind": "observedEventObject",
+          "event": "permanentEntered"
+        }
+      }
+    ]
+  },
+  "expectedExecutable": false
+}

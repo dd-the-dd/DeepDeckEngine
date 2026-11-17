@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/3a07e22c-71cd-4723-b07e-0ff02009a878",
+  "cardName": "Steel Wrecking Ball",
+  "oracleId": "3a07e22c-71cd-4723-b07e-0ff02009a878",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "7f2c74f5-1cfe-4918-a86b-0d58ac8b7469",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Steel Wrecking Ball",
+      "typeLine": "Artifact",
+      "manaCost": "{5}",
+      "oracleText": "When this artifact enters, it deals 5 damage to target creature.\n{1}{R}, Discard this card: Destroy target artifact.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

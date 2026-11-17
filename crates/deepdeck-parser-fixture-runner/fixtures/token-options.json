@@ -1,0 +1,630 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "token-options/shared",
+  "cases": [
+    {
+      "id": "ab8d5f5c-1976-4f77-8ed2-8d28ee666741",
+      "request": {
+        "cardName": "Tireless Provisioner",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Landfall — Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 1 Food token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 1 Treasure token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "34c0f75d-10a9-428d-b202-3defb3949090",
+      "request": {
+        "cardName": "Ant-Man's Army",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, create a Food token or a Treasure token. (A Food token is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" A Treasure token is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 1 Food token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 1 Treasure token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-alternatives",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token, two Treasure tokens, or a Clue token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 1 Food token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 2 Treasure tokens",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 2
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 1 Clue token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Clue"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "suffix-sequence",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token or a Treasure token, then you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 1 Food token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 1 Treasure token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ordinary-and-action",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Food"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-alternative",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token or a Missingthing token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dangling-alternative",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token or.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "simultaneous-not-approximated",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token and a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "inclusive-not-approximated",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token and/or a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "variable-option-cap",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create X Food tokens or a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-reminder",
+      "request": {
+        "cardName": "Token Options Source",
+        "typeLine": "Creature — Elf Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, create a Food token or a Treasure token. (Food is an artifact with \"{2}, {T}, Sacrifice this token: You gain 4 life.\" Treasure is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

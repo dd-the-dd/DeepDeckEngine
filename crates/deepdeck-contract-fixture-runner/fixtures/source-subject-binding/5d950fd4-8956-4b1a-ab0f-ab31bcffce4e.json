@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5d950fd4-8956-4b1a-ab0f-ab31bcffce4e",
+  "cardName": "Callous Inspector",
+  "oracleId": "5d950fd4-8956-4b1a-ab0f-ab31bcffce4e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "f22610e9-6b14-4914-bb67-bd6723bec9aa",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Callous Inspector",
+      "typeLine": "Creature — Human Soldier",
+      "manaCost": "{B}",
+      "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature dies, it deals 1 damage to you. Create a Clue token. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

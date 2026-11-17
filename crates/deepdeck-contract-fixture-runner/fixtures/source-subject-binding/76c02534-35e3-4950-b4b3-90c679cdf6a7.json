@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/76c02534-35e3-4950-b4b3-90c679cdf6a7",
+  "cardName": "Goblin Commando",
+  "oracleId": "76c02534-35e3-4950-b4b3-90c679cdf6a7",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c742d940-1a8d-487a-a787-2ad96a96ef1f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Goblin Commando",
+      "typeLine": "Creature — Goblin",
+      "manaCost": "{4}{R}",
+      "oracleText": "When this creature enters, it deals 2 damage to target creature.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

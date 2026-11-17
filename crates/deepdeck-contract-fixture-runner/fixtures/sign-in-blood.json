@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "player-subject-sequence/complete-real-sign",
+  "cardName": "Sign in Blood",
+  "oracleId": "c6207f6a-a624-4754-88f5-dbe700c841ff",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b89d9372-8682-4a61-a003-8bccfbb6cbb4",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Sign in Blood",
+      "typeLine": "Sorcery",
+      "manaCost": "{B}{B}",
+      "oracleText": "Target player draws two cards and loses 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

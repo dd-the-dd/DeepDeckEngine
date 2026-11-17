@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-morbid-marker",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "rulesMarker",
+    "source": {
+      "kind": "self"
+    },
+    "text": "Historical morbid destination metadata",
+    "morbidSearchDestination": true
+  }
+}

@@ -1,0 +1,322 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "primitive-cost/result-id-is-scoped-per-stack-object",
+  "seed": 6701,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetSpell",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "spells",
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "abilityController"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "tryPayCost",
+        "id": "resolutionPayment0",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "chosenTarget",
+            "id": "targetSpell"
+          }
+        },
+        "cost": {
+          "kind": "payMana",
+          "manaCost": "{1}"
+        }
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "costWasPaid",
+          "decisionId": "resolutionPayment0",
+          "value": false,
+          "required": true
+        },
+        "then": [
+          {
+            "kind": "counterStackObject",
+            "object": {
+              "kind": "chosenTarget",
+              "id": "targetSpell"
+            }
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Spell Pierce pilot",
+        "manaPool": [
+          "U",
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "spell-pierce",
+            "name": "Spell Pierce",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetSpell",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "abilityController"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tryPayCost",
+                    "id": "resolutionPayment0",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    },
+                    "cost": {
+                      "kind": "payMana",
+                      "manaCost": "{1}"
+                    }
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "costWasPaid",
+                      "decisionId": "resolutionPayment0",
+                      "value": false,
+                      "required": true
+                    },
+                    "then": [
+                      {
+                        "kind": "counterStackObject",
+                        "object": {
+                          "kind": "chosenTarget",
+                          "id": "targetSpell"
+                        }
+                      }
+                    ],
+                    "else": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "second-counter",
+            "name": "Second Counter",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetSpell",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells",
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "abilityController"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tryPayCost",
+                    "id": "resolutionPayment0",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    },
+                    "cost": {
+                      "kind": "payMana",
+                      "manaCost": "{1}"
+                    }
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "costWasPaid",
+                      "decisionId": "resolutionPayment0",
+                      "value": false,
+                      "required": true
+                    },
+                    "then": [
+                      {
+                        "kind": "counterStackObject",
+                        "object": {
+                          "kind": "chosenTarget",
+                          "id": "targetSpell"
+                        }
+                      }
+                    ],
+                    "else": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Paying target controller",
+        "manaPool": [
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "target-spell",
+            "name": "Payable Target Instant",
+            "typeLine": "Instant",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "target-spell"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spell-pierce"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "second-counter"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-1",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "spell-pierce",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "target-spell",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    }
+  ]
+}

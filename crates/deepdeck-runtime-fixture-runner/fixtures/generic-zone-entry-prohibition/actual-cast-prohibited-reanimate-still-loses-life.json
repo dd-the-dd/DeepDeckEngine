@@ -1,0 +1,307 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-prohibition/actual-cast-prohibited-reanimate-still-loses-life",
+  "seed": 1914,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetManaValue",
+        "value": {
+          "kind": "manaValueOf",
+          "object": {
+            "kind": "chosenTarget",
+            "id": "targetCard"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "chosenTargets",
+          "id": "targetCard"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "loseLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "boundValue",
+          "id": "targetManaValue"
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "anyGraveyard"
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "cage",
+            "name": "Grafdigger's Cage",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitEnterBattlefieldFromZones",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitCastFromZones",
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "candidate",
+            "name": "candidate",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "bind",
+                    "id": "targetManaValue",
+                    "value": {
+                      "kind": "manaValueOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetCard"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "targetCard"
+                    },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    }
+                  },
+                  {
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "boundValue",
+                      "id": "targetManaValue"
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetCard",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "anyGraveyard"
+                        },
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "candidate",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "candidate",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardMovedToBattlefield",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 19
+    }
+  ],
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "executor"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ]
+}

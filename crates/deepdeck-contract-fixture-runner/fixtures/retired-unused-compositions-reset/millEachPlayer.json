@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/millEachPlayer",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "millEachPlayer",
+        "players": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "abilityController"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

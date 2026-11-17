@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "case-native-ability-zero/extra-land-play-remains",
+  "seed": 73,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "additionalLandPlay",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player 0",
+        "battlefield": [
+          {
+            "id": "case-source",
+            "name": "Case of the Locked Hothouse",
+            "typeLine": "Enchantment — Case",
+            "manaCost": "{3}{G}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "additionalLandPlay",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "land-one",
+            "name": "land-one",
+            "typeLine": "Basic Land - Forest",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "land-two",
+            "name": "land-two",
+            "typeLine": "Basic Land - Forest",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "land-three",
+            "name": "land-three",
+            "typeLine": "Basic Land - Forest",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Player 1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-one"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-two"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "player-0",
+      "equals": 2
+    },
+    {
+      "kind": "landPlayAvailable",
+      "playerId": "player-0",
+      "sourceDefinitionId": "land-three",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 3
+    }
+  ]
+}

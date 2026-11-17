@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "additional-land-play-count-saturates-without-overflow",
+  "seed": 405,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "additionalLandPlay",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "count": { "kind": "integer", "value": 2147483647 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Saturation controller",
+        "battlefield": [{
+          "id": "maximum-land-permission",
+          "name": "Maximum Land Permission",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+            "modifiers": [{
+              "kind": "additionalLandPlay",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "count": { "kind": "integer", "value": 2147483647 }
+            }]
+          }]
+        }],
+        "hand": [
+          { "id": "maximum-forest-one", "name": "Forest One", "typeLine": "Basic Land - Forest", "rules": [] },
+          { "id": "maximum-forest-two", "name": "Forest Two", "typeLine": "Basic Land - Forest", "rules": [] },
+          { "id": "maximum-forest-three", "name": "Forest Three", "typeLine": "Basic Land - Forest", "rules": [] }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "playLand", "playerId": "player-0", "sourceDefinitionId": "maximum-forest-one" },
+    { "kind": "playLand", "playerId": "player-0", "sourceDefinitionId": "maximum-forest-two" }
+  ],
+  "assertions": [
+    { "kind": "landPlayAvailable", "playerId": "player-0", "sourceDefinitionId": "maximum-forest-three", "equals": true },
+    { "kind": "eventCount", "eventKind": "landPlayed", "playerId": "player-0", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

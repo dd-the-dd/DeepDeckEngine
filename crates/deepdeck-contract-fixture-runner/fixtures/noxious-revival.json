@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "noxious-revival/phyrexian-reminder-and-owner-library-return-are-executable",
+  "cardName": "Noxious Revival",
+  "oracleId": "97cabeda-9fe3-490d-99b4-4c8d87c17157",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "rulesMarker",
+      "source": { "kind": "self" },
+      "text": "({G/P} can be paid with either {G} or 2 life.)"
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": { "kind": "anyGraveyard" },
+            "where": null
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetCard" },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "ownerOf",
+            "object": { "kind": "chosenTarget", "id": "targetCard" }
+          },
+          "position": "top"
+        }
+      }]
+    }
+  ]
+}

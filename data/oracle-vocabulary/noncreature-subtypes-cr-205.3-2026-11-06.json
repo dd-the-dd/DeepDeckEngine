@@ -1,0 +1,1008 @@
+{
+  "schemaVersion": "deepdeck-noncreature-subtypes/v1",
+  "source": {
+    "authority": "Wizards of the Coast",
+    "url": "https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+    "effectiveDate": "2026-11-06",
+    "rule": "205.3",
+    "documentSha256": "524F5195A1E5F54BB13C735EDF399AC717A4458E2713F398D1A3E6877186B829"
+  },
+  "canonical": [
+    {
+      "canonical": "Attraction",
+      "irName": "Attraction",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Blood",
+      "irName": "Blood",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Bobblehead",
+      "irName": "Bobblehead",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Book",
+      "irName": "Book",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Clue",
+      "irName": "Clue",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Communicator",
+      "irName": "Communicator",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Contraption",
+      "irName": "Contraption",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Equipment",
+      "irName": "Equipment",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Food",
+      "irName": "Food",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Fortification",
+      "irName": "Fortification",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Gold",
+      "irName": "Gold",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Heartwood",
+      "irName": "Heartwood",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Incubator",
+      "irName": "Incubator",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Infinity",
+      "irName": "Infinity",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Junk",
+      "irName": "Junk",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Lander",
+      "irName": "Lander",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Map",
+      "irName": "Map",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Mutagen",
+      "irName": "Mutagen",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Powerstone",
+      "irName": "Powerstone",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Spacecraft",
+      "irName": "Spacecraft",
+      "family": "artifact",
+      "otherFamilies": [
+        "plane"
+      ]
+    },
+    {
+      "canonical": "Stone",
+      "irName": "Stone",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Treasure",
+      "irName": "Treasure",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Vehicle",
+      "irName": "Vehicle",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Vibranium",
+      "irName": "Vibranium",
+      "family": "artifact",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Aura",
+      "irName": "Aura",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Background",
+      "irName": "Background",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Cartouche",
+      "irName": "Cartouche",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Case",
+      "irName": "Case",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Class",
+      "irName": "Class",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Curse",
+      "irName": "Curse",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Plan",
+      "irName": "Plan",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Role",
+      "irName": "Role",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Room",
+      "irName": "Room",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Rune",
+      "irName": "Rune",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Saga",
+      "irName": "Saga",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Shard",
+      "irName": "Shard",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Shrine",
+      "irName": "Shrine",
+      "family": "enchantment",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Cave",
+      "irName": "Cave",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Desert",
+      "irName": "Desert",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Forest",
+      "irName": "Forest",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Gate",
+      "irName": "Gate",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Island",
+      "irName": "Island",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Lair",
+      "irName": "Lair",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Locus",
+      "irName": "Locus",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Mine",
+      "irName": "Mine",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Mountain",
+      "irName": "Mountain",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Plains",
+      "irName": "Plains",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Planet",
+      "irName": "Planet",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Power-Plant",
+      "irName": "Power-Plant",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Sphere",
+      "irName": "Sphere",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Swamp",
+      "irName": "Swamp",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tower",
+      "irName": "Tower",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Town",
+      "irName": "Town",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Urza’s",
+      "irName": "Urza's",
+      "family": "land",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Ajani",
+      "irName": "Ajani",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Aminatou",
+      "irName": "Aminatou",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Angrath",
+      "irName": "Angrath",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Arlinn",
+      "irName": "Arlinn",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Arzakon",
+      "irName": "Arzakon",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Ashiok",
+      "irName": "Ashiok",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Bahamut",
+      "irName": "Bahamut",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Basri",
+      "irName": "Basri",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Bolas",
+      "irName": "Bolas",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Calix",
+      "irName": "Calix",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Chandra",
+      "irName": "Chandra",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Comet",
+      "irName": "Comet",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dack",
+      "irName": "Dack",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dakkon",
+      "irName": "Dakkon",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Daretti",
+      "irName": "Daretti",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Davriel",
+      "irName": "Davriel",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dellian",
+      "irName": "Dellian",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dihada",
+      "irName": "Dihada",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Domri",
+      "irName": "Domri",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dovin",
+      "irName": "Dovin",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Dyfed",
+      "irName": "Dyfed",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Ellywick",
+      "irName": "Ellywick",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Elminster",
+      "irName": "Elminster",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Elspeth",
+      "irName": "Elspeth",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Estrid",
+      "irName": "Estrid",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Feroz",
+      "irName": "Feroz",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Freyalise",
+      "irName": "Freyalise",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Garruk",
+      "irName": "Garruk",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Gideon",
+      "irName": "Gideon",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Greensleeves",
+      "irName": "Greensleeves",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Grist",
+      "irName": "Grist",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Guff",
+      "irName": "Guff",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Huatli",
+      "irName": "Huatli",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Jace",
+      "irName": "Jace",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Jared",
+      "irName": "Jared",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Jaya",
+      "irName": "Jaya",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Jeska",
+      "irName": "Jeska",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Kaito",
+      "irName": "Kaito",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Karn",
+      "irName": "Karn",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Kasmina",
+      "irName": "Kasmina",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Kaya",
+      "irName": "Kaya",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Kiora",
+      "irName": "Kiora",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Koth",
+      "irName": "Koth",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Liliana",
+      "irName": "Liliana",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Lolth",
+      "irName": "Lolth",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Lukka",
+      "irName": "Lukka",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Minsc",
+      "irName": "Minsc",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Mordenkainen",
+      "irName": "Mordenkainen",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Nahiri",
+      "irName": "Nahiri",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Narset",
+      "irName": "Narset",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Niko",
+      "irName": "Niko",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Nissa",
+      "irName": "Nissa",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Nixilis",
+      "irName": "Nixilis",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Oko",
+      "irName": "Oko",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Quintorius",
+      "irName": "Quintorius",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Ral",
+      "irName": "Ral",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Rowan",
+      "irName": "Rowan",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Saheeli",
+      "irName": "Saheeli",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Samut",
+      "irName": "Samut",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Sarkhan",
+      "irName": "Sarkhan",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Serra",
+      "irName": "Serra",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Sifa",
+      "irName": "Sifa",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Sivitri",
+      "irName": "Sivitri",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Sorin",
+      "irName": "Sorin",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Szat",
+      "irName": "Szat",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tamiyo",
+      "irName": "Tamiyo",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tasha",
+      "irName": "Tasha",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Teferi",
+      "irName": "Teferi",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Teyo",
+      "irName": "Teyo",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tezzeret",
+      "irName": "Tezzeret",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Thomil",
+      "irName": "Thomil",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tibalt",
+      "irName": "Tibalt",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Tyvar",
+      "irName": "Tyvar",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Ugin",
+      "irName": "Ugin",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Urza",
+      "irName": "Urza",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Venser",
+      "irName": "Venser",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Vivien",
+      "irName": "Vivien",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Vraska",
+      "irName": "Vraska",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Vronos",
+      "irName": "Vronos",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Will",
+      "irName": "Will",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Windgrace",
+      "irName": "Windgrace",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Worzel",
+      "irName": "Worzel",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Wrenn",
+      "irName": "Wrenn",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Xenagos",
+      "irName": "Xenagos",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Yanggu",
+      "irName": "Yanggu",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Yanling",
+      "irName": "Yanling",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Zariel",
+      "irName": "Zariel",
+      "family": "planeswalker",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Adventure",
+      "irName": "Adventure",
+      "family": "spell",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Arcane",
+      "irName": "Arcane",
+      "family": "spell",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Lesson",
+      "irName": "Lesson",
+      "family": "spell",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Omen",
+      "irName": "Omen",
+      "family": "spell",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Trap",
+      "irName": "Trap",
+      "family": "spell",
+      "otherFamilies": []
+    },
+    {
+      "canonical": "Siege",
+      "irName": "Siege",
+      "family": "battle",
+      "otherFamilies": []
+    }
+  ],
+  "exactAliases": [
+    {
+      "surface": "Attractions",
+      "canonical": "Attraction",
+      "plural": true
+    },
+    {
+      "surface": "Bobbleheads",
+      "canonical": "Bobblehead",
+      "plural": true
+    },
+    {
+      "surface": "Clues",
+      "canonical": "Clue",
+      "plural": true
+    },
+    {
+      "surface": "Contraptions",
+      "canonical": "Contraption",
+      "plural": true
+    },
+    {
+      "surface": "Foods",
+      "canonical": "Food",
+      "plural": true
+    },
+    {
+      "surface": "Powerstones",
+      "canonical": "Powerstone",
+      "plural": true
+    },
+    {
+      "surface": "Treasures",
+      "canonical": "Treasure",
+      "plural": true
+    },
+    {
+      "surface": "Vehicles",
+      "canonical": "Vehicle",
+      "plural": true
+    },
+    {
+      "surface": "Auras",
+      "canonical": "Aura",
+      "plural": true
+    },
+    {
+      "surface": "Curses",
+      "canonical": "Curse",
+      "plural": true
+    },
+    {
+      "surface": "Rooms",
+      "canonical": "Room",
+      "plural": true
+    },
+    {
+      "surface": "Sagas",
+      "canonical": "Saga",
+      "plural": true
+    },
+    {
+      "surface": "Shrines",
+      "canonical": "Shrine",
+      "plural": true
+    },
+    {
+      "surface": "Caves",
+      "canonical": "Cave",
+      "plural": true
+    },
+    {
+      "surface": "Deserts",
+      "canonical": "Desert",
+      "plural": true
+    },
+    {
+      "surface": "Forests",
+      "canonical": "Forest",
+      "plural": true
+    },
+    {
+      "surface": "Gates",
+      "canonical": "Gate",
+      "plural": true
+    },
+    {
+      "surface": "Islands",
+      "canonical": "Island",
+      "plural": true
+    },
+    {
+      "surface": "Mountains",
+      "canonical": "Mountain",
+      "plural": true
+    },
+    {
+      "surface": "Swamps",
+      "canonical": "Swamp",
+      "plural": true
+    },
+    {
+      "surface": "Towns",
+      "canonical": "Town",
+      "plural": true
+    },
+    {
+      "surface": "Urza's",
+      "canonical": "Urza’s",
+      "plural": false
+    }
+  ]
+}

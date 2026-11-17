@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "esper-sentinel-dynamic-tax-uses-live-source-power",
+  "seed": 143,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "spellCast",
+      "opponentOfSourceController": true,
+      "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } },
+      "spellCastOrdinal": { "kind": "integer", "value": 1 }
+    },
+    "effects": [{
+      "kind": "optionalPayCostPerformEffects",
+      "player": { "kind": "triggeringPlayer" },
+      "cost": { "kind": "payMana", "genericAmount": { "kind": "powerOf", "object": { "kind": "self" } } },
+      "effects": [],
+      "declineEffects": [{ "kind": "drawCards", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "count": { "kind": "integer", "value": 1 } }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sentinel controller",
+        "library": [{ "id": "sentinel-draw", "name": "Sentinel Draw", "typeLine": "Land" }],
+        "battlefield": [{
+          "id": "esper-sentinel",
+          "name": "Esper Sentinel",
+          "typeLine": "Artifact Creature — Human Soldier",
+          "manaCost": "{W}",
+          "power": "1",
+          "toughness": "1",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "spellCast",
+              "opponentOfSourceController": true,
+              "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } },
+              "spellCastOrdinal": { "kind": "integer", "value": 1 }
+            },
+            "effects": [{
+              "kind": "optionalPayCostPerformEffects",
+              "player": { "kind": "triggeringPlayer" },
+              "cost": { "kind": "payMana", "genericAmount": { "kind": "powerOf", "object": { "kind": "self" } } },
+              "effects": [],
+              "declineEffects": [{ "kind": "drawCards", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "count": { "kind": "integer", "value": 1 } }]
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Taxed opponent",
+        "manaPool": ["C", "C", "C"],
+        "hand": [
+          { "id": "triggering-spell", "name": "Triggering Spell", "typeLine": "Sorcery", "manaCost": "{0}", "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }] },
+          {
+            "id": "pump-response",
+            "name": "Pump Response",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [{
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetCreature",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "controller": { "kind": "opponentsOf", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "putCounters",
+                "permanent": { "kind": "chosenTarget", "id": "targetCreature" },
+                "counter": "+1/+1",
+                "count": { "kind": "integer", "value": 2 }
+              }]
+            }]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "triggering-spell" },
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "pump-response" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "esper-sentinel", "counter": "+1/+1", "equals": 2 },
+    { "kind": "manaPoolEquals", "playerId": "player-1", "symbols": [] },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

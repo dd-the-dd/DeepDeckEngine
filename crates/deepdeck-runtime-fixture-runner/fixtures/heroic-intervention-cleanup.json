@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "heroic-intervention-keywords-expire-at-cleanup",
+  "seed": 40,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "hexproof",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "indestructible",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Intervention pilot",
+        "hand": [
+          {
+            "id": "heroic-intervention",
+            "name": "Heroic Intervention",
+            "typeLine": "Instant",
+            "manaCost": "{1}{G}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "friendly-creature",
+            "name": "Friendly Creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "heroic-intervention"
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 1 }
+  ],
+  "assertions": [
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-creature", "keyword": "hexproof", "equals": false },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-creature", "keyword": "indestructible", "equals": false },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

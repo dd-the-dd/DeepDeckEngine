@@ -1,0 +1,226 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "optional-program/reclamation-accept",
+  "seed": 101006,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                }
+              ]
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "effects": [
+          {
+            "kind": "destroyPermanent",
+            "permanent": {
+              "id": "targetPermanent",
+              "kind": "chosenTarget"
+            }
+          }
+        ],
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sage controller",
+        "manaPool": [
+          "G",
+          "C",
+          "C"
+        ],
+        "battlefield": [],
+        "hand": [
+          {
+            "id": "sage",
+            "name": "Reclamation Sage",
+            "typeLine": "Creature — Elf Shaman",
+            "manaCost": "{2}{G}",
+            "power": "2",
+            "toughness": "1",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            }
+                          ]
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "effects": [
+                      {
+                        "kind": "destroyPermanent",
+                        "permanent": {
+                          "id": "targetPermanent",
+                          "kind": "chosenTarget"
+                        }
+                      }
+                    ],
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "sage"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "sage",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opponent-artifact",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

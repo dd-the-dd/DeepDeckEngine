@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain/paid-own-cost-retains-selected-program",
+  "seed": 492517,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Artifact"
+          },
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "ability": {
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          },
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            },
+            {
+              "kind": "sacrificePermanent",
+              "permanent": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "mana": "{G}"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "sacrificial-provider",
+            "name": "Synthetic sacrificial-provider",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "ability": {
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      },
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        {
+                          "kind": "sacrificePermanent",
+                          "permanent": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "mana": "{G}"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": []
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "sacrificial-provider",
+      "manaSymbols": [
+        "G"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "zoneContains",
+      "equals": true,
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "sacrificial-provider"
+    },
+    {
+      "kind": "eventCount",
+      "equals": 1,
+      "eventKind": "manaAbilityActivated",
+      "playerId": "p0"
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

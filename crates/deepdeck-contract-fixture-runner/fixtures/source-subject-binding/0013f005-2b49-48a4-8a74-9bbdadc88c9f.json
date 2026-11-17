@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0013f005-2b49-48a4-8a74-9bbdadc88c9f",
+  "cardName": "Munitions Enthusiast",
+  "oracleId": "0013f005-2b49-48a4-8a74-9bbdadc88c9f",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "6d73bb1c-39e3-429c-b6bb-96dae2254708",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Munitions Enthusiast",
+      "typeLine": "Creature — Klingon Warrior",
+      "manaCost": "{1}{R}",
+      "oracleText": "Trample\nWhen this creature dies, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

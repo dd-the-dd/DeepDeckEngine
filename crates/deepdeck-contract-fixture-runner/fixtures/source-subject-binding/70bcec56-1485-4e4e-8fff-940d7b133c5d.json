@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/70bcec56-1485-4e4e-8fff-940d7b133c5d",
+  "cardName": "Veteran of the Depths",
+  "oracleId": "70bcec56-1485-4e4e-8fff-940d7b133c5d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c36fe821-e9b1-453d-8e44-f8dce111a6de",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Veteran of the Depths",
+      "typeLine": "Creature — Merfolk Soldier",
+      "manaCost": "{3}{W}",
+      "oracleText": "Whenever this creature becomes tapped, you may put a +1/+1 counter on it.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "post-freeze-independent-interleaved-mana-policy",
+  "cases": [
+    {
+      "id": "ordinary-draw-separates-production-policy-scopes",
+      "request": {
+        "cardName": "Independent Interleaved Mana Policy",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Add {G}. Draw a card. Add {U}. Spend this mana only to cast an instant spell, and that spell can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{G}"
+                },
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{U}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Instant"
+                    },
+                    "cantBeCountered": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

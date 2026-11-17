@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-operand-cards/doubling-season/complete-card",
+  "cardName": "Doubling Season",
+  "oracleId": "01546b7d-a233-4176-8843-d732074dc5b6",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "kind": "staticAbility",
+      "modifiers": [
+        {
+          "event": {
+            "kind": "tokenCreation",
+            "minimum": 1,
+            "origin": "effect",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "kind": "replaceEventQuantity",
+          "quantity": {
+            "kind": "multiply",
+            "left": {
+              "kind": "integer",
+              "value": 2
+            },
+            "right": {
+              "kind": "eventQuantity"
+            }
+          }
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "kind": "staticAbility",
+      "modifiers": [
+        {
+          "event": {
+            "kind": "counterPlacement",
+            "minimum": 1,
+            "origin": "effect",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "recipientKind": "permanent"
+          },
+          "kind": "replaceEventQuantity",
+          "quantity": {
+            "kind": "multiply",
+            "left": {
+              "kind": "integer",
+              "value": 2
+            },
+            "right": {
+              "kind": "eventQuantity"
+            }
+          }
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
+    }
+  ]
+}

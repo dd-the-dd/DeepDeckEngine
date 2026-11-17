@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0f85714b-e731-45a3-aa65-8cd59cd48280",
+  "cardName": "Attentive Sunscribe",
+  "oracleId": "0f85714b-e731-45a3-aa65-8cd59cd48280",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "ad1a0159-7f00-429c-9318-b028b1e03ba8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Attentive Sunscribe",
+      "typeLine": "Artifact Creature — Gnome",
+      "manaCost": "{1}{W}",
+      "oracleText": "Whenever this creature becomes tapped, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,304 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/spell-cost-increase",
+  "cases": [
+    {
+      "id": "exact-thalia-guardian-of-thraben",
+      "request": {
+        "cardName": "Thalia, Guardian of Thraben",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "First strike\nNoncreature spells cost {1} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "ruleAssertions": [
+              { "pointer": "/ability/kind", "equals": "firstStrike" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [{
+                "kind": "additionalCastingCost",
+                "players": { "kind": "eachPlayer" },
+                "where": {
+                  "kind": "not",
+                  "operand": { "kind": "cardTypeContains", "value": "Creature" }
+                },
+                "cost": { "kind": "payMana", "manaCost": "{1}" }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "creature-spell-sibling-ferozs-ban",
+      "request": {
+        "cardName": "Feroz's Ban",
+        "typeLine": "Artifact",
+        "manaCost": "{6}",
+        "oracleText": "Creature spells cost {2} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/players/kind", "equals": "eachPlayer" },
+            { "pointer": "/modifiers/0/where/kind", "equals": "cardTypeContains" },
+            { "pointer": "/modifiers/0/where/value", "equals": "Creature" },
+            { "pointer": "/modifiers/0/cost/manaCost", "equals": "{2}" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "color-spell-sibling-chill",
+      "request": {
+        "cardName": "Chill",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Red spells cost {2} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/where/kind", "equals": "colorContains" },
+            { "pointer": "/modifiers/0/where/value", "equals": "Red" },
+            { "pointer": "/modifiers/0/cost/manaCost", "equals": "{2}" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "coordinated-spell-union-high-seas",
+      "request": {
+        "cardName": "High Seas",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Red creature spells and green creature spells cost {1} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "staticAbility",
+          "ruleAssertions": [
+            { "pointer": "/modifiers/0/where/kind", "equals": "or" },
+            { "pointer": "/modifiers/0/where/operands/0/kind", "equals": "and" },
+            { "pointer": "/modifiers/0/where/operands/1/kind", "equals": "and" },
+            { "pointer": "/modifiers/0/cost/manaCost", "equals": "{1}" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "activation-tax-near-miss",
+      "request": {
+        "cardName": "Activation Levy",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Activated abilities of white enchantments cost {3} more to activate.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "unclaimed",
+          "abilityType": "unclassifiedAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "unsupported_oracle_ability"
+        }]
+      }
+    },
+    {
+      "id": "chosen-name-tax-precedence-disruptor-flute",
+      "request": {
+        "cardName": "Disruptor Flute",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Flash\nAs this artifact enters, choose a card name.\nSpells with the chosen name cost {3} more to cast.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect"
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "additionalCastingCost" },
+              { "pointer": "/modifiers/0/cost/manaCost", "equals": "{3}" },
+              { "pointer": "/modifiers/0/where/kind", "equals": "nameEquals" },
+              { "pointer": "/modifiers/0/where/value/kind", "equals": "storedDecision" },
+              { "pointer": "/modifiers/0/where/value/decisionId", "equals": "chosenCardName" }
+            ]
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "prohibitActivation" },
+              { "pointer": "/modifiers/0/abilities/sourceWhere/kind", "equals": "nameEquals" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "casting-reduction-near-miss",
+      "request": {
+        "cardName": "Friendly Reduction",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Noncreature spells cost {1} less to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-reduction",
+          "state": "static.spell-cost-reduction.caster-scope",
+          "expectedContains": "spells cast by the ability controller",
+          "found": "{1}"
+        }]
+      }
+    },
+    {
+      "id": "unbound-x-tax-near-miss",
+      "request": {
+        "cardName": "Variable Levy",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "Noncreature spells cost {X} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure"
+        }]
+      }
+    },
+    {
+      "id": "nonpermanent-source-near-miss",
+      "request": {
+        "cardName": "Impossible Instant Tax",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Noncreature spells cost {1} more to cast.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-spell-cost-increase",
+          "state": "static.spell-cost-increase.source-zone",
+          "expectedContains": "permanent card face"
+        }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "cost-query-preservation/0c367958-729e-416d-988b-098e90e7a1fd",
+  "cardName": "Ruby Medallion",
+  "oracleId": "0c367958-729e-416d-988b-098e90e7a1fd",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "630febf5-58ff-4dab-a5a8-575ebc5435a6",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Ruby Medallion",
+      "typeLine": "Artifact",
+      "manaCost": "{2}",
+      "oracleText": "Red spells you cast cost {1} less to cast.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

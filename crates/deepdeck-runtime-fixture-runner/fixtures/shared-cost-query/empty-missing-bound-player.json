@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shared-cost-query-peer/empty-missing-bound-player",
+  "seed": 603,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "cardsInZone",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "boundValue",
+                "id": "holder"
+              }
+            },
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Instant"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Sorcery"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Actor",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": []
+      },
+      {
+        "id": "p1",
+        "name": "Other holder",
+        "graveyard": []
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ],
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "executor"
+        }
+      },
+      "expectedErrorContains": "query.player: unresolved binding"
+    }
+  ]
+}

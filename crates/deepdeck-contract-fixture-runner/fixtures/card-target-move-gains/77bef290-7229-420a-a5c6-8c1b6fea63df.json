@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/77bef290-7229-420a-a5c6-8c1b6fea63df",
+  "cardName": "Shattered Crypt",
+  "oracleId": "77bef290-7229-420a-a5c6-8c1b6fea63df",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "117df45d-4500-459b-96b5-ca41952580c1",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Shattered Crypt",
+      "typeLine": "Sorcery",
+      "manaCost": "{X}{B}{B}",
+      "oracleText": "Return X target creature cards from your graveyard to your hand. You lose X life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

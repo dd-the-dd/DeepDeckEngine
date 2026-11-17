@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "shared-cost-query-peer/exclusive-holder-invalid-ir",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "cardsInZone",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "players": {
+                "kind": "eachPlayer"
+              }
+            },
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Instant"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Sorcery"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

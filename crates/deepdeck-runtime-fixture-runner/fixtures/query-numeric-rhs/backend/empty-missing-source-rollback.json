@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/empty-hand-unproved-graveyard-source-rolls-back",
+  "seed": 99217,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": 2
+      },
+      {
+        "kind": "chooseCards",
+        "id": "optionalCardDeployment",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "==",
+                "right": {
+                  "kind": "countCounters",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "counter": "verse"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [],
+        "battlefield": [],
+        "graveyard": [
+          {
+            "id": "synthetic-query-source",
+            "name": "synthetic-query-source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": 2
+                  },
+                  {
+                    "kind": "chooseCards",
+                    "id": "optionalCardDeployment",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "==",
+                            "right": {
+                              "kind": "countCounters",
+                              "object": {
+                                "kind": "self"
+                              },
+                              "counter": "verse"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "synthetic-query-source"
+        },
+        "rule": {
+          "kind": "spellAbility",
+          "source": {
+            "kind": "self"
+          },
+          "effects": [
+            {
+              "kind": "gainLife",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "amount": 2
+            },
+            {
+              "kind": "chooseCards",
+              "id": "optionalCardDeployment",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "minimum": {
+                "kind": "integer",
+                "value": 0
+              },
+              "maximum": {
+                "kind": "integer",
+                "value": 1
+              },
+              "candidates": {
+                "kind": "cards",
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "manaValueOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "operator": "==",
+                      "right": {
+                        "kind": "countCounters",
+                        "object": {
+                          "kind": "self"
+                        },
+                        "counter": "verse"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expectedErrorContains": "without effective LKI"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "synthetic-query-source",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

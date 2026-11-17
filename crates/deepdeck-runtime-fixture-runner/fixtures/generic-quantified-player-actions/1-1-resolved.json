@@ -1,0 +1,231 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantified-player/1/1/resolved",
+  "seed": 19501,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "bind": "quantifiedPlayer",
+        "effects": [
+          {
+            "kind": "discardCards",
+            "player": {
+              "kind": "boundValue",
+              "id": "quantifiedPlayer"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "life": 20,
+        "manaPool": [
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "source",
+            "name": "Fugitive Listener",
+            "typeLine": "Creature — El-Aurian Scout",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "forEachPlayer",
+                    "players": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "bind": "quantifiedPlayer",
+                    "effects": [
+                      {
+                        "kind": "discardCards",
+                        "player": {
+                          "kind": "boundValue",
+                          "id": "quantifiedPlayer"
+                        },
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "manaCost": "{2}{B}",
+            "power": "3",
+            "toughness": "1"
+          },
+          {
+            "id": "controller-keeps",
+            "name": "Controller keeps this card",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent 1",
+        "life": 20,
+        "hand": [
+          {
+            "id": "opponent-1-hand",
+            "name": "Hand card 1",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "opponent-1-other",
+            "name": "Other card 1",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "controller-keeps",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ]
+}

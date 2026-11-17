@@ -1,0 +1,734 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "source-transition-and-bound-damage",
+  "cases": [
+    {
+      "id": "whole-real-source",
+      "request": {
+        "cardName": "City of Brass",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Whenever this land becomes tapped, it deals 1 damage to you.\n{T}: Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "amount": 1,
+                    "kind": "chooseColor"
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-source-transition",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever Source Transition Witness becomes tapped, it deals 2 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-aura-nominal",
+      "request": {
+        "cardName": "Aura Witness",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this Aura becomes tapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-sequence",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, it deals 2 damage to you. You gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-entry-anaphor",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "When this creature enters, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-death-anaphor",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "When this creature dies, it deals 2 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-entry-old-ir",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "When this creature enters, this creature deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-death-old-ir",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "When this creature dies, this creature deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "already-state-is-not-transition",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact is tapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "untapped-unimplemented",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes untapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "opponent-object-not-source",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever a land becomes tapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "instant-source-nominal",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this instant becomes tapped, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-source-antecedent",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-amount-x",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, it deals X damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-body-suffix",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, it deals 1 damage to you. Frobnicate a relic.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "transition-trailing-qualifier",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped for mana, it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-face-x-not-producer",
+      "request": {
+        "cardName": "Unbound Front // Bound Back",
+        "typeLine": "Artifact // Sorcery",
+        "manaCost": "{0} // {X}",
+        "oracleText": "",
+        "layout": "split",
+        "faces": [
+          {
+            "id": "front",
+            "name": "Unbound Front",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "oracleText": "Whenever this artifact becomes tapped, it deals X damage to you."
+          },
+          {
+            "id": "back",
+            "name": "Bound Back",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}",
+            "oracleText": "You gain X life."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-aura-source-not-variable",
+      "request": {
+        "cardName": "Aura Witness",
+        "typeLine": "Enchantment ? Aura",
+        "manaCost": "{0}",
+        "oracleText": "Whenever Aura Witness becomes tapped, it deals 2 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentTapped",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

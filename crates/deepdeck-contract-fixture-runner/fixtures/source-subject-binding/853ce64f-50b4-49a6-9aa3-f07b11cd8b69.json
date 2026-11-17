@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/853ce64f-50b4-49a6-9aa3-f07b11cd8b69",
+  "cardName": "Goretusk Firebeast",
+  "oracleId": "853ce64f-50b4-49a6-9aa3-f07b11cd8b69",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9919d2dd-d6a1-4d45-b6aa-227ed05d7051",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Goretusk Firebeast",
+      "typeLine": "Creature — Elemental Boar Beast",
+      "manaCost": "{5}{R}",
+      "oracleText": "When this creature enters, it deals 4 damage to target player or planeswalker.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

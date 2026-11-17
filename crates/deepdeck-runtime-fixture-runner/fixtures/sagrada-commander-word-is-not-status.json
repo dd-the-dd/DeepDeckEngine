@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "sagrada-commander-word-in-type-line-is-not-commander-status",
+  "seed": 1121203,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sagrada controller",
+        "hand": [
+          {
+            "id": "commander-word-only",
+            "name": "Commander Word Only",
+            "typeLine": "Legendary Creature — Commander",
+            "manaCost": "{1}",
+            "power": "2",
+            "toughness": "2",
+            "isCommander": false,
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "sagrada-familiar",
+            "name": "Sagrada Familiar",
+            "typeLine": "Artifact Creature — Wall",
+            "manaCost": "{3}",
+            "power": "0",
+            "toughness": "5",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "reduceCastingCost",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "isCommander" },
+                    "amount": { "kind": "integer", "value": 1 }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "commander-word-only",
+      "equals": false
+    }
+  ]
+}

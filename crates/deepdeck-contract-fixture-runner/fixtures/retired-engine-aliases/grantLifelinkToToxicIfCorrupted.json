@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "residual-postwave17/grantLifelinkToToxicIfCorrupted",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantLifelinkToToxicIfCorrupted",
+        "player": {
+          "kind": "abilityController"
+        }
+      }
+    ]
+  }
+}

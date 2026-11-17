@@ -1,0 +1,396 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/mana-program-support",
+  "cases": [
+    {
+      "id": "two-mana-actions",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {G}. Add {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-effect-order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "variable-payment",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{X}, {T}: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-cost-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contradictory-hand-cost",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Discard this card: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.activation.source-zone-conflict"
+          }
+        ]
+      }
+    },
+    {
+      "id": "one-mana-then-draw",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {G}. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{G}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "one-mana-choice",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {G} or {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{G}",
+                      "{R}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "one-action-two-mana",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {G}{R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{G}{R}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "parenthesized-two-actions",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "({T}: Add {G}. Add {R}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-effect-order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "non-tap-two-actions",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Sacrifice this creature: Add {G}. Add {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-effect-order"
+          }
+        ]
+      }
+    },
+    {
+      "id": "draw-before-mana",
+      "request": {
+        "cardName": "Generic Mana Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Draw a card. Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "addMana",
+                  "mana": "{G}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

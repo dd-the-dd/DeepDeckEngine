@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "llanowar-elves/simple-tap-mana-is-executable",
+  "cardName": "Llanowar Elves",
+  "oracleId": "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{G}"
+      }
+    ]
+  }
+}

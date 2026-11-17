@@ -1,0 +1,296 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain/counterfactual-ordinary-targeted-producer-explicit-cap",
+  "seed": 492551,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "ability": {
+          "kind": "activatedAbility",
+          "source": {
+            "kind": "self"
+          },
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": [
+              {
+                "kind": "chooseTargets",
+                "id": "recipient",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                }
+              }
+            ]
+          },
+          "effects": [
+            {
+              "kind": "addMana",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "mana": "{R}"
+            },
+            {
+              "kind": "untapPermanent",
+              "permanent": {
+                "kind": "chosenTarget",
+                "id": "recipient"
+              }
+            }
+          ]
+        },
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "ordinary-provider",
+            "name": "Synthetic Ordinary Provider",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "ability": {
+                      "kind": "activatedAbility",
+                      "source": {
+                        "kind": "self"
+                      },
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "declaration": {
+                        "kind": "castingDeclaration",
+                        "decisions": [
+                          {
+                            "kind": "chooseTargets",
+                            "id": "recipient",
+                            "minimum": 1,
+                            "maximum": 1,
+                            "candidates": {
+                              "kind": "permanents",
+                              "where": {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "mana": "{R}"
+                        },
+                        {
+                          "kind": "untapPermanent",
+                          "permanent": {
+                            "kind": "chosenTarget",
+                            "id": "recipient"
+                          }
+                        }
+                      ]
+                    },
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "land",
+            "name": "Synthetic land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "projection-witness",
+            "name": "Synthetic projection-witness",
+            "typeLine": "Creature — Druid",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "manaTypesLandsYouControlCouldProduce",
+                      "amount": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": []
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "activateManaAbility",
+        "controllerId": "p0",
+        "sourceDefinitionId": "projection-witness",
+        "manaSymbols": [
+          "R"
+        ]
+      },
+      "expectedErrorContains": "counterfactual ordinary activated producer"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "projection-witness",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "land",
+      "equals": false
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "playerId": "p0",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

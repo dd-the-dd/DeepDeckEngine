@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "trigger-multiplicity/complete-real-723959e1-8356-4fdb-99e2-818df317dc72",
+  "cardName": "Jabs, Mistress of Mockery",
+  "oracleId": "723959e1-8356-4fdb-99e2-818df317dc72",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "97ef5bee-81d8-4dc2-9ad8-7b6a8fac5026",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Jabs, Mistress of Mockery",
+      "typeLine": "Legendary Creature \u2014 Human Rogue",
+      "manaCost": "{2}{R}",
+      "oracleText": "If a triggered ability of a permanent you control but don't own triggers, that ability triggers an additional time.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

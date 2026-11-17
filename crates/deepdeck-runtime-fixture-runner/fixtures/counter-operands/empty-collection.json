@@ -1,0 +1,260 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "permanent-counter-operands/empty-collection-no-prompt",
+  "seed": 70122,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{3}{W}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "counter": "+1/+1",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "temple",
+            "name": "Abandoned Air Temple",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{W}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{3}{W}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "eachPermanent",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "counter": "+1/+1",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "manaCost": ""
+          },
+          {
+            "id": "artifact",
+            "name": "artifact",
+            "typeLine": "Artifact",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "manaPool": [
+          "W",
+          "W",
+          "W",
+          "W"
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-creature",
+            "name": "opponent-creature",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "temple",
+      "abilityRuleIndex": 2
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "temple",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "artifact",
+      "counter": "+1/+1",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

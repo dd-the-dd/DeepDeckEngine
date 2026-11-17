@@ -1,0 +1,395 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "joint-retarget/real-swat-provider-error-and-retry",
+  "seed": 19402,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "retargetObject0",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "stackItems",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "isSpell"
+                },
+                {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "isActivatedAbility"
+                    },
+                    {
+                      "kind": "isTriggeredAbility"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "effects": [
+          {
+            "kind": "changeTargets",
+            "object": {
+              "kind": "chosenTarget",
+              "id": "retargetObject0"
+            },
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "optional": false
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "p0",
+        "life": 20,
+        "manaPool": [
+          "C",
+          "C",
+          "R"
+        ],
+        "battlefield": [
+          {
+            "id": "alpha",
+            "name": "alpha",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "swat",
+            "name": "Deflecting Swat",
+            "typeLine": "Instant",
+            "manaCost": "{2}{R}",
+            "rules": [
+              {
+                "ability": {
+                  "condition": {
+                    "kind": "compare",
+                    "left": {
+                      "excludeSource": false,
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "isCommander"
+                      }
+                    },
+                    "operator": ">=",
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  "costs": [],
+                  "kind": "alternativeCost"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "retargetObject0",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "stackItems",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "isSpell"
+                            },
+                            {
+                              "kind": "or",
+                              "operands": [
+                                {
+                                  "kind": "isActivatedAbility"
+                                },
+                                {
+                                  "kind": "isTriggeredAbility"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "effects": [
+                      {
+                        "kind": "changeTargets",
+                        "object": {
+                          "kind": "chosenTarget",
+                          "id": "retargetObject0"
+                        },
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "optional": false
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "p1",
+        "life": 20,
+        "manaPool": [
+          "C"
+        ],
+        "battlefield": [
+          {
+            "id": "beta",
+            "name": "beta",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "original",
+            "name": "original",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "a",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      }
+                    },
+                    {
+                      "id": "b",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "tapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "a"
+                    }
+                  },
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "b"
+                    }
+                  }
+                ],
+                "distinctTargets": [
+                  [
+                    "a",
+                    "b"
+                  ]
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p1",
+      "sourceDefinitionId": "original",
+      "declarationDecisions": {
+        "a": [
+          {
+            "permanent": {
+              "instanceId": "p0:alpha:1"
+            }
+          }
+        ],
+        "b": [
+          {
+            "permanent": {
+              "instanceId": "p1:beta:1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "swat",
+      "useAlternativeCost": false
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "joint-provider-failure",
+      "providerError": {
+        "atDecision": 2,
+        "message": "joint-provider-failure",
+        "method": "chooseOption",
+        "playerId": "p0"
+      },
+      "retry": true
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "alpha",
+      "equals": false
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 4
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "targetsReassigned",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 2
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "swat",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "definitionId": "original",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "beta",
+      "equals": true
+    }
+  ]
+}

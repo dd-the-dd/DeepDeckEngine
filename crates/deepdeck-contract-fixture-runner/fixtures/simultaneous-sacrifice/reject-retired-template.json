@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/reject-retired-template",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "effects": [
+          {
+            "kind": "selectPermanents",
+            "id": "keptPermanents",
+            "player": {
+              "kind": "currentPlayer"
+            },
+            "candidates": {
+              "kind": "permanents",
+              "controller": {
+                "kind": "currentPlayer"
+              },
+              "where": {
+                "kind": "not",
+                "operand": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                }
+              }
+            },
+            "groups": [
+              {
+                "quantity": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                }
+              },
+              {
+                "quantity": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ],
+            "selection": {
+              "kind": "choice"
+            }
+          },
+          {
+            "kind": "sacrificePermanents",
+            "objects": {
+              "kind": "selectionRemainder",
+              "selectionId": "keptPermanents",
+              "candidates": {
+                "kind": "permanents",
+                "controller": {
+                  "kind": "currentPlayer"
+                },
+                "where": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

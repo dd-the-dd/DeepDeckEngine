@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "deepdeck-oracle-cycle-report/v1",
+  "generatedAt": "2026-11-12",
+  "definitions": {
+    "native": "card canonical with every ability canonical and recognized by the native token/FSM path",
+    "mixed": "card canonical with both native and legacy abilities",
+    "legacy": "card canonical with no native ability",
+    "unsupported": "card or at least one ability is unsupported"
+  },
+  "analyzers": {
+    "before": {
+      "label": "E9B08",
+      "path": ".tmp/analyze_local_abilities-current.exe",
+      "sha256": "F3CBE5B5DA3A63D95F0104BF2AA99413B4463A050941F62675C2C49251995088"
+    },
+    "after": {
+      "label": "F7DC7B8",
+      "path": ".tmp/analyze_local_abilities-after-F7DC7B8.exe",
+      "sha256": "8B8160C705DE954965A25786D2F07EFE6C98C19DB46864EFEFF2D9B3E264C761",
+      "oracleRlibSha256": "B73C306BC3B78B03C9CD16D72C5F4B8510F16E557AEAE83CEAA03A2348A4EACA"
+    }
+  },
+  "round1Batch100": {
+    "selection": "34 recent, 33 priority, 33 league; fixed oracle_id cohort",
+    "inputPath": ".tmp/rotating-next-100-nonnative-input.json",
+    "inputSha256": "AFB6C5CC62F151D0C0130EB6A6F0604AB95BD4D826BF96014AC20CD06F94A551",
+    "before": {
+      "path": ".tmp/rotating-next-100-baseline-E9B08.jsonl",
+      "sha256": "B2128CDC1E65560BF88B7714371CA635C35EAB5E248CFEBB059B39D8F133AC79",
+      "classes": { "native": 0, "mixed": 23, "legacy": 55, "unsupported": 22 },
+      "parserSeconds": 7.159,
+      "cardsPerSecond": 13.968
+    },
+    "after": {
+      "path": ".tmp/rotating-next-100-after-F7DC7B8.jsonl",
+      "sha256": "A65D081D9934559FEDC5DC546EE7EC7D95A862213EAC1869869147B43902FD7F",
+      "classes": { "native": 5, "mixed": 21, "legacy": 53, "unsupported": 21 },
+      "parserSeconds": 6.862,
+      "cardsPerSecond": 14.573
+    },
+    "comparisonPath": ".tmp/rotating-next-100-comparison-E9B08-to-F7DC7B8.json",
+    "comparisonSha256": "1C60FAA5ED1EBA401D4852EF0F7C0DCAA68238EFAFDC31210584B5DEC98D81ED",
+    "newFullyNative": [
+      { "name": "Demonic Tutor", "oracleId": "82004860-e589-4e38-8d61-8c0210e4ea39", "before": "unsupported", "concept": "librarySearchMove" },
+      { "name": "Enlightened Tutor", "oracleId": "c5229c17-b7be-4b05-b683-f2277edc4849", "before": "legacy", "concept": "librarySearchMove" },
+      { "name": "Vampiric Tutor", "oracleId": "ededbdae-d9dc-4206-9335-d7158f2d7700", "before": "legacy", "concept": "librarySearchMove" },
+      { "name": "Thought Vessel", "oracleId": "9965d9c5-2ebf-4a6c-930e-55c5890979be", "before": "mixed", "concept": "noMaximumHandSize" },
+      { "name": "Reliquary Tower", "oracleId": "c23e5b80-08d2-4e24-9908-fe2aa4f30f6f", "before": "mixed", "concept": "noMaximumHandSize" }
+    ],
+    "coverageRegressions": 0,
+    "previouslyNativeSemanticChanges": 0,
+    "timingInterpretation": "Debug audit wall time changed by -4.15%; this is observed variance, not evidence of a parser speedup."
+  },
+  "sevenLocalSetsCycleComparison": {
+    "scope": "2069 cards from dsk, ecl, eoe, fdn, fin, mh3, tla; the five round1 cards are outside this corpus",
+    "inputPath": ".tmp/seven-local-sets-input.json",
+    "inputSha256": "AC52A290BC105C127DF3A75C88957A1BBF9212DD30C483CD57CA7AF4E0E21073",
+    "before": {
+      "path": ".tmp/seven-local-sets-abilities-after-reminder-pt.jsonl",
+      "sha256": "10654ABCD745905B4CE70C723E638AB35562BFEF1BEE70CB557FD2CD745BAB14",
+      "classes": { "native": 133, "mixed": 402, "legacy": 594, "unsupported": 940 },
+      "parserSeconds": 289.850,
+      "cardsPerSecond": 7.138
+    },
+    "after": {
+      "path": ".tmp/seven-local-sets-abilities-after-F7DC7B8.jsonl",
+      "sha256": "D33DB64DE84D372662040541ABCB6754F171C29518B943F8F073D0B6DB953AAA",
+      "classes": { "native": 133, "mixed": 403, "legacy": 594, "unsupported": 939 },
+      "parserSeconds": 275.624,
+      "cardsPerSecond": 7.507
+    },
+    "bySetAfter": [
+      { "set": "dsk", "cards": 264, "native": 11, "mixed": 37, "legacy": 41, "unsupported": 175 },
+      { "set": "ecl", "cards": 262, "native": 7, "mixed": 75, "legacy": 155, "unsupported": 25 },
+      { "set": "eoe", "cards": 254, "native": 7, "mixed": 37, "legacy": 72, "unsupported": 138 },
+      { "set": "fdn", "cards": 422, "native": 49, "mixed": 86, "legacy": 97, "unsupported": 190 },
+      { "set": "fin", "cards": 306, "native": 19, "mixed": 44, "legacy": 44, "unsupported": 199 },
+      { "set": "mh3", "cards": 281, "native": 17, "mixed": 40, "legacy": 43, "unsupported": 181 },
+      { "set": "tla", "cards": 280, "native": 23, "mixed": 84, "legacy": 142, "unsupported": 31 }
+    ],
+    "transition": {
+      "name": "Obstinate Gargoyle",
+      "oracleId": "f3bd9bfe-847f-4ed1-88aa-6aa6b3fa7199",
+      "set": "mh3",
+      "before": "unsupported",
+      "after": "mixed",
+      "detail": "Persist became native/canonical; flying while modified remains legacy."
+    },
+    "coverageRegressionsAmong133PreviouslyNative": 0,
+    "semanticChangesAmong133PreviouslyNative": 0,
+    "comparisonPath": ".tmp/seven-local-sets-comparison-E9B08-to-F7DC7B8.json",
+    "comparisonSha256": "88C421B947B51A5E36F42988EE5E724351CCA7D523CA3E5AA5495B673A299E03",
+    "timingInterpretation": "Debug audit wall time changed by -4.91%; this is observed variance, not evidence of a parser speedup."
+  },
+  "widerPreReminderPtComparison": {
+    "beforePath": ".tmp/seven-local-sets-abilities.jsonl",
+    "beforeSha256": "8F1C41C6355FEE6FE98E775C4D08532A18DB4D7B8CFAE97DBAF7C6D640488AE6",
+    "beforeClasses": { "native": 112, "mixed": 356, "legacy": 660, "unsupported": 941 },
+    "afterClasses": { "native": 133, "mixed": 403, "legacy": 594, "unsupported": 939 },
+    "newFullyNative": 21,
+    "coverageRegressions": 0,
+    "semanticChangesAmongPreviouslyNative": 0,
+    "certificationStatus": "Recognition coverage comparison only; the historical prefix was not strictly recertified in this cycle.",
+    "comparisonPath": ".tmp/seven-local-sets-comparison-pre-reminder-pt-to-F7DC7B8.json",
+    "comparisonSha256": "F74ABC372534B8C5037E59C8CFD53F1709DD996144C2675210F39B3EA1D023E9",
+    "warning": "Do not compute 106 to 133 as a gain of 27. The historical 106 report excluded six vanilla cards through a false-negative contract rejection; this same-card analyzer comparison is 112 to 133, a gain of 21."
+  },
+  "round2": {
+    "selectionPath": ".tmp/rotating-next-100-round2.json",
+    "selectionSha256": "935C808B9B0D81C861236E303859A6D354724F4BC31C54E15820C3DBA1224544",
+    "inputPath": ".tmp/rotating-next-100-round2-input.json",
+    "inputSha256": "3147F7B38685CB4ABFDE3F19ECB1C53BEDFE6E2D534AA3DECF289FF405A4B70B",
+    "freshAuditPath": ".tmp/rotating-next-100-round2-after-F7DC7B8.jsonl",
+    "freshAuditSha256": "E4DA94B9D4514A2C92FBB274DC0132C5C1A52402D4AF442EB927381AEBEA4DF0",
+    "retainedFromRound1": 95,
+    "classes": { "native": 0, "mixed": 22, "legacy": 56, "unsupported": 22 },
+    "newCandidates": ["Faeburrow Elder", "Morophon, the Boundless", "Big Score", "Ghostly Prison", "Deafening Silence"],
+    "rankedConcepts": [
+      { "rank": 1, "concept": "conditional commander alternative cost", "completeCards": 2, "cards": ["Fierce Guardianship", "Deadly Rollick"], "touchedNotCompleted": ["Deflecting Swat"] },
+      { "rank": 2, "concept": "additional land play", "completeCards": 1, "cards": ["Exploration"], "touchedNotCompleted": ["Icetill Explorer"] },
+      { "rank": 3, "concept": "source enters then draw", "completeCards": 1, "cards": ["Baleful Strix"], "touchedNotCompleted": [] }
+    ]
+  },
+  "validationProfile": {
+    "path": ".tmp/native-profile-batch100-final.json",
+    "sha256": "02E33DA5802684F9FD2D373712645536B1EBED1E9773E8C688C3573F453A8E20",
+    "fixtureCases": 61,
+    "passed": true,
+    "warmDirectRunnerSeconds": 0.388,
+    "profileWrapperSeconds": 1.862,
+    "cargoInvokedByProfile": false,
+    "unitPartitionGuard": { "tests": 908, "dedicatedEngineTestFiles": 54, "passed": true },
+    "architectureGuard": { "violations": 0, "historicalWarnings": 4, "passed": true }
+  },
+  "executableProofs": {
+    "runtimeFixtures": {
+      "path": ".tmp/batch100-runtime-reviewed.jsonl",
+      "sha256": "32E0B919E656E3E7F6D924DCE3E1D83D0236EB0117C8FDC8B99CA0580C1BEBC1",
+      "fixtures": 9,
+      "assertions": 68,
+      "passed": true
+    },
+    "libraryShuffleFocusedUnit": {
+      "path": ".tmp/library-shuffle-focused-unit-timing.json",
+      "sha256": "B27F39FDABD7347215577C2CC67D5ACA8EA9AA22D77B27D7D594C0EFDCE7CC2C",
+      "tests": 4,
+      "compileLinkSeconds": 1.209,
+      "executionSeconds": 0.225,
+      "passed": true
+    },
+    "tutorParserRuntimeIrEquality": {
+      "path": ".tmp/library-search-parser-runtime-equality.json",
+      "sha256": "3480908BDAE359C2B597B16F3250ED95EC18FB878B22291E7A513A3B15EB8C13",
+      "cards": 3,
+      "allEqual": true
+    },
+    "handSizeParserRuntimeIrEquality": {
+      "path": ".tmp/no-maximum-hand-size-ir-equality.json",
+      "sha256": "C5193C0A7D8BE2FB05C74DF2886D86CBEE2633C3746F6799669EFEAD4230F2DB",
+      "cards": 2,
+      "allEqual": true
+    }
+  },
+  "buildMeasurements": {
+    "parserCompileLinkSeconds": 30.993,
+    "runtimeCompileLinkSeconds": 52.239,
+    "measurementPolicy": "Parser and runtime builds are reported separately from fixture execution and corpus audit time.",
+    "correctiveLoop": "One parser-fixture wrapper attempt was aborted because Cargo stderr was treated as failure output; scripts/run-parser-fixture.ps1 was corrected before the successful measured run."
+  }
+}

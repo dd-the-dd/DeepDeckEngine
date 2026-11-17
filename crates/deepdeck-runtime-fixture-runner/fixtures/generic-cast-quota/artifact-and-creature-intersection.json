@@ -1,0 +1,211 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cast-quota/artifact-and-creature-intersection",
+  "seed": 10944,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "castLimitPerTurn",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "where": {
+          "kind": "and",
+          "operands": [
+            {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            },
+            {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          ]
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "quota-source",
+            "name": "Shared quota",
+            "typeLine": "Enchantment",
+            "manaCost": "{W}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "castLimitPerTurn",
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "spell-0",
+            "name": "spell-0",
+            "typeLine": "Artifact Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "spell-1",
+            "name": "spell-1",
+            "typeLine": "Artifact Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "creature",
+            "name": "creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "artifact",
+            "name": "Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "hand": [
+          {
+            "id": "opponent-instant",
+            "name": "opponent-instant",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-0"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-1",
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "creature",
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "artifact",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "playerId": "p0",
+      "equals": 1
+    }
+  ]
+}

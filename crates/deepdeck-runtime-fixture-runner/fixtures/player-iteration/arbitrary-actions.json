@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "seed": 1891,
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source"
+  },
+  "id": "synthetic/player-loop/arbitrary-actions",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "loop:player",
+        "effects": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player0",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "top-0",
+            "name": "top-0",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Player1",
+        "hand": [],
+        "library": [
+          {
+            "id": "top-1",
+            "name": "top-1",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 22
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "signed-stat-expression/resolution-time-snapshot-not-continuous",
+  "seed": 9012,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "modifyPowerToughness",
+        "object": {
+          "kind": "self"
+        },
+        "power": {
+          "kind": "powerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "toughness": {
+          "kind": "integer",
+          "value": 0
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "numeric-stat-dynamic-source",
+            "name": "Signed Stat Witness",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "3",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "modifyPowerToughness",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "power": {
+                      "kind": "powerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 0
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "numeric-stat-dynamic-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "numeric-stat-dynamic-source"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "modifyPowerToughness",
+            "object": {
+              "kind": "self"
+            },
+            "power": {
+              "kind": "integer",
+              "value": 3
+            },
+            "toughness": {
+              "kind": "integer",
+              "value": 0
+            },
+            "duration": {
+              "kind": "untilEndOfCurrentTurn"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "numeric-stat-dynamic-source"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "modifyPowerToughness",
+            "object": {
+              "kind": "self"
+            },
+            "power": {
+              "kind": "integer",
+              "value": 1
+            },
+            "toughness": {
+              "kind": "integer",
+              "value": 0
+            },
+            "duration": {
+              "kind": "untilEndOfCurrentTurn"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-0",
+      "definitionId": "numeric-stat-dynamic-source",
+      "power": 11,
+      "toughness": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

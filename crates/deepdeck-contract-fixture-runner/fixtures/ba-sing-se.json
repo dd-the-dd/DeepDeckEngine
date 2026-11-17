@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ba-sing-se/all-native-rules-are-executable",
+  "cardName": "Ba Sing Se",
+  "oracleId": "de1ae205-ca5b-4d26-8194-ca85f1406e53",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "condition": {
+        "kind": "not",
+        "operand": {
+          "kind": "controlsPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      "replacement": [{
+        "kind": "setEnteringState",
+        "object": { "kind": "self" },
+        "tapped": true
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{G}"
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [
+        { "kind": "payMana", "manaCost": "{2}{G}" },
+        { "kind": "tap", "object": { "kind": "self" } }
+      ],
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "earthbendLand",
+          "kind": "chooseTargets",
+          "candidates": {
+            "kind": "permanents",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Land" }
+          },
+          "minimum": 1,
+          "maximum": 1
+        }]
+      },
+      "activationCondition": { "kind": "sorceryTiming" },
+      "effects": [
+        {
+          "kind": "becomeCreature",
+          "object": { "kind": "chosenTarget", "id": "earthbendLand" },
+          "addTypes": ["Creature"],
+          "addSubtypes": [],
+          "basePower": { "kind": "integer", "value": 0 },
+          "baseToughness": { "kind": "integer", "value": 0 },
+          "retainExistingTypes": true,
+          "duration": { "kind": "permanent" }
+        },
+        {
+          "kind": "grantKeyword",
+          "object": { "kind": "chosenTarget", "id": "earthbendLand" },
+          "keyword": "haste",
+          "duration": { "kind": "permanent" }
+        },
+        {
+          "kind": "putCounters",
+          "permanent": { "kind": "chosenTarget", "id": "earthbendLand" },
+          "counter": "+1/+1",
+          "count": { "kind": "integer", "value": 2 }
+        },
+        {
+          "kind": "installDelayedZoneChangeTrigger",
+          "trackedObject": { "kind": "chosenTarget", "id": "earthbendLand" },
+          "controller": { "kind": "abilityController" },
+          "destinations": ["graveyard", "exile"],
+          "effects": [{
+            "kind": "moveTriggeringCard",
+            "from": { "kind": "triggeringDestination" },
+            "to": "battlefield",
+            "controller": { "kind": "abilityController" },
+            "tapped": true
+          }]
+        },
+        {
+          "kind": "emitAbilitySignal",
+          "abilityId": "earthbend",
+          "player": { "kind": "abilityController" }
+        }
+      ]
+    }
+  ]
+}

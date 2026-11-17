@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mana-type/naga-vitalist-summoning-sick",
+  "seed": 651,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "mana": {
+          "amount": 1,
+          "kind": "manaTypesLandsYouControlCouldProduce"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pool pilot",
+        "battlefield": [
+          {
+            "id": "9cea8783-c7d7-49f9-b23d-324309efc140",
+            "name": "Naga Vitalist",
+            "typeLine": "Creature — Snake Druid",
+            "tapped": false,
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "amount": 1,
+                      "kind": "manaTypesLandsYouControlCouldProduce"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "manaCost": "{1}{G}",
+            "power": "1",
+            "toughness": "2",
+            "summoningSick": true
+          },
+          {
+            "id": "tapped-anchor",
+            "name": "Generic tapped anchor",
+            "typeLine": "Land",
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{G}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opposing-red",
+            "name": "Generic opposing producer",
+            "typeLine": "Land",
+            "tapped": false,
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{R}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "9cea8783-c7d7-49f9-b23d-324309efc140",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "9cea8783-c7d7-49f9-b23d-324309efc140",
+      "equals": false
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

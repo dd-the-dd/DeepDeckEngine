@@ -1,0 +1,273 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain/real-automatic-two-holders",
+  "seed": 492511,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "ability": {
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "mana": {
+                "amount": 1,
+                "kind": "chooseColor"
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          ],
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          }
+        },
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              },
+              {
+                "kind": "subtypeContains",
+                "value": "Ally"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "cc3063ec-5ea6-46c1-8331-c740cbaf6c76",
+            "name": "Great Divide Guide",
+            "typeLine": "Creature — Human Scout Ally",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "3",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "ability": {
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "mana": {
+                            "amount": 1,
+                            "kind": "chooseColor"
+                          },
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Ally"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "summoningSick": true
+          },
+          {
+            "id": "land-a",
+            "name": "Synthetic land-a",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "land-b",
+            "name": "Synthetic land-b",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "payment-spell",
+            "name": "Synthetic payment-spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "payment-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "equals": 23,
+      "playerId": "p0"
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "land-a",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "land-b",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "cc3063ec-5ea6-46c1-8331-c740cbaf6c76",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "equals": 2,
+      "eventKind": "manaAbilityActivated",
+      "playerId": "p0"
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

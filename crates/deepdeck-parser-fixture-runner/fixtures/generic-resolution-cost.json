@@ -1,0 +1,519 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "counter/payment-primitives",
+  "cases": [
+    {
+      "id": "spell-pierce-complete-source",
+      "request": {
+        "cardName": "Spell Pierce",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target noncreature spell unless its controller pays {2}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "spells",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "tryPayCost",
+                  "id": "resolutionPayment0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetSpell"
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{2}"
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "costWasPaid",
+                    "decisionId": "resolutionPayment0",
+                    "value": false,
+                    "required": true
+                  },
+                  "then": [
+                    {
+                      "kind": "counterStackObject",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fixed-zero",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its controller pays {0}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "spells"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "tryPayCost",
+                  "id": "resolutionPayment0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetSpell"
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "costWasPaid",
+                    "decisionId": "resolutionPayment0",
+                    "value": false,
+                    "required": true
+                  },
+                  "then": [
+                    {
+                      "kind": "counterStackObject",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-mana-x",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Counter target spell unless its controller pays {X}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "spells"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "tryPayCost",
+                  "id": "resolutionPayment0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetSpell"
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "genericAmount": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    }
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "costWasPaid",
+                    "decisionId": "resolutionPayment0",
+                    "value": false,
+                    "required": true
+                  },
+                  "then": [
+                    {
+                      "kind": "counterStackObject",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-sum-and-repeated-x",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Counter target spell unless its controller pays {1}{X}{X}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "spells"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "tryPayCost",
+                  "id": "resolutionPayment0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetSpell"
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "genericAmount": {
+                      "kind": "add",
+                      "left": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "right": {
+                        "kind": "multiply",
+                        "left": {
+                          "kind": "integer",
+                          "value": 2
+                        },
+                        "right": {
+                          "kind": "decisionResult",
+                          "decisionId": "xValue"
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "conditional",
+                  "condition": {
+                    "kind": "costWasPaid",
+                    "decisionId": "resolutionPayment0",
+                    "value": false,
+                    "required": true
+                  },
+                  "then": [
+                    {
+                      "kind": "counterStackObject",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetSpell"
+                      }
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "x-needs-same-face-producer",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its controller pays {X}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fractional-mana-is-explicitly-unsupported",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its controller pays {3}{Â½}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.counter-unless-paid.payment-support",
+            "expectedContains": "fractional"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-symbol-not-ignored",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its controller pays {NOPE}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.counter-unless-paid.payment-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "whole-total-overflow-refused",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its controller pays {2147483647}{1}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.counter-unless-paid.payment-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "colored-variable-program-not-approximated",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Counter target spell unless its controller pays {X}{U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.counter-unless-paid.payment-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "owner-is-not-controller",
+      "request": {
+        "cardName": "Generic Counter Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell unless its owner pays {2}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.counter-unless-paid.payer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "counter-cannot-borrow-other-face-producer",
+      "request": {
+        "cardName": "Producer Face // Consumer Face",
+        "typeLine": "Sorcery // Instant",
+        "manaCost": "{X}{R} // {U}",
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "producer",
+            "name": "Producer Face",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{R}",
+            "oracleText": "Draw a card."
+          },
+          {
+            "id": "consumer",
+            "name": "Consumer Face",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "oracleText": "Counter target spell unless its controller pays {X}."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source",
+            "abilityIndex": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "independent-ordinary-sacrifice-post-freeze-composition",
+  "cases": [
+    {
+      "id": "post-freeze-union-relative-colors-and-life-sequence",
+      "request": {
+        "cardName": "Independent Sacrifice Composition Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice an artifact or a creature that's red or green. You gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "colorContains",
+                            "value": "Red"
+                          },
+                          {
+                            "kind": "colorContains",
+                            "value": "Green"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

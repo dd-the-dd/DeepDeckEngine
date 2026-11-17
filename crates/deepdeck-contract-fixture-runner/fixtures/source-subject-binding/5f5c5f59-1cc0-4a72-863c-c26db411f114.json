@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5f5c5f59-1cc0-4a72-863c-c26db411f114",
+  "cardName": "Night Market Lookout",
+  "oracleId": "5f5c5f59-1cc0-4a72-863c-c26db411f114",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4edb03b7-e5a2-4ba1-b0ec-bfbfeaa94efd",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Night Market Lookout",
+      "typeLine": "Creature — Human Rogue",
+      "manaCost": "{B}",
+      "oracleText": "Whenever this creature becomes tapped, each opponent loses 1 life and you gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,298 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "return-target-domain",
+  "cases": [
+    {
+      "id": "Sink into Stupor // Soporific Springs",
+      "request": {
+        "cardName": "Sink into Stupor // Soporific Springs",
+        "typeLine": "Instant // Land",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "5358b87a-1a29-426d-b165-40c97da2c14d:face-0",
+            "name": "Sink into Stupor",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}{U}",
+            "oracleText": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          },
+          {
+            "id": "5358b87a-1a29-426d-b165-40c97da2c14d:face-1",
+            "name": "Soporific Springs",
+            "typeLine": "Land",
+            "manaCost": "",
+            "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetObject",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "union",
+                      "sets": [
+                        {
+                          "kind": "spells",
+                          "controller": {
+                            "kind": "opponentsOf",
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "permanents",
+                          "where": {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "cardTypeContains",
+                              "value": "Land"
+                            }
+                          },
+                          "controller": {
+                            "kind": "opponentsOf",
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetObject"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "Unsubstantiate",
+      "request": {
+        "cardName": "Unsubstantiate",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return target spell or creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetObject",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "union",
+                      "sets": [
+                        {
+                          "kind": "spells"
+                        },
+                        {
+                          "kind": "permanents",
+                          "where": {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetObject"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-0",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target spell or creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-1",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Exile target spell or creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-2",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Return target player or creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-3",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Return target card or creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-4",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Return target spell or creature to its controller's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-5",
+      "request": {
+        "cardName": "Synthetic Return Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Return target spell with mana value 3 or less to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,398 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Spider-Food/corrected-shared-selector-target-matrix",
+  "seed": 1518,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                },
+                {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "hasKeyword",
+                      "value": "flying"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 0
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      },
+      {
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "kind": "namedToken",
+          "name": "Food"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "C",
+          "C",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "spider-food",
+            "name": "Spider Food",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{G}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            },
+                            {
+                              "kind": "and",
+                              "operands": [
+                                {
+                                  "kind": "cardTypeContains",
+                                  "value": "Creature"
+                                },
+                                {
+                                  "kind": "hasKeyword",
+                                  "value": "flying"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 0
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "createTokens",
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "kind": "namedToken",
+                      "name": "Food"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "plain-artifact",
+            "name": "plain-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          },
+          {
+            "id": "plain-enchantment",
+            "name": "plain-enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}",
+            "rules": []
+          },
+          {
+            "id": "plain-creature",
+            "name": "plain-creature",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "flying-creature",
+            "name": "flying-creature",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "flying"
+                }
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "reach-creature",
+            "name": "reach-creature",
+            "typeLine": "Creature",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "reach"
+                }
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "artifact-creature",
+            "name": "artifact-creature",
+            "typeLine": "Artifact Creature",
+            "manaCost": "{2}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "enchantment-creature",
+            "name": "enchantment-creature",
+            "typeLine": "Enchantment Creature",
+            "manaCost": "{2}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "shroud-artifact",
+            "name": "shroud-artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "shroud"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:plain-artifact:0"
+            }
+          }
+        ]
+      },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:plain-enchantment:1"
+            }
+          }
+        ]
+      },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:plain-creature:2"
+            }
+          }
+        ]
+      },
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:flying-creature:3"
+            }
+          }
+        ]
+      },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:reach-creature:4"
+            }
+          }
+        ]
+      },
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:artifact-creature:5"
+            }
+          }
+        ]
+      },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:enchantment-creature:6"
+            }
+          }
+        ]
+      },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spider-food",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:shroud-artifact:7"
+            }
+          }
+        ]
+      },
+      "equals": false
+    }
+  ]
+}

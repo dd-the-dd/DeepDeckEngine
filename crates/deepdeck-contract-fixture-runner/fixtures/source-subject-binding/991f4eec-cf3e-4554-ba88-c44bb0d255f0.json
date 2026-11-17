@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/991f4eec-cf3e-4554-ba88-c44bb0d255f0",
+  "cardName": "Tributary Vaulter",
+  "oracleId": "991f4eec-cf3e-4554-ba88-c44bb0d255f0",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "a1db2c83-41d1-4cc6-b9a3-fed504b01127",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Tributary Vaulter",
+      "typeLine": "Creature — Merfolk Warrior",
+      "manaCost": "{2}{W}",
+      "oracleText": "Flying\nWhenever this creature becomes tapped, another target Merfolk you control gets +2/+0 until end of turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

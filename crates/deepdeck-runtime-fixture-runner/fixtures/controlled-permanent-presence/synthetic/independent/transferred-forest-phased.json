@@ -1,0 +1,276 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "independent-drowned/control-transferred-effective-forest-then-phased",
+  "seed": 1511151,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "controlsPermanent",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            {
+              "kind": "subtypeContains",
+              "value": "Mountain"
+            },
+            {
+              "kind": "subtypeContains",
+              "value": "Forest"
+            }
+          ]
+        }
+      }
+    },
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "independent-gate",
+            "name": "Independent Mountain Forest Gate",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Mountain"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Forest"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "type-effect",
+            "name": "Type Effect",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "addSubtype",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "nameEquals",
+                        "value": "Witness"
+                      }
+                    },
+                    "subtype": "Forest"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "witness",
+            "name": "Witness",
+            "typeLine": "Land - Plains",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "gainControlPermanent",
+            "permanent": {
+              "kind": "self"
+            },
+            "controller": {
+              "kind": "chosenTarget",
+              "id": "newController"
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "p1",
+        "sourceDefinitionId": "witness",
+        "targets": {
+          "newController": {
+            "player": {
+              "playerId": "p0"
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "phaseOutPermanent",
+            "permanent": {
+              "kind": "self"
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "witness"
+      }
+    },
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "independent-gate"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "independent-gate",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "independent-gate",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "witness",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "witness",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentPhasedOut",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

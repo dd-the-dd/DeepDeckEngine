@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/3bdc9211-8eff-4b30-8d6f-d26f4087f77f",
+  "cardName": "Llanowar Scout",
+  "oracleId": "3bdc9211-8eff-4b30-8d6f-d26f4087f77f",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c8026d80-2e91-46f9-ae97-1f137848236c",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "3",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Llanowar Scout",
+      "typeLine": "Creature — Elf Scout",
+      "manaCost": "{1}{G}",
+      "oracleText": "{T}: You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

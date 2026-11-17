@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/08688903-d9cc-4d57-ba91-14a8523551b9",
+  "cardName": "Silvergill Peddler",
+  "oracleId": "08688903-d9cc-4d57-ba91-14a8523551b9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "feba2bb6-6005-4ade-a4c5-97bbd54b43a3",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Silvergill Peddler",
+      "typeLine": "Creature — Merfolk Citizen",
+      "manaCost": "{2}{U}",
+      "oracleText": "Whenever this creature becomes tapped, draw a card, then discard a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

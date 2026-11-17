@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tamiyo-plus-two-installs-protected-attack-trigger-until-next-turn",
+  "seed": 71,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{
+      "kind": "payLoyalty",
+      "object": { "kind": "self" },
+      "amount": { "kind": "integer", "value": 2 }
+    }],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+    "effects": [{
+      "kind": "installDelayedTriggeredAbility",
+      "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "duration": {
+        "kind": "untilNextTurn",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      },
+      "event": {
+        "kind": "permanentAttacks",
+        "attacker": { "kind": "cardTypeContains", "value": "Creature" },
+        "defender": {
+          "kind": "union",
+          "operands": [
+            {
+              "kind": "player",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            {
+              "kind": "permanent",
+              "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Planeswalker" }
+            }
+          ]
+        }
+      },
+      "effects": [{
+        "kind": "modifyPowerToughness",
+        "object": { "kind": "triggeringPermanent" },
+        "power": { "kind": "integer", "value": -1 },
+        "toughness": { "kind": "integer", "value": 0 },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tamiyo controller",
+        "battlefield": [{
+          "id": "tamiyo-seasoned-scholar",
+          "name": "Tamiyo, Seasoned Scholar",
+          "typeLine": "Legendary Planeswalker — Tamiyo"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "tamiyo-seasoned-scholar"
+  },
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "delayedTriggeredAbilityInstalled", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

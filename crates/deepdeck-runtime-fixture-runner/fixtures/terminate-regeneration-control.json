@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-destroy-consumes-regeneration-shield-and-leaves-target-tapped",
+  "seed": 13902,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "cannotRegenerate": false
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Regeneration control pilot",
+        "manaPool": ["G", "B", "R"],
+        "hand": [{
+          "id": "ordinary-destroy",
+          "name": "Ordinary Destroy",
+          "typeLine": "Instant",
+          "manaCost": "{B}{R}"
+        }],
+        "battlefield": [{
+          "id": "shielded-creature",
+          "name": "Shielded Creature",
+          "typeLine": "Creature — Beast",
+          "manaCost": "{2}{G}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "payMana", "manaCost": "{G}" }],
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "installRegenerationShield",
+              "object": { "kind": "self" },
+              "duration": { "kind": "untilEndOfCurrentTurn" }
+            }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "activateAbility", "controllerId": "player-0", "sourceDefinitionId": "shielded-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "ordinary-destroy" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "shielded-creature", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "shielded-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "shielded-creature", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "ordinary-destroy", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentRegenerated", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

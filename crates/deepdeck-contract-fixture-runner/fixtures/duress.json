@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "duress/targeted-filtered-hand-disruption-is-executable",
+  "cardName": "Duress",
+  "oracleId": "33d405ea-7a9a-4970-b70f-9c05d90dd6f0",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players",
+            "where": {
+              "kind": "isOpponentOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "revealHand",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "discardedCard",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "minimum": { "kind": "integer", "value": 1 },
+        "maximum": { "kind": "integer", "value": 1 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Creature" }
+              },
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Land" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "discardedCard"
+        }
+      }
+    ]
+  }
+}

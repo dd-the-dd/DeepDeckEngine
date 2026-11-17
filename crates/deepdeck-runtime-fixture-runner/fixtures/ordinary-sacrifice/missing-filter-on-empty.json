@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-sacrifice/missing-filter-on-empty",
+  "seed": 7721,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "compare",
+          "left": {
+            "kind": "manaValueOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "operator": "<=",
+          "right": {
+            "kind": "boundValue",
+            "id": "missing-limit"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "filler",
+            "name": "filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "other",
+            "name": "other",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "source"
+        }
+      },
+      "expectedErrorContains": "objectQuery.compare.right"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

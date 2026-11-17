@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/exileTargetCardWithSource",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "exileTargetCardWithSource",
+        "card": {
+          "id": "targetGraveyardCard",
+          "kind": "chosenTarget"
+        },
+        "fromZone": "graveyard",
+        "source": {
+          "kind": "self"
+        }
+      }
+    ]
+  }
+}

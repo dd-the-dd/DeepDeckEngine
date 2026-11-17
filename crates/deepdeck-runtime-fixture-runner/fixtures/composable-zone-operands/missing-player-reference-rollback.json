@@ -1,0 +1,264 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-operand/mandatory-empty-record-is-not-optional",
+  "seed": 19,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "chosenTarget",
+              "id": "missing"
+            }
+          }
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "missing",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "cardsInZone",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "chosenTarget",
+                          "id": "missing"
+                        }
+                      }
+                    },
+                    "to": {
+                      "kind": "exile",
+                      "player": {
+                        "kind": "ownerOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "faceDown": false
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "missing",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-library",
+            "name": "p0-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "p1-library",
+            "name": "p1-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "p1-grave",
+            "name": "p1-grave",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "source",
+          "targets": {},
+          "decisions": {
+            "missing": []
+          }
+        },
+        "rule": {
+          "kind": "spellAbility",
+          "source": {
+            "kind": "self"
+          },
+          "effects": [
+            {
+              "kind": "gainLife",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "amount": {
+                "kind": "integer",
+                "value": 2
+              }
+            },
+            {
+              "kind": "moveCards",
+              "cards": {
+                "kind": "cardsInZone",
+                "zone": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "missing"
+                  }
+                }
+              },
+              "to": {
+                "kind": "exile",
+                "player": {
+                  "kind": "ownerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "faceDown": false
+              }
+            }
+          ],
+          "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": [
+              {
+                "kind": "chooseTargets",
+                "id": "missing",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "players"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "expectedErrorContains": "missing resolution-start target legality for `missing`"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 0
+    }
+  ]
+}

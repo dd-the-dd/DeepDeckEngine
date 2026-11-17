@@ -1,0 +1,214 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cage-reveal-timing/contract-control-revealed-positive-with-library",
+  "seed": 11311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "revealCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "revealedIds"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": null
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "power": null,
+            "toughness": null,
+            "rules": []
+          },
+          {
+            "id": "conditional-barrier",
+            "name": "conditional-barrier",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "power": null,
+            "toughness": null,
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "condition": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "compare",
+                      "operator": ">",
+                      "left": {
+                        "kind": "countEventsThisTurn",
+                        "event": "cardsRevealed"
+                      },
+                      "right": 0
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": "==",
+                      "right": 2,
+                      "left": {
+                        "kind": "countCards",
+                        "zone": {
+                          "kind": "library",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                },
+                "modifiers": [
+                  {
+                    "kind": "prohibitEnterBattlefieldFromZones",
+                    "zones": [
+                      "graveyard"
+                    ],
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "entrant-a",
+            "name": "entrant-a",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "entrant-b",
+            "name": "entrant-b",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "library-0",
+            "name": "library-0",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-1",
+            "name": "library-1",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "executor",
+    "decisions": {
+      "revealedIds": [
+        "p0:entrant-a:2",
+        "p0:entrant-b:3"
+      ]
+    }
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "entrant-a",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "entrant-b",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 1
+    }
+  ]
+}

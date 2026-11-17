@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/inspectTopCardForChosenCreatureType",
+  "cardName": "Specialized effect audit batch04",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "inspectTopCardForChosenCreatureType",
+        "player": {
+          "kind": "abilityController"
+        },
+        "decisionId": "chosenType"
+      }
+    ]
+  }
+}

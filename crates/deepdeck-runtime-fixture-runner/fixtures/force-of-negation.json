@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "force-of-negation-complete-native-runtime-proof",
+  "seed": 19,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "not",
+            "operand": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" },
+      "exileInstead": true
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Force pilot",
+        "hand": [
+          {
+            "id": "force-of-negation",
+            "name": "Force of Negation",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "condition": { "kind": "notYourTurn" },
+                  "costs": [{
+                    "kind": "exileCard",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": { "kind": "self" }
+                      }
+                    },
+                    "where": { "kind": "colorContains", "value": "blue" }
+                  }]
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [{
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "spells",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  }]
+                },
+                "effects": [{
+                  "kind": "counterSpell",
+                  "spell": { "kind": "chosenTarget", "id": "targetSpell" },
+                  "exileInstead": true
+                }]
+              }
+            ]
+          },
+          {
+            "id": "blue-payment-card",
+            "name": "Blue Payment Card",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["R"],
+        "hand": [{
+          "id": "opponent-spell",
+          "name": "Opponent Spell",
+          "typeLine": "Instant",
+          "manaCost": "{R}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-spell"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "force-of-negation",
+      "useAlternativeCost": true,
+      "alternativeExileDefinitionId": "blue-payment-card"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "blue-payment-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opponent-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "force-of-negation",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

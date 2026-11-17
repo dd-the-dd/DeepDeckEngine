@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "trigger-multiplicity/complete-real-4c3ad545-b375-44a7-a24e-58baacc4e4b6",
+  "cardName": "Annie Joins Up",
+  "oracleId": "4c3ad545-b375-44a7-a24e-58baacc4e4b6",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1624a5f4-f5bc-47c9-85de-c5520ee234ce",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Annie Joins Up",
+      "typeLine": "Legendary Enchantment",
+      "manaCost": "{1}{R}{G}{W}",
+      "oracleText": "When Annie Joins Up enters, it deals 5 damage to target creature or planeswalker an opponent controls.\nIf a triggered ability of a legendary creature you control triggers, that ability triggers an additional time.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

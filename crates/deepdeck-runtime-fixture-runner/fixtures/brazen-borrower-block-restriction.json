@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "brazen-borrower/block-restriction-effective-flying",
+  "seed": 131,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [
+      {
+        "kind": "blockRestriction",
+        "attackers": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              {
+                "kind": "not",
+                "operand": { "kind": "hasKeyword", "value": "flying" }
+              }
+            ]
+          }
+        },
+        "blockers": { "kind": "self" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Blocker",
+        "battlefield": [
+          {
+            "id": "borrower-1",
+            "name": "Brazen Borrower",
+            "typeLine": "Creature — Faerie Rogue",
+            "power": "3",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "flying" }
+              },
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "blockRestriction",
+                    "attackers": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          { "kind": "cardTypeContains", "value": "Creature" },
+                          {
+                            "kind": "not",
+                            "operand": { "kind": "hasKeyword", "value": "flying" }
+                          }
+                        ]
+                      }
+                    },
+                    "blockers": { "kind": "self" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "ability-thief-1",
+            "name": "Ability Thief",
+            "typeLine": "Creature — Human Wizard",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "loseAllAbilities",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": { "kind": "nameEquals", "value": "Lost Flyer" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Attackers",
+        "battlefield": [
+          {
+            "id": "ground-1",
+            "name": "Ground Creature",
+            "typeLine": "Creature — Bear",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "printed-flyer-1",
+            "name": "Printed Flyer",
+            "typeLine": "Creature — Bird",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "flying" }
+              }
+            ]
+          },
+          {
+            "id": "granted-flyer-1",
+            "name": "Granted Flyer",
+            "typeLine": "Creature — Drake",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": { "kind": "self" },
+                    "keyword": "flying"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "lost-flyer-1",
+            "name": "Lost Flyer",
+            "typeLine": "Creature — Bird",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "flying" }
+              }
+            ]
+          },
+          {
+            "id": "reach-1",
+            "name": "Reach Creature",
+            "typeLine": "Creature — Spider",
+            "power": "2",
+            "toughness": "4",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "reach" }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "borrower-1",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "ground-1",
+      "equals": false
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "borrower-1",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "printed-flyer-1",
+      "equals": true
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "borrower-1",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "granted-flyer-1",
+      "equals": true
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "borrower-1",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "lost-flyer-1",
+      "equals": false
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "borrower-1",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "reach-1",
+      "equals": false
+    }
+  ]
+}

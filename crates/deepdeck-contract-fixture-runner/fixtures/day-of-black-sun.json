@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "day-of-black-sun/variable-set-binding-sequence-is-executable",
+  "cardName": "Day of Black Sun",
+  "oracleId": "dc857129-533c-41d1-8e8b-1c0443030d69",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{ "id": "xValue", "kind": "chooseNumber", "minimum": 0 }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "affectedPermanents",
+        "value": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              {
+                "kind": "compare",
+                "operator": "<=",
+                "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                "right": { "kind": "decisionResult", "decisionId": "xValue" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "forEachObject",
+        "objects": { "kind": "boundObjects", "binding": "affectedPermanents" },
+        "bind": "affectedPermanent",
+        "effects": [{
+          "kind": "installLoseAllAbilities",
+          "object": { "kind": "boundValue", "id": "affectedPermanent" },
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        }]
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "boundObjects", "binding": "affectedPermanents" }
+      }
+    ]
+  }
+}

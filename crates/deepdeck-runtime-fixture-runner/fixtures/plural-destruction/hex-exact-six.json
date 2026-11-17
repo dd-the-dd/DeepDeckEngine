@@ -1,0 +1,267 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "plural-destruction/hex-exact-six",
+  "seed": 1901,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 6,
+          "maximum": 6,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "C",
+          "C",
+          "C",
+          "C",
+          "B",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "tested-spell",
+            "name": "Hex",
+            "typeLine": "Sorcery",
+            "manaCost": "{4}{B}{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 6,
+                      "maximum": 6,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTargets",
+                      "id": "targetPermanent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "hex-creature-0",
+            "name": "hex-creature-0",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "hex-creature-1",
+            "name": "hex-creature-1",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "hex-creature-2",
+            "name": "hex-creature-2",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "hex-creature-3",
+            "name": "hex-creature-3",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "hex-creature-4",
+            "name": "hex-creature-4",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "hex-creature-5",
+            "name": "hex-creature-5",
+            "typeLine": "Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "tested-spell",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-0:0"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-1:1"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-2:2"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-3:3"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-4:4"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:hex-creature-5:5"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "tested-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-0",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-1",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-2",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-3",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-4",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "hex-creature-5",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 6
+    }
+  ]
+}

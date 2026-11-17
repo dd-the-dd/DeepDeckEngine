@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "stock-up/top-cards-partition-is-executable",
+  "cardName": "Stock Up",
+  "oracleId": "2251e34e-4ce8-4452-9dc6-d8cce8583996",
+  "expectedExecutable": true,
+  "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "lookAtTopCards",
+            "zone": {
+              "kind": "library",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 5
+            },
+            "bind": "lookedCards"
+          },
+          {
+            "kind": "chooseCards",
+            "id": "cardsForHand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "from": {
+              "kind": "boundObjects",
+              "binding": "lookedCards"
+            },
+            "count": {
+              "kind": "minimum",
+              "operands": [
+                {
+                  "kind": "integer",
+                  "value": 2
+                },
+                {
+                  "kind": "countObjects",
+                  "objects": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "decisionResult",
+              "decisionId": "cardsForHand"
+            },
+            "to": {
+              "kind": "hand",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          {
+            "kind": "chooseOrder",
+            "id": "remainderOrder",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "objects": {
+              "kind": "setDifference",
+              "left": {
+                "kind": "boundObjects",
+                "binding": "lookedCards"
+              },
+              "right": {
+                "kind": "decisionResult",
+                "decisionId": "cardsForHand"
+              }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "decisionResult",
+              "decisionId": "remainderOrder"
+            },
+            "to": {
+              "kind": "library",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "position": "bottom"
+            },
+            "order": {
+              "kind": "decisionOrder",
+              "decisionId": "remainderOrder"
+            }
+          }
+        ]
+  }
+}

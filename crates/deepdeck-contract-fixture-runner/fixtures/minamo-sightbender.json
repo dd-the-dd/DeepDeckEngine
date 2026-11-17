@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "minamo-sightbender/shared-activation-x-producer",
+  "cardName": "Minamo Sightbender",
+  "oracleId": "c4f1d8c8-29e5-43fe-8281-7d42d0173dc5",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{X}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseNumber",
+          "id": "xValue",
+          "minimum": 0
+        },
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "keyword": "cantBeBlocked",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  }
+}

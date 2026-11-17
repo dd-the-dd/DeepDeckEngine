@@ -1,0 +1,299 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantified-player/0/3/on-stack",
+  "seed": 19501,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "loseLife",
+        "player": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "life": 20,
+        "manaPool": [
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "B",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "U",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "source",
+            "name": "Sneering Shadewriter",
+            "typeLine": "Creature — Vampire Warlock",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "manaCost": "{4}{B}",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "controller-keeps",
+            "name": "Controller keeps this card",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent 1",
+        "life": 20,
+        "hand": [
+          {
+            "id": "opponent-1-hand",
+            "name": "Hand card 1",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "opponent-1-other",
+            "name": "Other card 1",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Opponent 2",
+        "life": 20,
+        "hand": [
+          {
+            "id": "opponent-2-hand",
+            "name": "Hand card 2",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "opponent-2-other",
+            "name": "Other card 2",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-3",
+        "name": "Opponent 3",
+        "life": 20,
+        "hand": [
+          {
+            "id": "opponent-3-hand",
+            "name": "Hand card 3",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "opponent-3-other",
+            "name": "Other card 3",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "source"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "controller-keeps",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-2",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-2",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-2",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-3",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-3",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-3",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

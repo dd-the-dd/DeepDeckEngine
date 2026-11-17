@@ -1,0 +1,398 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "cost/mandatory-additional-sacrifice",
+  "cases": [
+    {
+      "id": "exact-crop-rotation",
+      "request": {
+        "cardName": "Crop Rotation",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              },
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "additionalCostPermanent"
+              },
+              {
+                "pointer": "/declaration/decisions/0/quantity/kind",
+                "equals": "exactly"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/controller/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "cardTypeContains"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/value",
+                "equals": "Land"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/permanent/kind",
+                "equals": "chosenObject"
+              },
+              {
+                "pointer": "/effects",
+                "equals": []
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/candidates/where/value",
+                "equals": "Land"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "recordLibrarySearch"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-creature",
+      "request": {
+        "cardName": "Generic Blood Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-artifact-or-creature",
+      "request": {
+        "cardName": "Generic Furnace Rite",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice an artifact or creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "or"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/0/value",
+                "equals": "Artifact"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/permanent/kind",
+                "equals": "chosenObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-nonland-permanent",
+      "request": {
+        "cardName": "Generic Ruin Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a nonland permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operand/value",
+                "equals": "Land"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-nonpermanent-sacrifice",
+      "request": {
+        "cardName": "Malformed Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice an instant.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "mandatory-additional-sacrifice",
+            "state": "additional-cost.mandatory-sacrifice.object-query",
+            "expectedContains": "permanent object predicate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-goblin-grenade-implicit-permanent-subtype",
+      "request": {
+        "cardName": "Goblin Grenade",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a Goblin.\nGoblin Grenade deals 5 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseObjects"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Goblin"
+                }
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/permanent/kind",
+                "equals": "chosenObject"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-literal-power-query",
+      "request": {
+        "cardName": "Generic Power Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature with power 4 or greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/left/kind",
+                "equals": "powerOf"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1/operator",
+                "equals": ">="
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-relative-cost-retains-native-failure",
+      "request": {
+        "cardName": "Generic Conditional Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature that dealt damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "mandatory-additional-sacrifice",
+            "state": "additional-cost.mandatory-sacrifice.terminator",
+            "expected": "."
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-numeric-cost-needs-contextual-producer",
+      "request": {
+        "cardName": "Nahiri's Sacrifice",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice an artifact or creature with mana value X.\nNahiri's Sacrifice deals X damage divided as you choose among any number of target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "mandatory-additional-sacrifice",
+            "state": "additional-cost.mandatory-sacrifice.numeric-context",
+            "expectedContains": "contextual numeric producer support"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "scope-independent/two-views-two-players",
+  "cases": [
+    {
+      "id": "full-independent-composition",
+      "request": {
+        "cardName": "Independent Scope Program",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Look at the top card of your library. Reveal it. Target player gains 2 life and loses 1 life. Look at the top two cards of your library. Reveal them. Target opponent draws a card and loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPlayer1",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  },
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPlayer2",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players",
+                      "where": {
+                        "kind": "isOpponentOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer1"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer1"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "lookedCards2"
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards2"
+                  }
+                },
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer2"
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer2"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

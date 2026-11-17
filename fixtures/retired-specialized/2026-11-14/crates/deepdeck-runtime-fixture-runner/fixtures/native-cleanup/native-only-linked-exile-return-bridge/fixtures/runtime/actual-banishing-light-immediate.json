@@ -1,0 +1,279 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "linked-return/actual-banishing-light-nonstack",
+  "seed": 73,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          },
+          "id": "exileTarget",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "candidates": {
+          "controller": {
+            "kind": "opponentsOf",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "not",
+            "operand": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          }
+        },
+        "kind": "exilePermanentWithSource",
+        "maximum": 1,
+        "minimum": 1,
+        "permanent": {
+          "id": "exileTarget",
+          "kind": "chosenTarget"
+        },
+        "returnWhenSourceLeaves": true
+      }
+    ],
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "hand": [
+          {
+            "id": "bounce-driver",
+            "name": "Synthetic Bounce Driver",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "sourceTarget",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "sourceTarget"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "banishing-light",
+            "name": "Banishing Light",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{W}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "not",
+                          "operand": {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          }
+                        }
+                      },
+                      "id": "exileTarget",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      }
+                    },
+                    "kind": "exilePermanentWithSource",
+                    "maximum": 1,
+                    "minimum": 1,
+                    "permanent": {
+                      "id": "exileTarget",
+                      "kind": "chosenTarget"
+                    },
+                    "returnWhenSourceLeaves": true
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "captive",
+            "name": "Captive",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "banishing-light",
+    "targets": {
+      "exileTarget": {
+        "permanent": {
+          "instanceId": "player-1:captive:0"
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "bounce-driver",
+      "declarationDecisions": {
+        "sourceTarget": [
+          {
+            "permanent": {
+              "instanceId": "player-0:banishing-light:1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "banishing-light",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "captive",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "exile",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

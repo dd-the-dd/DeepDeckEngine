@@ -1,0 +1,248 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "token-options/quantity-bounds",
+  "cases": [
+    {
+      "id": "maximum-first",
+      "request": {
+        "cardName": "Token Option Quantity Boundary",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a land you control enters, create 2147483647 Food tokens or 1 Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 2147483647 Food tokens",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 2147483647
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 1 Treasure token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "maximum-last",
+      "request": {
+        "cardName": "Token Option Quantity Boundary",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a land you control enters, create 1 Food token or 2147483647 Treasure tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseOneEffect",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "options": [
+                    {
+                      "label": "Create 1 Food token",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Food"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Create 2147483647 Treasure tokens",
+                      "effects": [
+                        {
+                          "kind": "createTokens",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "integer",
+                            "value": 2147483647
+                          },
+                          "token": {
+                            "kind": "namedToken",
+                            "name": "Treasure"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflow-first",
+      "request": {
+        "cardName": "Token Option Quantity Boundary",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a land you control enters, create 2147483648 Food tokens or 1 Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.named-token-alternatives.quantity"
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflow-last",
+      "request": {
+        "cardName": "Token Option Quantity Boundary",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a land you control enters, create 1 Food token or 2147483648 Treasure tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.named-token-alternatives.quantity"
+          }
+        ]
+      }
+    }
+  ]
+}

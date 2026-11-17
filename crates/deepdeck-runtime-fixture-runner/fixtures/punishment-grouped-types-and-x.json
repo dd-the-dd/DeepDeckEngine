@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "punishment-groups-all-permanent-types-before-applying-the-x-mana-value-filter",
+  "seed": 606,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Artifact" },
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "cardTypeContains", "value": "Enchantment" }
+              ]
+            },
+            {
+              "kind": "compare",
+              "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+              "operator": "==",
+              "right": { "kind": "decisionResult", "decisionId": "xValue" }
+            }
+          ]
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Punishment caster",
+        "manaPool": ["C", "C", "B", "G"],
+        "hand": [{
+          "id": "crime-punishment",
+          "name": "Crime // Punishment",
+          "typeLine": "Sorcery",
+          "manaCost": "{X}{B}{G}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Permanent controller",
+        "battlefield": [
+          {
+            "id": "punishment-artifact-mv-two",
+            "name": "Matching Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          },
+          {
+            "id": "punishment-creature-mv-two",
+            "name": "Matching Creature",
+            "typeLine": "Creature - Test",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "punishment-enchantment-mv-two",
+            "name": "Matching Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}",
+            "rules": []
+          },
+          {
+            "id": "punishment-artifact-mv-one",
+            "name": "Wrong-Value Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": []
+          },
+          {
+            "id": "punishment-creature-mv-three",
+            "name": "Wrong-Value Creature",
+            "typeLine": "Creature - Test",
+            "manaCost": "{3}",
+            "power": "3",
+            "toughness": "3",
+            "rules": []
+          },
+          {
+            "id": "punishment-enchantment-mv-one",
+            "name": "Wrong-Value Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{1}",
+            "rules": []
+          },
+          {
+            "id": "punishment-land-mv-two",
+            "name": "Matching-Value Land",
+            "typeLine": "Land",
+            "manaCost": "{2}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "crime-punishment",
+      "declarationDecisions": { "xValue": 2 }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "punishment-artifact-mv-two", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "punishment-creature-mv-two", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "punishment-enchantment-mv-two", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "punishment-artifact-mv-one", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "punishment-creature-mv-three", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "punishment-enchantment-mv-one", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "punishment-land-mv-two", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 3 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

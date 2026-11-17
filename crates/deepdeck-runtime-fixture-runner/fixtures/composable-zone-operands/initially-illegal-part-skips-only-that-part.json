@@ -1,0 +1,327 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-operand/mixed-illegal",
+  "seed": 19,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "chosenTarget",
+              "id": "targetZonePlayer"
+            }
+          }
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "targetPlayer"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetZonePlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        },
+        {
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "cardsInZone",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "chosenTarget",
+                          "id": "targetZonePlayer"
+                        }
+                      }
+                    },
+                    "to": {
+                      "kind": "exile",
+                      "player": {
+                        "kind": "ownerOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "faceDown": false
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "chosenTarget",
+                      "id": "targetPlayer"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetZonePlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    },
+                    {
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-library",
+            "name": "p0-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "p1-library",
+            "name": "p1-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "p1-grave",
+            "name": "p1-grave",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "protector",
+            "name": "protector",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "grantPlayerProtection",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "from": [
+                      "everything"
+                    ],
+                    "duration": {
+                      "kind": "untilNextTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "source",
+      "targets": {
+        "targetZonePlayer": {
+          "kind": "player",
+          "playerId": "p1"
+        },
+        "targetPlayer": {
+          "kind": "player",
+          "playerId": "p0"
+        }
+      }
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p1",
+        "sourceDefinitionId": "protector",
+        "targets": {}
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "grantPlayerProtection",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "from": [
+              "everything"
+            ],
+            "duration": {
+              "kind": "untilNextTurn",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "exile",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityFizzled",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

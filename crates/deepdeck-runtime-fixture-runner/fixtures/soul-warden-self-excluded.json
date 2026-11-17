@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "soul-warden-does-not-trigger-for-itself",
+  "seed": 101001,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "where": { "kind": "cardTypeContains", "value": "Creature" },
+      "anyController": true,
+      "excludeSource": true
+    },
+    "effects": [{
+      "kind": "gainLife",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Warden controller",
+        "manaPool": ["W"],
+        "hand": [{
+          "id": "soul-warden",
+          "name": "Soul Warden",
+          "typeLine": "Creature - Human Cleric",
+          "manaCost": "{W}",
+          "power": "1",
+          "toughness": "1",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "where": { "kind": "cardTypeContains", "value": "Creature" },
+              "anyController": true,
+              "excludeSource": true
+            },
+            "effects": [{
+              "kind": "gainLife",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "soul-warden" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "soul-warden", "equals": true },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

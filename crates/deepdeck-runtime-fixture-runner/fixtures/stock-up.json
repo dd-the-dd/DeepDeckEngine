@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "stock-up-top-five-partition",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          }
+        },
+        "count": { "kind": "integer", "value": 5 },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "from": { "kind": "boundObjects", "binding": "lookedCards" },
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            { "kind": "integer", "value": 2 },
+            {
+              "kind": "countObjects",
+              "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "cardsForHand" },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "remainderOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "objects": {
+          "kind": "setDifference",
+          "left": { "kind": "boundObjects", "binding": "lookedCards" },
+          "right": { "kind": "decisionResult", "decisionId": "cardsForHand" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "remainderOrder" },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          },
+          "position": "bottom"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "remainderOrder" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Stock Up pilot",
+        "hand": [
+          {
+            "id": "stock-up",
+            "name": "Stock Up",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{U}"
+          }
+        ],
+        "library": [
+          { "id": "library-card-0", "name": "Library Card 0", "typeLine": "Sorcery" },
+          { "id": "library-card-1", "name": "Library Card 1", "typeLine": "Sorcery" },
+          { "id": "library-card-2", "name": "Library Card 2", "typeLine": "Sorcery" },
+          { "id": "library-card-3", "name": "Library Card 3", "typeLine": "Sorcery" },
+          { "id": "library-card-4", "name": "Library Card 4", "typeLine": "Sorcery" },
+          { "id": "library-card-5", "name": "Library Card 5", "typeLine": "Sorcery" },
+          { "id": "library-card-6", "name": "Library Card 6", "typeLine": "Sorcery" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "stock-up"
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 2, "take": "forward" },
+    { "kind": "orderCards", "order": "reverse" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 3 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 5 },
+    { "kind": "decisionCount", "equals": 2 }
+  ]
+}

@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "city-independent-heldout/named-it-source-damage-then-gain",
+  "seed": 1151959,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentTapped",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "dealDamage",
+        "source": {
+          "kind": "self"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        },
+        "recipient": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "synthetic:it-of-the-test-fen",
+            "name": "It of the Test Fen",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentTapped",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "dealDamage",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "recipient": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{G}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "synthetic:it-of-the-test-fen",
+      "manaSymbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "synthetic:it-of-the-test-fen",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "damageDealt",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

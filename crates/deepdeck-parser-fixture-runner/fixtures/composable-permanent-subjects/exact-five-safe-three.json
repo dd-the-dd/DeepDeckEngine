@@ -1,0 +1,578 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "regression/permanent-object-selector-domain",
+  "cases": [
+    {
+      "id": "63e0f03f-16da-4c09-ad03-8945f660942d",
+      "request": {
+        "cardName": "Daughter of the Deep",
+        "typeLine": "Creature — Merfolk Noble",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you draw your second card each turn, create a 1/1 blue Merfolk creature token.\n{U}, {T}: Target Merfolk can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{U}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Merfolk"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "cardStatus": "unsupported",
+        "allowDiagnostics": true
+      }
+    },
+    {
+      "id": "6bbdf771-75d5-4910-bd16-6232e254f7f6",
+      "request": {
+        "cardName": "Rally Maneuver",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Target creature gets +2/+0 and gains first strike until end of turn. Up to one other target creature gets +0/+2 and gains lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ],
+        "cardStatus": "unsupported"
+      }
+    },
+    {
+      "id": "c657626f-7444-4c26-842c-dda9b9656fa3",
+      "request": {
+        "cardName": "Mabel's Mettle",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Target creature gets +2/+2 until end of turn. Up to one other target creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ],
+        "cardStatus": "unsupported"
+      }
+    },
+    {
+      "id": "ce1a6c1f-6b4e-4d19-b256-48d073b359b7",
+      "request": {
+        "cardName": "Additive Evolution",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "When this enchantment enters, create a 0/0 green and blue Fractal creature token. Put three +1/+1 counters on it.\nAt the beginning of combat on your turn, put a +1/+1 counter on target creature you control. It gains vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ],
+        "cardStatus": "unsupported"
+      }
+    },
+    {
+      "id": "e4212b05-d397-49fb-af8b-9e52a60e6d1e",
+      "request": {
+        "cardName": "Aquatic Incursion",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this enchantment enters, create two 1/1 blue Merfolk creature tokens with hexproof. (They can't be the targets of spells or abilities your opponents control.)\n{3}{U}: Target Merfolk can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{3}{U}"
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Merfolk"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "cardStatus": "unsupported",
+        "allowDiagnostics": true
+      }
+    },
+    {
+      "id": "eb002bbc-08df-4bf0-bea3-46494ad261b6",
+      "request": {
+        "cardName": "Turtle Lair",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a Ninja or Turtle spell.\n{3}, {T}: Target Ninja or Turtle can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{C}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  },
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Ninja"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Turtle"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{3}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Ninja"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Turtle"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "cardStatus": "canonical",
+        "allowDiagnostics": false,
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "edc74fb9-a368-4f73-8147-f318a32a3d06",
+      "request": {
+        "cardName": "Corsairs of Umbar",
+        "typeLine": "Creature — Human Pirate",
+        "manaCost": "{3}{U}",
+        "oracleText": "{2}{U}: Target Goblin, Orc, or Pirate can't be blocked this turn.\nWhenever this creature deals combat damage to a player, amass Orcs 3. (Put three +1/+1 counters on an Army you control. It's also an Orc. If you don't control an Army, create a 0/0 black Orc Army creature token first.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{2}{U}"
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Goblin"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Orc"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Pirate"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "cardStatus": "unsupported",
+        "allowDiagnostics": true
+      }
+    },
+    {
+      "id": "fb2cd508-f5cd-4d5b-b8e7-3cae1f39fd58",
+      "request": {
+        "cardName": "Splinter, Radical Rat",
+        "typeLine": "Legendary Creature — Mutant Ninja Rat",
+        "manaCost": "{1}{W/B}{W/B}",
+        "oracleText": "If a triggered ability of a Ninja creature you control triggers, that ability triggers an additional time.\n{1}{U}: Target Ninja can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "abilities": [
+        {
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "rule": {
+            "kind": "staticAbility",
+            "source": {
+              "kind": "self"
+            },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": {
+                "kind": "self"
+              },
+              "zone": {
+                "kind": "battlefield"
+              }
+            },
+            "modifiers": [
+              {
+                "kind": "multiplyTriggeredAbility",
+                "sources": {
+                  "kind": "permanents",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Ninja"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  },
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "additionalTriggers": 1
+              }
+            ]
+          }
+        },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{1}{U}"
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Ninja"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    }
+  ]
+}

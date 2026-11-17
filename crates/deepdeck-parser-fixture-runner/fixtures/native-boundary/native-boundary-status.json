@@ -1,0 +1,422 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "native-only-boundary-retirement-probes",
+  "cases": [
+    {
+      "id": "mixed-unimplemented-keyword",
+      "request": {
+        "cardName": "Mixed Proof",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Buyback {3}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unclaimed-static",
+      "request": {
+        "cardName": "Legacy Static Bonus",
+        "typeLine": "Enchantment",
+        "manaCost": "",
+        "oracleText": "Creatures you control are blue.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reality-claim-0",
+      "request": {
+        "cardName": "Unflinching Hortimancer",
+        "typeLine": "Creature \u2014 Human Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "Ward {1} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)\nWhenever you gain life, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "ward"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "lifeGained",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putCounters"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reality-claim-4",
+      "request": {
+        "cardName": "Wrecking Gecko",
+        "typeLine": "Artifact Creature \u2014 Lizard Construct",
+        "manaCost": "{4}{G}",
+        "oracleText": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\n{6}{G}{G}: This creature gets +4/+4 and gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "ward"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{6}{G}{G}"
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 4
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 4
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "keyword": "trample",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "reality-claim-8",
+      "request": {
+        "cardName": "Ruric Thar, Biomagus",
+        "typeLine": "Legendary Creature \u2014 Ogre Crab Wizard",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Flying\nProwess, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn twice.)\nWhenever Ruric Thar becomes the target of a spell or ability an opponent controls, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-ward-reminder",
+      "request": {
+        "cardName": "Generic Keyword Creature",
+        "typeLine": "Creature \u2014 Shapeshifter",
+        "manaCost": "{3}",
+        "oracleText": "Ward {3} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{3}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-repeated-reminder",
+      "request": {
+        "cardName": "Generic Keyword Creature",
+        "typeLine": "Creature \u2014 Shapeshifter",
+        "manaCost": "{3}",
+        "oracleText": "Prowess, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn twice.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "name-keyword-homonym-complex-body",
+      "request": {
+        "cardName": "Awaken the Inferno",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}",
+        "oracleText": "Awaken the Inferno deals 6 damage to target creature or planeswalker an opponent controls. Put a +1/+1 counter on up to one target creature you control.\nBasic landcycling {2} ({2}, Discard this card: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Planeswalker"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 6
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "+1/+1",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unimplemented-awaken",
+      "request": {
+        "cardName": "Test Spell",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}",
+        "oracleText": "Awaken 4\u2014{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/31a331a0-3065-4ecb-9e6a-ab11e241833b",
+  "cardName": "False Mourning",
+  "oracleId": "31a331a0-3065-4ecb-9e6a-ab11e241833b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "61bdfefb-f2e2-409c-b5e1-66d24ab3ee5d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "False Mourning",
+      "typeLine": "Sorcery",
+      "manaCost": "{G}",
+      "oracleText": "Put target card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

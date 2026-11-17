@@ -1,0 +1,960 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "conditional-land-family-real-nine",
+  "cases": [
+    {
+      "id": "exact-glacial-fortress-complete-source",
+      "request": {
+        "cardName": "Glacial Fortress",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Plains or an Island.\n{T}: Add {W} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{W}",
+                      "{U}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sunpetal-grove-complete-source",
+      "request": {
+        "cardName": "Sunpetal Grove",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Forest or a Plains.\n{T}: Add {G} or {W}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Forest"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{G}",
+                      "{W}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dragonskull-summit-complete-source",
+      "request": {
+        "cardName": "Dragonskull Summit",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Swamp or a Mountain.\n{T}: Add {B} or {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Mountain"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{B}",
+                      "{R}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sulfur-falls-complete-source",
+      "request": {
+        "cardName": "Sulfur Falls",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control an Island or a Mountain.\n{T}: Add {U} or {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Mountain"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{U}",
+                      "{R}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-isolated-chapel-complete-source",
+      "request": {
+        "cardName": "Isolated Chapel",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{W}",
+                      "{B}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rootbound-crag-complete-source",
+      "request": {
+        "cardName": "Rootbound Crag",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Mountain or a Forest.\n{T}: Add {R} or {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Mountain"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Forest"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{R}",
+                      "{G}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-woodland-cemetery-complete-source",
+      "request": {
+        "cardName": "Woodland Cemetery",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Swamp"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Forest"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{B}",
+                      "{G}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-clifftop-retreat-complete-source",
+      "request": {
+        "cardName": "Clifftop Retreat",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Mountain or a Plains.\n{T}: Add {R} or {W}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Mountain"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Plains"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{R}",
+                      "{W}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hinterland-harbor-complete-source",
+      "request": {
+        "cardName": "Hinterland Harbor",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Forest or an Island.\n{T}: Add {G} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Forest"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Island"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{G}",
+                      "{U}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

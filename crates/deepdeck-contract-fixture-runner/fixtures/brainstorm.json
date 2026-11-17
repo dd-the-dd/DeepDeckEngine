@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "brainstorm/draw-select-order-move-is-executable",
+  "cardName": "Brainstorm",
+  "oracleId": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "count": { "kind": "integer", "value": 3 }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForLibrary",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "minimum": { "kind": "integer", "value": 2 },
+        "maximum": { "kind": "integer", "value": 2 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": { "kind": "self" }
+            }
+          },
+          "where": null
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "cardsForLibraryOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForLibrary"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForLibraryOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          },
+          "position": "top"
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "cardsForLibraryOrder"
+        }
+      }
+    ]
+  }
+}

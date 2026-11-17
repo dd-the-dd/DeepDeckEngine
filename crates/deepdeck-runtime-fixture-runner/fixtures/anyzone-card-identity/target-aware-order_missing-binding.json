@@ -1,0 +1,196 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-aware-order/missing-binding",
+  "seed": 261115,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 4
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "order",
+        "player": {
+          "kind": "abilityController"
+        },
+        "objects": {
+          "kind": "boundObjects",
+          "binding": "absent"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Player Zero",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "ordering-source",
+            "name": "Ordering Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": 4
+                  },
+                  {
+                    "kind": "chooseOrder",
+                    "id": "order",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "objects": {
+                      "kind": "boundObjects",
+                      "binding": "absent"
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "chosenTargets",
+                      "id": "response"
+                    },
+                    "to": {
+                      "kind": "exile",
+                      "player": {
+                        "kind": "abilityController"
+                      },
+                      "faceDown": false
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "response",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "abilityController"
+                          }
+                        },
+                        "where": null
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "graveyard": [],
+        "library": [
+          {
+            "id": "base",
+            "name": "base",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Player One",
+        "life": 20,
+        "library": [
+          {
+            "id": "other-base",
+            "name": "other-base",
+            "typeLine": "Artifact",
+            "manaCost": "{0}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "ordering-source",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "unresolved runtime collection binding `absent`"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "stackObjectStartedResolving",
+      "equals": 0
+    }
+  ]
+}

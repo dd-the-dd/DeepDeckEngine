@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rhystic-study-controller-spell-does-not-trigger",
+  "seed": 96,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "spellCast",
+      "opponentOfSourceController": true,
+      "where": null
+    },
+    "effects": [
+      {
+        "kind": "optionalPayCostPerformEffects",
+        "player": {
+          "kind": "triggeringPlayer"
+        },
+        "cost": {
+          "kind": "payMana",
+          "manaCost": "{1}"
+        },
+        "effects": [],
+        "declineEffects": [
+          {
+            "kind": "optionalEffects",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "effects": [
+              {
+                "kind": "drawCards",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "count": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Study controller",
+        "library": [
+          {
+            "id": "study-draw",
+            "name": "Study Draw",
+            "typeLine": "Sorcery"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "rhystic-study",
+            "name": "Rhystic Study",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{U}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "spellCast",
+                  "opponentOfSourceController": true,
+                  "where": null
+                },
+                "effects": [
+                  {
+                    "kind": "optionalPayCostPerformEffects",
+                    "player": {
+                      "kind": "triggeringPlayer"
+                    },
+                    "cost": {
+                      "kind": "payMana",
+                      "manaCost": "{1}"
+                    },
+                    "effects": [],
+                    "declineEffects": [
+                      {
+                        "kind": "optionalEffects",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "effects": [
+                          {
+                            "kind": "drawCards",
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "count": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "controller-spell",
+            "name": "Controller Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "controller-spell"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "fatal-push/conditional-base-and-revolt-amendment-are-executable",
+  "cardName": "Fatal Push",
+  "oracleId": "16437a83-be52-44cd-a768-a767c9347eb2",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "targetPermanent",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "permanents",
+              "where": { "kind": "cardTypeContains", "value": "Creature" }
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "conditionalEffect",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+            "where": {
+              "kind": "compare",
+              "operator": "<=",
+              "left": {
+                "kind": "manaValueOf",
+                "object": { "kind": "candidate" }
+              },
+              "right": { "kind": "integer", "value": 2 }
+            }
+          },
+          "then": [
+            {
+              "kind": "destroyPermanent",
+              "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+            }
+          ],
+          "else": []
+        }
+      ]
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "conditionalEffect",
+          "condition": {
+            "kind": "compare",
+            "operator": ">=",
+            "left": {
+              "kind": "countEventsThisTurn",
+              "event": "permanentLeftBattlefield",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": null
+            },
+            "right": { "kind": "integer", "value": 1 }
+          },
+          "then": [
+            {
+              "kind": "conditionalEffect",
+              "condition": {
+                "kind": "objectMatchesFilter",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "where": {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "manaValueOf",
+                    "object": { "kind": "candidate" }
+                  },
+                  "right": { "kind": "integer", "value": 4 }
+                }
+              },
+              "then": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+                }
+              ],
+              "else": []
+            }
+          ],
+          "else": []
+        }
+      ]
+    }
+  ]
+}

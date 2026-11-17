@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/21a094d6-de3d-48d4-a35d-b99617da55db/part-0",
+  "cardName": "Sneering Shadewriter",
+  "oracleId": "21a094d6-de3d-48d4-a35d-b99617da55db",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4b4c120e-abe9-4f11-a7e4-bc3f723da4b2",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Sneering Shadewriter",
+      "typeLine": "Creature — Vampire Warlock",
+      "manaCost": "{4}{B}",
+      "oracleText": "Flying\nWhen this creature enters, each opponent loses 2 life and you gain 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

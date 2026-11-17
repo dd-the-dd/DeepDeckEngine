@@ -1,0 +1,572 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "activation/selected-sacrifice-cost",
+  "cases": [
+    {
+      "id": "exact-phyrexian-altar",
+      "request": {
+        "cardName": "Phyrexian Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice a creature: Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent0"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent0",
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zuran-orb",
+      "request": {
+        "cardName": "Zuran Orb",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a land: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent0"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent0",
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-miss-nonpermanent-domain",
+      "request": {
+        "cardName": "Phyrexian Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice an instant: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "cost.selected-sacrifice.permanent-domain",
+            "found": ":"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-miss-opponent-control",
+      "request": {
+        "cardName": "Phyrexian Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice a creature an opponent controls: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "cost.selected-sacrifice.controller",
+            "found": ":"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-miss-unconsumed-relative-clause",
+      "request": {
+        "cardName": "Phyrexian Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice a creature that dealt damage this turn: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "activation.effect-sequence.separator",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-hand-source-independent-object-zone",
+      "request": {
+        "cardName": "Synthetic Hand Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Discard this card, Sacrifice a creature: You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activationZone": "hand",
+              "costs": [
+                {
+                  "kind": "discardCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent1"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent1",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-numeric-cost-shared-x-producer",
+      "request": {
+        "cardName": "Synthetic Numeric Source",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "{X}, Sacrifice a creature with power X or less: You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{X}"
+                },
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent1"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseNumber",
+                    "id": "xValue",
+                    "minimum": 0
+                  },
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent1",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "operator": "<=",
+                            "left": {
+                              "kind": "powerOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "right": {
+                              "kind": "decisionResult",
+                              "decisionId": "xValue"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-numeric-cost-does-not-borrow-casting-x",
+      "request": {
+        "cardName": "Synthetic Casting X Source",
+        "typeLine": "Artifact",
+        "manaCost": "{X}",
+        "oracleText": "Sacrifice a creature with power X or less: You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "activatedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "activation.compound.selected-cost-x-producer",
+            "expectedContains": "in this activation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skirk-prospector-selected-source",
+      "request": {
+        "cardName": "Skirk Prospector",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{R}",
+        "oracleText": "Sacrifice a Goblin: Add {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent0"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent0",
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Goblin"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{R}"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

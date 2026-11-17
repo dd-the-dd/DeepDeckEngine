@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "surgical-extraction-binds-target-owner-and-name-across-three-zones",
+  "seed": 58,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetNamedCard",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "anyGraveyard" },
+          "where": {
+            "kind": "not",
+            "operand": {
+              "kind": "and",
+              "operands": [
+                { "kind": "typeLineContains", "value": "Basic" },
+                { "kind": "cardTypeContains", "value": "Land" }
+              ]
+            }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "exileNamedCardsFromZones",
+      "player": { "kind": "chosenTarget", "id": "targetNamedCard" },
+      "chooser": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "nameFromCard": { "kind": "chosenTarget", "id": "targetNamedCard" },
+      "zones": ["graveyard", "hand", "library"],
+      "all": false,
+      "shuffleLibrary": true
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Extraction caster",
+        "life": 1,
+        "manaPool": ["B"],
+        "hand": [{
+          "id": "surgical-extraction",
+          "name": "Surgical Extraction",
+          "typeLine": "Instant",
+          "manaCost": "{B/P}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Target owner",
+        "graveyard": [{
+          "id": "target-copy",
+          "name": "Putrid Imp",
+          "typeLine": "Creature — Imp",
+          "manaCost": "{B}",
+          "power": "1",
+          "toughness": "1"
+        }],
+        "hand": [{
+          "id": "hand-copy",
+          "name": "Putrid Imp",
+          "typeLine": "Creature — Imp",
+          "manaCost": "{B}",
+          "power": "1",
+          "toughness": "1"
+        }],
+        "library": [
+          {
+            "id": "library-copy",
+            "name": "Putrid Imp",
+            "typeLine": "Creature — Imp",
+            "manaCost": "{B}",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "other-card",
+            "name": "Dark Ritual",
+            "typeLine": "Instant",
+            "manaCost": "{B}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "surgical-extraction"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "selectCards", "count": 3, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "target-copy", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "hand-copy", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "library-copy", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "library", "definitionId": "other-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "surgical-extraction", "equals": true },
+    { "kind": "eventCount", "eventKind": "namedCardsExiled", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

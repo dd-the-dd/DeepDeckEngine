@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "search-zone-gain/cb7e451b-a9d2-4f50-9651-b5df34e34d99",
+  "cardName": "Disciples of Gix",
+  "oracleId": "cb7e451b-a9d2-4f50-9651-b5df34e34d99",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "7d356456-865d-4c92-8923-ce7384e29a79",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Disciples of Gix",
+      "typeLine": "Creature — Phyrexian Human",
+      "manaCost": "{4}{B}{B}",
+      "oracleText": "When this creature enters, search your library for up to three artifact cards, put them into your graveyard, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

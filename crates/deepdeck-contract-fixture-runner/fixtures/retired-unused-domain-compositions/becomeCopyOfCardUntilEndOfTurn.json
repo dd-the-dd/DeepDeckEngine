@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/becomeCopyOfCardUntilEndOfTurn",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "becomeCopyOfCardUntilEndOfTurn",
+        "object": {
+          "kind": "self"
+        },
+        "copy": {
+          "kind": "chosenTarget",
+          "id": "card"
+        }
+      }
+    ]
+  }
+}

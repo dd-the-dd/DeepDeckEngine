@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/airbend",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "airbend",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "permanent"
+        },
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        },
+        "alternativeManaCost": "{2}"
+      }
+    ]
+  }
+}

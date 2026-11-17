@@ -1,0 +1,241 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantity-season-token-batch-and-contained-riot",
+  "seed": 6301,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "abilityController"
+        },
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "name": "Quantity Witness",
+          "types": [
+            "Creature"
+          ],
+          "power": {
+            "kind": "integer",
+            "value": 1
+          },
+          "toughness": {
+            "kind": "integer",
+            "value": 1
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Affected controller",
+        "battlefield": [
+          {
+            "id": "doubling-season",
+            "name": "Doubling Season",
+            "typeLine": "Enchantment",
+            "manaCost": "{4}{G}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "tokenCreation",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "counterPlacement",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "recipientKind": "permanent"
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "riot-granter",
+            "name": "riot-granter",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "keyword": "riot"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor"
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 5
+    },
+    {
+      "kind": "permanentGroup",
+      "playerId": "player-0",
+      "definitionId": "token:quantity witness",
+      "count": 2,
+      "controller": "player-0",
+      "owner": "player-0",
+      "powerToughness": {
+        "power": 3,
+        "toughness": 3
+      },
+      "counters": {
+        "+1/+1": 2
+      }
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 2
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    }
+  ]
+}

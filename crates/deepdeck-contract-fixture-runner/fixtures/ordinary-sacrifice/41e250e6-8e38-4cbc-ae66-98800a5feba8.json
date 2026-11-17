@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/41e250e6-8e38-4cbc-ae66-98800a5feba8",
+  "cardName": "Archdemon of Unx",
+  "oracleId": "41e250e6-8e38-4cbc-ae66-98800a5feba8",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b260fbe1-21cb-4a66-aca3-e504b67ed712",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "6",
+    "toughness": "6",
+    "oracle": {
+      "cardName": "Archdemon of Unx",
+      "typeLine": "Creature — Demon",
+      "manaCost": "{5}{B}{B}",
+      "oracleText": "Flying, trample\nAt the beginning of your upkeep, sacrifice a non-Zombie creature, then create a 2/2 black Zombie creature token.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

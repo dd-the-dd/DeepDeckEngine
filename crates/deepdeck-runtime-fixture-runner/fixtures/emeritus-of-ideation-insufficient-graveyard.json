@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "emeritus-does-not-prepare-when-eight-card-action-is-unavailable",
+  "seed": 12703,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+    "effects": [{
+      "kind": "optionalAction",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "action": {
+        "kind": "exileCards",
+        "count": 8,
+        "from": {
+          "kind": "graveyard",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      "onPerformed": [{
+        "kind": "setPrepared",
+        "object": { "kind": "self" },
+        "value": true
+      }]
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Emeritus controller",
+        "battlefield": [{
+          "id": "emeritus",
+          "name": "Emeritus of Ideation",
+          "typeLine": "Creature - Human Wizard",
+          "power": "5",
+          "toughness": "5"
+        }],
+        "graveyard": [
+          { "id": "grave-1", "name": "Grave 1", "typeLine": "Instant" },
+          { "id": "grave-2", "name": "Grave 2", "typeLine": "Sorcery" },
+          { "id": "grave-3", "name": "Grave 3", "typeLine": "Creature" },
+          { "id": "grave-4", "name": "Grave 4", "typeLine": "Artifact" },
+          { "id": "grave-5", "name": "Grave 5", "typeLine": "Enchantment" },
+          { "id": "grave-6", "name": "Grave 6", "typeLine": "Land" },
+          { "id": "grave-7", "name": "Grave 7", "typeLine": "Instant" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "emeritus"
+  },
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 7 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "exile", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "optionalActionUnavailable", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentPrepared", "playerId": "player-0", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

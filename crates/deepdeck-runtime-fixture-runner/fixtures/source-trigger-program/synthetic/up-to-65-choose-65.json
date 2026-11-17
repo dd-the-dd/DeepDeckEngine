@@ -1,0 +1,622 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Synthetic-optional-draw/up-to-65-choose-65",
+  "seed": 1601,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentDied",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "chooseNumber",
+        "id": "optionalDrawCount0",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 65
+        }
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "optionalDrawCount0"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Last controller",
+        "hand": [
+          {
+            "id": "removal",
+            "name": "Removal fixture helper",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "victim",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "victim"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "quantity-card-0",
+            "name": "Quantity card 0",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-1",
+            "name": "Quantity card 1",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-2",
+            "name": "Quantity card 2",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-3",
+            "name": "Quantity card 3",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-4",
+            "name": "Quantity card 4",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-5",
+            "name": "Quantity card 5",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-6",
+            "name": "Quantity card 6",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-7",
+            "name": "Quantity card 7",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-8",
+            "name": "Quantity card 8",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-9",
+            "name": "Quantity card 9",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-10",
+            "name": "Quantity card 10",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-11",
+            "name": "Quantity card 11",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-12",
+            "name": "Quantity card 12",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-13",
+            "name": "Quantity card 13",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-14",
+            "name": "Quantity card 14",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-15",
+            "name": "Quantity card 15",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-16",
+            "name": "Quantity card 16",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-17",
+            "name": "Quantity card 17",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-18",
+            "name": "Quantity card 18",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-19",
+            "name": "Quantity card 19",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-20",
+            "name": "Quantity card 20",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-21",
+            "name": "Quantity card 21",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-22",
+            "name": "Quantity card 22",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-23",
+            "name": "Quantity card 23",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-24",
+            "name": "Quantity card 24",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-25",
+            "name": "Quantity card 25",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-26",
+            "name": "Quantity card 26",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-27",
+            "name": "Quantity card 27",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-28",
+            "name": "Quantity card 28",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-29",
+            "name": "Quantity card 29",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-30",
+            "name": "Quantity card 30",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-31",
+            "name": "Quantity card 31",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-32",
+            "name": "Quantity card 32",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-33",
+            "name": "Quantity card 33",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-34",
+            "name": "Quantity card 34",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-35",
+            "name": "Quantity card 35",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-36",
+            "name": "Quantity card 36",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-37",
+            "name": "Quantity card 37",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-38",
+            "name": "Quantity card 38",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-39",
+            "name": "Quantity card 39",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-40",
+            "name": "Quantity card 40",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-41",
+            "name": "Quantity card 41",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-42",
+            "name": "Quantity card 42",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-43",
+            "name": "Quantity card 43",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-44",
+            "name": "Quantity card 44",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-45",
+            "name": "Quantity card 45",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-46",
+            "name": "Quantity card 46",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-47",
+            "name": "Quantity card 47",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-48",
+            "name": "Quantity card 48",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-49",
+            "name": "Quantity card 49",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-50",
+            "name": "Quantity card 50",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-51",
+            "name": "Quantity card 51",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-52",
+            "name": "Quantity card 52",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-53",
+            "name": "Quantity card 53",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-54",
+            "name": "Quantity card 54",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-55",
+            "name": "Quantity card 55",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-56",
+            "name": "Quantity card 56",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-57",
+            "name": "Quantity card 57",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-58",
+            "name": "Quantity card 58",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-59",
+            "name": "Quantity card 59",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-60",
+            "name": "Quantity card 60",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-61",
+            "name": "Quantity card 61",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-62",
+            "name": "Quantity card 62",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-63",
+            "name": "Quantity card 63",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "quantity-card-64",
+            "name": "Quantity card 64",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "solemn",
+            "name": "Synthetic optional draw source",
+            "typeLine": "Artifact Creature — Golem",
+            "manaCost": "{4}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentDied",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "chooseNumber",
+                    "id": "optionalDrawCount0",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 65
+                    }
+                  },
+                  {
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "decisionResult",
+                      "decisionId": "optionalDrawCount0"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Owner when stolen",
+        "library": [
+          {
+            "id": "owner-top",
+            "name": "Owner Top",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ],
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "removal",
+      "declarationDecisions": {
+        "victim": [
+          {
+            "permanent": {
+              "instanceId": "player-0:solemn:66"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 65
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 65
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseNumber",
+      "value": 65
+    }
+  ]
+}

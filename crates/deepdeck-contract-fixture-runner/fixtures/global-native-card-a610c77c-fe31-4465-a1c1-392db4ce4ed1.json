@@ -1,0 +1,36 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/a610c77c-fe31-4465-a1c1-392db4ce4ed1/complete-rule-set",
+    "cardName":  "Cleanse",
+    "oracleId":  "a610c77c-fe31-4465-a1c1-392db4ce4ed1",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "colorContains",
+                                                                                               "value":  "Black"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

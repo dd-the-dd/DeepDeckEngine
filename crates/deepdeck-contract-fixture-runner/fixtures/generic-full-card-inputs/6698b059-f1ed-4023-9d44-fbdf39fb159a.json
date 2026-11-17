@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/6698b059-f1ed-4023-9d44-fbdf39fb159a/part-0",
+  "cardName": "Grave Robbers",
+  "oracleId": "6698b059-f1ed-4023-9d44-fbdf39fb159a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "a131605a-f646-4745-a1e4-48d155a3d94f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Grave Robbers",
+      "typeLine": "Creature — Human Rogue",
+      "manaCost": "{1}{B}{B}",
+      "oracleText": "{B}, {T}: Exile target artifact card from a graveyard. You gain 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

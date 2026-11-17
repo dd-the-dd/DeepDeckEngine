@@ -1,0 +1,206 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/qualified-controller-old-consumer-caps",
+  "cases": [
+    {
+      "id": "damage-then-qualified-gain",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "This spell deals 1 damage to target creature and that creature's controller gains 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "damage-then-qualified-lose",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "This spell deals 1 damage to target creature and that creature's controller loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "damage-sentence-qualified-gain",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "This spell deals 1 damage to target creature. That creature's controller gains 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "destroy-then-qualified-draw",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. That creature's controller draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "destroy-then-qualified-scry",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. That creature's controller scries 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "destroy-then-qualified-draw-move",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. That creature's controller draws two cards, then puts a card from their hand on top of their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qualified-next-turn-keyword-duration",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target creature gains flying until that creature's controller's next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qualified-next-turn-stat-duration",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target creature gets +1/+1 until that creature's controller's next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qualified-controller-emblem",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "That creature's controller gets an emblem with \"You have no maximum hand size.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "qualified-controller-named-token-capped",
+      "request": {
+        "cardName": "Synthetic Actor Reference Cap",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. That creature's controller creates a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

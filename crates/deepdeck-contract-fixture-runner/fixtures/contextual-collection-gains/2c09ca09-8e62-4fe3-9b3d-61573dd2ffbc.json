@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/2c09ca09-8e62-4fe3-9b3d-61573dd2ffbc",
+  "cardName": "Gemhide Sliver",
+  "oracleId": "2c09ca09-8e62-4fe3-9b3d-61573dd2ffbc",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "224af68a-41a6-4e4e-94d0-130be341b788",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Gemhide Sliver",
+      "typeLine": "Creature — Sliver",
+      "manaCost": "{1}{G}",
+      "oracleText": "All Slivers have \"{T}: Add one mana of any color.\"",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

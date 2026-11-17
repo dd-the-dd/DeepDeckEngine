@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "terminate/destroy-regeneration-prohibition",
+  "cardName": "Terminate",
+  "oracleId": "6257c2fd-005f-41e3-8a72-af76df1eb134",
+  "cases": [
+    {
+      "id": "exact-terminate",
+      "request": {
+        "cardName": "Terminate",
+        "typeLine": "Instant",
+        "manaCost": "{B}{R}",
+        "oracleText": "Destroy target creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "rule": {
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+              "cannotRegenerate": true
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "nonartifact-creature-sibling",
+      "request": {
+        "cardName": "Generalized Termination",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target nonartifact creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/maximum", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "and" },
+            { "pointer": "/declaration/decisions/0/candidates/where/operands/0/kind", "equals": "not" },
+            { "pointer": "/declaration/decisions/0/candidates/where/operands/0/operand/value", "equals": "Artifact" },
+            { "pointer": "/declaration/decisions/0/candidates/where/operands/1/value", "equals": "Creature" },
+            { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/0/cannotRegenerate", "equals": true }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unsupported-amendment-near-miss",
+      "request": {
+        "cardName": "Malformed Termination",
+        "typeLine": "Instant",
+        "manaCost": "{B}{R}",
+        "oracleText": "Destroy target creature. It can't be restored.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "sequence.destroy-regeneration.regeneration",
+          "expectedContains": "regenerated",
+          "found": "restored",
+          "traceContainsState": "sequence.destroy-regeneration.passive"
+        }]
+      }
+    }
+  ]
+}

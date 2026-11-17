@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "synthetic/spell-tax-claim-boundary-candidate",
+  "cases": [
+    {
+      "id": "synthetic-a-player-optional-draw-without-tax",
+      "request": {
+        "cardName": "Synthetic optional cast watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Whenever a player casts a spell, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "where": null,
+                "anyPlayer": true
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-an-opponent-optional-draw-without-tax",
+      "request": {
+        "cardName": "Synthetic optional cast watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Whenever an opponent casts a spell, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "where": null,
+                "opponentOfSourceController": true
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-tax-wrong-payer",
+      "request": {
+        "cardName": "Synthetic tax near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Whenever a player casts a spell, you may draw a card unless an opponent pays {1}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "sequence.connector-or-end",
+            "expected": "`and`, `then`, or sentence terminator",
+            "found": "unless",
+            "tokenIndex": 12
+          },
+          {
+            "abilityIndex": 0,
+            "code": "oracle_candidate_machine_failure",
+            "state": "reference.triggering-player.determiner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-tax-missing-payment",
+      "request": {
+        "cardName": "Synthetic tax near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Whenever an opponent casts a spell, you may draw a card unless that player pays.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

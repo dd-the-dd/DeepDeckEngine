@@ -1,0 +1,136 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "checked-discard/conditional-selected-overflow",
+  "seed": 8341,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 1
+      },
+      {
+        "kind": "discardCards",
+        "player": {
+          "kind": "abilityController"
+        },
+        "count": {
+          "kind": "conditionalValue",
+          "condition": {
+            "kind": "compare",
+            "left": 1,
+            "operator": "==",
+            "right": 1
+          },
+          "ifTrue": {
+            "kind": "subtract",
+            "left": {
+              "kind": "multiply",
+              "left": {
+                "kind": "countCards",
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "abilityController"
+                  }
+                },
+                "where": null
+              },
+              "right": {
+                "kind": "integer",
+                "value": 2147483647
+              }
+            },
+            "right": {
+              "kind": "integer",
+              "value": 2147483647
+            }
+          },
+          "ifFalse": 0
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "one",
+            "name": "one",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "two",
+            "name": "two",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "executor",
+          "decisions": {}
+        }
+      },
+      "expectedErrorContains": "unresolved or invalid numeric expression for discardCards.count",
+      "retry": false
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDiscarded",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRandomlySelected",
+      "equals": 0
+    }
+  ]
+}

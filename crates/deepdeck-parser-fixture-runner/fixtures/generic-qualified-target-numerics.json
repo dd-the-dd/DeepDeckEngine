@@ -1,0 +1,1127 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/qualified-target-numeric-context",
+  "cases": [
+    {
+      "id": "real-feed-the-swarm-permanent-lki",
+      "request": {
+        "cardName": "Feed the Swarm",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature or enchantment an opponent controls. You lose life equal to that permanent's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "live-power-after-modifier",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to that creature's power."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "old-its-numeric-leaf-same-ir",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to its power."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-typed-artifact-intersection",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target artifact creature gets +2/+2 until end of turn. You gain life equal to that artifact's power."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-arithmetic-live-reference",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to that creature's power plus one."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "powerOf",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetPermanent"
+                      }
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-noun-mismatch",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to that artifact's power."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-antecedent-no-borrowed-target",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "You gain life equal to that permanent's mana value."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.expression.object-reference.nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "noncreature-power-capped-that artifact's",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target artifact gets +2/+2 until end of turn. You gain life equal to that artifact's power."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.characteristic-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "noncreature-power-capped-its",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target artifact gets +2/+2 until end of turn. You gain life equal to its power."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.characteristic-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "noncreature-toughness-capped",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target artifact gets +2/+2 until end of turn. You gain life equal to that artifact's toughness."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.characteristic-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "post-zone-old-reference-its-permanent-lki",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target creature. You lose life equal to its mana value."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "post-zone-old-reference-that card's",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target creature. You lose life equal to that card's mana value."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "uppercase-lexical-nominal-THAT CREATURE'S",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to THAT CREATURE'S power."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "uppercase-lexical-nominal-THAT CREATURE’S",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target creature gets +2/+2 until end of turn. You gain life equal to THAT CREATURE’S power."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "artifact-mana-value-remains-defined",
+      "request": {
+        "cardName": "Living Target Growth",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Target artifact gets +2/+2 until end of turn. You gain life equal to that artifact's mana value."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exile-permanent-mana-value-sibling",
+      "request": {
+        "cardName": "Synthetic Permanent LKI Scope",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Exile target creature. You lose life equal to that permanent's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exilePermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "return-permanent-mana-value-sibling",
+      "request": {
+        "cardName": "Synthetic Permanent LKI Scope",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target creature to its owner's hand. You lose life equal to that permanent's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "return-spell-numeric-lki-stays-capped",
+      "request": {
+        "cardName": "Synthetic Permanent LKI Scope",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target spell to its owner's hand. You lose life equal to its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.lki-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "return-mixed-spell-permanent-lki-stays-capped",
+      "request": {
+        "cardName": "Synthetic Permanent LKI Scope",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target spell or creature to its owner's hand. You lose life equal to its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.lki-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-after-destroy-still-needs-snapshot",
+      "request": {
+        "cardName": "Synthetic Permanent LKI Scope",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature. Its controller gains life equal to its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.target-numeric.lki-support"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "compositional-mana-production-policy",
+  "cases": [
+    {
+      "id": "exact-whole-card",
+      "request": {
+        "cardName": "Delighted Halfling",
+        "typeLine": "Creature — Halfling Citizen",
+        "manaCost": "{G}",
+        "oracleText": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell, and that spell can't be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{C}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseColor",
+                    "amount": 1
+                  },
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "isLegendary"
+                    },
+                    "cantBeCountered": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fixed-creature-policy",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Add {G}. Spend this mana only to cast a creature spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{G}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "direct-mana-spell-policy",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {R}. Spend this mana only to cast an artifact spell, and that spell cannot be countered.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{R}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "cantBeCountered": true
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-producer",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Spend this mana only to cast a legendary spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-domain",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {G}. Spend this mana only to cast a legendary card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-consequence",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {G}. Spend this mana only to cast a legendary spell, and that spell draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "external-x",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {G}. Spend this mana only to cast a spell with mana value X.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duplicate-qualifier",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {G}. Spend this mana only to cast a creature spell. Spend this mana only to cast an artifact spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "duration-tail",
+      "request": {
+        "cardName": "Mana Policy Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Add {G}. Spend this mana only to cast a legendary spell, and that spell cannot be countered until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

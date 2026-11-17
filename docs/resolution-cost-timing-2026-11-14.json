@@ -1,0 +1,1761 @@
+{
+  "schema_version": "deepdeck-shared-cost-chronological-timing/v1",
+  "generated_at_utc": "2026-11-14T17:50:31.381780+00:00",
+  "scope": {
+    "native_ir_rewrites": 38,
+    "new_cards_claimed": 0,
+    "explicit_fractional_false_positive_rejections": 1,
+    "fraction_codepoint": "U+00BD",
+    "global_rows": 39288,
+    "before_native": 17771,
+    "after_native": 17770,
+    "prior_native_ir_unchanged": 17732,
+    "before_complete_nonempty": 3865,
+    "after_complete_nonempty": 3864
+  },
+  "author_tracker": {
+    "source": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+    "implementation_start": "2026-11-14T16:03:03.1511245Z",
+    "implementation_end": "2026-11-14T16:54:44.0448575Z",
+    "implementation_wall_seconds": 3100.888,
+    "declared_loop_count": 1,
+    "open_stage": {
+      "name": "root-review",
+      "started_at_utc": "2026-11-14T16:54:44.0593898Z"
+    },
+    "completed_at_utc": null,
+    "not_pure_coding_time": true
+  },
+  "chronological_rows": [
+    {
+      "id": "author-schema-3",
+      "name": "Validation du schéma sur ancien exécutable",
+      "description": "Schéma seulement : Eleven schema-valid cases, invalidFixtures0. One old expected rejection passes; ten old grammar/emission mismatches expected. Not candidate proof.",
+      "source": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+      "recorded_at_utc": "2026-11-14T16:54:43.9991739Z",
+      "timestamp_role": "tracker_event_logged_at",
+      "start_at_utc": null,
+      "compile_seconds": 0,
+      "execution_seconds": 0.036,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": 0.047,
+      "cache_maintenance_seconds": null,
+      "status": "schema-only",
+      "loop": "author-review",
+      "kind": "author-subcommand"
+    },
+    {
+      "id": "author-schema-4",
+      "name": "Validation du schéma sur ancien exécutable",
+      "description": "Schéma seulement : Fourteen rows deserialize, zero fixtureErrors; old runtime lacks tryPayCost and cannot execute candidate. No candidate success claim.",
+      "source": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+      "recorded_at_utc": "2026-11-14T16:54:44.0168149Z",
+      "timestamp_role": "tracker_event_logged_at",
+      "start_at_utc": null,
+      "compile_seconds": 0,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": 0.096,
+      "cache_maintenance_seconds": null,
+      "status": "schema-only",
+      "loop": "author-review",
+      "kind": "author-subcommand"
+    },
+    {
+      "id": "author-implementation",
+      "name": "Implémentation partagée et coordination",
+      "description": "Conception, code, revue et correction de la capacité Ward non-mana dans une même fenêtre. Le tracker ne sépare pas le temps de code pur ni chaque sous-étape.",
+      "source": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+      "recorded_at_utc": "2026-11-14T16:54:44.0448575Z",
+      "timestamp_role": "explicit_stage_end",
+      "start_at_utc": "2026-11-14T16:03:03.1511245Z",
+      "compile_seconds": null,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": 3100.888,
+      "cache_maintenance_seconds": null,
+      "status": "measured",
+      "loop": "author-review",
+      "kind": "author-wall",
+      "overlap_policy": "Contains the author schema checks/reviews/coordination; never add these subevents to this wall interval."
+    },
+    {
+      "id": "author-root-review",
+      "name": "Début de revue root, tracker non clôturé",
+      "description": "Le tracker laisse cette étape ouverte ; sa durée propre n’est pas mesurée. Ne pas la transformer en attente Cargo.",
+      "source": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+      "recorded_at_utc": "2026-11-14T16:54:44.0593898Z",
+      "timestamp_role": "explicit_stage_start",
+      "start_at_utc": null,
+      "compile_seconds": null,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "open",
+      "loop": null,
+      "kind": "milestone"
+    },
+    {
+      "id": "source-application.json",
+      "name": "Application atomique des sources",
+      "description": "Application de A08 + addendum de préservation ensemble ; A08 seul était refusé.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/source-application.json",
+      "recorded_at_utc": "2026-11-14T16:56:03.255792+00:00",
+      "timestamp_role": "application_timestamp",
+      "start_at_utc": null,
+      "compile_seconds": null,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "applied",
+      "loop": null,
+      "kind": "milestone"
+    },
+    {
+      "id": "runtime-focused-initial-compile-failure.json",
+      "name": "Compilation initiale du runner runtime",
+      "description": "Échec E0425 : ancien nom mana_costs dans le raccordement du noyau typé. Zéro test exécuté.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-initial-compile-failure.json",
+      "recorded_at_utc": "2026-11-14T16:56:36.7928039Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 12.129,
+      "execution_seconds": 0,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "fail",
+      "loop": "runtime-focused",
+      "kind": "root-command",
+      "result_count": 0,
+      "passed_results": 0,
+      "failed_results": 0,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": [
+          "error[E0425]: cannot find value `mana_costs` in this scope"
+        ]
+      }
+    },
+    {
+      "id": "runtime-focused-report.json",
+      "name": "Première preuve runtime ciblée",
+      "description": "18/20 scénarios verts ; deux attentes DATA erronées : réponse scriptée inutile pour un choix unique et compteur de callbacks après reprise.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-report.json",
+      "recorded_at_utc": "2026-11-14T16:57:47.6689137Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 31.571,
+      "execution_seconds": 0.612,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "fail",
+      "loop": "runtime-focused",
+      "kind": "root-command",
+      "result_count": 20,
+      "passed_results": 18,
+      "failed_results": 2,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-cost-unit-initial-compile-failure.json",
+      "name": "Compilation initiale des tests de coût",
+      "description": "Échec E0277 : construction de FloatingMana invalide dans un test. Aucune exécution.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit-initial-compile-failure.json",
+      "recorded_at_utc": "2026-11-14T17:00:53.6093920Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 15.726,
+      "execution_seconds": 0,
+      "cargo_queue_wait_seconds": 0.008,
+      "wall_seconds": 17.722,
+      "cache_maintenance_seconds": 1.938,
+      "status": "fail",
+      "loop": "cost-units",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": [
+          "error[E0277]: the trait bound `state::FloatingMana: From<&str>` is not satisfied"
+        ]
+      }
+    },
+    {
+      "id": "data-application.json",
+      "name": "Installation des fixtures",
+      "description": "20 cas runtime, fixtures parseur et transformations des preuves existantes ; aucune nouvelle carte revendiquée.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/data-application.json",
+      "recorded_at_utc": "2026-11-14T17:02:42.806979+00:00",
+      "timestamp_role": "application_timestamp",
+      "start_at_utc": null,
+      "compile_seconds": null,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "applied",
+      "loop": null,
+      "kind": "milestone"
+    },
+    {
+      "id": "runtime-cost-unit-report.json",
+      "name": "Tests privés de coût, partition3",
+      "description": "13 tests réellement exécutés et verts ; compilation/link séparés de l’exécution.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit-report.json",
+      "recorded_at_utc": "2026-11-14T17:03:28.8220551Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 92.232,
+      "execution_seconds": 1.349,
+      "cargo_queue_wait_seconds": 0.008,
+      "wall_seconds": 95.687,
+      "cache_maintenance_seconds": 2.048,
+      "status": "pass",
+      "loop": "cost-units",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 320 filtered out; finished in 0.01s"
+        ],
+        "running": [
+          "running 13 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-focused-corrected-report.json",
+      "name": "Rejeu runtime après correction des DATA",
+      "description": "20/20 scénarios et 215 vérifications verts. Les corrections portent sur les attentes, pas sur une réparation du moteur par le runner.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-corrected-report.json",
+      "recorded_at_utc": "2026-11-14T17:05:35.4614182Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0.214,
+      "execution_seconds": 0.153,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": "runtime-focused",
+      "kind": "root-command",
+      "result_count": 20,
+      "passed_results": 20,
+      "failed_results": 0,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-all-report.json",
+      "name": "Régression DATA runtime complète",
+      "description": "796 scénarios, 5393 vérifications. Le runner déjà construit est réutilisé. Les 20 cas nouveaux ne sont pas20 nouvelles cartes.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-all-report.json",
+      "recorded_at_utc": "2026-11-14T17:05:39.9968545Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0,
+      "execution_seconds": 3.869,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": "runtime-focused",
+      "kind": "root-command",
+      "result_count": 796,
+      "passed_results": 796,
+      "failed_results": 0,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-initial-compile-failure.json",
+      "name": "Compilation initiale du parseur",
+      "description": "Échec E0599 : NumericAtom::X utilisé alors que le type existant ne possède pas cette variante. Aucun cas exécuté.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-initial-compile-failure.json",
+      "recorded_at_utc": "2026-11-14T17:05:53.3034362Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 12.416,
+      "execution_seconds": 0,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "fail",
+      "loop": "parser-build",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": [
+          "error[E0599]: no variant, associated function, or constant named `X` found for enum `automata::NumericAtom` in the ",
+          "error[E0599]: no variant, associated function, or constant named `X` found for enum `automata::NumericAtom` in the "
+        ]
+      }
+    },
+    {
+      "id": "parser-focused-report.json",
+      "name": "Parseur : fixtures de coût ciblées",
+      "description": "11 cas ciblés sur l’émission primitive et les refus ; runner construit après correction du type numérique.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-focused-report.json",
+      "recorded_at_utc": "2026-11-14T17:09:25.8746819Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 18.278,
+      "execution_seconds": 0.42,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": "parser-build",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-native-report.json",
+      "name": "Parseur : régression Native",
+      "description": "654 cas en mode Native sur le même runner construit ; vérifier le résultat source, pas une recompilation par carte.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-native-report.json",
+      "recorded_at_utc": "2026-11-14T17:09:27.6367707Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0,
+      "execution_seconds": 0.87,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-full-report.json",
+      "name": "Parseur : régression Full",
+      "description": "654 cas en mode Full, sans nouvelle compilation du runner.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-full-report.json",
+      "recorded_at_utc": "2026-11-14T17:09:29.3019518Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0,
+      "execution_seconds": 0.812,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "contracts-report.json",
+      "name": "Contrats parseur–moteur",
+      "description": "423 fixtures. Artefacts moteur frais au sens cache Cargo : ce passage ne recompile pas le moteur.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/contracts-report.json",
+      "recorded_at_utc": "2026-11-14T17:09:35.8829285Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 3.0465785999999997,
+      "execution_seconds": 0.7214644,
+      "cargo_queue_wait_seconds": 2.9e-05,
+      "wall_seconds": 6.5291678,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "result_count": 423,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-unit-report.json",
+      "name": "Tests unitaires du parseur",
+      "description": "961 tests réellement exécutés et verts.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-unit-report.json",
+      "recorded_at_utc": "2026-11-14T17:10:04.0635387Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 24.739,
+      "execution_seconds": 1.43,
+      "cargo_queue_wait_seconds": 0.002,
+      "wall_seconds": 28.114,
+      "cache_maintenance_seconds": 1.905,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 961 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s"
+        ],
+        "running": [
+          "running 961 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-ci3-report.json",
+      "name": "Régression unitaire runtime CI3",
+      "description": "333 tests réellement exécutés et verts ; artefact de tests réutilisé.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-ci3-report.json",
+      "recorded_at_utc": "2026-11-14T17:10:06.8584314Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0.219,
+      "execution_seconds": 0.863,
+      "cargo_queue_wait_seconds": 0,
+      "wall_seconds": 2.775,
+      "cache_maintenance_seconds": 1.69,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 333 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s"
+        ],
+        "running": [
+          "running 333 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-ward-ci2-report.json",
+      "name": "Premier gate historique Ward",
+      "description": "Zéro test sélectionné : oracle-compilation absent. Le wrapper refuse cette preuve vide malgré test result:ok.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-report.json",
+      "recorded_at_utc": "2026-11-14T17:10:35.8616272Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 26.227,
+      "execution_seconds": 1.156,
+      "cargo_queue_wait_seconds": 0,
+      "wall_seconds": 28.986,
+      "cache_maintenance_seconds": 1.596,
+      "status": "fail",
+      "loop": "ward-history",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 65 filtered out; finished in 0.00s"
+        ],
+        "running": [
+          "running 0 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-ward-ci2-oracle-report.json",
+      "name": "Gate Ward avec oracle-compilation",
+      "description": "Compilation bloquée par six appels CI2 à des résolveurs legacy déjà supprimés avant ce lot. Extension autorisée du nettoyage aux 12 tests CI2/3/4, archives conservées.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-oracle-report.json",
+      "recorded_at_utc": "2026-11-14T17:14:25.0456497Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 16.16,
+      "execution_seconds": 0,
+      "cargo_queue_wait_seconds": 0.007,
+      "wall_seconds": 18.707,
+      "cache_maintenance_seconds": 2.495,
+      "status": "fail",
+      "loop": "ward-history",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [],
+        "running": [],
+        "errors": [
+          "error[E0599]: no method named `resolve_triggered_instruction` found for struct `engine::GameEngine` in the current ",
+          "error[E0599]: no method named `resolve_triggered_instruction` found for struct `engine::GameEngine` in the current ",
+          "error[E0599]: no method named `resolve_avatar_deck_spell_instruction` found for struct `engine::GameEngine` in the ",
+          "error[E0599]: no method named `resolve_avatar_deck_spell_instruction` found for struct `engine::GameEngine` in the ",
+          "error[E0599]: no method named `resolve_ecc_remaining_ability` found for struct `engine::GameEngine` in the current ",
+          "error[E0599]: no method named `resolve_ecc_remaining_ability` found for struct `engine::GameEngine` in the current "
+        ]
+      }
+    },
+    {
+      "id": "parser-daze-empty-filter-report.json",
+      "name": "Premier filtre de test Daze",
+      "description": "Zéro test sélectionné : filtre trop étroit. Ce lancement n’est pas une preuve.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-daze-empty-filter-report.json",
+      "recorded_at_utc": "2026-11-14T17:18:22.3461697Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 1.228,
+      "execution_seconds": 0.755,
+      "cargo_queue_wait_seconds": 0.007,
+      "wall_seconds": 4.035,
+      "cache_maintenance_seconds": 1.99,
+      "status": "fail",
+      "loop": "parser-targets",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s"
+        ],
+        "running": [
+          "running 0 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-daze-report.json",
+      "name": "Rejeu du filtre Daze corrigé",
+      "description": "Trois tests réellement exécutés et verts.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-daze-report.json",
+      "recorded_at_utc": "2026-11-14T17:18:47.0140523Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0.292,
+      "execution_seconds": 0.046,
+      "cargo_queue_wait_seconds": 0.007,
+      "wall_seconds": 2.312,
+      "cache_maintenance_seconds": 1.918,
+      "status": "pass",
+      "loop": "parser-targets",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        ],
+        "running": [
+          "running 3 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-counter-stale-hero-negative.json",
+      "name": "Contre : ancienne attente négative",
+      "description": "Deux tests verts, un ancien négatif échoue : le qualificatif Hero est maintenant connu ; l’attente doit rester un vrai inconnu.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-counter-stale-hero-negative.json",
+      "recorded_at_utc": "2026-11-14T17:18:58.7632874Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 1.395,
+      "execution_seconds": 0.661,
+      "cargo_queue_wait_seconds": 0.008,
+      "wall_seconds": 3.993,
+      "cache_maintenance_seconds": 1.877,
+      "status": "fail",
+      "loop": "parser-selector",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        ],
+        "running": [
+          "running 3 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "parser-counter-report.json",
+      "name": "Contre : vrai négatif rétabli",
+      "description": "Trois tests verts ; l’attente de refus porte sur un qualificatif réellement inconnu.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/parser-counter-report.json",
+      "recorded_at_utc": "2026-11-14T17:23:57.7593790Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 1.387,
+      "execution_seconds": 0.629,
+      "cargo_queue_wait_seconds": 0.008,
+      "wall_seconds": 4.081,
+      "cache_maintenance_seconds": 2.005,
+      "status": "pass",
+      "loop": "parser-selector",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+        ],
+        "running": [
+          "running 3 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "orphan-test-cleanup-application.json",
+      "name": "Retrait des12 tests legacy inaccessibles",
+      "description": "Suppressions bornées, archives byte-identiques et dette sémantique documentée ; tests génériques Ward inchangés.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/orphan-test-cleanup-application.json",
+      "recorded_at_utc": "2026-11-14T17:24:31.522483+00:00",
+      "timestamp_role": "application_timestamp",
+      "start_at_utc": null,
+      "compile_seconds": null,
+      "execution_seconds": null,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": null,
+      "cache_maintenance_seconds": null,
+      "status": "applied",
+      "loop": null,
+      "kind": "milestone"
+    },
+    {
+      "id": "runtime-ward-ci2-final-report.json",
+      "name": "Gate Ward après nettoyage ciblé",
+      "description": "Deux vrais tests Ward historiques verts ; aucune méthode spécialisée restaurée.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-final-report.json",
+      "recorded_at_utc": "2026-11-14T17:25:32.0035526Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 56.711,
+      "execution_seconds": 0.782,
+      "cargo_queue_wait_seconds": 0.008,
+      "wall_seconds": 59.767,
+      "cache_maintenance_seconds": 2.215,
+      "status": "pass",
+      "loop": "ward-history",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.01s"
+        ],
+        "running": [
+          "running 2 tests"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "runtime-counter-ci2-report.json",
+      "name": "Contre : test historique ciblé CI2",
+      "description": "Un vrai test de contre/paiement historique exécuté et vert.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/runtime-counter-ci2-report.json",
+      "recorded_at_utc": "2026-11-14T17:28:54.7981136Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 0.348,
+      "execution_seconds": 0.026,
+      "cargo_queue_wait_seconds": 0.007,
+      "wall_seconds": 3.234,
+      "cache_maintenance_seconds": 2.807,
+      "status": "pass",
+      "loop": "ward-history",
+      "kind": "root-command",
+      "result_count": null,
+      "passed_results": null,
+      "failed_results": null,
+      "log_summary": {
+        "testResults": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 169 filtered out; finished in 0.01s"
+        ],
+        "running": [
+          "running 1 test"
+        ],
+        "errors": []
+      }
+    },
+    {
+      "id": "strict145",
+      "name": "Certification historique145 cartes",
+      "description": "145/145 cartes, 395 preuves vérifiées fraîches, réseau 0. Décompose aussi architecture, préparation et overhead ; ne pas confondre ces temps avec l’attente Cargo.",
+      "source": ".tmp/night-resolution-cost-unification-root-01/strict145.json",
+      "recorded_at_utc": "2026-11-14T17:33:20.2021929Z",
+      "timestamp_role": "report_generated_at",
+      "start_at_utc": null,
+      "compile_seconds": 8.332,
+      "execution_seconds": 6.946999999999999,
+      "cargo_queue_wait_seconds": null,
+      "wall_seconds": 35.566,
+      "cache_maintenance_seconds": null,
+      "status": "pass",
+      "loop": null,
+      "kind": "root-command",
+      "strict_timing_breakdown_seconds": {
+        "architecture": 7.977,
+        "input": 0.881,
+        "cargo-metadata": 0.092,
+        "parser-build": 6.207,
+        "parser-audit": 0.371,
+        "contract-audit-build": 0,
+        "contract-audit": 0,
+        "contract-build": 1.07,
+        "contract-tests": 1.92,
+        "runtime-build": 1.055,
+        "runtime-tests": 4.656,
+        "overhead": 11.337,
+        "total": 35.566
+      },
+      "execution_scope": "Parser audit + contract/runtime tests; architecture and overhead shown separately in breakdown, not added to execution_seconds."
+    }
+  ],
+  "untimestamped_partial_order": [
+    {
+      "name": "Construction optimisée de l’analyseur",
+      "compile_seconds": 30.442971500000567,
+      "link_seconds": 1.3306759999977658,
+      "execution_seconds": null,
+      "source": ".tmp/night-resolution-cost-unification-root-01/after-analyzer.json",
+      "order_evidence": "Release build followed by the separately measured analyzer link; same build also recorded by after-release-build.process.json, not counted twice."
+    },
+    {
+      "name": "Audit global",
+      "compile_seconds": 0,
+      "execution_seconds": 11.19162150000193,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 0,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit cohort10",
+      "compile_seconds": 0,
+      "execution_seconds": 0.05376659999456024,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 1,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit counter39",
+      "compile_seconds": 0,
+      "execution_seconds": 0.037656299995433073,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 2,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-trk",
+      "compile_seconds": 0,
+      "execution_seconds": 0.1473727999982657,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 3,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-mbc",
+      "compile_seconds": 0,
+      "execution_seconds": 0.0541808000052697,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 4,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-fra",
+      "compile_seconds": 0,
+      "execution_seconds": 0.13375600000290433,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 5,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-hob",
+      "compile_seconds": 0,
+      "execution_seconds": 0.10088819999509724,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 6,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-msh",
+      "compile_seconds": 0,
+      "execution_seconds": 0.11319159999402473,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 7,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-sos",
+      "compile_seconds": 0,
+      "execution_seconds": 0.12193299999489682,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 8,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-tmt",
+      "compile_seconds": 0,
+      "execution_seconds": 0.083098200004315,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 9,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-ecl",
+      "compile_seconds": 0,
+      "execution_seconds": 0.1044257000030484,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 10,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-tla",
+      "compile_seconds": 0,
+      "execution_seconds": 0.13210399999661604,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 11,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Audit ten-spm",
+      "compile_seconds": 0,
+      "execution_seconds": 0.07956209999974817,
+      "source": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "ordinal_in_source_array": 12,
+      "timestamp": null,
+      "order_evidence": "Order in the recorded audit array; no start/end timestamp recorded."
+    },
+    {
+      "name": "Recensement architecture et noms retirés",
+      "execution_seconds": 1.6793537000048673,
+      "compile_seconds": null,
+      "source": ".tmp/night-resolution-cost-unification-root-01/census-initial.json",
+      "timestamp": null,
+      "order_evidence": "No stage timestamp recorded; do not assign wall-clock placement."
+    }
+  ],
+  "loops": [
+    {
+      "id": "author-review",
+      "name": "Implémentation → revue → préservation des coûts",
+      "row_ids": [
+        "author-schema-3",
+        "author-schema-4",
+        "author-implementation"
+      ],
+      "compile_seconds_in_order": [
+        0,
+        0,
+        null
+      ],
+      "execution_seconds_in_order": [
+        0.036,
+        null,
+        null
+      ],
+      "queue_seconds_in_order": [
+        null,
+        null,
+        null
+      ],
+      "measured_edit_seconds": null,
+      "note": "Les durées de modification/diagnostic ne sont pas ventilées dans les sources. La durée auteur3100,888s inclut ses sous-événements et ne doit pas être additionnée à ceux-ci."
+    },
+    {
+      "id": "runtime-focused",
+      "name": "Runner runtime → compilation → correction DATA → rejeu",
+      "row_ids": [
+        "runtime-focused-initial-compile-failure.json",
+        "runtime-focused-report.json",
+        "runtime-focused-corrected-report.json",
+        "runtime-all-report.json"
+      ],
+      "compile_seconds_in_order": [
+        12.129,
+        31.571,
+        0.214,
+        0
+      ],
+      "execution_seconds_in_order": [
+        0,
+        0.612,
+        0.153,
+        3.869
+      ],
+      "queue_seconds_in_order": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    },
+    {
+      "id": "cost-units",
+      "name": "Compilation des tests privés → correction de construction → preuve",
+      "row_ids": [
+        "runtime-cost-unit-initial-compile-failure.json",
+        "runtime-cost-unit-report.json"
+      ],
+      "compile_seconds_in_order": [
+        15.726,
+        92.232
+      ],
+      "execution_seconds_in_order": [
+        0,
+        1.349
+      ],
+      "queue_seconds_in_order": [
+        0.008,
+        0.008
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    },
+    {
+      "id": "parser-build",
+      "name": "Compilation parseur → correction numérique → fixtures",
+      "row_ids": [
+        "parser-initial-compile-failure.json",
+        "parser-focused-report.json"
+      ],
+      "compile_seconds_in_order": [
+        12.416,
+        18.278
+      ],
+      "execution_seconds_in_order": [
+        0,
+        0.42
+      ],
+      "queue_seconds_in_order": [
+        null,
+        null
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    },
+    {
+      "id": "ward-history",
+      "name": "Gate historique → zéro test → feature → legacy inaccessibles → vrais tests",
+      "row_ids": [
+        "runtime-ward-ci2-report.json",
+        "runtime-ward-ci2-oracle-report.json",
+        "runtime-ward-ci2-final-report.json",
+        "runtime-counter-ci2-report.json"
+      ],
+      "compile_seconds_in_order": [
+        26.227,
+        16.16,
+        56.711,
+        0.348
+      ],
+      "execution_seconds_in_order": [
+        1.156,
+        0,
+        0.782,
+        0.026
+      ],
+      "queue_seconds_in_order": [
+        0,
+        0.007,
+        0.008,
+        0.007
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    },
+    {
+      "id": "parser-targets",
+      "name": "Filtre Daze → zéro test → sélection corrigée",
+      "row_ids": [
+        "parser-daze-empty-filter-report.json",
+        "parser-daze-report.json"
+      ],
+      "compile_seconds_in_order": [
+        1.228,
+        0.292
+      ],
+      "execution_seconds_in_order": [
+        0.755,
+        0.046
+      ],
+      "queue_seconds_in_order": [
+        0.007,
+        0.007
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    },
+    {
+      "id": "parser-selector",
+      "name": "Négatif obsolète → vrai inconnu → rejeu",
+      "row_ids": [
+        "parser-counter-stale-hero-negative.json",
+        "parser-counter-report.json"
+      ],
+      "compile_seconds_in_order": [
+        1.395,
+        1.387
+      ],
+      "execution_seconds_in_order": [
+        0.661,
+        0.629
+      ],
+      "queue_seconds_in_order": [
+        0.008,
+        0.008
+      ],
+      "measured_edit_seconds": null,
+      "note": "Tentatives conservées, y compris échec et zéro test. Les intervalles entre rapports ne sont pas assimilés à de l’attente Cargo."
+    }
+  ],
+  "measured_subtotals_not_wall_partition": {
+    "root_cargo_and_separate_link_seconds": 354.42422609999835,
+    "root_wrapper_execution_seconds": 22.101464399999998,
+    "parser_audits_seconds": 12.353556799986109,
+    "recorded_cargo_queue_seconds": 0.07002900000000001,
+    "root_commands_with_queue_measure": 13,
+    "root_commands_queue_not_recorded": 9,
+    "cache_maintenance_seconds": 24.483999999999998,
+    "warning": "Observed operation durations; not person-hours or end-to-end wall time. Author wall includes coordination/schema/reviews. Parallel tasks may overlap. Unknown queue durations remain null."
+  },
+  "source_inventory": [
+    {
+      "path": ".tmp/night-try-pay-cost-primitives-01/timing/night-try-pay-cost-primitives-01.json",
+      "sha256": "366D691917F30700C0C3311701884806478AD926D273B63DE7408DF21634D476",
+      "role": "author-tracker"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/after-analyzer-build.stderr",
+      "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "bytes": 0,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/after-analyzer.json",
+      "sha256": "E08194F296DC7DAEF0C2B5385CD39E2FE8034FD50B8DAADAAAA1515B87164873",
+      "bytes": 298,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/after-release-build.process.json",
+      "sha256": "E16BCFC04FC0AF70C2320C736F6F460F9BF2531A13D22F5B88361233B09C3288",
+      "bytes": 223,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/after-release-build.stderr",
+      "sha256": "4979500C4B92E723D1D056DCA70D65448C3EC7203D93643D73C31A435705E8BC",
+      "bytes": 297,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/after-release-build.stdout",
+      "sha256": "00265391FEE847BA784EBFEADA55B0909E8E162ACA674502FBB8223B922EC5E9",
+      "bytes": 98338,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/analyzer-build.log",
+      "sha256": "CD44006CD22887F4905E9453542229166CF0A5F269ED302AF02F82219EF67D3E",
+      "bytes": 572,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/architecture-final.json",
+      "sha256": "1339EA78480AEECA749776D34ADB15A55D00BCD16238DC91AC6C357FB41422E0",
+      "bytes": 17848,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/architecture-final.log",
+      "sha256": "5BC9F3825FD4770470D9F06C729B520FFCA5FBB60994337AFFF8006DE0BC5909",
+      "bytes": 1234,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/audit-timings.json",
+      "sha256": "7C68FB09922BF04ACB644BEEDD78BEC1439F96E1CEB85DB1DBA6E69390D1B484",
+      "bytes": 5010,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/audit.log",
+      "sha256": "1BB1E8F668F9EA16A1C12B9D5980903F4A0CBE7DC5CAD1EDC16802B8E953343A",
+      "bytes": 276,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/census-initial.json",
+      "sha256": "A9794AB6F97FAC84BDFA52E0072044A01C5172852A6EA03E644D4B250DF71842",
+      "bytes": 9418,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/cohort10-after.jsonl",
+      "sha256": "12823639FA03BF0359315578BF3EF75384E5490EBAF1555BF57BDC164C93F6DA",
+      "bytes": 217396,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/cohort10-audit.stderr",
+      "sha256": "8A051194B36D6FA1D382B57362D7BBCC2C2EB625F080335BB6B6CC652B37481C",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/contracts-report.json",
+      "sha256": "CC07833F5086D72246F3DEC6E1B19A9097D34AF9C592C86FFD839AB1A3A0C4B7",
+      "bytes": 2026,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/contracts.log",
+      "sha256": "2BC2325A545FF725D3A2ACDB3490F3D0B8863146114E05A873D1DB6D1A53FBEA",
+      "bytes": 431674,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/counter39-after.jsonl",
+      "sha256": "678BAC3BABA7FF11DCC0A144DAA052B016DC347B17FAC58871E6227C6B9DDCCC",
+      "bytes": 61101,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/counter39-audit.stderr",
+      "sha256": "4872DB19BAA671EA15208F405691766FD4A97DBAF1742996E4D6B29860FD939D",
+      "bytes": 55,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/data-application.json",
+      "sha256": "57B67E85A464D57832711C529CFF8BFC58B5EEDF1AD4676BD154A26FD8C577D5",
+      "bytes": 7689,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/final-source-freeze.json",
+      "sha256": "B3C20B36E318689B140B1925823D27E7F932A57278DFA540CBC7034C12120F13",
+      "bytes": 109079,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/global-after.jsonl",
+      "sha256": "4BDD92785E5E608B471710D9F1E9EA657600167ACDE5D075358ABFB32354E8C4",
+      "bytes": 72880739,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/global-audit.stderr",
+      "sha256": "AE698799BF26D077DF05BEC987B9FC2AC26890B2A285E7373067B4EA97F36E61",
+      "bytes": 61,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/global-comparison.json",
+      "sha256": "904BC03210CAF869A194A89FC46388BB122A70483C154FB026AE98CD2BF6C680",
+      "bytes": 931,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/global-comparison.log",
+      "sha256": "B56EBF5B7CCA010B07237ED8B731F28C851008583D1650C53F6EA6391B494EE6",
+      "bytes": 1652,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ledger-actual-pins.json",
+      "sha256": "1FD0B4040932ABC52FDCB8240FF26579C8E548C70ACDE921618D3E6C2B3F37DE",
+      "bytes": 565,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ledger-actual-rule-inputs.json",
+      "sha256": "EAE70394DC2DF6A5DB42FFE32A349B1BD076D22D4B7AB1D76F0DF4E1FC0CB5A7",
+      "bytes": 3331,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ledger-affected-rows-before.json",
+      "sha256": "D90E73131F5A862386F07F127BF8A8B023AE39B079BA0C706A26A726D8497210",
+      "bytes": 1212,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ledger-before171.json",
+      "sha256": "C7C33E4D44AC5CADAB0C28A00D534040D5C70058E350887CA7468C5C4D2247F1",
+      "bytes": 153448,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ledger-pin-application.json",
+      "sha256": "2A2A20FE9F4DA60878BF6B7DF424E2488EDE6BF7C5AA2FC12531213EBB9261CD",
+      "bytes": 899,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/observation-probe-runner/manifest.json",
+      "sha256": "EBE6A452EEE30E799667F8909837A273E86317ED55CDA74F3F9A7995D0466DC3",
+      "bytes": 942,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/observation-probe-runner/origin-fingerprint.json",
+      "sha256": "71C7070C026403E351E6F265D340E4EF1BA24F4FAB9BD30302677C00D771BBE8",
+      "bytes": 847,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/orphan-test-cleanup-application.json",
+      "sha256": "E010C476B39CD8F6F82C13BF5AD541986093DA53F465BE560DEC1D10D4F8F23C",
+      "bytes": 630,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-counter-report.json",
+      "sha256": "69D17D899BA014BB32D60BE2FB1CF2C527668AF6F3458DADC51F376DFB009646",
+      "bytes": 2073,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-counter-stale-hero-negative.json",
+      "sha256": "A23B567E873AA07668A411BAC28A4801B179CA30DA2A472CB4B6779DEB07E85C",
+      "bytes": 2074,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-counter-stale-hero-negative.log",
+      "sha256": "665DB93702C6D16BA2476A5DA4CF5FC1EBCF20F52FF598F88567E1E836CF28B1",
+      "bytes": 35616,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-counter.log",
+      "sha256": "95759A0C04F98B1AF9684035BDCE037878B55F3F8E0368C634AE7E698F3CDB7E",
+      "bytes": 33694,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-daze-empty-filter-report.json",
+      "sha256": "A5AC8F503A2EAD2DA4007861A5D7AFF2552DE80F8700A5CA2063705467C5EEF2",
+      "bytes": 2082,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-daze-empty-filter.log",
+      "sha256": "33D9EF4FE07918FA6432A56BA7BEBE84674EFC1E5EAC7F0CE79A0E04B0F2A599",
+      "bytes": 34156,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-daze-report.json",
+      "sha256": "79FB99CF7BF2C8CC4E061E528C8BCCDDBD85E9E0A96CCFE1449D75621F2564BE",
+      "bytes": 2074,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-daze.log",
+      "sha256": "E0653C42635400BEE684B8D5544B962830306E1DCAFC0FA11B7C8E89AE2E9797",
+      "bytes": 33390,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-focused-report.json",
+      "sha256": "89E936F581F9DA84439DF0C0C9C9BFC7AD7817F02889629B22C64C65E22A10AC",
+      "bytes": 1050,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-focused.log",
+      "sha256": "BF9243375723EFFA8DCB348C02B2BBFCCC15C17EAF3382552943F942AFFE5327",
+      "bytes": 41432,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-full-report.json",
+      "sha256": "03CDBAE5E4023880C4FB9DF9588C8379A0731141A1C096F7D3C078924E95A368",
+      "bytes": 1011,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-full.log",
+      "sha256": "14E5DC2FD66057C4BD11C5D8AAE06043D53DACFFCADD5E68EE1BE32183DD0F9D",
+      "bytes": 516830,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-initial-compile-failure.json",
+      "sha256": "8E616635F98AE9487B6758920145EDCFA8CA0F627342DE9890E513EAD02BFFEF",
+      "bytes": 892,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-initial-compile-failure.log",
+      "sha256": "9504AA7735DD16FD7B6166BD1FAA0E8FA27D6120915D3BC6C9D4499D20547864",
+      "bytes": 8774,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-native-report.json",
+      "sha256": "7043350C0E6D468BC82095DD2F4036906511EAA3C9E2900FD1CCED7931844E0E",
+      "bytes": 1016,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-native.log",
+      "sha256": "3C07F2FEC3C13C717066FBE75B4ACD31895E44071BD14E3EE78321E304B23DCC",
+      "bytes": 516832,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-unit-report.json",
+      "sha256": "7F074E8EBBDA365E150C55A082141C4DC892D0B660306C837A60FAD408EED78A",
+      "bytes": 2074,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/parser-unit.log",
+      "sha256": "0FAD22E40548A40663BDD951C796F18D513D342E2FA31D26A9CDE6B9E5F0552D",
+      "bytes": 262536,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-all-report.json",
+      "sha256": "F8BEACC67224D801FE1770B64AE92CAAF814C173AEA21B5A70ACDE7D3F1430B9",
+      "bytes": 152727,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-all.log",
+      "sha256": "313D0C4EDCC7B6C17D25086F85B02C9CE3BA57A5CFCC3548163C991C9956D5C2",
+      "bytes": 1362678,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ci3-report.json",
+      "sha256": "1AC2835EEEDC8546CB3D66060F405B41978FA03EBE99ECF5D04E560CFC8E1AB9",
+      "bytes": 2106,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ci3.log",
+      "sha256": "793B5C19774D188E35EE7385E3C12903F4478141D72A85C23B142313BE49DBB0",
+      "bytes": 92764,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit-initial-compile-failure.json",
+      "sha256": "FE5EFC3367342FBE1C0D05D9834CF8107FC5D9CD6F957CB7B63A69CE9A869040",
+      "bytes": 2097,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit-initial-compile-failure.log",
+      "sha256": "6EFEA0E328BC95C559E83253BBBF058E8519FAF96CAB3E9A2BB8C3A637D0D5BB",
+      "bytes": 8710,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit-report.json",
+      "sha256": "7B6ACC0F124A7C2E24B9F9248E31B0946EAF78AF0B175E60436E7870A9157FC0",
+      "bytes": 2099,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-cost-unit.log",
+      "sha256": "C140C2FF46D63EEBC7CC865D85768625DD6E69148DC8569B97B9BE6904D16E87",
+      "bytes": 18768,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-counter-ci2-report.json",
+      "sha256": "52ACC543FC3401AB8AC7708F6E473E5ABF797D44B75DAD588165E220F86C40BF",
+      "bytes": 5629,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-counter-ci2.log",
+      "sha256": "96CC41D1307579B9CA5684C9CF73F05E4F825B48D2187E602E9E305F52E29B8E",
+      "bytes": 49074,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-corrected-report.json",
+      "sha256": "D9A7F538D1C8140AE675A96F4BD5837DC93E6667D59862E665E76E53DA5B17FB",
+      "bytes": 5123,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-corrected.log",
+      "sha256": "FC4B0FF4ABFCB94AA5A04BF833AA72D17220A6DEB2B1723CFEBF0FD653B51BED",
+      "bytes": 76180,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-initial-compile-failure.json",
+      "sha256": "D0B80A47F63094304EE88E4FD367F50851BE417EC7CAEEBED02121739F686D31",
+      "bytes": 1095,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-initial-compile-failure.log",
+      "sha256": "26F2796FA99C1D6392D7D870730108F23364E52B01F11EED96F6F31BD1FD86CC",
+      "bytes": 8356,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused-report.json",
+      "sha256": "746B54A0D0C55A6A3D702A71B912A4E5D0D00332B8396C420BFCBCB45982121B",
+      "bytes": 5786,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-focused.log",
+      "sha256": "F72721B7B9B3D0228431820318340973FB3F1786FA83CD99DB8ABC447A62F41C",
+      "bytes": 74074,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-final-report.json",
+      "sha256": "89F6609E38C3E21BB0CA3799CF23D9568858E7BE2C1813E6FF17F5EBB2C88211",
+      "bytes": 2090,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-final.log",
+      "sha256": "F6A807E60958260D3201883169E3DB68A044E76760F27F95274086638257CCF8",
+      "bytes": 49434,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-oracle-report.json",
+      "sha256": "E4BF649C15DB58E778925C626670459D4C4CC5FE05D728845AC8519958DC7D26",
+      "bytes": 5250,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-oracle.log",
+      "sha256": "21D4B755710CCD8AD67FFE9C70E3566E26939A8DCFD9B8B12F219D33114B23A6",
+      "bytes": 48034,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2-report.json",
+      "sha256": "AE6582BADCB35431A838742C8C45B1BED9B49E359CF1C3D22B2222C48F8F6631",
+      "bytes": 2109,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/runtime-ward-ci2.log",
+      "sha256": "7567EB26C14409FFCB5E56DF62F2011ADF23680626C57CEF92100F9FD9C516E2",
+      "bytes": 20770,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/source-application.json",
+      "sha256": "DE1693519DD8B6DF59FDFFF9313C252A399CC1741CA77FFE287D2AF8ABA4E4F4",
+      "bytes": 4412,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/strict145.json",
+      "sha256": "4EA7DD317EA799969D9435312A7EAB49AB2E901359DED120C72A7F7FFD3F2A00",
+      "bytes": 197696,
+      "role": "timing-or-outcome-report"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/strict145.log",
+      "sha256": "2D0BB65873D590701AF16FFCE4547B3FADF563AD82F44AF51A2E9ECC74163231",
+      "bytes": 165736,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/synthetic-counter-selector-probes.json",
+      "sha256": "F7B3A750AF4A4D621DFF68FF7F08E44D8CB211E7EB41E75B9372D134B002FF6B",
+      "bytes": 514,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/synthetic-counter-selectors-after.jsonl",
+      "sha256": "5FB459241A378F1ECE58D333B3D653BDA50883825C8E0A0193F28B8B369FBD34",
+      "bytes": 1866,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/synthetic-counter-selectors-before.jsonl",
+      "sha256": "5FB459241A378F1ECE58D333B3D653BDA50883825C8E0A0193F28B8B369FBD34",
+      "bytes": 1866,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/synthetic-counter-selectors-proof.json",
+      "sha256": "408C8213BF9F2369DF201778EF10EA9594138B5F55DAD4CBAB594B580C4C5C6C",
+      "bytes": 7270,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-ecl-after.jsonl",
+      "sha256": "642B085463CFDDBEC8B7ABCD88AE54252C86FA21813691AB4FCE41EDA1AC1CD7",
+      "bytes": 635310,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-ecl-audit.stderr",
+      "sha256": "5A2368E227C46C9AFA9ED5B5379C4D26B73FCB00E92CF11C3337DAD25DF42289",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-fra-after.jsonl",
+      "sha256": "4A43586288F097BB1A9892882CC076204E692C72D31E24DCD1326DA0FCC71CC1",
+      "bytes": 683912,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-fra-audit.stderr",
+      "sha256": "CED235F780BD99FDAA1090F74F1576BA3C53D3326DBD1ED2917E75189FA25B5E",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-hob-after.jsonl",
+      "sha256": "A05256A4F4B177F00F84D9C0BCCD5D97F3273EE420930FB78A136683B4DA1941",
+      "bytes": 450058,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-hob-audit.stderr",
+      "sha256": "EAB01779B89C8DFA3608A2C54132BD5DF96FC5D4F3B9A72D7183EA0047E1B2C9",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-mbc-after.jsonl",
+      "sha256": "286013A26EAF1352D630A1D3CCDE9D10E50A5A3D62B4137D33F00FEC9664D295",
+      "bytes": 218157,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-mbc-audit.stderr",
+      "sha256": "96AACAAD2DC4185C5EE0D2292433E5C174398257E7D68632D6F859FDF2DAE8B2",
+      "bytes": 56,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-msh-after.jsonl",
+      "sha256": "2934E1D31BB37BB11FE08F92FE6D63BA3DE568285738FFA94F2F516B302152A0",
+      "bytes": 593634,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-msh-audit.stderr",
+      "sha256": "463CFB55166E3EAA646B712C8C6FBF33FFF22BF9048D8A68011468B67BF41623",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/comparison.json",
+      "sha256": "BB29217A7CC4862E8AF0CA2E33111A2CC85D88DB6CCFEA265AE84EF05DC79B24",
+      "bytes": 8721,
+      "role": "context-or-metadata"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/ecl-before.jsonl",
+      "sha256": "642B085463CFDDBEC8B7ABCD88AE54252C86FA21813691AB4FCE41EDA1AC1CD7",
+      "bytes": 635310,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/fra-before.jsonl",
+      "sha256": "4A43586288F097BB1A9892882CC076204E692C72D31E24DCD1326DA0FCC71CC1",
+      "bytes": 683912,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/hob-before.jsonl",
+      "sha256": "A05256A4F4B177F00F84D9C0BCCD5D97F3273EE420930FB78A136683B4DA1941",
+      "bytes": 450058,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/mbc-before.jsonl",
+      "sha256": "286013A26EAF1352D630A1D3CCDE9D10E50A5A3D62B4137D33F00FEC9664D295",
+      "bytes": 218157,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/msh-before.jsonl",
+      "sha256": "2934E1D31BB37BB11FE08F92FE6D63BA3DE568285738FFA94F2F516B302152A0",
+      "bytes": 593634,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/sos-before.jsonl",
+      "sha256": "505908E9D11C07012ABBD977EA97CEB7309C60423947074BAE0C96629AB0564E",
+      "bytes": 574572,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/spm-before.jsonl",
+      "sha256": "06134AF85CDBB57AEF8DCD368D1A35892D85C105CF5CB1F09DD2940062906309",
+      "bytes": 431675,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/tla-before.jsonl",
+      "sha256": "ADB4B5EFAA548922B9D9111F7AD4274944160379AFEF8C43AD1A75107AC0522D",
+      "bytes": 655929,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/tmt-before.jsonl",
+      "sha256": "36E4013C945D837D502AD8ADB6E65930455676BEB5F6937CEBDD850FB6346D4C",
+      "bytes": 456491,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets/trk-before.jsonl",
+      "sha256": "6EC1D726D4D7ABBFBA784400F081B91E24105215E80FD8B8EEE6168BBB024E0A",
+      "bytes": 677734,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sets-comparison.log",
+      "sha256": "AA488F48435205AF3336A3243ECAD0A3C222C17AF08C836E64F9834F637C5BC4",
+      "bytes": 634,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sos-after.jsonl",
+      "sha256": "505908E9D11C07012ABBD977EA97CEB7309C60423947074BAE0C96629AB0564E",
+      "bytes": 574572,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-sos-audit.stderr",
+      "sha256": "67C715ADEA11244DCCC89EF24497A4E8A16ACC0367502BDCEA705C468A953745",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-spm-after.jsonl",
+      "sha256": "06134AF85CDBB57AEF8DCD368D1A35892D85C105CF5CB1F09DD2940062906309",
+      "bytes": 431675,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-spm-audit.stderr",
+      "sha256": "CE6679DFDA8B8C71EC17C1A9B134D8D424CBACA081EF318F86536AE43ED102AB",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-tla-after.jsonl",
+      "sha256": "986AA6FDBD4D9A4B03C614296B302A0FB3205DAC74FE5E3C07086C8C38485139",
+      "bytes": 656220,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-tla-audit.stderr",
+      "sha256": "4CB541BDE0A8E4960ACB7D64B572D09D3172BEDE0610E174BBB86ACEAA7BB3B4",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-tmt-after.jsonl",
+      "sha256": "36E4013C945D837D502AD8ADB6E65930455676BEB5F6937CEBDD850FB6346D4C",
+      "bytes": 456491,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-tmt-audit.stderr",
+      "sha256": "1E34AEFFDFC0D320386CD73006E43A1F94C6DF609CD8A57DCB526975A48A83D2",
+      "bytes": 57,
+      "role": "log"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-trk-after.jsonl",
+      "sha256": "6EC1D726D4D7ABBFBA784400F081B91E24105215E80FD8B8EEE6168BBB024E0A",
+      "bytes": 677734,
+      "role": "audit-output"
+    },
+    {
+      "path": ".tmp/night-resolution-cost-unification-root-01/ten-trk-audit.stderr",
+      "sha256": "AB259278282364AA627F029B9DB24C8599A06E05D9709CA28FDE8274877BB560",
+      "bytes": 57,
+      "role": "log"
+    }
+  ],
+  "methodology": [
+    "UTC report/application timestamps provide chronological anchors; no start timestamp is inferred by subtraction.",
+    "Author stage has explicit start/end; schema command events use tracker logging timestamps, not invented command starts.",
+    "Untimestamped release/audit/census durations kept separately with their explicit partial order.",
+    "Cargo compile fields measure build commands including checking/cache/link overhead; not compiler CPU time.",
+    "Release metadata and process metadata describe the same build; counted once; separate link counted once.",
+    "Failed build/zero-test/obsolete DATA expectations retained. No aggregate number treats them as successful proofs.",
+    "All root timing/outcome reports inventoried; backups, raw Rust snapshots and executables are evidence inputs, not new measurements."
+  ],
+  "test_proof_limits": "No Cargo or new audit executed to produce this report. It summarizes recorded evidence only."
+}

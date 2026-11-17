@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-retirement/replaceCreatedTokensWithClues",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceCreatedTokensWithClues",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "ability": "vraskaCompleated",
+        "token": "Food",
+        "additionalTokens": [
+          "Treasure"
+        ],
+        "objects": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        },
+        "optional": true
+      }
+    ]
+  }
+}

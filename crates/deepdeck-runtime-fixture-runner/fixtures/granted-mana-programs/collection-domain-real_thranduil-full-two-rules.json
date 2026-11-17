@@ -1,0 +1,406 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain-real/thranduil-full-two-rules",
+  "seed": 495703,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "ability": {
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "mana": {
+                "kind": "chooseOne",
+                "options": [
+                  "{G}",
+                  "{U}"
+                ]
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          ],
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          }
+        },
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "excludeSource": true,
+          "kind": "permanents",
+          "where": {
+            "kind": "subtypeContains",
+            "value": "Elf"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 3,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "p0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "6b4c1515-6127-4d4b-bdd2-e38bb68693e7",
+            "name": "Thranduil the Strategist",
+            "typeLine": "Legendary Creature — Elf Noble",
+            "manaCost": "{3}{G}{U}",
+            "power": "4",
+            "toughness": "4",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "ability": {
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "mana": {
+                            "kind": "chooseOne",
+                            "options": [
+                              "{G}",
+                              "{U}"
+                            ]
+                          },
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "excludeSource": true,
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Elf"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "effects": [
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "createTokens",
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "abilities": [],
+                      "colors": [
+                        "Green"
+                      ],
+                      "power": 1,
+                      "subtypes": [
+                        "Elf"
+                      ],
+                      "toughness": 1,
+                      "types": [
+                        "Creature"
+                      ]
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "permanentEntered",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "elf-green",
+            "name": "Synthetic elf-green",
+            "typeLine": "Creature — Elf",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "elf-blue",
+            "name": "Synthetic elf-blue",
+            "typeLine": "Creature — Elf",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "own-nonelf",
+            "name": "Synthetic own-nonelf",
+            "typeLine": "Creature — Human",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "synthetic-land-drop",
+            "name": "Synthetic blank land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "p1",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "opponent-elf",
+            "name": "Synthetic opponent-elf",
+            "typeLine": "Creature — Elf",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "hand": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "elf-green",
+      "manaSymbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "elf-blue",
+      "manaSymbols": [
+        "U"
+      ]
+    },
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "synthetic-land-drop"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "G",
+        "U"
+      ]
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p1",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "elf-green",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "elf-blue",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "6b4c1515-6127-4d4b-bdd2-e38bb68693e7",
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "6b4c1515-6127-4d4b-bdd2-e38bb68693e7",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "own-nonelf",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p1",
+      "sourceDefinitionId": "opponent-elf",
+      "manaSymbols": [
+        "U"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "synthetic-land-drop",
+      "equals": true
+    },
+    {
+      "kind": "permanentGroup",
+      "playerId": "p0",
+      "definitionId": "token:elf token",
+      "count": 1,
+      "controller": "p0",
+      "owner": "p0",
+      "powerToughness": {
+        "power": 1,
+        "toughness": 1
+      }
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "p0",
+      "definitionId": "token:elf token",
+      "value": "Elf",
+      "equals": true
+    },
+    {
+      "kind": "permanentColorSymbol",
+      "playerId": "p0",
+      "definitionId": "token:elf token",
+      "symbol": "G",
+      "equals": true
+    },
+    {
+      "kind": "permanentSummoningSick",
+      "playerId": "p0",
+      "definitionId": "token:elf token",
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "token:elf token",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

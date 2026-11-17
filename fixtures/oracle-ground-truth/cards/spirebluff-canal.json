@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "59a04e16-a767-4112-ab01-6ca1b09c286c",
+  "oracleId": "eb0d8093-5f93-4b25-9384-08f9731bfb28",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Spirebluff Canal",
+    "setCode": "otj",
+    "collectorNumber": "270",
+    "typeLine": "Land",
+    "manaCost": "",
+    "oracleText": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {U} or {R}."
+  },
+  "abilities": [
+    {
+      "id": "spirebluff-canal:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "This land enters tapped unless you control two or fewer other lands.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "replacementEffect",
+        "source": { "kind": "self" },
+        "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "compare",
+            "operator": "<=",
+            "left": {
+              "kind": "countPermanents",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            "right": { "kind": "integer", "value": 2 }
+          }
+        },
+        "replacement": [
+          { "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }
+        ]
+      }
+    },
+    {
+      "id": "spirebluff-canal:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{T}: Add {U} or {R}.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "manaAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+        "effects": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+        }]
+      }
+    }
+  ]
+}

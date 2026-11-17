@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "distinct-colors/bloom-complete-exact-input",
+  "cardName": "Bloom Tender",
+  "oracleId": "0c23fefe-9891-4dd8-9bb1-eebdb3274e31",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "ba86688d-18f0-4b5c-a797-42bf125a6c9f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Bloom Tender",
+      "typeLine": "Creature — Elf Druid",
+      "manaCost": "{1}{G}",
+      "oracleText": "Vivid — {T}: For each color among permanents you control, add one mana of that color.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

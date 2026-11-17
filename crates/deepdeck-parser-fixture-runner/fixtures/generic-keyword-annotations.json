@@ -1,0 +1,504 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/typed-keyword-annotation",
+  "cases": [
+    {
+      "id": "exact-complete-garruks-uprising",
+      "request": {
+        "cardName": "Garruk's Uprising",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this enchantment enters, if you control a creature with power 4 or greater, draw a card.\nCreatures you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)\nWhenever a creature you control with power 4 or greater enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "condition": {
+                "kind": "compare",
+                "left": {
+                  "excludeSource": false,
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "compare",
+                        "left": {
+                          "kind": "powerOf",
+                          "object": {
+                            "kind": "candidate"
+                          }
+                        },
+                        "operator": ">=",
+                        "right": {
+                          "kind": "integer",
+                          "value": 4
+                        }
+                      }
+                    ]
+                  }
+                },
+                "operator": ">=",
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "permanentEntered",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "powerOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "operator": ">=",
+                      "right": {
+                        "kind": "integer",
+                        "value": 4
+                      }
+                    }
+                  ]
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reach-intersected-collection",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Artifact creatures you control have reach. (Each of those creatures can block creatures with flying.)"
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "reach",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "old-inline-self-reminder",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-changed-body",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample. (Each of those creatures can deal all combat damage to the player or planeswalker it's attacking.)"
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-unbound-type",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Artifacts you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-union-does-not-imply-type",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Artifacts or creatures you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-wrong-keyword",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have reach. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-singular-collection-subject",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample. (Each of those creature can deal excess combat damage to the player or planeswalker it's attacking.)"
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hostile-missing-close",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "extra-effect-after-reminder",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.) You gain 3 life."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.complete",
+            "found": "You"
+          }
+        ]
+      }
+    },
+    {
+      "id": "temporal-family-remains-unsupported",
+      "request": {
+        "cardName": "Collection Guide",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creatures you control have trample until end of turn."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.connector",
+            "found": "until"
+          }
+        ]
+      }
+    }
+  ]
+}

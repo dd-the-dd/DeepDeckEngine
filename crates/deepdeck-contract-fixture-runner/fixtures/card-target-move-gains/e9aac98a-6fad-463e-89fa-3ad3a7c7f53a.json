@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/e9aac98a-6fad-463e-89fa-3ad3a7c7f53a",
+  "cardName": "Haunted Crossroads",
+  "oracleId": "e9aac98a-6fad-463e-89fa-3ad3a7c7f53a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3c065cae-1ed5-445e-ace3-e81cf4c773de",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Haunted Crossroads",
+      "typeLine": "Enchantment",
+      "manaCost": "{2}{B}",
+      "oracleText": "{B}: Put target creature card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

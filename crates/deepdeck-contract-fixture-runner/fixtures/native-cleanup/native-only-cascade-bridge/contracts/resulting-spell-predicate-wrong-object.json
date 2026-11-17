@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "native-cascade-bridge/resulting-spell-predicate-wrong-object",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "castOneCard",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "candidate"
+        },
+        "sourceZone": "exile",
+        "normalCostsApply": false,
+        "optional": true,
+        "bind": "cast",
+        "spellWhere": {
+          "kind": "compare",
+          "operator": "<",
+          "left": {
+            "kind": "manaValueOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "right": {
+            "kind": "integer",
+            "value": 3
+          }
+        }
+      }
+    ]
+  }
+}

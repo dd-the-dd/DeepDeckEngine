@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/ritual-of-soot-fixed-mana-value-is-executable",
+  "cardName": "Ritual of Soot",
+  "oracleId": "29e9cf1c-a6bd-4bee-9000-ac1b4e19d6b0",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Creature" },
+            {
+              "kind": "compare",
+              "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+              "operator": "<=",
+              "right": { "kind": "integer", "value": 3 }
+            }
+          ]
+        }
+      }
+    }]
+  }
+}

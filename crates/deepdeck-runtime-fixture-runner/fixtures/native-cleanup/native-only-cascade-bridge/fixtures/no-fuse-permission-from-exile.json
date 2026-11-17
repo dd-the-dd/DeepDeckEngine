@@ -1,0 +1,229 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "native-cascade-bridge/no-fuse-permission-from-exile",
+  "seed": 2981,
+  "rule": {
+    "ability": {
+      "kind": "cascade"
+    },
+    "kind": "keywordAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cascade controller",
+        "manaPool": [
+          "G",
+          "U",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "actual-shardless-agent",
+            "name": "Shardless Agent",
+            "typeLine": "Artifact Creature — Human Rogue",
+            "manaCost": "{1}{G}{U}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "cascade"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "fuse-from-exile-candidate",
+            "name": "fuse-from-exile-candidate",
+            "typeLine": "Instant",
+            "manaCost": "{U}{G}",
+            "rules": [
+              {
+                "kind": "rulesMarker",
+                "text": "Synthetic split characteristics",
+                "splitFaces": [
+                  {
+                    "name": "first-face",
+                    "typeLine": "Instant",
+                    "manaCost": "{U}",
+                    "rules": [
+                      {
+                        "kind": "keywordAbility",
+                        "source": {
+                          "kind": "self"
+                        },
+                        "ability": {
+                          "kind": "fuse"
+                        }
+                      },
+                      {
+                        "kind": "spellAbility",
+                        "source": {
+                          "kind": "self"
+                        },
+                        "effects": [
+                          {
+                            "kind": "gainLife",
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "amount": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "second-face",
+                    "typeLine": "Instant",
+                    "manaCost": "{G}",
+                    "rules": [
+                      {
+                        "kind": "keywordAbility",
+                        "source": {
+                          "kind": "self"
+                        },
+                        "ability": {
+                          "kind": "fuse"
+                        }
+                      },
+                      {
+                        "kind": "spellAbility",
+                        "source": {
+                          "kind": "self"
+                        },
+                        "effects": [
+                          {
+                            "kind": "gainLife",
+                            "player": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "amount": {
+                              "kind": "integer",
+                              "value": 2
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Other player",
+        "library": [
+          {
+            "id": "opponent-library-untouched",
+            "name": "opponent-library-untouched",
+            "typeLine": "Creature",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "actual-shardless-agent",
+      "declarationDecisions": {}
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 2
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "cascadeTriggered",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsExiledFromTop",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "opponent-library-untouched",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "exile",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

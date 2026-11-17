@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "typed-resource-envelope",
+  "cases": [
+    {
+      "id": "successful-life-cost-multisentence-is-not-atomic",
+      "request": {
+        "cardName": "Typed Ward envelope probe",
+        "typeLine": "Creature",
+        "manaCost": "{G}",
+        "oracleText": "Ward—Pay 2 life. You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "successful-mana-reminder-conditional-is-not-atomic",
+      "request": {
+        "cardName": "Typed Ward envelope probe",
+        "typeLine": "Creature",
+        "manaCost": "{G}",
+        "oracleText": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.) If you control an Island, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "real-sleight-public-cast-other-goes-bottom",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "lookedCards"
+        },
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 1
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "boundObjects",
+                "binding": "lookedCards"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForHand"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "lookedCards"
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardsForHand"
+          }
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "bottom"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "80dea5c0-ada3-488a-9f2b-f895b92c762f",
+            "name": "Sleight of Hand",
+            "typeLine": "Sorcery",
+            "manaCost": "{U}",
+            "power": null,
+            "toughness": null
+          }
+        ],
+        "library": [
+          {
+            "id": "sleight-0",
+            "name": "Sleight 0",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "sleight-1",
+            "name": "Sleight 1",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "sleight-2",
+            "name": "Sleight 2",
+            "typeLine": "Artifact"
+          }
+        ],
+        "manaPool": [
+          "U"
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "unrelated-opponent-card",
+            "name": "Unrelated Opponent Card",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "80dea5c0-ada3-488a-9f2b-f895b92c762f"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "80dea5c0-ada3-488a-9f2b-f895b92c762f",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "p0",
+      "definitionId": "sleight-1"
+    }
+  ]
+}

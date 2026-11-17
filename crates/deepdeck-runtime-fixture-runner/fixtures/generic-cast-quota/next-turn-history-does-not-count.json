@@ -1,0 +1,250 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cast-quota/next-turn-history-does-not-count",
+  "seed": 10944,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "kind": "castLimitPerTurn",
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "quota-source",
+            "name": "Deafening Silence",
+            "typeLine": "Enchantment",
+            "manaCost": "{W}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "castLimitPerTurn",
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "spell-0",
+            "name": "spell-0",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "spell-1",
+            "name": "spell-1",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "creature",
+            "name": "creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "hand": [
+          {
+            "id": "opponent-instant",
+            "name": "opponent-instant",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "step": "postcombatMain",
+    "turnNumber": 1
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-0"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-1",
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p1",
+      "sourceDefinitionId": "opponent-instant",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ]
+}

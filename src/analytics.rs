@@ -2069,6 +2069,7 @@ mod tests {
         };
         let state = GameState {
             schema_version: "mtg-game/v1".to_string(),
+            battlefield_incarnation_sequence: 0,
             game_mode: GameMode::Free,
             status: GameStatus::Completed,
             turn_number: 17,
@@ -2754,6 +2755,7 @@ mod tests {
             ])));
         let state = GameState {
             schema_version: "mtg-game/v1".to_string(),
+            battlefield_incarnation_sequence: 0,
             game_mode: GameMode::Free,
             status: GameStatus::InProgress,
             turn_number: 1,
@@ -2790,6 +2792,7 @@ mod tests {
         first.battlefield.push(controlled_token);
         let state = GameState {
             schema_version: "mtg-game/v1".to_string(),
+            battlefield_incarnation_sequence: 0,
             game_mode: GameMode::Free,
             status: GameStatus::InProgress,
             turn_number: 1,

@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "quantity/create-for-other-player",
+  "seed": 6313,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "chosenTarget",
+          "id": "creator"
+        },
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "name": "Other Creator",
+          "types": [
+            "Creature"
+          ],
+          "power": 1,
+          "toughness": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Creator",
+        "battlefield": [
+          {
+            "id": "doubling-season",
+            "name": "Doubling Season",
+            "typeLine": "Enchantment",
+            "manaCost": "{4}{G}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "tokenCreation",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceEventQuantity",
+                    "event": {
+                      "kind": "counterPlacement",
+                      "origin": "effect",
+                      "minimum": 1,
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "recipientKind": "permanent"
+                    },
+                    "quantity": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "eventQuantity"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor",
+    "targets": {
+      "creator": {
+        "player": {
+          "playerId": "player-1"
+        }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 3
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "playerId": "player-1",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

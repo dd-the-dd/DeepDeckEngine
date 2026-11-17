@@ -1,0 +1,46 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/8fd85a54-f0c7-4e9f-a4b4-b9b513b98d95/complete-rule-set",
+    "cardName":  "Meltdown",
+    "oracleId":  "8fd85a54-f0c7-4e9f-a4b4-b9b513b98d95",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Artifact"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "compare",
+                                                                                               "left":  {
+                                                                                                            "kind":  "manaValueOf",
+                                                                                                            "object":  {
+                                                                                                                           "kind":  "candidate"
+                                                                                                                       }
+                                                                                                        },
+                                                                                               "operator":  "\u003c=",
+                                                                                               "right":  {
+                                                                                                             "decisionId":  "xValue",
+                                                                                                             "kind":  "decisionResult"
+                                                                                                         }
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

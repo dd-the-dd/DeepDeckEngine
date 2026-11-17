@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "dismember/targeted-temporary-power-toughness-is-executable",
+  "cardName": "Dismember",
+  "oracleId": "fd74f8eb-0253-42dd-8277-186d4934da38",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "modifyPowerToughness",
+      "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+      "power": { "kind": "integer", "value": -5 },
+      "toughness": { "kind": "integer", "value": -5 },
+      "duration": { "kind": "untilEndOfCurrentTurn" }
+    }]
+  }
+}

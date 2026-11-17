@@ -1,9 +1,8 @@
-use regex::Regex;
 use serde_json::{Value, json};
 
 use super::canonical::CanonicalRuleDraft;
 use super::model::{OracleAuditStage, ParsedOracleAbility, SimplificationIteration};
-use super::syntax::{AbilityInput, activation_parts, recognize_entities};
+use super::syntax::AbilityInput;
 
 fn clean_phrase(value: &str) -> String {
     value
@@ -50,7 +49,31 @@ fn condition_phrase(text: &str) -> Option<String> {
     Some(clean_phrase(&remainder[..condition_end]))
 }
 
-fn event_phrase(text: &str, ability_kind: &str) -> Option<String> {
+fn as_enters_event_phrase(input: &AbilityInput<'_>) -> Option<String> {
+    let first = input.tokens.first()?;
+    if !first.raw.eq_ignore_ascii_case("as") {
+        return None;
+    }
+    let separator = input
+        .tokens
+        .iter()
+        .position(|token| token.token_type == "separator" && token.raw == ",")?;
+    if !input.tokens[1..separator]
+        .iter()
+        .any(|token| token.raw.eq_ignore_ascii_case("enters"))
+    {
+        return None;
+    }
+    let end = input.tokens[separator].span_start;
+    input
+        .source
+        .text
+        .get(first.span_start..end)
+        .map(clean_phrase)
+}
+
+fn event_phrase(input: &AbilityInput<'_>, ability_kind: &str) -> Option<String> {
+    let text = input.source.text.trim();
     if ability_kind == "triggeredAbility" {
         return Some(clean_phrase(
             text.split_once(',').map_or(text, |(event, _)| event),
@@ -67,13 +90,8 @@ fn event_phrase(text: &str, ability_kind: &str) -> Option<String> {
             .unwrap_or(action);
         return Some(clean_phrase(event));
     }
-    if Regex::new(r"(?i)^as .+ enters,")
-        .expect("as-enters event regex compiles")
-        .is_match(text.trim_start())
-    {
-        return Some(clean_phrase(
-            text.split_once(',').map_or(text, |(event, _)| event),
-        ));
+    if let Some(event) = as_enters_event_phrase(input) {
+        return Some(event);
     }
     let lower = text.to_ascii_lowercase();
     let enters_index = lower.find(" enters")?;
@@ -107,17 +125,66 @@ fn triggered_effect_phrase(text: &str) -> String {
     clean_phrase(remainder)
 }
 
+fn is_whole_parenthesized(input: &AbilityInput<'_>) -> bool {
+    if input.tokens.first().map(|token| token.raw.as_str()) != Some("(")
+        || input.tokens.last().map(|token| token.raw.as_str()) != Some(")")
+    {
+        return false;
+    }
+    let mut depth = 0_usize;
+    for (index, token) in input.tokens.iter().enumerate() {
+        match token.raw.as_str() {
+            "(" => depth += 1,
+            ")" => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 && index + 1 != input.tokens.len() {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0
+}
+
+fn activation_sections(input: &AbilityInput<'_>) -> Option<(String, String)> {
+    let activation_depth = usize::from(is_whole_parenthesized(input));
+    let mut parenthesis_depth = 0_usize;
+    let mut quoted = false;
+    for token in input.tokens {
+        match token.raw.as_str() {
+            "\"" => quoted = !quoted,
+            "(" if !quoted => parenthesis_depth += 1,
+            ")" if !quoted => parenthesis_depth = parenthesis_depth.saturating_sub(1),
+            ":" if !quoted && parenthesis_depth == activation_depth => {
+                let costs = input
+                    .source
+                    .text
+                    .get(..token.span_start)
+                    .map(clean_phrase)?;
+                let effects = input.source.text.get(token.span_end..).map(clean_phrase)?;
+                if costs.is_empty() || effects.is_empty() {
+                    return None;
+                }
+                return Some((costs, effects));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn section_phrase(input: &AbilityInput<'_>, ability_kind: &str, section: &str) -> String {
     let text = input.source.text.trim();
     match section {
         "source" => source_phrase(input),
-        "costs" => activation_parts(text)
-            .map(|(costs, _)| clean_phrase(costs))
+        "costs" => activation_sections(input)
+            .map(|(costs, _)| costs)
             .unwrap_or_else(|| clean_phrase(text)),
         "activationCondition" => find_ascii_case_insensitive(text, "Activate only if")
             .map(|index| clean_phrase(&text[index..]))
             .unwrap_or_else(|| clean_phrase(text)),
-        "event" => event_phrase(text, ability_kind).unwrap_or_else(|| clean_phrase(text)),
+        "event" => event_phrase(input, ability_kind).unwrap_or_else(|| clean_phrase(text)),
         "condition" => condition_phrase(text).unwrap_or_else(|| clean_phrase(text)),
         "decisions" => find_ascii_case_insensitive(text, "you may pay")
             .map(|index| {
@@ -131,8 +198,8 @@ fn section_phrase(input: &AbilityInput<'_>, ability_kind: &str, section: &str) -
             .unwrap_or_else(|| clean_phrase(text)),
         "replacement" => replacement_phrase(text).unwrap_or_else(|| clean_phrase(text)),
         "effects" => {
-            if let Some((_, effects)) = activation_parts(text) {
-                let condition_index = find_ascii_case_insensitive(effects, "Activate only if")
+            if let Some((_, effects)) = activation_sections(input) {
+                let condition_index = find_ascii_case_insensitive(&effects, "Activate only if")
                     .unwrap_or(effects.len());
                 clean_phrase(&effects[..condition_index])
             } else if ability_kind == "triggeredAbility" {
@@ -156,9 +223,21 @@ fn unresolved_entities(
     path: &str,
 ) -> Value {
     let text = section_phrase(input, ability_kind, section);
-    let entities = recognize_entities(&text)
-        .into_iter()
-        .map(|entity| entity.raw)
+    // Audit is a projection of the one lexical pass, not a second parser.
+    // Locate the section in the original ability and borrow entity values by
+    // their half-open source spans. Synthetic sections (for example an
+    // implicit source) intentionally have no lexical entities.
+    let section_span = find_ascii_case_insensitive(&input.source.text, &text)
+        .map(|span_start| (span_start, span_start + text.len()));
+    let entities = input
+        .tokens
+        .iter()
+        .filter(|entity| {
+            section_span.is_some_and(|(span_start, span_end)| {
+                entity.span_start >= span_start && entity.span_end <= span_end
+            })
+        })
+        .map(|entity| entity.raw.clone())
         .collect::<Vec<_>>();
     json!({
         "kind": "unresolvedEntities",
@@ -431,6 +510,30 @@ pub(crate) fn iterations_for_rule(
     ability_kind: &str,
     draft: &CanonicalRuleDraft,
 ) -> Vec<SimplificationIteration> {
+    if !draft.construction.is_empty() {
+        return draft
+            .construction
+            .iter()
+            .enumerate()
+            .map(|(depth, (operation, result))| {
+                let n = depth + 1;
+                SimplificationIteration {
+                    depth,
+                    id: format!("ability:{ability_index}:iteration:{n}"),
+                    operation: operation.clone(),
+                    result_text: pretty_json(result),
+                    result: result.clone(),
+                    status: if result == &draft.rule {
+                        "canonical"
+                    } else {
+                        "state"
+                    }
+                    .to_string(),
+                    title: format!("Iteration {n}"),
+                }
+            })
+            .collect();
+    }
     let maximum_depth = maximum_object_depth(&draft.rule, 0);
     let mut iterations = Vec::with_capacity(maximum_depth + 1);
     for depth in 0..=maximum_depth {

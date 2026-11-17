@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "8a8121c9-2480-419c-aa9c-5b8b55f65014",
+  "oracleId": "df20f85b-5f81-4ee4-8487-55d90109ac36",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Restless Reef",
+    "setCode": "lci",
+    "collectorNumber": "282",
+    "typeLine": "Land",
+    "manaCost": "",
+    "oracleText": "{2}{U}{B}: Until end of turn, this land becomes a 4/4 blue and black Shark creature with deathtouch. It's still a land."
+  },
+  "abilities": [
+    {
+      "id": "restless-reef:animation-ability",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "{2}{U}{B}: Until end of turn, this land becomes a 4/4 blue and black Shark creature with deathtouch. It's still a land.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+        "effects": [
+          {
+            "kind": "becomeCreature",
+            "object": { "kind": "self" },
+            "addTypes": ["Creature"],
+            "addSubtypes": ["Shark"],
+            "addColors": ["U", "B"],
+            "basePower": { "kind": "integer", "value": 4 },
+            "baseToughness": { "kind": "integer", "value": 4 },
+            "retainExistingTypes": true,
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          },
+          {
+            "kind": "grantKeyword",
+            "object": { "kind": "self" },
+            "keyword": "deathtouch",
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          }
+        ]
+      }
+    }
+  ]
+}

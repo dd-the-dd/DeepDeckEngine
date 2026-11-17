@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/bcc6eece-75ea-494c-b33a-d4477d504e0b/part-0",
+  "cardName": "Sink into Stupor // Soporific Springs",
+  "oracleId": "bcc6eece-75ea-494c-b33a-d4477d504e0b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5358b87a-1a29-426d-b165-40c97da2c14d",
+    "faceId": "5358b87a-1a29-426d-b165-40c97da2c14d:face-0",
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Sink into Stupor // Soporific Springs",
+      "typeLine": "Instant // Land",
+      "manaCost": null,
+      "oracleText": null,
+      "layout": "modal_dfc",
+      "faces": [
+        {
+          "id": "5358b87a-1a29-426d-b165-40c97da2c14d:face-0",
+          "name": "Sink into Stupor",
+          "typeLine": "Instant",
+          "manaCost": "{1}{U}{U}",
+          "oracleText": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
+          "power": null,
+          "toughness": null,
+          "loyalty": null
+        },
+        {
+          "id": "5358b87a-1a29-426d-b165-40c97da2c14d:face-1",
+          "name": "Soporific Springs",
+          "typeLine": "Land",
+          "manaCost": "",
+          "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}.",
+          "power": null,
+          "toughness": null,
+          "loyalty": null
+        }
+      ]
+    }
+  }
+}

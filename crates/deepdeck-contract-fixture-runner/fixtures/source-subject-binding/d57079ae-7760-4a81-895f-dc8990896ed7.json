@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/d57079ae-7760-4a81-895f-dc8990896ed7",
+  "cardName": "Whiptail Moloch",
+  "oracleId": "d57079ae-7760-4a81-895f-dc8990896ed7",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "ccd8e674-49be-47b7-910d-736c9acfa916",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "6",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Whiptail Moloch",
+      "typeLine": "Creature — Lizard",
+      "manaCost": "{4}{R}",
+      "oracleText": "When this creature enters, it deals 3 damage to target creature you control.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

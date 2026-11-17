@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5cf9002d-6c04-420b-8c3b-0a17f674bb09",
+  "cardName": "Pillardrop Rescuer",
+  "oracleId": "5cf9002d-6c04-420b-8c3b-0a17f674bb09",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "0884666e-8f9b-44b1-a1e3-c1c8941e2152",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Pillardrop Rescuer",
+      "typeLine": "Creature — Spirit Cleric",
+      "manaCost": "{4}{W}",
+      "oracleText": "Flying\nWhen this creature enters, return target creature card with mana value 3 or less from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

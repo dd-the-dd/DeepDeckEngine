@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "known-gap-permanent-entered-target-controller-revalidation",
+  "seed": 16112,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "gainLife",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Trigger controller",
+        "battlefield": [{
+          "id": "entry-watcher",
+          "name": "Entry Watcher",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Creature" },
+              "excludeSource": true
+            },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetCreature",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "controller": {
+                    "kind": "opponentsOf",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "modifyPowerToughness",
+              "object": { "kind": "chosenTarget", "id": "targetCreature" },
+              "power": { "kind": "integer", "value": -1 },
+              "toughness": { "kind": "integer", "value": -1 },
+              "duration": { "kind": "untilEndOfCurrentTurn" }
+            }]
+          }]
+        }],
+        "hand": [
+          {
+            "id": "entering-creature",
+            "name": "Entering Creature",
+            "typeLine": "Creature - Test",
+            "manaCost": "",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          },
+          {
+            "id": "control-spell",
+            "name": "Control Spell",
+            "typeLine": "Instant",
+            "manaCost": "",
+            "rules": [{
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "controlTarget",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "permanents",
+                    "controller": {
+                      "kind": "opponentsOf",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                    },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "gainControlPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "controlTarget" },
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }]
+            }]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "opponent-creature",
+          "name": "Opponent Creature",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "entering-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "control-spell" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "permanentController", "playerId": "player-0", "definitionId": "opponent-creature", "equals": "player-0" },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "opponent-creature", "power": 2, "toughness": 2 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityTargetsChosen", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "powerToughnessModified", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

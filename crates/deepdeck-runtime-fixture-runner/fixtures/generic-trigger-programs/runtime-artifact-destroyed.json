@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "generic-negative-comma-artifact-destroyed",
+  "seed": 14301,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                },
+                {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "W",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "modifier-spell",
+            "name": "Negative Modifier Probe",
+            "typeLine": "Instant",
+            "manaCost": "{1}{W}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "legal-artifact",
+            "name": "Legal Artifact",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "creature",
+            "name": "Creature",
+            "typeLine": "Artifact Creature \u2014 Construct",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "land",
+            "name": "Land",
+            "typeLine": "Artifact Land"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "modifier-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "legal-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "land",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

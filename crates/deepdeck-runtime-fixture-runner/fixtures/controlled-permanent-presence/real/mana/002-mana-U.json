@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "drowned-actual-source/mana-U",
+  "seed": 151115,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "mana": {
+          "kind": "chooseOne",
+          "options": [
+            "{U}",
+            "{B}"
+          ]
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "7f6615d6-4307-43fe-a9a1-d2ef956246d0",
+            "name": "Drowned Catacomb",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Island"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Swamp"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "chooseOne",
+                      "options": [
+                        "{U}",
+                        "{B}"
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "witness",
+            "name": "Witness",
+            "typeLine": "Basic Land - Island",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "7f6615d6-4307-43fe-a9a1-d2ef956246d0"
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "7f6615d6-4307-43fe-a9a1-d2ef956246d0",
+      "manaSymbols": [
+        "U"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "7f6615d6-4307-43fe-a9a1-d2ef956246d0",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "7f6615d6-4307-43fe-a9a1-d2ef956246d0",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "U"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,456 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "amass-primitives/completion-observer-on-zero",
+  "seed": 70147,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "controlsPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "subtypeContains",
+                  "subtypeClass": "creature",
+                  "value": "Army"
+                }
+              ]
+            }
+          }
+        },
+        "then": [
+          {
+            "kind": "createTokens",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "quantity": {
+              "kind": "integer",
+              "value": 1
+            },
+            "token": {
+              "name": "Orc Army Token",
+              "colors": [
+                "Black"
+              ],
+              "types": [
+                "Creature"
+              ],
+              "subtypes": [
+                "Orc",
+                "Army"
+              ],
+              "power": 0,
+              "toughness": 0
+            }
+          }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "controlsPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "subtypeContains",
+                "subtypeClass": "creature",
+                "value": "Army"
+              }
+            ]
+          }
+        },
+        "then": [
+          {
+            "kind": "choosePermanents",
+            "id": "effect0:amassedArmy",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "candidates": {
+              "kind": "permanents",
+              "controller": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "where": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  {
+                    "kind": "subtypeContains",
+                    "subtypeClass": "creature",
+                    "value": "Army"
+                  }
+                ]
+              }
+            },
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          {
+            "kind": "putCounters",
+            "permanent": {
+              "kind": "decisionResult",
+              "decisionId": "effect0:amassedArmy"
+            },
+            "counter": "+1/+1",
+            "count": {
+              "kind": "integer",
+              "value": 0
+            }
+          },
+          {
+            "kind": "forEachObject",
+            "objects": {
+              "kind": "decisionResult",
+              "decisionId": "effect0:amassedArmy"
+            },
+            "bind": "effect0:amassedArmy:object",
+            "effects": [
+              {
+                "kind": "addSubtypeToPermanent",
+                "object": {
+                  "kind": "boundValue",
+                  "id": "effect0:amassedArmy:object"
+                },
+                "subtype": "Orc",
+                "duration": {
+                  "kind": "permanent"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "amass",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "hand": [
+          {
+            "id": "source",
+            "name": "Synthetic Army procedure",
+            "typeLine": "Sorcery",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "controlsPermanent",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "subtypeContains",
+                              "subtypeClass": "creature",
+                              "value": "Army"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "createTokens",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "quantity": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "token": {
+                          "name": "Orc Army Token",
+                          "colors": [
+                            "Black"
+                          ],
+                          "types": [
+                            "Creature"
+                          ],
+                          "subtypes": [
+                            "Orc",
+                            "Army"
+                          ],
+                          "power": 0,
+                          "toughness": 0
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "controlsPermanent",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "subtypeClass": "creature",
+                            "value": "Army"
+                          }
+                        ]
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "choosePermanents",
+                        "id": "effect0:amassedArmy",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "candidates": {
+                          "kind": "permanents",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "where": {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "subtypeContains",
+                                "subtypeClass": "creature",
+                                "value": "Army"
+                              }
+                            ]
+                          }
+                        },
+                        "minimum": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "maximum": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "putCounters",
+                        "permanent": {
+                          "kind": "decisionResult",
+                          "decisionId": "effect0:amassedArmy"
+                        },
+                        "counter": "+1/+1",
+                        "count": {
+                          "kind": "integer",
+                          "value": 0
+                        }
+                      },
+                      {
+                        "kind": "forEachObject",
+                        "objects": {
+                          "kind": "decisionResult",
+                          "decisionId": "effect0:amassedArmy"
+                        },
+                        "bind": "effect0:amassedArmy:object",
+                        "effects": [
+                          {
+                            "kind": "addSubtypeToPermanent",
+                            "object": {
+                              "kind": "boundValue",
+                              "id": "effect0:amassedArmy:object"
+                            },
+                            "subtype": "Orc",
+                            "duration": {
+                              "kind": "permanent"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "emitAbilitySignal",
+                    "abilityId": "amass",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "army",
+            "name": "army",
+            "typeLine": "Creature - Zombie Army",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "watcher",
+            "name": "watcher",
+            "typeLine": "Creature - Human",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "abilityPerformed",
+                  "abilityId": "amass",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "manaPool": [
+          "B"
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "amassed",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    }
+  ]
+}

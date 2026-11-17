@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/b9d018ff-de27-4bf6-9cc6-9d9a46db3eb9",
+  "cardName": "Fallowsage",
+  "oracleId": "b9d018ff-de27-4bf6-9cc6-9d9a46db3eb9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "075b8e5e-464b-4ea6-b380-f73aa9c8e5ab",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Fallowsage",
+      "typeLine": "Creature — Merfolk Wizard",
+      "manaCost": "{3}{U}",
+      "oracleText": "Whenever this creature becomes tapped, you may draw a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

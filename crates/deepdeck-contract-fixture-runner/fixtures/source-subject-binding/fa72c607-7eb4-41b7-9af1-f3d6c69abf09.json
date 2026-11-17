@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/fa72c607-7eb4-41b7-9af1-f3d6c69abf09",
+  "cardName": "Mechan Navigator",
+  "oracleId": "fa72c607-7eb4-41b7-9af1-f3d6c69abf09",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "a1fe1d39-42c8-41d0-8bf0-46973e4b07d4",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Mechan Navigator",
+      "typeLine": "Artifact Creature — Robot Pilot",
+      "manaCost": "{1}{U}",
+      "oracleText": "Whenever this creature becomes tapped, draw a card, then discard a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

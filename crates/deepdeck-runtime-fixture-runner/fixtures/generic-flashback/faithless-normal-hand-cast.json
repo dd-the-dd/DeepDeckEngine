@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "flashback/normal-hand-cast-does-not-exile",
+  "seed": 7041,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "discardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "library": [
+          {
+            "id": "draw-one",
+            "name": "draw-one",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "draw-two",
+            "name": "draw-two",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "manaPool": [
+          "R"
+        ],
+        "hand": [
+          {
+            "id": "faithless",
+            "name": "Faithless Looting",
+            "typeLine": "Sorcery",
+            "manaCost": "{R}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "discardCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "flashback",
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{2}{R}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "faithless"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "faithless",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "exile",
+      "definitionId": "faithless",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDiscarded",
+      "equals": 2
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

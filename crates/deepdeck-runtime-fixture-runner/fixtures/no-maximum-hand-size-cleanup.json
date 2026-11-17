@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "no-maximum-hand-size-preserves-eight-cards-through-cleanup",
+  "seed": 149,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [
+      {
+        "kind": "noMaximumHandSize",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Thought Vessel pilot",
+        "battlefield": [
+          {
+            "id": "thought-vessel",
+            "name": "Thought Vessel",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+                "modifiers": [
+                  {
+                    "kind": "noMaximumHandSize",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          { "id": "hand-1", "name": "Hand Card 1", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-2", "name": "Hand Card 2", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-3", "name": "Hand Card 3", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-4", "name": "Hand Card 4", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-5", "name": "Hand Card 5", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-6", "name": "Hand Card 6", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-7", "name": "Hand Card 7", "typeLine": "Instant", "manaCost": "{99}" },
+          { "id": "hand-8", "name": "Hand Card 8", "typeLine": "Instant", "manaCost": "{99}" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 1 }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 8 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "cardDiscarded", "playerId": "player-0", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

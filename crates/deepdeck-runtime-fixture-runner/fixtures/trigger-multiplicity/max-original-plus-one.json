@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "trigger-multiplicity/max-original-plus-one",
+  "seed": 82463,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "multiplyTriggeredAbility",
+        "sources": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": null
+        },
+        "additionalTriggers": 2147483647
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "tapped-source",
+            "name": "tapped-source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "fixedMana",
+                      "symbol": "C",
+                      "amount": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentTapped",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "synthetic-count-0",
+            "name": "synthetic-count-0",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "multiplyTriggeredAbility",
+                    "sources": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": null
+                    },
+                    "additionalTriggers": 2147483647
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "activateManaAbility",
+        "controllerId": "p0",
+        "sourceDefinitionId": "tapped-source",
+        "manaSymbols": [
+          "C"
+        ]
+      },
+      "expectedErrorContains": "integer bound"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "tapped-source",
+      "equals": false
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,351 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/permanent-counter-operands",
+  "cases": [
+    {
+      "id": "exact-complete-abandoned-air-temple",
+      "request": {
+        "cardName": "Abandoned Air Temple",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a basic land.\n{T}: Add {W}.\n{3}{W}, {T}: Put a +1/+1 counter on each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "typeLineContains",
+                        "value": "Basic"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    ]
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{W}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{3}{W}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "counter": "+1/+1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-union-opaque-counter-followed-by-life",
+      "request": {
+        "cardName": "Synthetic collection placement",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Put two ice counters on all artifacts and creatures you control, then gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "counter": "ice",
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-source-placement-preserved",
+      "request": {
+        "cardName": "Synthetic source placement",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Put a +1/+1 counter on this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "self"
+                  },
+                  "counter": "+1/+1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-card-domain",
+      "request": {
+        "cardName": "Synthetic collection near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on each creature card you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permanent.operand.collection.domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-extra-controller",
+      "request": {
+        "cardName": "Synthetic collection near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on each creature you control your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-opponent-set-not-supported-in-this-version",
+      "request": {
+        "cardName": "Synthetic collection near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on each creature your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

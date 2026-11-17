@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "farseek-finds-one-eligible-subtype-and-moves-it-tapped",
+  "seed": 23,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "subtypeContains", "value": "Plains" },
+              { "kind": "subtypeContains", "value": "Island" },
+              { "kind": "subtypeContains", "value": "Swamp" },
+              { "kind": "subtypeContains", "value": "Mountain" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      { "kind": "shuffleZone", "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Farseek pilot",
+        "manaPool": ["C", "G"],
+        "hand": [{ "id": "farseek", "name": "Farseek", "typeLine": "Sorcery", "manaCost": "{1}{G}" }],
+        "library": [
+          { "id": "eligible-island", "name": "Eligible Island", "typeLine": "Land - Island" },
+          { "id": "eligible-mountain", "name": "Eligible Mountain", "typeLine": "Land - Mountain" },
+          { "id": "ineligible-forest", "name": "Ineligible Forest", "typeLine": "Land - Forest" },
+          { "id": "ineligible-spell", "name": "Ineligible Spell", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "farseek" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "selectCards", "count": 1, "take": "forward" }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "eligible-island", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "eligible-island", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "eligible-mountain", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "ineligible-forest", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "farseek", "equals": true },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/reanimateWithTypeCounter",
+  "cardName": "Specialized effect audit batch04",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "reanimateWithTypeCounter",
+        "card": {
+          "kind": "chosenTarget",
+          "id": "object"
+        },
+        "controller": {
+          "kind": "abilityController"
+        },
+        "creatureCounter": "+1/+1",
+        "planeswalkerCounter": "loyalty"
+      }
+    ]
+  }
+}

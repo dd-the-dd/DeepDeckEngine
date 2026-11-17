@@ -1,0 +1,824 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "synthetic/embedded-selected-sacrifice-transport",
+  "cases": [
+    {
+      "id": "synthetic-saga-embedded-selected-sacrifice",
+      "request": {
+        "cardName": "Synthetic selected sacrifice saga probe",
+        "typeLine": "Enchantment Land — Urza's Saga",
+        "manaCost": "",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — This Saga gains \"Sacrifice a creature: Add {C}.\"\nII — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "rulesMarker",
+            "rule": {
+              "finalChapter": {
+                "kind": "integer",
+                "value": 3
+              },
+              "kind": "rulesMarker",
+              "marker": "sagaProgression",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "ability": {
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "costs": [
+                      {
+                        "kind": "sacrificePermanent",
+                        "permanent": {
+                          "kind": "chosenObject",
+                          "id": "activationCostPermanent0"
+                        }
+                      }
+                    ],
+                    "declaration": {
+                      "kind": "castingDeclaration",
+                      "decisions": [
+                        {
+                          "kind": "chooseObjects",
+                          "id": "activationCostPermanent0",
+                          "candidates": {
+                            "kind": "permanents",
+                            "controller": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "where": {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          },
+                          "quantity": {
+                            "kind": "exactly",
+                            "value": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "mana": "{C}",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "duration": {
+                    "kind": "permanent"
+                  },
+                  "kind": "grantAbility",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "event": {
+                "chapters": [
+                  {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                ],
+                "kind": "sagaChapterReached",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "ability": {
+                    "costs": [
+                      {
+                        "kind": "payMana",
+                        "manaCost": "{2}"
+                      },
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "createTokens",
+                        "quantity": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "token": {
+                          "abilities": [
+                            {
+                              "activeWhile": {
+                                "kind": "inZone",
+                                "object": {
+                                  "kind": "self"
+                                },
+                                "zone": {
+                                  "kind": "battlefield"
+                                }
+                              },
+                              "kind": "staticAbility",
+                              "modifiers": [
+                                {
+                                  "kind": "modifyPowerToughness",
+                                  "objects": {
+                                    "kind": "self"
+                                  },
+                                  "power": {
+                                    "kind": "countPermanents",
+                                    "player": {
+                                      "kind": "controllerOf",
+                                      "object": {
+                                        "kind": "self"
+                                      }
+                                    },
+                                    "where": {
+                                      "kind": "cardTypeContains",
+                                      "value": "Artifact"
+                                    }
+                                  },
+                                  "toughness": {
+                                    "kind": "countPermanents",
+                                    "player": {
+                                      "kind": "controllerOf",
+                                      "object": {
+                                        "kind": "self"
+                                      }
+                                    },
+                                    "where": {
+                                      "kind": "cardTypeContains",
+                                      "value": "Artifact"
+                                    }
+                                  }
+                                }
+                              ],
+                              "source": {
+                                "kind": "self"
+                              }
+                            }
+                          ],
+                          "colors": [],
+                          "power": 0,
+                          "subtypes": [
+                            "Construct"
+                          ],
+                          "toughness": 0,
+                          "types": [
+                            "Artifact",
+                            "Creature"
+                          ]
+                        }
+                      }
+                    ],
+                    "kind": "activatedAbility",
+                    "source": {
+                      "kind": "self"
+                    }
+                  },
+                  "duration": {
+                    "kind": "permanent"
+                  },
+                  "kind": "grantAbility",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "event": {
+                "chapters": [
+                  {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                ],
+                "kind": "sagaChapterReached",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "manaCostEquals",
+                              "value": "{0}"
+                            },
+                            {
+                              "kind": "manaCostEquals",
+                              "value": "{1}"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "chapters": [
+                  {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                ],
+                "kind": "sagaChapterReached",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-modal-embedded-selected-sacrifice",
+      "request": {
+        "cardName": "Synthetic selected sacrifice modal probe",
+        "typeLine": "Kindred Instant — Eldrazi",
+        "manaCost": "{X}{C}{C}",
+        "oracleText": "Choose two —\n• Target player creates X 0/1 colorless Eldrazi Spawn creature tokens with \"Sacrifice a creature: Add {C}.\"\n• Target player scries X, then draws a card.\n• Exile target creature with mana value X or less.\n• Exile up to X target cards from graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "allowRepeated": false,
+                    "id": "chosenModes",
+                    "kind": "chooseModes",
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "minimum": 2,
+                    "options": [
+                      "mode1",
+                      "mode2",
+                      "mode3",
+                      "mode4"
+                    ]
+                  },
+                  {
+                    "id": "xValue",
+                    "kind": "chooseNumber",
+                    "minimum": 0
+                  },
+                  {
+                    "candidates": {
+                      "kind": "players"
+                    },
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode1"
+                    },
+                    "id": "mode1:targetPlayer",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "players"
+                    },
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode2"
+                    },
+                    "id": "mode2:targetPlayer",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "<=",
+                            "right": {
+                              "decisionId": "xValue",
+                              "kind": "decisionResult"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode3"
+                    },
+                    "id": "mode3:targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      }
+                    },
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode4"
+                    },
+                    "id": "mode4:targetCards",
+                    "kind": "chooseTargets",
+                    "maximum": {
+                      "decisionId": "xValue",
+                      "kind": "decisionResult"
+                    },
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "condition": {
+                    "kind": "selectionContains",
+                    "selection": {
+                      "decisionId": "chosenModes",
+                      "kind": "decisionResult"
+                    },
+                    "value": "mode1"
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "controller": {
+                        "id": "mode1:targetPlayer",
+                        "kind": "chosenTarget"
+                      },
+                      "kind": "createTokens",
+                      "quantity": {
+                        "decisionId": "xValue",
+                        "kind": "decisionResult"
+                      },
+                      "token": {
+                        "abilities": [
+                          {
+                            "kind": "manaAbility",
+                            "source": {
+                              "kind": "self"
+                            },
+                            "costs": [
+                              {
+                                "kind": "sacrificePermanent",
+                                "permanent": {
+                                  "kind": "chosenObject",
+                                  "id": "activationCostPermanent0"
+                                }
+                              }
+                            ],
+                            "declaration": {
+                              "kind": "castingDeclaration",
+                              "decisions": [
+                                {
+                                  "kind": "chooseObjects",
+                                  "id": "activationCostPermanent0",
+                                  "candidates": {
+                                    "kind": "permanents",
+                                    "controller": {
+                                      "kind": "controllerOf",
+                                      "object": {
+                                        "kind": "self"
+                                      }
+                                    },
+                                    "where": {
+                                      "kind": "cardTypeContains",
+                                      "value": "Creature"
+                                    }
+                                  },
+                                  "quantity": {
+                                    "kind": "exactly",
+                                    "value": {
+                                      "kind": "integer",
+                                      "value": 1
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "effects": [
+                              {
+                                "kind": "addMana",
+                                "mana": "{C}",
+                                "player": {
+                                  "kind": "controllerOf",
+                                  "object": {
+                                    "kind": "self"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "colors": [],
+                        "power": 0,
+                        "subtypes": [
+                          "Eldrazi",
+                          "Spawn"
+                        ],
+                        "toughness": 1,
+                        "types": [
+                          "Creature"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "condition": {
+                    "kind": "selectionContains",
+                    "selection": {
+                      "decisionId": "chosenModes",
+                      "kind": "decisionResult"
+                    },
+                    "value": "mode2"
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "bind": "mode2:scryLookedCards",
+                      "count": {
+                        "decisionId": "xValue",
+                        "kind": "decisionResult"
+                      },
+                      "kind": "lookAtTopCards",
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "id": "mode2:targetPlayer",
+                          "kind": "chosenTarget"
+                        }
+                      }
+                    },
+                    {
+                      "from": {
+                        "binding": "mode2:scryLookedCards",
+                        "kind": "boundObjects"
+                      },
+                      "id": "mode2:scryBottomCards",
+                      "kind": "chooseCards",
+                      "maximum": {
+                        "kind": "countObjects",
+                        "objects": {
+                          "binding": "mode2:scryLookedCards",
+                          "kind": "boundObjects"
+                        }
+                      },
+                      "minimum": {
+                        "kind": "integer",
+                        "value": 0
+                      },
+                      "player": {
+                        "id": "mode2:targetPlayer",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    {
+                      "id": "mode2:scryBottomOrder",
+                      "kind": "chooseOrder",
+                      "objects": {
+                        "decisionId": "mode2:scryBottomCards",
+                        "kind": "decisionResult"
+                      },
+                      "player": {
+                        "id": "mode2:targetPlayer",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    {
+                      "cards": {
+                        "decisionId": "mode2:scryBottomOrder",
+                        "kind": "decisionResult"
+                      },
+                      "kind": "moveCards",
+                      "order": {
+                        "decisionId": "mode2:scryBottomOrder",
+                        "kind": "decisionOrder"
+                      },
+                      "to": {
+                        "kind": "library",
+                        "player": {
+                          "id": "mode2:targetPlayer",
+                          "kind": "chosenTarget"
+                        },
+                        "position": "bottom"
+                      }
+                    },
+                    {
+                      "id": "mode2:scryTopOrder",
+                      "kind": "chooseOrder",
+                      "objects": {
+                        "kind": "setDifference",
+                        "left": {
+                          "binding": "mode2:scryLookedCards",
+                          "kind": "boundObjects"
+                        },
+                        "right": {
+                          "decisionId": "mode2:scryBottomCards",
+                          "kind": "decisionResult"
+                        }
+                      },
+                      "player": {
+                        "id": "mode2:targetPlayer",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    {
+                      "cards": {
+                        "decisionId": "mode2:scryTopOrder",
+                        "kind": "decisionResult"
+                      },
+                      "kind": "moveCards",
+                      "order": {
+                        "decisionId": "mode2:scryTopOrder",
+                        "kind": "decisionOrder"
+                      },
+                      "to": {
+                        "kind": "library",
+                        "player": {
+                          "id": "mode2:targetPlayer",
+                          "kind": "chosenTarget"
+                        },
+                        "position": "top"
+                      }
+                    },
+                    {
+                      "condition": {
+                        "kind": "compare",
+                        "left": {
+                          "decisionId": "xValue",
+                          "kind": "decisionResult"
+                        },
+                        "operator": ">=",
+                        "right": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      "else": [],
+                      "kind": "conditional",
+                      "then": [
+                        {
+                          "abilityId": "scry",
+                          "kind": "emitAbilitySignal",
+                          "player": {
+                            "id": "mode2:targetPlayer",
+                            "kind": "chosenTarget"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "id": "mode2:targetPlayer",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "condition": {
+                    "kind": "selectionContains",
+                    "selection": {
+                      "decisionId": "chosenModes",
+                      "kind": "decisionResult"
+                    },
+                    "value": "mode3"
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "kind": "exilePermanent",
+                      "permanent": {
+                        "id": "mode3:targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "condition": {
+                    "kind": "selectionContains",
+                    "selection": {
+                      "decisionId": "chosenModes",
+                      "kind": "decisionResult"
+                    },
+                    "value": "mode4"
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "cards": {
+                        "id": "mode4:targetCards",
+                        "kind": "chosenTargets"
+                      },
+                      "kind": "exileTargetCards"
+                    }
+                  ]
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

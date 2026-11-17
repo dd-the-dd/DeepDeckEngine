@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "izzet-signet-pays-one-taps-and-adds-blue-red",
+  "seed": 97,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{U}{R}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Izzet pilot",
+        "manaPool": ["C"],
+        "battlefield": [{
+          "id": "izzet-signet",
+          "name": "Izzet Signet",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "izzet-signet",
+    "manaSymbols": ["U", "R"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U", "R"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "izzet-signet",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

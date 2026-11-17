@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0c3c3bcc-d485-4a01-92fe-8bf29c0fc926",
+  "cardName": "Meteorite",
+  "oracleId": "0c3c3bcc-d485-4a01-92fe-8bf29c0fc926",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "33eb2032-50af-4fd6-bdc7-7cae2211956c",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Meteorite",
+      "typeLine": "Artifact",
+      "manaCost": "{5}",
+      "oracleText": "When this artifact enters, it deals 2 damage to any target.\n{T}: Add one mana of any color.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

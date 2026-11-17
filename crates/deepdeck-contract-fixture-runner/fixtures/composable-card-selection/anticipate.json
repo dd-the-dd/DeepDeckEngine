@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "composable-selection/anticipate/complete-real-source",
+  "cardName": "Anticipate",
+  "oracleId": "a97da5a9-17fc-4367-81e1-17ff81601a63",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "46b6dfb2-ffe4-44fb-bfd9-df11bc3193df",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Anticipate",
+      "typeLine": "Instant",
+      "manaCost": "{1}{U}",
+      "oracleText": "Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

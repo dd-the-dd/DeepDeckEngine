@@ -1,0 +1,461 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-activation-explicit-source-availability",
+  "cases": [
+    {
+      "id": "activation-declares-own-x",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{X}: This creature gets +X/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{X}"
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseNumber",
+                    "id": "xValue",
+                    "minimum": 0
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-subject-produces-local-it",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: This creature gets +1/+0 until end of turn and it gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{0}"
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "keyword": "flying",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unparenthesized-arithmetic-word-before-slash",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature gets +X plus two/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unparenthesized-property-word-before-slash",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: This creature gets +this creature's power/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{0}"
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "activation-cannot-borrow-source-spell-x",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{X}{G}",
+        "oracleText": "{0}: This creature gets +X/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sacrifice-self-removes-source",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice this creature: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selected-sacrifice-could-remove-source",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice a creature: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "discard-hand-is-not-battlefield-proof",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Discard this card: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "availability-is-not-initial-it",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: It gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "availability-not-sacrifice-pronoun",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: Sacrifice it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "availability-not-return-pronoun",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: Return it to the battlefield transformed under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-left-component-is-not-numeric",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: This creature gets +frobnicate/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-count-reader-remains-unsupported",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: This creature gets +the number of creatures you control/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "force-of-negation/conditional-alternative-cost-is-executable",
+  "cardName": "Force of Negation",
+  "oracleId": "ac2173f9-f223-440a-9231-fd98762bdc6f",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "condition": { "kind": "notYourTurn" },
+      "costs": [{
+        "kind": "exileCard",
+        "zone": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          }
+        },
+        "where": { "kind": "colorContains", "value": "blue" }
+      }]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/14bf3049-faa3-4c1f-a613-603e977a50a4",
+  "cardName": "Stitcher's Apprentice",
+  "oracleId": "14bf3049-faa3-4c1f-a613-603e977a50a4",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "717e34b9-161e-4b11-afb1-f41ee8027433",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Stitcher's Apprentice",
+      "typeLine": "Creature — Homunculus",
+      "manaCost": "{1}{U}",
+      "oracleText": "{1}{U}, {T}: Create a 2/2 blue Homunculus creature token, then sacrifice a creature.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

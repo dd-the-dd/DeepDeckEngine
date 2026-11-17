@@ -1,0 +1,271 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cycle-gain-real/dredge-complete-cast",
+  "seed": 7717,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "or",
+          "operands": [
+            {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          ]
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "manaPool": [
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "efc9498a-b740-44de-aef3-01a1fa4ee49a",
+            "name": "Dredge",
+            "typeLine": "Instant",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "creature-offering",
+            "name": "creature-offering",
+            "typeLine": "Creature — Bear",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "land-offering",
+            "name": "land-offering",
+            "typeLine": "Basic Land — Forest",
+            "rules": []
+          },
+          {
+            "id": "artifact-ineligible",
+            "name": "artifact-ineligible",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "drawn-card",
+            "name": "drawn-card",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "opponent-library",
+            "name": "opponent-library",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "efc9498a-b740-44de-aef3-01a1fa4ee49a"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "efc9498a-b740-44de-aef3-01a1fa4ee49a",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "efc9498a-b740-44de-aef3-01a1fa4ee49a",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "creature-offering",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "land-offering",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "artifact-ineligible",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "drawn-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

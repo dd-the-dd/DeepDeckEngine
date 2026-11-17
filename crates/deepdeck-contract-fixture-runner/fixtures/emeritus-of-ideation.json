@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "emeritus-of-ideation/primitive-prepare-contract",
+  "cardName": "Emeritus of Ideation // Ancestral Recall",
+  "oracleId": "24a29be4-5bc2-469b-b2ce-2fb305c3facb",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbilityGroup",
+      "source": { "kind": "self" },
+      "abilities": [
+        { "kind": "flying" },
+        { "kind": "ward", "cost": { "kind": "payMana", "manaCost": "{2}" } }
+      ]
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "replacement": [{
+        "kind": "setPrepared",
+        "object": { "kind": "self" },
+        "value": true
+      }]
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "optionalAction",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "action": {
+          "kind": "exileCards",
+          "count": 8,
+          "from": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        },
+        "onPerformed": [{
+          "kind": "setPrepared",
+          "object": { "kind": "self" },
+          "value": true
+        }]
+      }]
+    },
+    {
+      "kind": "prepareSpell",
+      "spell": {
+        "id": "ancestral-recall",
+        "name": "Ancestral Recall",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "rules": [{
+          "kind": "spellAbility",
+          "source": { "kind": "self" },
+          "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": [{
+              "id": "targetPlayer",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": { "kind": "players" }
+            }]
+          },
+          "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+            "count": { "kind": "integer", "value": 3 }
+          }]
+        }]
+      }
+    }
+  ]
+}

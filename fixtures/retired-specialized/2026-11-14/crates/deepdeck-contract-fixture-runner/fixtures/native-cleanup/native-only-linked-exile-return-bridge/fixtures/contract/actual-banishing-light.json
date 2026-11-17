@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "linked-return/actual-banishing-light",
+  "cardName": "Banishing Light",
+  "oracleId": "f28b21a6-f7ce-437a-8c5b-0423cb55cefb",
+  "expectedExecutable": true,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          },
+          "id": "exileTarget",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "candidates": {
+          "controller": {
+            "kind": "opponentsOf",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "not",
+            "operand": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          }
+        },
+        "kind": "exilePermanentWithSource",
+        "maximum": 1,
+        "minimum": 1,
+        "permanent": {
+          "id": "exileTarget",
+          "kind": "chosenTarget"
+        },
+        "returnWhenSourceLeaves": true
+      }
+    ],
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "brainstorm-draw-three-put-two-back-in-order",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "count": { "kind": "integer", "value": 3 }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForLibrary",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "minimum": { "kind": "integer", "value": 2 },
+        "maximum": { "kind": "integer", "value": 2 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": { "kind": "self" }
+            }
+          },
+          "where": null
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "cardsForLibraryOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForLibrary"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForLibraryOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": { "kind": "self" }
+          },
+          "position": "top"
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "cardsForLibraryOrder"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Brainstorm pilot",
+        "hand": [
+          {
+            "id": "brainstorm",
+            "name": "Brainstorm",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ],
+        "library": [
+          { "id": "library-card-0", "name": "Library Card 0", "typeLine": "Sorcery" },
+          { "id": "library-card-1", "name": "Library Card 1", "typeLine": "Sorcery" },
+          { "id": "library-card-2", "name": "Library Card 2", "typeLine": "Sorcery" },
+          { "id": "library-card-3", "name": "Library Card 3", "typeLine": "Sorcery" },
+          { "id": "library-card-4", "name": "Library Card 4", "typeLine": "Sorcery" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "brainstorm"
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 2, "take": "reverse" },
+    { "kind": "orderCards", "order": "reverse" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 2 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 4 },
+    { "kind": "decisionCount", "equals": 2 }
+  ]
+}

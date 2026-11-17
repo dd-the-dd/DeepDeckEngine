@@ -53,10 +53,36 @@ cargo test --locked
 pwsh ./scripts/check-public-tree.ps1
 ```
 
+The workspace has three compilation boundaries for fast card migration:
+
+```powershell
+# Parser-only semantic fixture; does not compile the simulation runtime.
+cargo test -p deepdeck-oracle --test card_coverage
+
+# Parser-only Scryfall audit in official set order.
+$env:AUDIT_CARD_BY_CARD='1'
+$env:AUDIT_COLLECTOR='69'
+cargo run -p deepdeck-oracle --features audit-cli --example audit_parser_set -- set:msh
+
+# Runtime proof for a card, using only the relevant private-test partition.
+cargo test -p deepdeck-engine-runtime --no-default-features `
+  --features ci-unit-tests-2 parsed_mana_symbol_cast_trigger_filters
+
+# Parser IR to runtime-schema contract regression.
+cargo test -p deepdeck-oracle-engine-contracts --no-default-features `
+  --features ci-unit-tests-3 reusable_marvel_leaves
+```
+
+`deepdeck-oracle` owns Oracle text to primitive IR. `deepdeck-engine-runtime`
+owns deterministic simulation and rule executability. `mtg-engine` contains the
+HTTP/session/application layer. The contract-only package keeps private parser
+tests coupled to the public runtime validator without putting that cost in the
+parser edit loop.
+
 `cargo check --all-targets` is intentionally part of CI because it type-checks
-every target. CI executes the private-access unit tests in four independently
-linked, memory-bounded partitions on Linux and Windows; plain `cargo test` and
-`cargo test --lib` continue to run the complete unit-test suite locally.
+every target. CI executes parser, runtime, parser-runtime contracts, and the
+application tests as independently linked, memory-bounded targets on Linux and
+Windows. Runtime and contract unit tests remain divided into four partitions.
 `scripts/check-unit-test-partitions.ps1` guards the partition inventory and
 fails when a new private-access test has not been assigned to a partition.
 CI also executes the independently linked integration-test binaries.

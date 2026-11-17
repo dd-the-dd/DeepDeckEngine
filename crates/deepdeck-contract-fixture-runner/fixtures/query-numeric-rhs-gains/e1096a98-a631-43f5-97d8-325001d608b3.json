@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/e1096a98-a631-43f5-97d8-325001d608b3",
+  "cardName": "Quicksilver Amulet",
+  "oracleId": "e1096a98-a631-43f5-97d8-325001d608b3",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "04c0357a-e98d-4c49-83ad-d7a8ebe7e2d1",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Quicksilver Amulet",
+      "typeLine": "Artifact",
+      "manaCost": "{4}",
+      "oracleText": "{4}, {T}: You may put a creature card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "multiversal-passage/retain-chosen-land-type-is-executable",
+  "cardName": "Multiversal Passage",
+  "oracleId": "17770eeb-ecbf-4510-af2d-acececfbe146",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [
+      { "kind": "retainChosenBasicLandType", "decisionId": "basicLandType" }
+    ]
+  }
+}

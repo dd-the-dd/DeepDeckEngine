@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-negative/event-quantity-counter-direct",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "self"
+        },
+        "counter": "charge",
+        "count": {
+          "kind": "eventQuantity"
+        }
+      }
+    ]
+  }
+}

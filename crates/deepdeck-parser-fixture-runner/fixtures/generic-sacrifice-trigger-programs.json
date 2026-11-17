@@ -1,0 +1,486 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/sacrifice-trigger-programs",
+  "cases": [
+    {
+      "id": "exact-real-mayhem-devil",
+      "request": {
+        "cardName": "Mayhem Devil",
+        "typeLine": "Creature — Devil",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Whenever a player sacrifices a permanent, this creature deals 1 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentSacrificed",
+                "where": null
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetDamageable",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "anyTarget"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "chosenTarget",
+                    "id": "targetDamageable"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-controller-artifact",
+      "request": {
+        "cardName": "Synthetic artifact sacrifice watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice an artifact, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.sacrifice.characteristic-snapshot-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-other-union-sequence",
+      "request": {
+        "cardName": "Synthetic other sacrifice watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice another artifact or creature, draw two cards and gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.sacrifice.characteristic-snapshot-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-opponent-runtime-pending",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever an opponent sacrifices a permanent, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.sacrifice.actor-scope-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-card-domain",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice a card, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.sacrifice.object-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-one-or-more",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice one or more permanents, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.sacrifice.object-head"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-extra-controller",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice an artifact you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.sacrifice.object-controller"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-numeric-lki",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice a creature with power 4 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.sacrifice.numeric-snapshot-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-intervening-if-now-composed-by-shared-parent",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice a permanent, if you control a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentSacrificed",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-nonpermanent-face",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Whenever a player sacrifices a permanent, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "trigger.program.permanent-face",
+            "expected": "a permanent source face for this battlefield triggered ability",
+            "found": "draw",
+            "tokenIndex": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-unbound-trigger-x",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{X}{R}",
+        "oracleText": "Whenever you sacrifice a permanent, draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-undropped-once-suffix",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice a permanent, draw a card. This ability triggers only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "permanentSacrificed",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": null
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "count": { "kind": "integer", "value": 1 }
+                }
+              ],
+              "triggerLimit": { "kind": "onceEachTurn", "id": "onceEachTurn:0" }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-unrepresented-limit-is-never-dropped",
+      "request": {
+        "cardName": "Synthetic sacrifice near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice a permanent, draw a card. This ability triggers only twice each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-other-bare-sequence",
+      "request": {
+        "cardName": "Synthetic bare sacrifice watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you sacrifice another permanent, draw two cards and gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentSacrificed",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "excludeSource": true
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

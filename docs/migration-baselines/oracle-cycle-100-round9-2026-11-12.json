@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 9,
+  "generatedDate": "2026-11-12",
+  "status": "certified",
+  "concept": "exactCardinalityModalEffectSequence",
+  "finalParserFingerprint": "74DE902E2A30F7636738C7BA638FF89A97A894989734E2B05E6031F8F782E27B",
+  "priorityCards": [
+    { "name": "Abrade", "oracleId": "f9db72dc-9a5b-48a4-a86e-7464d9a2166a" },
+    { "name": "Austere Command", "oracleId": "09cc8709-fe10-472a-b05c-e89f3523018d" }
+  ],
+  "architecture": {
+    "header": "Choose positive-literal N followed by em dash",
+    "modeBoundary": "bullet token",
+    "child": "EffectSequence",
+    "modeLocalDecisionPrefix": "modeN:",
+    "externalBindingsRemainUnprefixed": ["xValue", "event", "source"],
+    "allowRepeated": false,
+    "unsupportedHeaders": ["one or both", "one or more", "conditional cardinality", "repeatable modes"],
+    "legacyExactAbradeLeafRemoved": true,
+    "newEngineOperation": false
+  },
+  "proofs": {
+    "parser": {
+      "passed": 6,
+      "total": 6,
+      "compileSeconds": 31.257,
+      "executionSeconds": 0.566,
+      "path": ".tmp/modal-effect-sequence-parser-build.json"
+    },
+    "parserRegression": {
+      "status": "passed",
+      "executionSeconds": 0.288,
+      "path": ".tmp/modal-effect-sequence-parser-regression.json"
+    },
+    "repositoryContracts": {
+      "passed": 218,
+      "total": 218,
+      "path": ".tmp/modal-parent-contract-regression.jsonl"
+    },
+    "generatedContracts": {
+      "gainedAbilities": { "passed": 29, "total": 29 },
+      "gainedFullCards": { "passed": 21, "total": 21 },
+      "executionSeconds": 0.133,
+      "path": ".tmp/modal-global-gains-contracts-74DE902E.jsonl"
+    },
+    "exactRuntime": {
+      "passed": 4,
+      "total": 4,
+      "assertions": 29,
+      "executionSeconds": 0.068,
+      "path": ".tmp/modal-real-cast-runtime-root.json"
+    },
+    "runtimeGate": {
+      "passed": 366,
+      "total": 366,
+      "executionSeconds": 1.468
+    },
+    "strictRuleEquality": {
+      "status": "passed",
+      "path": ".tmp/modal-parser-contract-runtime-equality-74DE902E.json"
+    },
+    "architecture": {
+      "violations": 0,
+      "historicalWarnings": 4,
+      "executionSeconds": 8.734,
+      "path": ".tmp/modal-parent-architecture-74DE902E.json"
+    }
+  },
+  "coverage": {
+    "round7": { "cards": 100, "preservedNativeAbilities": 27, "gainedNativeAbilities": 2, "gainedFullyNativeCards": 2, "regressions": 0 },
+    "queue450": { "cards": 450, "preservedNativeAbilities": 250, "gainedNativeAbilities": 2, "gainedFullyNativeCards": 2, "regressions": 0 },
+    "sevenSets": { "cards": 2069, "preservedNativeAbilities": 1128, "gainedNativeAbilities": 1, "gainedFullyNativeCards": 0, "regressions": 0 },
+    "global": { "cards": 39288, "preservedNativeAbilities": 14491, "gainedNativeAbilities": 29, "gainedFullyNativeCards": 21, "regressions": 0 }
+  },
+  "fullCardPopulation": { "ordinary": 21, "variants": 0, "auxiliary": 0, "layouts": { "normal": 21 } },
+  "runtimeProofScope": {
+    "exactPriorityCards": ["Abrade", "Austere Command"],
+    "additionalSibling": "Darigaaz's Charm",
+    "otherGlobalGainsHaveIndividualRuntimeFixtures": false
+  },
+  "timings": {
+    "analysisSeconds": 170.935,
+    "implementationWindowSeconds": 492.297,
+    "correctiveLoops": 1,
+    "parserCompileSeconds": 31.257,
+    "parserExecutionSeconds": 0.566,
+    "analyzerLinkSeconds": 1.106,
+    "globalAuditWallSeconds": 30.675,
+    "strictComparisonSeconds": 5.519
+  },
+  "trackers": [
+    ".tmp/card-migration-timings/round7-abrade-modal-parent.json",
+    ".tmp/card-migration-timings/round7-austere-command-modal-parent.json"
+  ]
+}

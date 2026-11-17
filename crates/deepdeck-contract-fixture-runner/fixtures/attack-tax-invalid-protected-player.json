@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "attack-tax/unresolvable-player-is-not-executable",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "chosenPlayer", "id": "protectedPlayer" },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  }
+}

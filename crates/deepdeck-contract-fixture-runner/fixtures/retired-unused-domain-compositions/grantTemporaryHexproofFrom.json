@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/grantTemporaryHexproofFrom",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "grantTemporaryHexproofFrom",
+        "player": {
+          "kind": "abilityController"
+        },
+        "includePlayer": true,
+        "includeControlledPermanents": true,
+        "from": [
+          "W"
+        ],
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  }
+}

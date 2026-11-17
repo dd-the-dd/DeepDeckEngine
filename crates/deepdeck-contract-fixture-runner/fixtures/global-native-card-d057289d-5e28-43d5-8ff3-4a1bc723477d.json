@@ -1,0 +1,27 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/d057289d-5e28-43d5-8ff3-4a1bc723477d/complete-rule-set",
+    "cardName":  "Day of Judgment",
+    "oracleId":  "d057289d-5e28-43d5-8ff3-4a1bc723477d",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Creature"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "seed": 1894,
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source",
+    "decisions": {
+      "triggeringPlayerId": "player-1"
+    }
+  },
+  "id": "synthetic/simultaneous-sacrifice/destination-source-leaves",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "triggeringPlayer"
+        },
+        "objects": {
+          "kind": "eachPermanent",
+          "player": {
+            "kind": "triggeringPlayer"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected",
+        "battlefield": [
+          {
+            "id": "replacement-source",
+            "name": "replacement-source",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceGraveyardDestination",
+                    "graveyardOwners": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "to": {
+                      "kind": "exile"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "victim",
+            "name": "victim",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "exile",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDied",
+      "equals": 0
+    }
+  ]
+}

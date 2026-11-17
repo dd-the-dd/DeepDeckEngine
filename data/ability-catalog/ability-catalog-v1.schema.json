@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://deepdeck.local/schemas/ability-catalog-v1.schema.json",
+  "title": "DeepDeck versioned Magic ability catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "catalogSchemaVersion",
+    "catalogId",
+    "catalogVersion",
+    "rulesVersion",
+    "entries"
+  ],
+  "properties": {
+    "catalogSchemaVersion": { "const": "deepdeck-ability-catalog/v1" },
+    "catalogId": { "type": "string", "minLength": 1 },
+    "catalogVersion": { "type": "string", "minLength": 1 },
+    "rulesVersion": { "$ref": "#/$defs/rulesVersion" },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "rulesVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectiveDate", "rulesPageUrl"],
+      "properties": {
+        "effectiveDate": { "type": "string", "format": "date" },
+        "rulesPageUrl": { "type": "string", "format": "uri" },
+        "releaseUpdateUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonicalId",
+        "name",
+        "aliases",
+        "category",
+        "rulesReferences",
+        "rulesText",
+        "grammarTemplates",
+        "reminderGrammarTemplates",
+        "semantic",
+        "support",
+        "representativeCards",
+        "provenance"
+      ],
+      "properties": {
+        "canonicalId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "category": {
+          "enum": [
+            "keywordAbility",
+            "keywordAction",
+            "abilityWord",
+            "marker",
+            "staticOrCostMechanic"
+          ]
+        },
+        "classificationNotes": { "type": "string" },
+        "rulesReferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rulesReference" }
+        },
+        "rulesText": { "$ref": "#/$defs/rulesText" },
+        "grammarTemplates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/grammarTemplate" }
+        },
+        "reminderGrammarTemplates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reminderGrammarTemplate" }
+        },
+        "compiledIntegration": { "$ref": "#/$defs/compiledIntegration" },
+        "semantic": { "$ref": "#/$defs/semantic" },
+        "support": { "$ref": "#/$defs/support" },
+        "representativeCards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cardEvidence" }
+        },
+        "provenance": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance" }
+        }
+      }
+    },
+    "rulesReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document", "version", "section", "sourceUrl"],
+      "properties": {
+        "document": { "enum": ["ComprehensiveRules", "Oracle"] },
+        "version": { "$ref": "#/$defs/nonEmptyString" },
+        "section": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "grammarTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["templateId", "tokenGrammar", "bindings"],
+      "properties": {
+        "templateId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "tokenGrammar": { "$ref": "#/$defs/nonEmptyString" },
+        "bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        },
+        "reminderTextPolicy": {
+          "enum": ["none", "optionalIgnoredForRecognition", "separateValidationGrammar"]
+        }
+      }
+    },
+    "reminderGrammarTemplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["templateId", "tokenGrammar", "bindings"],
+      "properties": {
+        "templateId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "tokenGrammar": { "$ref": "#/$defs/nonEmptyString" },
+        "bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "compiledIntegration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recognizerId",
+        "loweringAdapterId",
+        "bindings",
+        "emittedPrimitives",
+        "unknownPolicy"
+      ],
+      "properties": {
+        "recognizerId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$"
+        },
+        "loweringAdapterId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$"
+        },
+        "bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/compiledBinding" }
+        },
+        "emittedPrimitives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9]*$"
+          }
+        },
+        "unknownPolicy": { "const": "structuredFailure" }
+      }
+    },
+    "compiledBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "source"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*$"
+        },
+        "type": {
+          "enum": ["positiveInteger", "objectSet"]
+        },
+        "source": {
+          "enum": ["recognizerOutput", "loweringOutput"]
+        }
+      }
+    },
+    "rulesText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "clauses"],
+      "properties": {
+        "version": { "type": "string", "format": "date" },
+        "clauses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rulesTextClause" }
+        }
+      }
+    },
+    "rulesTextClause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clauseId", "text", "sourceSection", "usage"],
+      "properties": {
+        "clauseId": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$"
+        },
+        "text": { "$ref": "#/$defs/nonEmptyString" },
+        "sourceSection": { "$ref": "#/$defs/nonEmptyString" },
+        "usage": { "const": "documentationOnly" }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primitiveDecomposition", "namedActionPerformed", "intrinsicHooks"],
+      "properties": {
+        "primitiveDecomposition": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/primitiveStep" }
+        },
+        "namedActionPerformed": { "$ref": "#/$defs/signalPolicy" },
+        "intrinsicHooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "primitiveStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "primitive", "inputs", "outputs"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 1 },
+        "primitive": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*$"
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" }
+        },
+        "guard": { "type": "string" }
+      }
+    },
+    "signalPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "cardinality"],
+      "properties": {
+        "policy": { "enum": ["never", "afterActionCompletes"] },
+        "actionId": { "type": "string", "pattern": "^[a-z][a-z0-9.-]*$" },
+        "cardinality": { "enum": ["none", "oncePerAction"] },
+        "zeroQuantity": { "enum": ["notApplicable", "emit", "doNotEmit"] },
+        "resultBindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonEmptyString" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lexical", "parser", "runtime", "notes"],
+      "properties": {
+        "lexical": { "$ref": "#/$defs/supportLevel" },
+        "parser": { "$ref": "#/$defs/supportLevel" },
+        "runtime": { "$ref": "#/$defs/supportLevel" },
+        "notes": { "type": "string" }
+      }
+    },
+    "supportLevel": {
+      "enum": ["supportedNative", "supportedLegacy", "partial", "unsupported"]
+    },
+    "cardEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "oracleLookup"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "oracleLookup": { "$ref": "#/$defs/nonEmptyString" },
+        "fixture": { "type": "string" },
+        "test": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "locator", "asOf"],
+      "properties": {
+        "kind": {
+          "enum": ["officialRules", "officialRulesUpdate", "officialMechanicsArticle", "localOracleCorpus"]
+        },
+        "locator": { "$ref": "#/$defs/nonEmptyString" },
+        "asOf": { "type": "string", "format": "date" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

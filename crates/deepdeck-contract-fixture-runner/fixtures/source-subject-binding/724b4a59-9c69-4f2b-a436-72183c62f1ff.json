@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/724b4a59-9c69-4f2b-a436-72183c62f1ff",
+  "cardName": "Nebula Dragon",
+  "oracleId": "724b4a59-9c69-4f2b-a436-72183c62f1ff",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "0ee509dd-9fba-4b6d-a9d4-cc8bf5822ddd",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Nebula Dragon",
+      "typeLine": "Creature — Dragon",
+      "manaCost": "{6}{R}",
+      "oracleText": "Flying\nWhen this creature enters, it deals 3 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

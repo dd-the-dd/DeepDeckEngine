@@ -1,0 +1,314 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/zone-prohibitions",
+  "cases": [
+    {
+      "id": "complete-real-card",
+      "request": {
+        "cardName": "Grafdigger's Cage",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creature cards in graveyards and libraries can't enter the battlefield.\nPlayers can't cast spells from graveyards or libraries."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "prohibitEnterBattlefieldFromZones",
+                  "zones": [
+                    "graveyard",
+                    "library"
+                  ],
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "prohibitCastFromZones",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "zones": [
+                    "graveyard",
+                    "library"
+                  ],
+                  "where": null
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-entry-union",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Artifact or creature cards in libraries or graveyards cannot enter the battlefield."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "prohibitEnterBattlefieldFromZones",
+                  "zones": [
+                    "library",
+                    "graveyard"
+                  ],
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-cast-three-zone-list",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Each player cannot cast artifact or creature spells from graveyards, libraries, or exile."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "prohibitCastFromZones",
+                  "players": {
+                    "kind": "eachPlayer"
+                  },
+                  "zones": [
+                    "graveyard",
+                    "library",
+                    "exile"
+                  ],
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "narrow-player",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Your opponents can't cast spells from graveyards."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "entry-hand-cap",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creature cards in hands can't enter the battlefield."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "entry-exile-cap",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creature cards in exile can't enter the battlefield."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cast-hand-cap",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Players can't cast spells from hands."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bad-destination",
+      "request": {
+        "cardName": "Shared zone source",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Creature cards in graveyards can't enter the library."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

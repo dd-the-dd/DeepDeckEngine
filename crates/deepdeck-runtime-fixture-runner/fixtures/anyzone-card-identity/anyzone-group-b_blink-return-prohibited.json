@@ -1,0 +1,227 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "anyzone-group-b/blink-return-prohibited",
+  "seed": 261115,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{0}"
+      }
+    ],
+    "effects": [
+      {
+        "kind": "blinkPermanent",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "blink"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "blink",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Player Zero",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "writer-source",
+            "name": "Writer Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "blinkPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "blink"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "blink",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "id": "entrant",
+            "name": "Entrant",
+            "typeLine": "Creature - Bear",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "entry-policy",
+            "name": "Entry Policy",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "prohibitEnterBattlefieldFromZones",
+                    "zones": [
+                      "hand",
+                      "graveyard",
+                      "exile"
+                    ],
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "base",
+            "name": "Base",
+            "typeLine": "Instant",
+            "manaCost": "{0}"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Player One",
+        "life": 20,
+        "library": [
+          {
+            "id": "other-base",
+            "name": "Other Base",
+            "typeLine": "Instant",
+            "manaCost": "{0}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "writer-source",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "blink": {
+          "kind": "permanentDefinition",
+          "definitionId": "entrant"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "exile",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "entrant",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentEnteredBattlefield",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentBlinked",
+      "equals": 0
+    }
+  ]
+}

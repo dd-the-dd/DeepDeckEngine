@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "gloomlake-verge/conditional-fixed-mana-is-executable",
+  "cardName": "Gloomlake Verge",
+  "oracleId": "d71bda4c-3dee-4398-8fd0-f77d8743b887",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "activationCondition": {
+      "kind": "controlsPermanent",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "subtypeContains", "value": "Island" },
+          { "kind": "subtypeContains", "value": "Swamp" }
+        ]
+      }
+    },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{B}"
+    }]
+  }
+}

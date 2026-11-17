@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/77eda626-5cef-496d-b291-cfa1ee6fc1fb",
+  "cardName": "Cycle of Renewal",
+  "oracleId": "77eda626-5cef-496d-b291-cfa1ee6fc1fb",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "233f4a05-057b-48f4-8f56-8d4a060a40e4",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Cycle of Renewal",
+      "typeLine": "Instant — Lesson",
+      "manaCost": "{2}{G}",
+      "oracleText": "Sacrifice a land. Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

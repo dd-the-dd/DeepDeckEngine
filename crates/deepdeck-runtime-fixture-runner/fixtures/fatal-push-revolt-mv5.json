@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "fatal-push-with-revolt-refuses-mana-value-five",
+  "seed": 83,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "conditionalEffect",
+      "condition": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countEventsThisTurn",
+          "event": "permanentLeftBattlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "right": { "kind": "integer", "value": 1 }
+      },
+      "then": [{
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "objectMatchesFilter",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+          "where": {
+            "kind": "compare",
+            "operator": "<=",
+            "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "integer", "value": 4 }
+          }
+        },
+        "then": [{ "kind": "destroyPermanent", "permanent": { "kind": "chosenTarget", "id": "targetPermanent" } }],
+        "else": []
+      }],
+      "else": []
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Fatal Push pilot",
+        "hand": [{
+          "id": "fatal-push",
+          "name": "Fatal Push",
+          "typeLine": "Instant",
+          "manaCost": "{B}",
+          "rules": [
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": { "kind": "permanents", "where": { "kind": "cardTypeContains", "value": "Creature" } }
+                }]
+              },
+              "effects": [{
+                "kind": "conditionalEffect",
+                "condition": {
+                  "kind": "objectMatchesFilter",
+                  "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                  "where": {
+                    "kind": "compare",
+                    "operator": "<=",
+                    "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                    "right": { "kind": "integer", "value": 2 }
+                  }
+                },
+                "then": [{ "kind": "destroyPermanent", "permanent": { "kind": "chosenTarget", "id": "targetPermanent" } }],
+                "else": []
+              }]
+            },
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "effects": [{
+                "kind": "conditionalEffect",
+                "condition": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "permanentLeftBattlefield",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": null
+                  },
+                  "right": { "kind": "integer", "value": 1 }
+                },
+                "then": [{
+                  "kind": "conditionalEffect",
+                  "condition": {
+                    "kind": "objectMatchesFilter",
+                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                    "where": {
+                      "kind": "compare",
+                      "operator": "<=",
+                      "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                      "right": { "kind": "integer", "value": 4 }
+                    }
+                  },
+                  "then": [{ "kind": "destroyPermanent", "permanent": { "kind": "chosenTarget", "id": "targetPermanent" } }],
+                  "else": []
+                }],
+                "else": []
+              }]
+            }
+          ]
+        }],
+        "battlefield": [{
+          "id": "revolt-enabler",
+          "name": "Revolt Enabler",
+          "typeLine": "Artifact",
+          "rules": [{
+            "kind": "manaAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "sacrificePermanent", "permanent": { "kind": "self" } }],
+            "effects": [{
+              "kind": "addMana",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "mana": "{B}"
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "mv5-creature",
+          "name": "Mana Value Five Creature",
+          "typeLine": "Creature - Test",
+          "manaCost": "{4}{G}",
+          "power": "5",
+          "toughness": "5"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "activateManaAbility", "controllerId": "player-0", "sourceDefinitionId": "revolt-enabler" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "fatal-push" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "revolt-enabler", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "mv5-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "mv5-creature", "equals": false },
+    { "kind": "eventCount", "eventKind": "permanentLeftBattlefield", "equals": 1 },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

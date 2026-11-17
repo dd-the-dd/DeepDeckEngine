@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retire-damage-aliases/dealDamageToEachOpponentAndCreaturesTheyControl",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "dealDamageToEachOpponentAndCreaturesTheyControl",
+        "amount": 2
+      }
+    ]
+  }
+}

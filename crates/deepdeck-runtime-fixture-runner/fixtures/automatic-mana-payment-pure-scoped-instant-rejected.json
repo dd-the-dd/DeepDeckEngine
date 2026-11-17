@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mana-payment/scoped-production-does-not-pay-for-an-instant",
+  "seed": 1414,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "Synthetic Pure Mana Source",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{G}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "spendRestriction": {
+                      "kind": "castSpell",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "spell",
+            "name": "Generic Payment Spell",
+            "typeLine": "Instant",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "1",
+            "toughness": "1"
+          }
+        ],
+        "library": [
+          {
+            "id": "drawn",
+            "name": "Library Card",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "spell",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

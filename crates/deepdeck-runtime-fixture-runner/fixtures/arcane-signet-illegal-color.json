@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "arcane-signet-rejects-color-outside-commander-identity",
+  "seed": 1,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "chooseCommanderColor",
+          "amount": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Arcane Signet pilot",
+        "library": [
+          {
+            "id": "red-blue-commander",
+            "name": "Red-Blue Commander",
+            "typeLine": "Legendary Creature",
+            "manaCost": "{U}{R}",
+            "isCommander": true,
+            "rules": [
+              {
+                "kind": "rulesMarker",
+                "text": "Color identity",
+                "colorIdentity": [
+                  "U",
+                  "R"
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "arcane-signet",
+            "name": "Arcane Signet",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "arcane-signet",
+      "manaSymbols": [
+        "R"
+      ],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "arcane-signet",
+      "manaSymbols": [
+        "U"
+      ],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "arcane-signet",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

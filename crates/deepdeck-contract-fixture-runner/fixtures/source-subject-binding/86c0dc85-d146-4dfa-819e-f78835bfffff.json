@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/86c0dc85-d146-4dfa-819e-f78835bfffff",
+  "cardName": "Lava Hounds",
+  "oracleId": "86c0dc85-d146-4dfa-819e-f78835bfffff",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cf83d5c7-a17c-4350-9432-92a01421b39a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Lava Hounds",
+      "typeLine": "Creature — Dog",
+      "manaCost": "{2}{R}{R}",
+      "oracleText": "Haste\nWhen this creature enters, it deals 4 damage to you.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

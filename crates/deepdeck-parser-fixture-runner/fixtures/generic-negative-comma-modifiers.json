@@ -1,0 +1,337 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/negative-comma-modifiers",
+  "cases": [
+    {
+      "id": "archive-arbiter-exact-mode-body-MUTATED-spell-context",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature, nonland permanent."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "destroyPermanent"
+              }
+            ],
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          },
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "cardTypeContains",
+                              "value": "Land"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-negative-comma",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Exile target noncreature, nonland permanent."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-three-negative-comma",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature, nonland, nonartifact permanent."
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "destroyPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-positive-domain",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature, nonland."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "card-domain-remains-rejected",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature, nonland card."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spell-domain-remains-rejected",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature, nonland spell."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-or-remains-union",
+      "request": {
+        "cardName": "Negative Modifier Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Destroy target noncreature or nonland permanent."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    }
+  ]
+}

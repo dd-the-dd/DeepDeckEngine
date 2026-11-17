@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "talisman-of-indulgence/both-native-mana-rules-are-executable",
+  "cardName": "Talisman of Indulgence",
+  "oracleId": "1d9aeaaa-66f6-41cb-9bac-162d6fd8662c",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{B}", "{R}"] }
+        },
+        {
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 1 },
+          "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    }
+  ]
+}

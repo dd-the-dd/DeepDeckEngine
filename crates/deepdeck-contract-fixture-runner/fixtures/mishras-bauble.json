@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "mishras-bauble/target-library-look-and-next-upkeep-draw-are-executable",
+  "cardName": "Mishra's Bauble",
+  "oracleId": "63afc3d1-7653-476e-838f-fc18d4a62a21",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPlayer",
+        "kind": "chooseTargets",
+        "candidates": { "kind": "players" },
+        "minimum": 1,
+        "maximum": 1
+      }]
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "chosenTarget", "id": "targetPlayer" }
+        },
+        "count": { "kind": "integer", "value": 1 },
+        "bind": "lookedTopCards"
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "upkeep",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "effects": [{
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": { "kind": "integer", "value": 1 }
+        }]
+      }
+    ]
+  }
+}

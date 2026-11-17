@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/b6a965eb-cffb-41c1-925a-7cf3e8e2f248",
+  "cardName": "Lush Oasis",
+  "oracleId": "b6a965eb-cffb-41c1-925a-7cf3e8e2f248",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "988e44c5-4632-4ebb-b6ae-c3886e49d637",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Lush Oasis",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {G} or {U}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

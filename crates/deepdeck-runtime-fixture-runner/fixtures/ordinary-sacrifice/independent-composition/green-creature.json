@@ -1,0 +1,242 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "independent-ordinary-sacrifice/green-creature",
+  "seed": 88502,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "and",
+          "operands": [
+            {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              ]
+            },
+            {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "colorContains",
+                  "value": "Red"
+                },
+                {
+                  "kind": "colorContains",
+                  "value": "Green"
+                }
+              ]
+            }
+          ]
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 3
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "Synthetic Independent Composition Executor",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "sacrificePermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "colorContains",
+                              "value": "Red"
+                            },
+                            {
+                              "kind": "colorContains",
+                              "value": "Green"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "eligible",
+            "name": "Eligible green-creature",
+            "typeLine": "Creature",
+            "manaCost": "{G}",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "blue",
+            "name": "Ineligible Blue Creature",
+            "typeLine": "Creature",
+            "manaCost": "{U}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "library": [
+          {
+            "id": "filler",
+            "name": "filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "other",
+            "name": "other",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "source"
+      }
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "eligible",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "eligible",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "blue",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 23
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1
+    }
+  ]
+}

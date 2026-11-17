@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/ca7964a1-b4ce-412b-bcae-e0dfbb95389a",
+  "cardName": "Murasa Rootgrazer",
+  "oracleId": "ca7964a1-b4ce-412b-bcae-e0dfbb95389a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "e70b3b78-9bdc-449b-82a9-c2fc3dd7f120",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Murasa Rootgrazer",
+      "typeLine": "Creature — Beast",
+      "manaCost": "{G}{W}",
+      "oracleText": "Vigilance\n{T}: You may put a basic land card from your hand onto the battlefield.\n{T}: Return target basic land you control to its owner's hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

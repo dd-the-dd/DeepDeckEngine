@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/support-add-type",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "addCardType",
+        "cardType": "Creature",
+        "objects": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Artifact"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,346 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "library-partition/scry-in-generic-sequence",
+  "cases": [
+    {
+      "id": "exact-preordain",
+      "request": {
+        "cardName": "Preordain",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "independent-three",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 3, then draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scry-after-draw",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card, then scry 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "scry-between-actions",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "You gain 1 life and scry 2, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "repeated-scry-bindings",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then scry 1, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "composes-with-damage",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "This spell deals 1 damage to each opponent and scry 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "zero-action",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 0, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-mana-x",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Scry X, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-x-producer",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry X, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-action",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then teleport a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-child",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-period",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-reminder-prefix",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then draw a card. (To scry 3, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-reminder-body",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2, then draw a card. (To scry 2, look at the top three cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "out-of-range",
+      "request": {
+        "cardName": "Generic Program Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Scry 2147483648, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

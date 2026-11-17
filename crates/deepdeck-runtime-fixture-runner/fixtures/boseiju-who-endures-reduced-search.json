@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "boseiju-who-endures-reduces-to-green-and-searches",
+  "seed": 94,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "activationZone": "hand",
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}{G}" },
+      { "kind": "discardCard", "card": { "kind": "self" } }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "controller": { "kind": "opponentsOf", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Artifact" },
+              { "kind": "cardTypeContains", "value": "Enchantment" },
+              { "kind": "and", "operands": [
+                { "kind": "not", "operand": { "kind": "typeLineContains", "value": "Basic" } },
+                { "kind": "cardTypeContains", "value": "Land" }
+              ] }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetController",
+        "value": { "kind": "controllerOf", "object": { "kind": "chosenTarget", "id": "targetPermanent" } }
+      },
+      { "kind": "destroyPermanent", "permanent": { "kind": "chosenTarget", "id": "targetPermanent" } },
+      {
+        "kind": "optionalEffects",
+        "player": { "kind": "boundValue", "id": "targetController" },
+        "effects": [
+          {
+            "kind": "chooseCards",
+            "id": "searchedCards",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "minimum": 0,
+            "maximum": 1,
+            "candidates": {
+              "kind": "cards",
+              "zone": { "kind": "library", "player": { "kind": "boundValue", "id": "targetController" } },
+              "where": { "kind": "and", "operands": [
+                { "kind": "cardTypeContains", "value": "Land" },
+                { "kind": "or", "operands": [
+                  { "kind": "subtypeContains", "value": "Plains" },
+                  { "kind": "subtypeContains", "value": "Island" },
+                  { "kind": "subtypeContains", "value": "Swamp" },
+                  { "kind": "subtypeContains", "value": "Mountain" },
+                  { "kind": "subtypeContains", "value": "Forest" }
+                ] }
+              ] }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+            "to": { "kind": "battlefield", "player": { "kind": "boundValue", "id": "targetController" }, "tapped": false }
+          },
+          { "kind": "shuffleZone", "zone": { "kind": "library", "player": { "kind": "boundValue", "id": "targetController" } } },
+          {
+            "kind": "recordLibrarySearch",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+          }
+        ]
+      }
+    ],
+    "manaCostReduction": {
+      "kind": "countPermanents",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "and", "operands": [
+        { "kind": "isLegendary" },
+        { "kind": "cardTypeContains", "value": "Creature" }
+      ] }
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Boseiju controller",
+        "manaPool": ["G"],
+        "hand": [{ "id": "boseiju-who-endures", "name": "Boseiju, Who Endures", "typeLine": "Legendary Land" }],
+        "battlefield": [{
+          "id": "legendary-creature",
+          "name": "Legendary Creature",
+          "typeLine": "Legendary Creature - Human",
+          "power": "2",
+          "toughness": "2"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected opponent",
+        "library": [
+          { "id": "forest-typed-land", "name": "Forest-Typed Land", "typeLine": "Land - Forest" },
+          { "id": "ineligible-land", "name": "Ineligible Land", "typeLine": "Land" }
+        ],
+        "battlefield": [{ "id": "opponent-artifact", "name": "Opponent Artifact", "typeLine": "Artifact" }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "boseiju-who-endures",
+      "abilityRuleIndex": 0,
+      "targets": { "targetPermanent": { "kind": "permanentDefinition", "definitionId": "opponent-artifact" } }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 1 },
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "boseiju-who-endures", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "boseiju-who-endures", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "opponent-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "forest-typed-land", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-1", "definitionId": "forest-typed-land", "equals": false },
+    { "kind": "eventCount", "eventKind": "librarySearched", "playerId": "player-1", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "playerId": "player-1", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 2 }
+  ]
+}

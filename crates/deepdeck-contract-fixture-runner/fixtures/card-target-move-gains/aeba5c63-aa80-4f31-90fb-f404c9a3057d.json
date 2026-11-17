@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/aeba5c63-aa80-4f31-90fb-f404c9a3057d",
+  "cardName": "Aphetto Vulture",
+  "oracleId": "aeba5c63-aa80-4f31-90fb-f404c9a3057d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "107492b9-03a8-4d53-a0cf-4814ffbec409",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Aphetto Vulture",
+      "typeLine": "Creature — Zombie Bird",
+      "manaCost": "{4}{B}{B}",
+      "oracleText": "Flying\nWhen this creature dies, you may put target Zombie card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

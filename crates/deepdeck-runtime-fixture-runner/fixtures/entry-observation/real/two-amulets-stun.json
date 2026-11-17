@@ -1,0 +1,222 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "real-two-amulets-retain-event-state-and-reuse-stun-replacement",
+  "seed": 183,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentEntered",
+      "where": null,
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "entryState": {
+        "tapped": true
+      }
+    },
+    "effects": [
+      {
+        "kind": "untapPermanent",
+        "permanent": {
+          "kind": "observedEventObject",
+          "event": "permanentEntered"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "turnNumber": 1,
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "amulet-of-vigor",
+            "name": "Amulet of Vigor",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "power": null,
+            "toughness": null,
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "where": null,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "entryState": {
+                    "tapped": true
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "observedEventObject",
+                      "event": "permanentEntered"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "amulet-of-vigor-2",
+            "name": "Amulet of Vigor",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "power": null,
+            "toughness": null,
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "where": null,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "entryState": {
+                    "tapped": true
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "observedEventObject",
+                      "event": "permanentEntered"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "entry-land",
+            "name": "Entry Land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  },
+                  {
+                    "kind": "putEnteringCounters",
+                    "counter": "stun",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "entry-land"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "entry-land",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "amulet-of-vigor",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentUntapped",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "entry-land",
+      "counter": "stun",
+      "equals": 0
+    }
+  ]
+}

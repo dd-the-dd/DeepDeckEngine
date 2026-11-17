@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "seam-rip/linked-entry-exile-is-executable",
+  "cardName": "Seam Rip",
+  "oracleId": "dfd5939e-a71a-4e16-9b93-752162be4ccd",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "exileTarget",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "opponentsOf",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Land" }
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": { "kind": "candidate" }
+                },
+                "operator": "<=",
+                "right": { "kind": "integer", "value": 2 }
+              }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "exilePermanentWithSource",
+      "permanent": { "kind": "chosenTarget", "id": "exileTarget" },
+      "candidates": {
+        "kind": "permanents",
+        "controller": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "where": {
+          "kind": "and",
+          "operands": [
+            {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            {
+              "kind": "compare",
+              "left": {
+                "kind": "manaValueOf",
+                "object": { "kind": "candidate" }
+              },
+              "operator": "<=",
+              "right": { "kind": "integer", "value": 2 }
+            }
+          ]
+        }
+      },
+      "minimum": 1,
+      "maximum": 1,
+      "returnWhenSourceLeaves": true
+    }]
+  }
+}

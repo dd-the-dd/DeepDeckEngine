@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "arcane-denial-delayed-draw-survives-prevented-counter",
+  "seed": 109,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "candidates": { "kind": "spells" },
+        "minimum": 1,
+        "maximum": 1
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "counteredSpellController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetSpell" }
+        }
+      },
+      {
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "upkeep",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "captureBindings": ["counteredSpellController"],
+        "effects": [
+          {
+            "kind": "chooseNumber",
+            "id": "delayedDrawCount",
+            "player": { "kind": "boundValue", "id": "counteredSpellController" },
+            "minimum": { "kind": "integer", "value": 0 },
+            "maximum": { "kind": "integer", "value": 2 }
+          },
+          {
+            "kind": "drawCards",
+            "player": { "kind": "boundValue", "id": "counteredSpellController" },
+            "count": { "kind": "decisionResult", "decisionId": "delayedDrawCount" }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Arcane Denial controller",
+        "manaPool": ["C", "U"],
+        "hand": [{
+          "id": "arcane-denial",
+          "name": "Arcane Denial",
+          "typeLine": "Instant",
+          "manaCost": "{1}{U}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Uncounterable spell controller",
+        "hand": [{
+          "id": "uncounterable-spell",
+          "name": "Uncounterable Spell",
+          "typeLine": "Instant",
+          "manaCost": "",
+          "rules": [
+            {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "stack" }
+              },
+              "modifiers": [{
+                "kind": "cantBeCountered",
+                "object": { "kind": "self" }
+              }]
+            },
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "effects": []
+            }
+          ]
+        }],
+        "library": [
+          { "id": "normal-draw", "name": "Normal Draw", "typeLine": "Instant" },
+          { "id": "arcane-draw-one", "name": "Arcane Draw One", "typeLine": "Instant" },
+          { "id": "arcane-draw-two", "name": "Arcane Draw Two", "typeLine": "Sorcery" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "uncounterable-spell" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "arcane-denial" },
+    { "kind": "resolveTopStack" },
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 2 }
+  ],
+  "decisions": [{ "kind": "chooseNumber", "value": 2 }],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "counterPrevented", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 0 },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-1",
+      "step": "upkeep",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "arcane-draw-one",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "arcane-draw-two",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

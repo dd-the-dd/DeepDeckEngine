@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-composed/returnAttackingCreaturesToOwnersHands",
+  "cardName": "Synthetic acceptance contract only",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "returnAttackingCreaturesToOwnersHands"
+      }
+    ]
+  }
+}

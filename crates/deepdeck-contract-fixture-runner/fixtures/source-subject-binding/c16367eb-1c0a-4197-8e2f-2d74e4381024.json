@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/c16367eb-1c0a-4197-8e2f-2d74e4381024",
+  "cardName": "Akoum Boulderfoot",
+  "oracleId": "c16367eb-1c0a-4197-8e2f-2d74e4381024",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "88e8f7b6-1214-447b-8665-ff3c85845564",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "5",
+    "oracle": {
+      "cardName": "Akoum Boulderfoot",
+      "typeLine": "Creature — Giant Warrior",
+      "manaCost": "{4}{R}{R}",
+      "oracleText": "When this creature enters, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

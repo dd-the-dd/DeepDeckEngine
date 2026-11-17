@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/cfc50aef-b17b-4fc1-af07-fe43b89689b7",
+  "cardName": "Vampire Envoy",
+  "oracleId": "cfc50aef-b17b-4fc1-af07-fe43b89689b7",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3ba8e7aa-9a87-410e-b846-5f5c910585cf",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Vampire Envoy",
+      "typeLine": "Creature — Vampire Cleric Ally",
+      "manaCost": "{2}{B}",
+      "oracleText": "Flying\nWhenever this creature becomes tapped, you gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}
