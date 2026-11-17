@@ -27835,7 +27835,7 @@
 
                                     ],
                         "category":  "keywordAbility",
-                        "classificationNotes":  "Official keywordAbility surface synchronized for documentation and future integration. No parser or runtime behavior is implied.",
+                        "classificationNotes":  "A static entering ability (CR 702.44a). The parser emits the keyword primitive; the runtime counts distinct colors spent on the resolving cast.",
                         "rulesReferences":  [
                                                 {
                                                     "document":  "ComprehensiveRules",
@@ -27880,11 +27880,17 @@
                                                      "bindings":  [
 
                                                                   ],
-                                                     "reminderTextPolicy":  "none"
+                                                     "reminderTextPolicy":  "separateValidationGrammar"
                                                  }
                                              ],
                         "reminderGrammarTemplates":  [
+                                                         {
+                                                             "templateId":  "sunburst.reminder",
+                                                             "tokenGrammar":  "SELF_ENTERS_WITH COUNTER_BY_ENTERING_TYPE(creaturePlusOneElseCharge) FOR_EACH_COLOR_OF_MANA_SPENT_TO_CAST",
+                                                             "bindings":  [
 
+                                                                          ]
+                                                         }
                                                      ],
                         "semantic":  {
                                          "primitiveDecomposition":  [
@@ -27899,23 +27905,36 @@
                                                                                          ]
                                                                   },
                                          "intrinsicHooks":  [
-
+                                                                "replacement.enterWithCounters",
+                                                                "casting.manaSpentColors"
                                                             ]
                                      },
                         "support":  {
-                                        "lexical":  "unsupported",
-                                        "parser":  "unsupported",
-                                        "runtime":  "unsupported",
-                                        "notes":  "Documentary registry entry only. Token recognition, primitive lowering, contract executability, and runtime behavior require independent proof."
+                                        "lexical":  "supportedNative",
+                                        "parser":  "supportedNative",
+                                        "runtime":  "supportedNative",
+                                        "notes":  "Recognized with its typed reminder by the shared parameterless keyword list; the runtime places +1/+1 or charge counters for each distinct color spent to cast the permanent (sunburst_* engine tests and the sunburst contract test)."
                                     },
                         "representativeCards":  [
-
+                                                    {
+                                                        "name":  "Engineered Explosives",
+                                                        "oracleLookup":  "name:Engineered Explosives"
+                                                    },
+                                                    {
+                                                        "name":  "Skyreach Manta",
+                                                        "oracleLookup":  "name:Skyreach Manta"
+                                                    }
                                                 ],
                         "provenance":  [
                                            {
                                                "kind":  "officialRules",
                                                "locator":  "CR 702.44 via the checked-in official ability snapshot v2",
                                                "asOf":  "2026-11-06"
+                                           },
+                                           {
+                                               "kind":  "localOracleCorpus",
+                                               "locator":  "src/oracle/canonical/automata/keyword_grant/reminder.rs recognize_sunburst_reminder",
+                                               "asOf":  "2026-11-17"
                                            }
                                        ]
                     },

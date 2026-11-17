@@ -161,7 +161,7 @@ impl GameEngine {
     }
 
     #[cfg(test)]
-    fn casting_mana_costs(
+    pub(super) fn casting_mana_costs(
         &self,
         card: &CardDefinition,
         controller_id: &str,

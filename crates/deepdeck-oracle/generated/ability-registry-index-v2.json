@@ -13832,6 +13832,81 @@
                                     }
                     },
                     {
+                        "canonicalId":  "sunburst",
+                        "category":  "keywordAbility",
+                        "rulesReferences":  [
+                                                {
+                                                    "document":  "ComprehensiveRules",
+                                                    "version":  "2026-11-06",
+                                                    "section":  "702.44",
+                                                    "sourceUrl":  "https://magic.wizards.com/en/rules"
+                                                }
+                                            ],
+                        "rulesText":  {
+                                          "version":  "2026-11-06",
+                                          "clauses":  [
+                                                          {
+                                                              "clauseId":  "sunburst.cr-702-44a",
+                                                              "text":  "Sunburst is a static ability that functions as an object is entering the battlefield. “Sunburst” means “If this object is entering as a creature, ignoring any type-changing effects that would affect it, it enters with a +1/+1 counter on it for each color of mana spent to cast it. Otherwise, it enters with a charge counter on it for each color of mana spent to cast it.”",
+                                                              "sourceSection":  "702.44a",
+                                                              "usage":  "documentationOnly"
+                                                          },
+                                                          {
+                                                              "clauseId":  "sunburst.cr-702-44b",
+                                                              "text":  "Sunburst adds counters only if the object with sunburst is entering the battlefield from the stack as a resolving spell and only if one or more colored mana was spent on its costs, including additional or alternative costs.",
+                                                              "sourceSection":  "702.44b",
+                                                              "usage":  "documentationOnly"
+                                                          },
+                                                          {
+                                                              "clauseId":  "sunburst.cr-702-44c",
+                                                              "text":  "Sunburst can also be used to set a variable number for another ability. If the keyword is used in this way, it doesn’t matter whether the ability is on a creature spell or on a noncreature spell.",
+                                                              "sourceSection":  "702.44c",
+                                                              "usage":  "documentationOnly"
+                                                          },
+                                                          {
+                                                              "clauseId":  "sunburst.cr-702-44d",
+                                                              "text":  "If an object has multiple instances of sunburst, each one works separately.",
+                                                              "sourceSection":  "702.44d",
+                                                              "usage":  "documentationOnly"
+                                                          }
+                                                      ]
+                                      },
+                        "grammar":  [
+                                        {
+                                            "templateId":  "sunburst.keyword-ability",
+                                            "role":  "primary"
+                                        },
+                                        {
+                                            "templateId":  "sunburst.reminder",
+                                            "role":  "reminder"
+                                        }
+                                    ],
+                        "semantics":  {
+                                          "kind":  "intrinsicRule",
+                                          "primitiveSteps":  [
+
+                                                             ],
+                                          "intrinsicHooks":  [
+                                                                 "replacement.enterWithCounters",
+                                                                 "casting.manaSpentColors"
+                                                             ],
+                                          "signal":  {
+                                                         "policy":  "never",
+                                                         "cardinality":  "none",
+                                                         "zeroQuantity":  "notApplicable",
+                                                         "resultBindings":  [
+
+                                                                            ]
+                                                     }
+                                      },
+                        "support":  {
+                                        "lexical":  "supportedNative",
+                                        "parser":  "supportedNative",
+                                        "runtime":  "supportedNative",
+                                        "notes":  "Recognized with its typed reminder by the shared parameterless keyword list; the runtime places +1/+1 or charge counters for each distinct color spent to cast the permanent (sunburst_* engine tests and the sunburst contract test)."
+                                    }
+                    },
+                    {
                         "canonicalId":  "surveil",
                         "category":  "keywordAction",
                         "rulesReferences":  [

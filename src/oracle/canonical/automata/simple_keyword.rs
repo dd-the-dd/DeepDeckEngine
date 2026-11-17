@@ -79,3 +79,7 @@ mod reminder_registry_tests;
 #[cfg(test)]
 #[path = "landwalk_keyword_tests.rs"]
 mod landwalk_tests;
+
+#[cfg(test)]
+#[path = "sunburst_keyword_tests.rs"]
+mod sunburst_tests;

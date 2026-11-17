@@ -81,6 +81,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "shadow" => GrantedKeyword::Shadow,
         "shroud" => GrantedKeyword::Shroud,
         "skulk" => GrantedKeyword::Skulk,
+        "sunburst" => GrantedKeyword::Sunburst,
         "trample" => GrantedKeyword::Trample,
         "undying" => GrantedKeyword::Undying,
         "vigilance" => GrantedKeyword::Vigilance,

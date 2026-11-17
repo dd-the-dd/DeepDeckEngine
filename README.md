@@ -30,6 +30,16 @@ path in `MTG_CARD_CATALOG_PATH`. See [data/README.md](data/README.md).
 
 ## Agent protocol
 
+### Commander qualification tables (0.1.3)
+
+Commander remains a four-player, 40-life format. An organizer may explicitly
+set `allowShortCommanderPod: true` when creating a local-deck or network game
+to resolve a qualification tie at a two- or three-player Commander table.
+The flag is off by default, is rejected for other formats, and does not switch
+to Duel Commander or remove commander rules. It accepts only two to four seats;
+ordinary Commander requests still require exactly four. This opt-in is not an
+automatic tournament scheduler or a replacement for the organizer's result proof.
+
 The WebSocket agent protocol is implemented in `src/agent_protocol.rs`. A
 server can require an API key by setting `MTG_ENGINE_API_KEY`; clients then send
 that key during registration. Never commit real keys or `.env` files.

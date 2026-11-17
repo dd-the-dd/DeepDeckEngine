@@ -64,6 +64,12 @@ struct CreateLocalDeckGameRequest {
     seed: u64,
     #[serde(default)]
     game_mode: GameMode,
+    #[serde(default)]
+    best_of: Option<u32>,
+    /// Explicit qualification/play-in pods keep normal Commander rules and
+    /// decks. They are not Duel Commander and never become the default table.
+    #[serde(default)]
+    allow_short_commander_pod: bool,
     #[serde(default = "default_http_max_turns")]
     max_turns: u32,
     #[serde(default)]
@@ -435,6 +441,7 @@ pub(crate) fn project_ai_state(
     project_session_view(
         GameSessionView {
             schema_version: "mtg-game-session/v1".to_string(),
+            analytics_recording: false,
             session_id: String::new(),
             revision: 0,
             state,
@@ -584,10 +591,21 @@ fn authenticated_lobby_player(
     Ok(player_id)
 }
 
-fn validate_game_mode_player_count(game_mode: GameMode, player_count: usize) -> Result<(), String> {
+/// Validate table size without changing the selected format's rules. Ordinary
+/// Commander remains four seats; explicit qualifying pods can use two or three.
+pub fn validate_game_mode_player_count(
+    game_mode: GameMode,
+    player_count: usize,
+    allow_short_commander_pod: bool,
+) -> Result<(), String> {
+    if allow_short_commander_pod && game_mode != GameMode::Commander {
+        return Err(
+            "allowShortCommanderPod applies only to Commander qualification tables".to_string(),
+        );
+    }
     match game_mode {
-        GameMode::Commander if player_count != 4 => {
-            Err("Commander games require exactly four players".to_string())
+        GameMode::Commander if !(player_count == 4 || (allow_short_commander_pod && (2..=3).contains(&player_count))) => {
+            Err("Commander games require four players; explicit qualification pods may have two or three".to_string())
         }
         GameMode::DuelCommander if player_count != 2 => {
             Err("Duel Commander games require exactly two players".to_string())
@@ -609,7 +627,11 @@ fn create_network_lobby(body: &str) -> JsonResponse {
         Ok(username) => username,
         Err(error) => return error_response(400, error),
     };
-    if let Err(error) = validate_game_mode_player_count(request.game_mode, request.players.len()) {
+    if let Err(error) = validate_game_mode_player_count(
+        request.game_mode,
+        request.players.len(),
+        request.allow_short_commander_pod,
+    ) {
         return error_response(400, error);
     }
     if request.human_player_ids.len() < 2 || request.human_player_ids.len() > 4 {
@@ -1803,10 +1825,18 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
             return error_response(400, format!("Invalid local deck game request: {error}"));
         }
     };
+    if let Err(error) = crate::session::resolve_session_best_of(request.game_mode, request.best_of)
+    {
+        return session_error_response(error);
+    }
     if request.players.len() < 2 || request.players.len() > 4 {
         return error_response(400, "Local deck games require two to four players");
     }
-    if let Err(error) = validate_game_mode_player_count(request.game_mode, request.players.len()) {
+    if let Err(error) = validate_game_mode_player_count(
+        request.game_mode,
+        request.players.len(),
+        request.allow_short_commander_pod,
+    ) {
         return error_response(400, error);
     }
     let random_deck_count = request
@@ -1887,6 +1917,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         });
     }
     let mut session = match game_session_manager().create(CreateGameSessionRequest {
+        record_analytics: true,
         setup: GameSetup {
             players,
             opening_hand_size: if request.opening_hand_size == 0 {
@@ -1898,6 +1929,7 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         },
         seed: request.seed,
         game_mode: request.game_mode,
+        best_of: request.best_of,
         max_turns: request.max_turns,
         human_player_ids: request.human_player_ids,
         combat_declaration_revision_player_ids: None,
@@ -2161,6 +2193,37 @@ fn route_game_session(
     }
 
     let suffix = path.strip_prefix("/game/sessions/")?;
+    if method == "GET" && suffix.contains("/spectator") {
+        let (session_id, tail) = suffix.split_once("/spectator")?;
+        if session_id.is_empty() || session_id.contains('/') {
+            return None;
+        }
+        let after = if tail.is_empty() {
+            None
+        } else {
+            match tail.strip_prefix('/').and_then(|v| v.parse::<u64>().ok()) {
+                Some(value) => Some(value),
+                None => return Some(error_response(400, "Invalid spectator cursor")),
+            }
+        };
+        // Never give network players/hosts an omniscient view of opponents' hands.
+        match authenticated_network_access(session_id, headers) {
+            Ok(None) => {}
+            Ok(Some(_)) => {
+                return Some(error_response(
+                    403,
+                    "Omniscient spectator frames are only available for local games",
+                ));
+            }
+            Err(response) => return Some(response),
+        }
+        return Some(
+            match game_session_manager().spectator_frames(session_id, after) {
+                Ok(frames) => json_response(200, &frames),
+                Err(error) => session_error_response(error),
+            },
+        );
+    }
     if method == "DELETE" && !suffix.contains('/') {
         let access = match authenticated_network_access(suffix, headers) {
             Ok(access) => access,
@@ -2328,7 +2391,7 @@ fn route_json_with_headers(
         ("OPTIONS", _) => json_response(200, &serde_json::json!({ "ok": true })),
         ("GET", "/health") => match game_session_manager().history_status() {
             Ok(history) => {
-                let mut response = serde_json::json!({ "ok": true });
+                let mut response = serde_json::json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] });
                 if let Some(history) = history {
                     response["history"] = serde_json::json!(history);
                 }
@@ -2750,6 +2813,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn local_deck_best_of_rejects_invalid_lengths_before_loading_decks() {
+        for (mode, best_of) in [
+            ("legacy", 0),
+            ("legacy", 2),
+            ("legacy", 9),
+            ("commander", 3),
+        ] {
+            let response = create_local_deck_game(
+                &json!({
+                    "players":[],"seed":1,"gameMode":mode,"bestOf":best_of
+                })
+                .to_string(),
+            );
+            assert_eq!(response.status, 400);
+            assert!(response.body.contains("bestOf"));
+        }
+        for best_of in [json!(1), json!(3), Value::Null] {
+            let request: CreateLocalDeckGameRequest = serde_json::from_value(json!({
+                "players":[],"seed":1,"gameMode":"legacy","bestOf":best_of
+            }))
+            .unwrap();
+            assert_eq!(request.best_of, best_of.as_u64().map(|n| n as u32));
+        }
+    }
+
+    #[test]
     fn configured_http_worker_stack_parses_large_oracle_requests() {
         let result = thread::Builder::new()
             .stack_size(HTTP_CONNECTION_STACK_SIZE)
@@ -2841,11 +2930,21 @@ mod tests {
 
     #[test]
     fn commander_player_counts_are_enforced_at_the_http_boundary() {
-        assert!(validate_game_mode_player_count(GameMode::Commander, 4).is_ok());
-        assert!(validate_game_mode_player_count(GameMode::Commander, 2).is_err());
-        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 2).is_ok());
-        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 4).is_err());
-        assert!(validate_game_mode_player_count(GameMode::Legacy, 2).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 4, false).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 2, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::Commander, 3, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 2, false).is_ok());
+        assert!(validate_game_mode_player_count(GameMode::DuelCommander, 4, false).is_err());
+        assert!(validate_game_mode_player_count(GameMode::Legacy, 2, false).is_ok());
+        for count in 0..=6 {
+            assert_eq!(
+                validate_game_mode_player_count(GameMode::Commander, count, true).is_ok(),
+                (2..=4).contains(&count)
+            );
+        }
+        for mode in [GameMode::Legacy, GameMode::DuelCommander, GameMode::Free] {
+            assert!(validate_game_mode_player_count(mode, 2, true).is_err());
+        }
     }
 
     fn private_card(owner: &str, id: &str, name: &str) -> crate::engine::CardInstance {
@@ -2904,6 +3003,7 @@ mod tests {
     #[test]
     fn network_projection_keeps_only_the_viewers_private_cards_and_decision() {
         let mut view = GameSessionView {
+            analytics_recording: false,
             schema_version: "mtg-game-session/v1".to_string(),
             session_id: "network-test".to_string(),
             revision: 1,
@@ -3280,7 +3380,7 @@ mod tests {
         assert!(first_headers.contains("Connection: keep-alive"));
         assert_eq!(
             serde_json::from_slice::<Value>(&first_body).unwrap(),
-            json!({ "ok": true })
+            json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] })
         );
 
         client
@@ -3290,7 +3390,7 @@ mod tests {
         assert!(second_headers.contains("Connection: close"));
         assert_eq!(
             serde_json::from_slice::<Value>(&second_body).unwrap(),
-            json!({ "ok": true })
+            json!({ "ok": true, "capabilities": ["session-analytics-opt-out/v1"] })
         );
         server.join().expect("test server joins");
     }

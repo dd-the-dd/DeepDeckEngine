@@ -37,6 +37,8 @@ enum ParameterlessReminderSchema {
     /// CR 702.14c reminder, validated against the keyword's own land subtype.
     Landwalk(LandwalkWord),
     Persist,
+    /// CR 702.44a reminder: the counter kind follows the named subject type.
+    Sunburst,
     Undying,
 }
 
@@ -67,6 +69,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Shadow => "shadow",
         GrantedKeyword::Shroud => "shroud",
         GrantedKeyword::Skulk => "skulk",
+        GrantedKeyword::Sunburst => "sunburst",
         GrantedKeyword::Trample => "trample",
         GrantedKeyword::Undying => "undying",
         GrantedKeyword::Vigilance => "vigilance",
@@ -342,6 +345,7 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
             ".",
         ]),
         GrantedKeyword::Persist => ParameterlessReminderSchema::Persist,
+        GrantedKeyword::Sunburst => ParameterlessReminderSchema::Sunburst,
         GrantedKeyword::Reach => ParameterlessReminderSchema::SubjectPredicate {
             subject_type: ObjectCardType::Creature,
             predicate: &["can", "block", "creatures", "with", "flying", "."],
@@ -639,6 +643,36 @@ fn recognize_undying_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResu
     consume_exact_tokens(cursor, &["counter", "on", "it", "."])
 }
 
+/// `This PERMANENT_TYPE enters with a COUNTER counter on it for each color of
+/// mana spent to cast it.` CR 702.44a: a creature subject names a +1/+1
+/// counter and every other permanent type names a charge counter; a reminder
+/// pairing a subject with the other counter kind is an explicit failure.
+fn recognize_sunburst_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("keyword.sunburst.reminder.subject");
+    cursor.consume("This")?;
+    let subject = cursor
+        .peek()
+        .and_then(|raw| lookup_permanent_card_type(raw, AcceptedForms::SingularOnly))
+        .ok_or_else(|| cursor.fail("a singular permanent type in the Sunburst reminder"))?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("keyword.sunburst.reminder.entry");
+    consume_exact_tokens(cursor, &["enters", "with", "a"])?;
+    cursor.enter("keyword.sunburst.reminder.counter");
+    if subject == ObjectCardType::Creature {
+        consume_fixed_counter_value(cursor, "+1/+1", "the Sunburst +1/+1 counter of a creature")?;
+    } else {
+        cursor.consume("charge")?;
+    }
+    cursor.enter("keyword.sunburst.reminder.count");
+    consume_exact_tokens(
+        cursor,
+        &[
+            "counter", "on", "it", "for", "each", "color", "of", "mana", "spent", "to", "cast",
+            "it", ".",
+        ],
+    )
+}
+
 /// A bound reminder noun must hold for every branch of its antecedent.
 /// Negative adjectives do not establish a positive nominal identity.
 fn collection_implies_type(predicate: &ObjectPredicate, card_type: ObjectCardType) -> bool {
@@ -801,6 +835,13 @@ fn recognize_reminder_schema(
                 "a registered reminder predicate with a bound collection subject",
             )?;
             recognize_undying_reminder(cursor)?;
+        }
+        ParameterlessReminderSchema::Sunburst => {
+            cursor.require(
+                matches!(context, KeywordReminderSubjectContext::SelfObject),
+                "a registered reminder predicate with a bound collection subject",
+            )?;
+            recognize_sunburst_reminder(cursor)?;
         }
     }
     Ok(())

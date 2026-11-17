@@ -2,6 +2,8 @@ FROM rust:1.97.1-bookworm AS builder
 WORKDIR /source
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY data/builtin-game-pieces.json ./data/builtin-game-pieces.json
+ENV CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0
 RUN cargo build --locked --release --bin mtg-engine-server
 
 FROM debian:bookworm-slim

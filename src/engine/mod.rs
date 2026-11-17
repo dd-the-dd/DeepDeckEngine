@@ -3273,6 +3273,7 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "flashIfTargetsCommander"
                 | "firstStrike"
                 | "flying"
+                | "sunburst"
                 | "haste"
                 | "hexproof"
                 | "horsemanship"
@@ -4659,6 +4660,25 @@ fn prepare_spell_rule_supported(rule: &Value) -> bool {
             .iter()
             .any(|rule| value_kind(rule) == Some("spellAbility"))
         && spell.rules.iter().all(rule_supported)
+}
+
+/// Activated abilities normally function on the battlefield. Explicit zone
+/// permissions (Channel, graveyard abilities, etc.) do not also grant permission
+/// on the battlefield. A self-discard cost can only be paid from the hand.
+fn activated_rule_usable_from_zone(rule: &Value, zone: &str) -> bool {
+    let permitted = match rule.get("activationZone") {
+        None | Some(Value::Null) => zone == "battlefield",
+        Some(Value::String(required)) => required == zone,
+        _ => false,
+    };
+    permitted
+        && (zone == "hand"
+            || !rule["costs"].as_array().is_some_and(|costs| {
+                costs.iter().any(|cost| {
+                    value_kind(cost) == Some("discardCard")
+                        && value_kind(&cost["card"]) == Some("self")
+                })
+            }))
 }
 
 fn activated_rule_supported(rule: &Value) -> bool {
@@ -19137,7 +19157,7 @@ impl GameEngine {
                 for (rule_index, rule) in card.definition.rules.iter().enumerate() {
                     let is_mana_ability = mana_rule_supported(rule);
                     if !(activated_rule_supported(rule) || is_mana_ability)
-                        || rule["activationZone"].as_str() != Some(zone_name)
+                        || !activated_rule_usable_from_zone(rule, zone_name)
                         || rule.get("activationCondition").is_some_and(|condition| {
                             !self.condition_value_with_source(
                                 condition,
@@ -19701,6 +19721,7 @@ impl GameEngine {
             .players
             .iter()
             .flat_map(|candidate_player| candidate_player.battlefield.iter())
+            .filter(|permanent| !permanent.flags.get("phasedOut").copied().unwrap_or(false))
             .filter(|permanent| {
                 permanent.controller == player.id
                     || permanent.definition.rules.iter().any(|rule| {
@@ -19734,10 +19755,7 @@ impl GameEngine {
                 .collect::<Vec<_>>();
             for (rule_index, rule, granted) in ability_rules {
                 if !activated_rule_supported(&rule)
-                    || rule
-                        .get("activationZone")
-                        .and_then(Value::as_str)
-                        .is_some_and(|zone| zone != "battlefield")
+                    || !activated_rule_usable_from_zone(&rule, "battlefield")
                     || !self.rule_active_for_source(permanent, &rule)
                     || self.activation_limit_reached(permanent, &rule, rule_index)
                     || self.ability_class_activation_prohibited(&rule)
@@ -20398,6 +20416,23 @@ impl GameEngine {
                         && action.decisions.get("manaAbility") == Some(&Value::Bool(true)))
             });
         }
+        // CR 702.26b: phasing keeps the object in its battlefield vector, but
+        // it cannot be an action source. Cover all specialized generators too
+        // (equip, mana, room, morph, etc.), not only ordinary activated rules.
+        let phased_out_sources = self
+            .state
+            .players
+            .iter()
+            .flat_map(|candidate| candidate.battlefield.iter())
+            .filter(|card| card.flags.get("phasedOut").copied().unwrap_or(false))
+            .map(|card| card.instance_id.as_str())
+            .collect::<BTreeSet<_>>();
+        actions.retain(|action| {
+            action
+                .card_instance_id
+                .as_deref()
+                .is_none_or(|source| !phased_out_sources.contains(source))
+        });
         let elapsed = started.elapsed();
         if elapsed >= Duration::from_millis(500) {
             eprintln!(
@@ -26895,7 +26930,7 @@ impl GameEngine {
                         .get(rule_index)
                         .filter(|rule| {
                             (activated_rule_supported(rule) || mana_rule_supported(rule))
-                                && rule["activationZone"].as_str() == Some(zone_name)
+                                && activated_rule_usable_from_zone(rule, zone_name)
                         })
                         .cloned()
                         .ok_or_else(|| {
@@ -27454,6 +27489,11 @@ impl GameEngine {
                             EngineError::new("activated ability rule is not executable")
                         })?
                 };
+                if !activated_rule_usable_from_zone(&rule, "battlefield") {
+                    return Err(EngineError::new(
+                        "activated ability cannot be activated from the battlefield",
+                    ));
+                }
                 let cost_trigger_start = self.state.stack.len();
                 let prepared_cost_payment = self.prepare_activated_cost_payment(action, &rule)?;
                 let mut tapped_sources = self.apply_payment(player_index, action)?;
@@ -29960,6 +30000,32 @@ impl GameEngine {
         // Granted entry abilities are evaluated after intrinsic copy/type
         // replacements have established the object that would enter.
         self.apply_granted_riot_entry_choices(card, provider)?;
+        // CR 702.44a-b: only resolution of a cast permanent supplies its
+        // mana-payment decisions. Reanimation and other non-stack entries
+        // supply none. X is deliberately not used: repeated colors count once,
+        // C not at all. CR 702.44d: each instance works separately.
+        let sunburst_instances = card
+            .definition
+            .rules
+            .iter()
+            .filter(|rule| {
+                value_kind(rule) == Some("keywordAbility")
+                    && value_kind(&rule["ability"]) == Some("sunburst")
+            })
+            .count();
+        if sunburst_instances > 0 {
+            let colors = mana_colors_spent_from_cast_decisions(initial_decisions);
+            let counter = if has_card_type(&card.definition, "Creature") {
+                "+1/+1"
+            } else {
+                "charge"
+            };
+            for _ in 0..sunburst_instances {
+                if colors > 0 {
+                    *card.counters.entry(counter.to_string()).or_default() += colors;
+                }
+            }
+        }
         let graft_counters = card
             .definition
             .rules
@@ -34937,6 +35003,18 @@ impl GameEngine {
         player_id: &str,
         entry_procedure: Option<&str>,
     ) -> Result<(), EngineError> {
+        // Load outside-game definitions only when needed. Ordinary games must
+        // not parse/serialize four unused dungeons in every observation/frame.
+        for dungeon in crate::model::builtin_dungeon_definitions().map_err(EngineError::new)? {
+            if !self
+                .state
+                .game_pieces
+                .iter()
+                .any(|piece| piece.name.eq_ignore_ascii_case(&dungeon.name))
+            {
+                self.state.game_pieces.push(dungeon.clone());
+            }
+        }
         let current_position = self.state.rule_modifiers.iter().find_map(|modifier| {
             (value_kind(modifier) == Some("dungeonPosition")
                 && modifier["playerId"].as_str() == Some(player_id))

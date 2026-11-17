@@ -31,9 +31,6 @@ mod attach_legality_runtime;
 #[path = "tests/enchant_aura_runtime.rs"]
 mod enchant_aura_runtime;
 
-#[path = "tests/enchant_aura_runtime.rs"]
-mod enchant_aura_runtime;
-
 #[path = "tests/path_to_exile.rs"]
 mod path_to_exile;
 
@@ -235,6 +232,12 @@ mod received_damage_trigger_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/simultaneous_event_batch_runtime.rs"]
 mod simultaneous_event_batch_runtime;
+
+#[path = "channel_tests.rs"]
+mod channel;
+
+#[path = "phasing_priority_tests.rs"]
+mod phasing_priority;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
@@ -665,7 +668,7 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
     let protected_player = TargetRef::Player {
         player_id: "player-0".to_string(),
     };
-    assert!(!damage_engine.target_is_legal_for_stack_object(&protected_player, &hostile_spell));
+    assert!(!damage_engine.target_is_legal_for_stack_object("target", &protected_player, &hostile_spell));
 
     assert_eq!(
         damage_engine
@@ -693,7 +696,7 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
         !damage_engine
             .permanent_has_keyword(&damage_engine.state.players[0].battlefield[1], "hexproof")
     );
-    assert!(damage_engine.target_is_legal_for_stack_object(&protected_player, &hostile_spell));
+    assert!(damage_engine.target_is_legal_for_stack_object("target", &protected_player, &hostile_spell));
 
     let mut destroy_engine = test_engine(2);
     let captain = make_entering_captain(&mut destroy_engine);
@@ -5135,7 +5138,7 @@ fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
         blocker_id: None,
     };
     engine
-        .apply_flashback_cost(&action, &spell)
+        .apply_flashback_cost(&action, &spell, &mut EmeritusDecisionProvider)
         .expect("flashback sacrifice cost is payable");
 
     assert!(
@@ -9583,6 +9586,158 @@ fn variable_entering_counters_use_the_cast_x_value() {
         .expect("X replacement resolves");
 
     assert_eq!(card.counters.get("+1/+1"), Some(&4));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn sunburst_counts_distinct_paid_colors_not_x_or_colorless_mana() {
+    for (payments, expected) in [
+        (json!([]), 0),
+        (json!([{ "mana": ["C", "C"] }]), 0),
+        (json!([{ "mana": ["U", "U"] }]), 1),
+        (json!([{ "mana": ["U", "B", "C"] }]), 2),
+        (
+            json!([{ "mana": ["W", "U"] }, { "kind": "manaPaymentMetadata", "manaPoolSymbols": ["B", "R", "G", "U"] }]),
+            5,
+        ),
+    ] {
+        for type_line in ["Artifact", "Artifact Creature — Construct"] {
+            let mut engine = test_engine(2);
+            let mut definition = test_definition("sunburst", type_line);
+            definition
+                .rules
+                .push(json!({ "kind": "keywordAbility", "ability": { "kind": "sunburst" } }));
+            assert!(rule_is_executable(&definition.rules[0]));
+            let mut card = test_instance("sunburst-card", definition, "player-0");
+            engine
+                .apply_enter_replacements_with_decisions(
+                    &mut card,
+                    &mut EmeritusDecisionProvider,
+                    &BTreeMap::from([
+                        ("xValue".to_string(), Value::from(9)),
+                        ("manaPayment".to_string(), payments.clone()),
+                    ]),
+                )
+                .unwrap();
+            let counter = if type_line == "Artifact" {
+                "charge"
+            } else {
+                "+1/+1"
+            };
+            assert_eq!(card.counters.get(counter).copied().unwrap_or(0), expected);
+            assert_eq!(card.counters.len(), usize::from(expected > 0));
+        }
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn sunburst_noncast_entry_gets_no_counters_and_multiple_instances_stack() {
+    let mut engine = test_engine(2);
+    let mut definition = test_definition("sunburst", "Artifact");
+    definition.rules =
+        vec![json!({ "kind": "keywordAbility", "ability": { "kind": "sunburst" } }); 2];
+    let mut card = test_instance("sunburst-card", definition, "player-0");
+    engine
+        .apply_enter_replacements(&mut card, &mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(card.counters.is_empty());
+    engine
+        .apply_enter_replacements_with_decisions(
+            &mut card,
+            &mut EmeritusDecisionProvider,
+            &BTreeMap::from([("manaPayment".to_string(), json!([{ "mana": ["U", "B"] }]))]),
+        )
+        .unwrap();
+    assert_eq!(card.counters.get("charge"), Some(&4));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
+    let mut engine = test_engine(2);
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Engineered Explosives".to_string(), type_line: "Artifact".to_string(),
+        mana_cost: Some("{X}".to_string()),
+        oracle_text: Some("Sunburst (This artifact enters with a charge counter on it for each color of mana spent to cast it.)\n{2}, Sacrifice this artifact: Destroy each nonland permanent with mana value equal to the number of charge counters on this artifact.".to_string()),
+        layout: None, faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical");
+    let mut definition = test_definition("explosives", "Artifact");
+    definition.mana_cost = "{X}".to_string();
+    definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.players[0].hand = vec![test_instance("explosives", definition, "player-0")];
+    engine.state.players[0].battlefield = vec![
+        mana_source("island", "Basic Land — Island", "{U}", None),
+        mana_source("swamp", "Basic Land — Swamp", "{B}", None),
+    ];
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.decisions.get("xValue") == Some(&Value::from(2))
+        })
+        .expect("cast Explosives with X=2 using blue and black lands");
+    engine
+        .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
+        .unwrap();
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap();
+    let (player, index) = engine.permanent_position("explosives").unwrap();
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("charge"),
+        Some(&2)
+    );
+    for (id, type_line, cost) in [
+        ("two", "Artifact", "{2}"),
+        ("one", "Creature", "{1}"),
+        ("land", "Land", "{2}"),
+    ] {
+        let mut definition = test_definition(id, type_line);
+        definition.mana_cost = cost.to_string();
+        let card = test_instance(id, definition, "player-1");
+        engine.state.players[1].battlefield.push(card);
+    }
+    engine.state.players[0].mana_pool = floating_mana(&["C", "C"]);
+    let activate = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("explosives")
+        })
+        .expect("pay 2 and sacrifice Explosives");
+    engine
+        .apply_priority_action(&activate, &mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(engine.permanent_position("explosives").is_none());
+    let activation = engine.state.stack.last().unwrap();
+    assert_eq!(activation.card.counters.get("charge"), Some(&2));
+    assert_eq!(
+        engine.runtime_numeric_expression(
+            &json!({ "kind": "countCounters", "object": { "kind": "self" }, "counter": "charge" }),
+            activation,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        ),
+        Some(2)
+    );
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap();
+    assert!(engine.permanent_position("two").is_none());
+    assert!(engine.permanent_position("one").is_some());
+    assert!(engine.permanent_position("land").is_some());
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
@@ -19080,13 +19235,29 @@ fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counte
     };
 
     engine
-        .return_graveyard_card_to_battlefield(
+        .execute_effect(
+            &json!({
+                "kind": "moveCards",
+                "cards": {
+                    "kind": "cardsInZone",
+                    "zone": { "kind": "graveyard", "player": { "kind": "abilityController" } },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" },
+                },
+                "to": {
+                    "kind": "battlefield",
+                    "player": { "kind": "abilityController" },
+                    "tapped": false,
+                    "enterWithCounters": [{
+                        "counter": "finality",
+                        "count": { "kind": "integer", "value": 1 },
+                    }],
+                },
+            }),
+            None,
             &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
             &mut EmeritusDecisionProvider,
-            "player-0",
-            json!({ "kind": "cardTypeContains", "value": "Creature" }),
-            false,
-            Some("finality"),
         )
         .expect("the card returns from the graveyard");
 
@@ -22758,7 +22929,17 @@ fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     };
 
     engine
-        .resolve_spell_instruction("plasmCapture", &plasm, &mut EmeritusDecisionProvider)
+        .execute_effects(
+            &json!([{
+                "kind": "counterSpell",
+                "spell": { "kind": "chosenTarget", "id": "targetSpell" },
+                "addManaAtNextMainPhase": "C",
+            }]),
+            &plasm,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
         .expect("Plasm Capture resolves");
     assert!(engine.state.stack.is_empty());
     assert!(engine.state.rule_modifiers.iter().any(|modifier| {
@@ -24212,8 +24393,9 @@ fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
         attacker_id: None,
         blocker_id: None,
     };
+    // The delve maximum is the generic component of the printed {5}{U}{U}.
     engine
-        .apply_delve_cost(&action, &spell)
+        .apply_delve_cost(&action, &spell, 5)
         .expect("delve exiles the declared graveyard cards");
     assert!(engine.state.players[0].graveyard.is_empty());
     assert_eq!(engine.state.players[0].exile.len(), 2);

@@ -554,7 +554,10 @@ fn backend_routes_compact_oracle_rules_json() {
     assert_eq!(body["schemaVersion"], "oracle-rules/v1");
     assert_eq!(body["parserVersion"], "oracle-parser/v1");
     assert_eq!(body["canonicalSchemaVersion"], "canonical-rule-ir/v1");
-    assert_eq!(body["engineVersion"], "mtg-engine/0.1.0");
+    assert_eq!(
+        body["engineVersion"],
+        concat!("mtg-engine/", env!("CARGO_PKG_VERSION"))
+    );
     assert_eq!(body["status"], "canonical");
     assert_eq!(body["engineStatus"], "executable");
     assert_eq!(body["executableRuleCount"], 2);

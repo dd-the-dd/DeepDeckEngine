@@ -1147,6 +1147,13 @@
                                     ]
                     },
                     {
+                        "canonicalId":  "sunburst",
+                        "category":  "keywordAbility",
+                        "lexemes":  [
+                                        "Sunburst"
+                                    ]
+                    },
+                    {
                         "canonicalId":  "surveil",
                         "category":  "keywordAction",
                         "lexemes":  [

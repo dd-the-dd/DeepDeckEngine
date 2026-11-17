@@ -17,6 +17,13 @@ pub fn compile_named_token_definition(name: &str) -> Result<Option<CardDefinitio
         .remove(&normalized))
 }
 
+/// The parser-free runtime cannot compile the embedded dungeon Oracle text.
+/// Venturing then uses only the outside-game pieces already supplied by the
+/// game state, exactly as a caller-provided setup defines them.
+pub fn builtin_dungeon_definitions() -> Result<&'static [CardDefinition], String> {
+    Ok(&[])
+}
+
 pub fn compile_named_card_definition(_name: &str) -> Result<Option<CardDefinition>, String> {
     Err(ORACLE_COMPILATION_DISABLED.to_string())
 }

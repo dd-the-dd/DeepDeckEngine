@@ -1,4 +1,5 @@
 param(
+    [switch] $SkipCacheTrim,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $CargoArgs
 )
@@ -11,12 +12,19 @@ if (-not $env:CARGO_BUILD_JOBS) {
 if (-not $env:RUST_MIN_STACK) {
     $env:RUST_MIN_STACK = '33554432'
 }
+if (-not $env:MTG_CARD_CATALOG_PATH) {
+    $fullCatalog = Join-Path $PSScriptRoot '..\data\cards-minimized.json'
+    $fixtureCatalog = Join-Path $PSScriptRoot '..\tests\fixtures\local-app-cards.json'
+    if (-not (Test-Path -LiteralPath $fullCatalog) -and (Test-Path -LiteralPath $fixtureCatalog)) {
+        $env:MTG_CARD_CATALOG_PATH = (Resolve-Path -LiteralPath $fixtureCatalog).Path
+    }
+}
 
 & cargo test @CargoArgs
 $testExitCode = $LASTEXITCODE
 
-$target = Join-Path $PSScriptRoot '..\target'
-if (Test-Path -LiteralPath $target) {
+$target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $PSScriptRoot '..\target' }
+if (-not $SkipCacheTrim -and (Test-Path -LiteralPath $target)) {
     $targetBytes = (Get-ChildItem -LiteralPath $target -File -Recurse |
         Measure-Object -Property Length -Sum).Sum
     if ($targetBytes -gt $TargetBudgetBytes) {

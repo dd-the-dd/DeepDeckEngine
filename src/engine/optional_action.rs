@@ -309,7 +309,7 @@ impl GameEngine {
     }
 
     /// The zone currently holding an object, or `None` once it ceased to exist.
-    fn object_zone_name(&self, instance_id: &str) -> Option<&'static str> {
+    pub(super) fn object_zone_name(&self, instance_id: &str) -> Option<&'static str> {
         self.state.players.iter().find_map(|player| {
             let zones: [(&'static str, &Vec<CardInstance>); 7] = [
                 ("battlefield", &player.battlefield),

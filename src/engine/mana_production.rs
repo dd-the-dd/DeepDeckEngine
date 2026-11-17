@@ -301,6 +301,15 @@ impl GameEngine {
         let mut choices = Vec::new();
         let counterfactual_printed_abilities_removed =
             counterfactual && self.mana_abilities_replaced_by_land_subtype(permanent);
+        // A mana ability functions only from its declared activation zone,
+        // the battlefield by default. A hypothetical source outside every zone
+        // is planned as a battlefield producer.
+        let source_zone = if counterfactual {
+            "battlefield"
+        } else {
+            self.object_zone_name(&permanent.instance_id)
+                .unwrap_or("battlefield")
+        };
         for candidate in programs {
             let rule = &candidate.rule;
             if counterfactual_printed_abilities_removed
@@ -310,7 +319,10 @@ impl GameEngine {
                 // Do not resolve their values before subsequently clearing them.
                 continue;
             }
-            if !mana_rule_supported(rule) || !self.rule_active_for_source(permanent, rule) {
+            if !mana_rule_supported(rule)
+                || !activated_rule_usable_from_zone(rule, source_zone)
+                || !self.rule_active_for_source(permanent, rule)
+            {
                 continue;
             }
             if !counterfactual

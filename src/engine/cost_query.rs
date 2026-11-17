@@ -387,7 +387,7 @@ impl GameEngine {
     }
 
     #[cfg(test)]
-    fn global_casting_cost_reduction(
+    pub(super) fn global_casting_cost_reduction(
         &self,
         player_id: &str,
         card: &CardDefinition,
