@@ -97,6 +97,9 @@ fn generic_permanent_attacks_event_matches_player_and_controlled_planeswalker_un
         "near-miss-attacker".to_string(),
     ]);
     assert_eq!(engine.state.stack.len(), 2);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     while !engine.state.stack.is_empty() {
         engine
             .resolve_top_stack(&mut EmeritusDecisionProvider)

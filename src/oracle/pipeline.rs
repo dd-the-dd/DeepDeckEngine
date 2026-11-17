@@ -204,9 +204,18 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
         }
     };
     let context = request.clone();
-    let name_context = NameResolutionContext::new(
+    let legendary = |type_line: &str| {
+        type_line
+            .split_whitespace()
+            .any(|word| word.eq_ignore_ascii_case("legendary"))
+    };
+    let name_context = NameResolutionContext::with_legendary_names(
         &request.card_name,
-        request.faces.iter().map(|face| face.name.as_str()),
+        legendary(&request.type_line),
+        request
+            .faces
+            .iter()
+            .map(|face| (face.name.as_str(), legendary(&face.type_line))),
     );
     let named_cards = CatalogNamedCardIndex;
     let named_tokens = CatalogNamedTokenIndex;

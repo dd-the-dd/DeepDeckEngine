@@ -103,7 +103,16 @@ fn setup() -> (GameEngine, Value, StackObject) {
         subtype_test_definition("animated-land", "Land"),
         "player-0",
     );
-    engine.state.players[0].battlefield.push(source.clone());
+    engine.state.players[0].battlefield.push(source);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    // The activated ability carries its source's admitted incarnation.
+    let source = engine.state.players[0]
+        .battlefield
+        .last()
+        .cloned()
+        .expect("source is on the battlefield");
     let stack = StackObject {
         id: "stack:source-animation".to_string(),
         controller: "player-0".to_string(),

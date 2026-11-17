@@ -118,6 +118,7 @@ fn typed_activation_rolls_back_unsupported_costs_and_independent_suffixes() {
             sorcery_timing: true,
             controller_turn: false,
             once_each_turn: true,
+            condition: None,
         }
     );
     cursor.finish().unwrap();

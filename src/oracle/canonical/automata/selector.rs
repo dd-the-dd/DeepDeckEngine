@@ -162,6 +162,42 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_separator(
     })
 }
 
+/// One object query whose numeric comparisons may read the ability source
+/// when `source_available` (its counters, by last-known information).
+pub(in crate::oracle::canonical) fn recognize_object_query_before_separator_with_source(
+    cursor: &mut OracleTokenCursor<'_>,
+    source_available: bool,
+) -> MachineResult<super::ObjectQueryNode> {
+    let query = recognize_object_query_with_cardinality_policy(
+        cursor,
+        true,
+        QueryRelationKind::Control,
+        false,
+        false,
+        CoordinatedCardinalityPolicy::ExistingQuery,
+        Some(source_available),
+        false,
+    )?;
+    Ok(super::ObjectQueryNode {
+        predicate: query.predicate,
+        controller: query.subject_scope.map(object_controller_scope),
+    })
+}
+
+/// A payment operand inside a cost list. A comma ends the operand unless it
+/// continues the object list (`a creature, artifact, or land`); a comma that
+/// opens the next payment action (`, discard a card`) stays with the parent.
+pub(in crate::oracle::canonical) fn recognize_object_query_before_cost_separator(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::ObjectQueryNode> {
+    let query =
+        recognize_object_query_internal(cursor, false, QueryRelationKind::Control, false, true)?;
+    Ok(super::ObjectQueryNode {
+        predicate: query.predicate,
+        controller: query.subject_scope.map(object_controller_scope),
+    })
+}
+
 /// Recognizes a spell collection whose player relation is the player who cast
 /// the spell, not the spell's current controller on the stack.
 pub(in crate::oracle::canonical) fn recognize_spell_cast_query_before_separator(
@@ -624,6 +660,7 @@ fn compose_comma_separated_negative_modifiers(branches: &mut Vec<SelectorPredica
                 operand.as_ref(),
                 SelectorPredicate::CardType(_)
                     | SelectorPredicate::Color(_)
+                    | SelectorPredicate::ColorQuantity(_)
                     | SelectorPredicate::Supertype(_)
                     | SelectorPredicate::Subtype(_)
                     | SelectorPredicate::CharacteristicBatch(_)
@@ -1577,6 +1614,30 @@ fn consume_optional_selector_article(cursor: &mut OracleTokenCursor<'_>) -> Mach
     Ok(())
 }
 
+/// A prenominal characteristic adjective of a searched card (`colorless`,
+/// `legendary`, `nonlegendary`, `historic`, `green`), read by the shared
+/// atom machine. Type and subtype nouns keep their search-specific union
+/// readers; this commits only for an adjective atom.
+fn recognize_search_card_adjective(cursor: &mut OracleTokenCursor<'_>) -> Option<ObjectPredicate> {
+    fn adjective(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::Not(operand) => adjective(operand),
+            ObjectPredicate::Color(_)
+            | ObjectPredicate::ColorQuantity(_)
+            | ObjectPredicate::CharacteristicBatch(_)
+            | ObjectPredicate::Supertype(CardSupertype::Legendary) => true,
+            _ => false,
+        }
+    }
+    let mut trial = cursor.clone();
+    let atom = recognize_object_predicate_atom(&mut trial, AcceptedForms::SingularOnly).ok()?;
+    if !adjective(&atom) {
+        return None;
+    }
+    *cursor = trial;
+    Some(atom)
+}
+
 fn recognize_search_subtype(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
     cursor.enter("selector.search-card.subtype");
     let mut words = Vec::new();
@@ -1699,6 +1760,9 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                 {
                     cursor.consume(CardSupertype::Basic.oracle_singular())?;
                     predicates.push(ObjectPredicate::Supertype(CardSupertype::Basic));
+                    SearchCardSelectorState::Predicate
+                } else if let Some(adjective) = recognize_search_card_adjective(cursor) {
+                    predicates.push(adjective);
                     SearchCardSelectorState::Predicate
                 } else if let Some(card_type) = cursor
                     .peek()

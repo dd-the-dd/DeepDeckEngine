@@ -55,6 +55,9 @@ fn primitive_barrowgoyf_characteristic_and_bound_mill_execute_together() {
     engine.enqueue_combat_damage_to_player_triggers("barrowgoyf", "player-1", 3);
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the optional mill and recovery trigger resolves");
 

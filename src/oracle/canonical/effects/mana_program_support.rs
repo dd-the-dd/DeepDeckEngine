@@ -53,9 +53,10 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::QuantifiedPlayerAction(_)
         | LocalEffectNode::TemporaryPlayerPermission(_)
-        | LocalEffectNode::UntapPermanents(_)
+        | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
-        | LocalEffectNode::Regenerate(_) | LocalEffectNode::PreventDamage(_)
+        | LocalEffectNode::PermanentKeywordAction(_)
+        | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
         | LocalEffectNode::UntapTarget(_) => false,
@@ -74,7 +75,8 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_) => true,
             SingularPlayerAction::Life(_)
             | SingularPlayerAction::Discard(_)
-            | SingularPlayerAction::Sacrifice(_) => false,
+            | SingularPlayerAction::Sacrifice(_)
+            | SingularPlayerAction::Venture(_) => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
             body.effects.iter().any(moves_cards_to_or_from_library)
@@ -84,6 +86,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Permit(_) => false,
+            CardActionNode::Shuffle { .. } => true,
             CardActionNode::Move { destination, .. } => destination.zone != CardZoneName::Library,
         },
         LocalEffectNode::DrawCards(_)
@@ -184,9 +187,10 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::QuantifiedPlayerAction(_)
         | LocalEffectNode::TemporaryPlayerPermission(_)
-        | LocalEffectNode::UntapPermanents(_)
+        | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
-        | LocalEffectNode::Regenerate(_) | LocalEffectNode::PreventDamage(_)
+        | LocalEffectNode::PermanentKeywordAction(_)
+        | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
         | LocalEffectNode::UntapTarget(_) => false,

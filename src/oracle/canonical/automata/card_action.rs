@@ -17,14 +17,18 @@ pub(in crate::oracle::canonical) enum CardPermissionVerb {
     Cast,
 }
 
-/// `you may play|cast COLLECTION DURATION`: a player permission over cards that
-/// were already bound by an earlier action. The window is part of the action,
-/// either trailing or supplied by a preposed sentence duration.
+/// `you may play|cast COLLECTION [DURATION]`: a player permission over cards
+/// that were already bound by an earlier action. The window is part of the
+/// action, either trailing or supplied by a preposed sentence duration. No
+/// stated window means the effect lasts for the rest of the game (CR 611.2a).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardPermissionNode {
     pub verb: CardPermissionVerb,
     pub cards: CardOperandNode,
-    pub duration: EffectDurationNode,
+    pub duration: Option<EffectDurationNode>,
+    /// `without paying its|their mana cost(s)`: with no window, the cards are
+    /// cast while the ability resolves (CR 608.2g), not later.
+    pub without_paying_mana_cost: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,6 +51,10 @@ pub(in crate::oracle::canonical) enum CardActionNode {
         destination: CardMoveDestinationNode,
     },
     Permit(CardPermissionNode),
+    /// `shuffle [your library]` (CR 701.20a).
+    Shuffle {
+        owner: LocalPlayerReference,
+    },
 }
 
 fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode> {
@@ -111,6 +119,19 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     {
         return recognize_card_permission(cursor, supplied_duration)
             .map(|node| Some(CardActionNode::Permit(node)));
+    }
+    if head.eq_ignore_ascii_case("shuffle") {
+        cursor.enter("card-action.shuffle");
+        cursor.consume("shuffle")?;
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+        {
+            cursor.consume_phrase(&["your", "library"])?;
+        }
+        return Ok(Some(CardActionNode::Shuffle {
+            owner: LocalPlayerReference::Controller,
+        }));
     }
     if head.eq_ignore_ascii_case("look") {
         cursor.enter("card-action.look.source");
@@ -229,6 +250,22 @@ fn recognize_card_permission(
         ),
         "a previously bound card collection as the permission object",
     )?;
+    cursor.enter("card-action.permit.base-cost");
+    let without_paying_mana_cost = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("without"));
+    if without_paying_mana_cost {
+        cursor.consume_phrase(&["without", "paying"])?;
+        let (possessive, noun) = if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("their"))
+        {
+            ("their", "costs")
+        } else {
+            ("its", "cost")
+        };
+        cursor.consume_phrase(&[possessive, "mana", noun])?;
+    }
     cursor.enter("card-action.permit.window");
     let duration = match supplied_duration {
         Some(duration) => {
@@ -238,14 +275,16 @@ fn recognize_card_permission(
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("until")),
                 "no second duration after a sentence-level preposed duration",
             )?;
-            duration.clone()
+            Some(duration.clone())
         }
-        None => recognize_play_window_duration(cursor)?,
+        None if matches!(cursor.peek(), None | Some(".")) => None,
+        None => Some(recognize_play_window_duration(cursor)?),
     };
     Ok(CardPermissionNode {
         verb,
         cards,
         duration,
+        without_paying_mana_cost,
     })
 }
 
@@ -260,6 +299,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             position: None,
             order: None,
             tapped: false,
+            entering_counters: None,
         });
     }
     cursor.enter("card-action.move.destination");

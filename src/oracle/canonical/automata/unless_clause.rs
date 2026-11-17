@@ -34,6 +34,10 @@ pub(in crate::oracle::canonical) enum UnlessPayerNode {
     ControllerOf(TargetBinding),
     /// `that player`: the player target declared by the guarded actions.
     BoundPlayer(PlayerTargetBinding),
+    /// `they`: each player of the guarded quantified subject (`each player
+    /// loses 2 life unless they ...`). The frame distributes over that
+    /// population; each player pays or suffers the action (CR 101.4).
+    QuantifiedPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,6 +79,7 @@ impl UnlessFrameNode {
                             effect_index: binding.effect_index + offset,
                         })
                     }
+                    UnlessPayerNode::QuantifiedPlayer => UnlessPayerNode::QuantifiedPlayer,
                 },
                 cost,
             },
@@ -90,11 +95,14 @@ impl UnlessFrameNode {
 
 /// Reads `unless PAYER COST` or `unless CONDITION`, stopping before the
 /// sentence end owned by the parent. `target` and `player` are the singular
-/// object and player bindings the guarded actions declared, if any.
+/// object and player bindings the guarded actions declared, if any;
+/// `quantified_subject` is true when the guarded action is one quantified
+/// player action whose population `they` names.
 pub(in crate::oracle::canonical) fn recognize_unless_clause(
     cursor: &mut OracleTokenCursor<'_>,
     target: Option<TargetBinding>,
     player: Option<PlayerTargetBinding>,
+    quantified_subject: bool,
 ) -> MachineResult<UnlessClauseNode> {
     cursor.enter("sequence.unless.introducer");
     cursor.consume("unless")?;
@@ -130,6 +138,17 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         (
             UnlessPayerNode::BoundPlayer(binding),
             DiscardVerbForm::ThirdPersonSingular,
+        )
+    } else if word(cursor, 0, "they") {
+        cursor.enter("sequence.unless.payer.quantified-player");
+        cursor.require(
+            quantified_subject,
+            "a guarded quantified player action whose players `they` names",
+        )?;
+        cursor.consume("they")?;
+        (
+            UnlessPayerNode::QuantifiedPlayer,
+            DiscardVerbForm::ThirdPersonPlural,
         )
     } else if word(cursor, 0, "any") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.any-player");

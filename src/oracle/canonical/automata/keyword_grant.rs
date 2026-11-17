@@ -63,6 +63,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "changeling" => GrantedKeyword::Changeling,
         "deathtouch" => GrantedKeyword::Deathtouch,
         "defender" => GrantedKeyword::Defender,
+        "devoid" => GrantedKeyword::Devoid,
         "exalted" => GrantedKeyword::Exalted,
         "fear" => GrantedKeyword::Fear,
         "flash" => GrantedKeyword::Flash,
@@ -81,6 +82,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "shadow" => GrantedKeyword::Shadow,
         "shroud" => GrantedKeyword::Shroud,
         "skulk" => GrantedKeyword::Skulk,
+        "storm" => GrantedKeyword::Storm,
         "sunburst" => GrantedKeyword::Sunburst,
         "trample" => GrantedKeyword::Trample,
         "undying" => GrantedKeyword::Undying,
@@ -104,6 +106,9 @@ pub(in crate::oracle::canonical) fn recognize_parameterless_keyword(
     } else if normalized == "first" {
         cursor.consume_phrase(&["first", "strike"])?;
         GrantedKeyword::FirstStrike
+    } else if normalized == "umbra" {
+        cursor.consume_phrase(&["umbra", "armor"])?;
+        GrantedKeyword::UmbraArmor
     } else {
         let keyword = parameterless_keyword_from_oracle_word(raw)
             .ok_or_else(|| cursor.fail("a supported parameterless keyword"))?;
@@ -423,6 +428,21 @@ pub(in crate::oracle::canonical) fn recognize_standalone_granted_list(
         Some(granted_type_line),
         &mut KeywordResourceCommitment::None,
         false,
+    )
+}
+
+/// The same granted list when the parent owns a following `, and VERB`
+/// connector: a separator not followed by another keyword atom ends the list.
+pub(in crate::oracle::canonical) fn recognize_granted_list_before_connector(
+    cursor: &mut OracleTokenCursor<'_>,
+    granted_type_line: &str,
+) -> MachineResult<KeywordListNode> {
+    recognize_keyword_atom_list_in_context(
+        cursor,
+        true,
+        Some(granted_type_line),
+        &mut KeywordResourceCommitment::None,
+        true,
     )
 }
 

@@ -25,7 +25,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_labeled_activated_zone_chang
         })
 }
 
-fn lower_activation_reduction(reduction: &ActivationCostReductionNode) -> Value {
+pub(in crate::oracle::canonical) fn lower_activation_cost_reduction(
+    reduction: &ActivationCostReductionNode,
+) -> Value {
     let count = json!({
         "kind": "countPermanents",
         "player": controller(),
@@ -117,7 +119,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_labeled_activated_zone_change
             "kind": "castingDeclaration",
             "decisions": [decision],
         },
-        "manaCostReduction": lower_activation_reduction(&ability.reduction),
+        "manaCostReduction": lower_activation_cost_reduction(&ability.reduction),
         "effects": effects,
     });
     if activates_from_hand {

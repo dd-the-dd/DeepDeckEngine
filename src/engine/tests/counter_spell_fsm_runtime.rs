@@ -55,6 +55,9 @@ fn parsed_simple_counter_moves_the_chosen_noncreature_spell_to_its_owners_gravey
     };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &counter,

@@ -77,6 +77,9 @@ fn phased_out_priority_sources_do_not_offer_equipment_actions() {
             "player-0",
         ),
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(
         engine
             .legal_priority_actions(0)

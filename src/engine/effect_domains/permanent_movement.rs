@@ -244,13 +244,15 @@ impl GameEngine {
             Some("returnToOwnersHand") => {
                 if object_collection_expression_supported(&effect["object"]) {
                     let mut returned = Vec::new();
+                    // Targets that became illegal are not affected, but the
+                    // remaining legal targets still are (CR 608.2b).
                     for instance_id in self
-                        .resolve_runtime_object_ids(
+                        .resolve_runtime_object_ids_for_effect(
                             &effect["object"],
                             stack_object,
                             bindings,
                             decisions,
-                        )
+                        )?
                         .unwrap_or_default()
                     {
                         self.return_permanent_to_hand(&instance_id)?;

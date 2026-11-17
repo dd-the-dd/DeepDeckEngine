@@ -102,13 +102,27 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::TapPermanents(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
-        LocalEffectNode::Regenerate(node) => {
+        LocalEffectNode::PermanentKeywordAction(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
         LocalEffectNode::Attach(node) => {
             Local(subject_after_operand(&node.recipient, effect_index))
         }
         LocalEffectNode::UntapTarget(node) => Local(Some(node.permanent)),
+        LocalEffectNode::CreateExplicitTokens(_) => Local(Some(
+            PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
+        )),
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::Selection(selection),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield
+            && selection.quantity
+                == CardSelectionQuantityNode::Exactly(NumericExpression::from(1)) =>
+        {
+            Local(Some(PermanentEffectReference::Observed(
+                TypedObservedEventObject::MovedOntoBattlefield,
+            )))
+        }
         LocalEffectNode::Choose(node) => match &node.domain {
             ChoiceDomainNode::CreatureType => previous,
             ChoiceDomainNode::PermanentTargets(targets) => {
@@ -136,7 +150,8 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             super::SingularPlayerAction::Draw(_)
             | super::SingularPlayerAction::Mill(_)
             | super::SingularPlayerAction::Discard(_)
-            | super::SingularPlayerAction::Sacrifice(_) => Local(None),
+            | super::SingularPlayerAction::Sacrifice(_)
+            | super::SingularPlayerAction::Venture(_) => Local(None),
         },
         // A list that only changes life totals leaves the permanent subject
         // alone; any other action replaces the antecedent.
@@ -173,7 +188,6 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::ZoneBatch(_)
         | LocalEffectNode::TargetCardZoneChange(_)
         | LocalEffectNode::CreateTokens(_)
-        | LocalEffectNode::CreateExplicitTokens(_)
         | LocalEffectNode::CreateNamedTokens(_)
         | LocalEffectNode::OptionalLibrarySearch(_)
         | LocalEffectNode::ControllerLibrarySearch(_)
@@ -183,7 +197,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::DestroyReferencedSet(_)
         | LocalEffectNode::DestroyCollection(_)
         | LocalEffectNode::Sacrifice(_)
-        | LocalEffectNode::UntapPermanents(_) => Local(None),
+        | LocalEffectNode::SelectedPermanents(_) => Local(None),
     }
 }
 
@@ -242,7 +256,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::BecomeTypes(node) => &node.objects,
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
-        LocalEffectNode::Regenerate(node) => &node.targets,
+        LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::Attach(node) => &node.recipient,
         LocalEffectNode::Choose(node) => {
             return node
@@ -323,6 +337,22 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         })
     {
         return recognize_nominal_permanent_anaphor(cursor, context);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+    {
+        // `they`: the plural objects of the preceding action; only created
+        // tokens are a proven plural permanent antecedent.
+        cursor.enter("permanent.subject.plural-anaphor");
+        let reference = proven_permanent_antecedent(context)
+            .filter(|reference| {
+                *reference
+                    == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens)
+            })
+            .ok_or_else(|| cursor.fail("tokens created by the preceding action for `they`"))?;
+        cursor.consume("they")?;
+        return Ok(PermanentOperandNode::BoundReference(reference));
     }
     if cursor
         .peek()

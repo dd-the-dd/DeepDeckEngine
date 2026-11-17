@@ -67,6 +67,9 @@ fn resolve_owner_library_sequence(library: Vec<CardInstance>) -> GameEngine {
     };
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &stack_object,

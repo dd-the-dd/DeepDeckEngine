@@ -6,7 +6,16 @@ fn source_with_pending_ability() -> GameEngine {
     source_definition.toughness = Some("1".to_string());
     let source = test_instance("source-lki-instance", source_definition, "player-0");
     let mut engine = test_engine(2);
-    engine.state.players[0].battlefield.push(source.clone());
+    engine.state.players[0].battlefield.push(source);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    // The pending ability captures its source as the admitted incarnation.
+    let source = engine.state.players[0]
+        .battlefield
+        .last()
+        .cloned()
+        .expect("source is on the battlefield");
     engine.state.stack.push(StackObject {
         id: "stack:source-lki".to_string(),
         controller: "player-0".to_string(),

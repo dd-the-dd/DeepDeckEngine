@@ -358,6 +358,7 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         recognize_source_attacked_event,
         recognize_combat_damage_to_player_event,
         recognize_source_dealt_damage_event,
+        super::recognize_attached_object_event,
     ];
     for reader in local_readers {
         if let Ok(event) = reader(cursor, name_links, name_failure) {

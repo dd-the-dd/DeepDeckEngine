@@ -61,6 +61,7 @@ pub(in crate::oracle::canonical) fn lower_player_effect_subject(
     let mut declared_player = None;
     let player = match subject {
         PlayerEffectSubject::Controller => controller(),
+        PlayerEffectSubject::EventPlayer => json!({ "kind": "triggeringPlayer" }),
         PlayerEffectSubject::DeclaredTarget { target, binding } => {
             let [slot] = target.slots.as_slice() else {
                 return Err(PlayerDiscardLoweringError::InvalidDeclaredPlayerTarget);

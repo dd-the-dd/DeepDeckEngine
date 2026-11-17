@@ -107,6 +107,7 @@ fn channel_all_five_lands_are_hand_only_but_keep_battlefield_mana() {
                 "hand" => engine.state.players[0].hand.push(source.clone()),
                 _ => unreachable!(),
             }
+            engine.admit_explicit_test_fixture_objects().unwrap();
             let actions = engine.legal_priority_actions(0);
             let own_activations = actions
                 .iter()
@@ -148,6 +149,7 @@ fn channel_boseiju_discards_as_cost_and_resolves_without_self_funding() {
     let mut engine = channel_engine();
     let source = channel_lands().remove(0);
     engine.state.players[0].hand.push(source);
+    engine.admit_explicit_test_fixture_objects().unwrap();
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -199,6 +201,7 @@ fn channel_boseiju_discards_as_cost_and_resolves_without_self_funding() {
 fn channel_invalid_battlefield_action_is_rejected_before_payment_or_stack_mutation() {
     let mut engine = channel_engine();
     engine.state.players[0].hand.push(channel_lands().remove(0));
+    engine.admit_explicit_test_fixture_objects().unwrap();
     let mut action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -227,6 +230,7 @@ fn channel_invalid_battlefield_action_is_rejected_before_payment_or_stack_mutati
 fn channel_stale_hand_action_is_rejected_before_payment() {
     let mut engine = channel_engine();
     engine.state.players[0].hand.push(channel_lands().remove(0));
+    engine.admit_explicit_test_fixture_objects().unwrap();
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -251,6 +255,7 @@ fn channel_requires_a_legal_target_and_payable_mana() {
     let mut engine = channel_engine();
     engine.state.players[0].hand.push(channel_lands().remove(0));
     engine.state.players[1].battlefield.clear();
+    engine.admit_explicit_test_fixture_objects().unwrap();
     assert!(
         !engine
             .legal_priority_actions(0)
@@ -262,6 +267,7 @@ fn channel_requires_a_legal_target_and_payable_mana() {
         test_definition("target", "Artifact"),
         "player-1",
     ));
+    engine.admit_explicit_test_fixture_objects().unwrap();
     engine.state.players[0].mana_pool.clear();
     assert!(
         !engine
@@ -288,6 +294,7 @@ fn channel_legendary_reduction_preserves_colored_mana_floor_for_all_five_lands()
             ));
         }
         engine.state.players[0].hand.push(source.clone());
+        engine.admit_explicit_test_fixture_objects().unwrap();
         assert!(
             engine.legal_priority_actions(0).iter().any(|action| {
                 action.card_instance_id.as_deref() == Some("channel-land")
@@ -349,12 +356,14 @@ fn channel_nonland_creature_also_requires_hand_and_discards_before_damage() {
     let source = test_instance("twinshot", definition, "player-0");
     let mut engine = channel_engine();
     engine.state.players[0].battlefield.push(source.clone());
+    engine.admit_explicit_test_fixture_objects().unwrap();
     assert!(!engine.legal_priority_actions(0).iter().any(|action| {
         action.kind == ActionKind::ActivateAbility
             && action.card_instance_id.as_deref() == Some("twinshot")
     }));
     engine.state.players[0].battlefield.clear();
     engine.state.players[0].hand.push(source);
+    engine.admit_explicit_test_fixture_objects().unwrap();
     let action = engine
         .legal_priority_actions(0)
         .into_iter()

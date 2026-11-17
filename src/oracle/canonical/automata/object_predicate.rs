@@ -1,5 +1,5 @@
 use super::{
-    CardColor, CardSupertype, CharacteristicBatch, GrantedKeyword, ManaCostNode,
+    CardColor, CardSupertype, CharacteristicBatch, ColorQuantity, GrantedKeyword, ManaCostNode,
     NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectKind,
     SelectorNumericProperty,
 };
@@ -47,6 +47,9 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     Subtype(String),
     CharacteristicBatch(CharacteristicBatch),
     Color(CardColor),
+    /// The number of colors of the object (CR 105.2a-c), read from the same
+    /// color characteristic as `Color`.
+    ColorQuantity(ColorQuantity),
     Supertype(CardSupertype),
     ExactManaCost(ManaCostNode),
     HasKeyword(GrantedKeyword),
@@ -80,6 +83,22 @@ impl ObjectPredicate {
         }
     }
 
+    /// Whether a batch word (`outlaw`, `historic`) occurs anywhere in this
+    /// predicate, so that a batch-definition reminder describes it.
+    pub(in crate::oracle::canonical) fn contains_characteristic_batch(
+        &self,
+        expected: CharacteristicBatch,
+    ) -> bool {
+        match self {
+            Self::CharacteristicBatch(batch) => *batch == expected,
+            Self::Not(operand) => operand.contains_characteristic_batch(expected),
+            Self::Intersection(operands) | Self::Union(operands) => operands
+                .iter()
+                .any(|operand| operand.contains_characteristic_batch(expected)),
+            _ => false,
+        }
+    }
+
     /// Returns whether every value accepted by this predicate has the requested
     /// card type. Every union branch must preserve the type, while one
     /// intersection member is enough to constrain the whole intersection.
@@ -103,6 +122,7 @@ impl ObjectPredicate {
             | Self::Subtype(_)
             | Self::CharacteristicBatch(_)
             | Self::Color(_)
+            | Self::ColorQuantity(_)
             | Self::Supertype(_)
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
@@ -130,6 +150,7 @@ impl ObjectPredicate {
             | Self::Subtype(_)
             | Self::CharacteristicBatch(_)
             | Self::Color(_)
+            | Self::ColorQuantity(_)
             | Self::Supertype(_)
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
@@ -161,6 +182,12 @@ impl ObjectPredicate {
                 domain == ObjectKind::Permanent && card_type.is_permanent_type()
             }
             Self::Not(operand) => operand.has_domain(domain),
+            // `seven or more Plains`: a land, artifact, enchantment,
+            // planeswalker or battle subtype only exists on that permanent type.
+            Self::Subtype(name) => domain == ObjectKind::Permanent
+                && crate::oracle::characteristic_vocabulary::noncreature_subtype_implies_permanent(
+                    name,
+                ),
             Self::Intersection(operands) => {
                 operands.iter().any(|operand| operand.has_domain(domain))
             }
@@ -169,9 +196,9 @@ impl ObjectPredicate {
             }
             Self::IsCommander
             | Self::IsToken
-            | Self::Subtype(_)
             | Self::CharacteristicBatch(_)
             | Self::Color(_)
+            | Self::ColorQuantity(_)
             | Self::Supertype(_)
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
@@ -205,6 +232,7 @@ impl ObjectPredicate {
             }
             Self::CharacteristicBatch(_)
             | Self::Color(_)
+            | Self::ColorQuantity(_)
             | Self::Supertype(_)
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)

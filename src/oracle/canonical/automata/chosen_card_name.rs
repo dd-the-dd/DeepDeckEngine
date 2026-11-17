@@ -6,7 +6,8 @@ use crate::oracle::{
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ChoiceBinding, LocalObjectReference, LocalPlayerReference, ManaCostNode, ObjectCardType,
-    recognize_mana_cost, recognize_source_reference,
+    ObjectKind, ObjectQueryNode, recognize_mana_cost, recognize_object_collection,
+    recognize_source_reference,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,9 +41,18 @@ pub(in crate::oracle::canonical) struct ChosenNameSpellTaxNode {
     pub cost: ManaCostNode,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) struct ChosenNameActivationProhibitionNode {
-    pub predicate: ChosenCardNamePredicateNode,
+/// The sources whose activated abilities a prohibition selects (CR 602.5).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ActivationSourcesNode {
+    /// `sources with the chosen name`.
+    ChosenName(ChosenCardNamePredicateNode),
+    /// A battlefield permanent collection from the shared object query.
+    Permanents(ObjectQueryNode),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ActivationProhibitionNode {
+    pub sources: ActivationSourcesNode,
     pub excludes_mana_abilities: bool,
 }
 
@@ -370,11 +380,14 @@ enum ActivationProhibitionState {
     Complete,
 }
 
-pub(in crate::oracle::canonical) fn recognize_chosen_name_activation_prohibition(
+/// `Activated abilities of SOURCES can't be activated [unless they're mana
+/// abilities].` The source set is the chosen-name predicate or any shared
+/// permanent collection; the mana-ability exception is an ability predicate.
+pub(in crate::oracle::canonical) fn recognize_activation_prohibition(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<ChosenNameActivationProhibitionNode> {
+) -> MachineResult<ActivationProhibitionNode> {
     let mut state = ActivationProhibitionState::AbilityKind;
-    let mut predicate = None;
+    let mut sources = None;
     let mut excludes_mana_abilities = false;
     loop {
         state = match state {
@@ -390,12 +403,29 @@ pub(in crate::oracle::canonical) fn recognize_chosen_name_activation_prohibition
             }
             ActivationProhibitionState::SourceNoun => {
                 cursor.enter("static.activation-prohibition.source-noun");
-                cursor.consume("sources")?;
-                ActivationProhibitionState::Predicate
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("sources"))
+                {
+                    cursor.consume("sources")?;
+                    ActivationProhibitionState::Predicate
+                } else {
+                    cursor.enter("static.activation-prohibition.source-collection");
+                    let objects = recognize_object_collection(cursor)?;
+                    cursor.require(
+                        objects.predicate.has_domain(ObjectKind::Permanent)
+                            && objects.predicate.supports_domain(ObjectKind::Permanent),
+                        "a source collection anchored in the battlefield-permanent domain",
+                    )?;
+                    sources = Some(ActivationSourcesNode::Permanents(objects));
+                    ActivationProhibitionState::Prohibition
+                }
             }
             ActivationProhibitionState::Predicate => {
                 cursor.enter("static.activation-prohibition.source-predicate");
-                predicate = Some(recognize_chosen_card_name_predicate(cursor)?);
+                sources = Some(ActivationSourcesNode::ChosenName(
+                    recognize_chosen_card_name_predicate(cursor)?,
+                ));
                 ActivationProhibitionState::Prohibition
             }
             ActivationProhibitionState::Prohibition => {
@@ -439,8 +469,8 @@ pub(in crate::oracle::canonical) fn recognize_chosen_name_activation_prohibition
             ActivationProhibitionState::Complete => {
                 cursor.enter("static.activation-prohibition.complete");
                 cursor.finish()?;
-                return Ok(ChosenNameActivationProhibitionNode {
-                    predicate: cursor.require_value(predicate, "a chosen-name source predicate")?,
+                return Ok(ActivationProhibitionNode {
+                    sources: cursor.require_value(sources, "an activation source set")?,
                     excludes_mana_abilities,
                 });
             }

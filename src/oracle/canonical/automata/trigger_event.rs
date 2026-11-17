@@ -90,6 +90,83 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         action: PlayerEventAction,
         one_or_more: bool,
     },
+    /// `equipped|enchanted creature VERB`: the event subject is the object the
+    /// ability source is attached to (CR 301.5a, 303.4a), not the source.
+    AttachedObjectEvent {
+        role: AttachedObjectRole,
+        action: AttachedObjectEventAction,
+    },
+}
+
+/// How the ability source is attached to the event subject.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AttachedObjectRole {
+    /// `equipped creature` on an Equipment.
+    Equipped,
+    /// `enchanted creature` on an Aura.
+    Enchanted,
+}
+
+/// Object-event verbs observed for the attached object. Each is the same
+/// event the source-subject atoms read, with a different subject reference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AttachedObjectEventAction {
+    DealCombatDamageToPlayer,
+    Attack,
+    Die,
+    BecomeTapped,
+    BecomeBlocked,
+}
+
+/// Recognizes `equipped|enchanted creature VERB` after the trigger word. The
+/// attachment subject is a reference, not a query: the runtime binds it from
+/// the source's attachment. The enclosing envelope owns the comma and body.
+pub(in crate::oracle::canonical) fn recognize_attached_object_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    _name_links: &[ResolvedNameLink],
+    _name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<LocalTriggerEventNode> {
+    cursor.enter("event.attached-object.role");
+    let role = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("equipped") => AttachedObjectRole::Equipped,
+        Some("enchanted") => AttachedObjectRole::Enchanted,
+        _ => return Err(cursor.fail("`equipped` or `enchanted`")),
+    };
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("event.attached-object.noun");
+    // Only the creature noun has a runtime matcher that needs no type filter.
+    cursor.consume("creature")?;
+    cursor.enter("event.attached-object.action");
+    let action = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("deals"))
+    {
+        cursor.consume_phrase(&["deals", "combat", "damage", "to", "a", "player"])?;
+        AttachedObjectEventAction::DealCombatDamageToPlayer
+    } else if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("attacks"))
+    {
+        cursor.consume("attacks")?;
+        AttachedObjectEventAction::Attack
+    } else if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("dies"))
+    {
+        cursor.consume("dies")?;
+        AttachedObjectEventAction::Die
+    } else if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"))
+    {
+        cursor.consume_phrase(&["becomes", "tapped"])?;
+        AttachedObjectEventAction::BecomeTapped
+    } else {
+        cursor.consume_phrase(&["becomes", "blocked"])?;
+        AttachedObjectEventAction::BecomeBlocked
+    };
+    cursor.enter("event.attached-object.complete");
+    Ok(LocalTriggerEventNode::AttachedObjectEvent { role, action })
 }
 
 /// Player-event verbs. Each is a vocabulary atom; the actor and the lowering

@@ -87,6 +87,9 @@ fn explicit_mana_objects_disambiguate_without_turning_sacrifice_into_a_target() 
             definition_id: "chosen-creature".into(),
         },
     )]);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(
         engine
             .canonical_mana_ability_available_with_decisions(

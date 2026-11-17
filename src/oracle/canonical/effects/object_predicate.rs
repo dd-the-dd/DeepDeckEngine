@@ -49,13 +49,28 @@ fn lower_object_predicate(
         ObjectPredicate::CharacteristicBatch(batch) => {
             Some(or(characteristic_batch_members(*batch)
                 .iter()
-                .map(|member| subtype(member.subtype))
+                .filter_map(|member| {
+                    lower_object_predicate(&member.characteristic.predicate(), domain)
+                })
                 .collect()))
         }
         ObjectPredicate::Color(color) => Some(json!({
             "kind": "colorContains",
             "value": canonical_color_name(*color),
         })),
+        // The shared color-count characteristic compared with a constant.
+        ObjectPredicate::ColorQuantity(quantity) => {
+            let (operator, count) = match quantity {
+                ColorQuantity::Colorless => ("==", 0),
+                ColorQuantity::Monocolored => ("==", 1),
+                ColorQuantity::Multicolored => (">=", 2),
+            };
+            Some(compare(
+                operator,
+                json!({ "kind": "colorCountOf", "object": { "kind": "candidate" } }),
+                integer(count),
+            ))
+        }
         ObjectPredicate::Supertype(CardSupertype::Basic) => {
             Some(json!({ "kind": "typeLineContains", "value": "Basic" }))
         }

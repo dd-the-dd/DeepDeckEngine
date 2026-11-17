@@ -253,6 +253,53 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query_w
     }
 }
 
+/// Player-count query `you have N or more/fewer opponents` (CR 102.3: the
+/// opponents of the reference player). The surrounding condition owns
+/// `if`/`unless` and punctuation; threshold and direction stay typed values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct OpponentCountConditionNode {
+    pub player: LocalPlayerReference,
+    pub threshold: i64,
+    pub direction: ControlledCountDirection,
+}
+
+pub(in crate::oracle::canonical) fn recognize_opponent_count_query(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<OpponentCountConditionNode> {
+    cursor.enter("condition.opponent-count.player");
+    cursor.consume("you")?;
+    cursor.enter("condition.opponent-count.have");
+    cursor.consume("have")?;
+    cursor.enter("condition.opponent-count.threshold");
+    let threshold = match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) if value >= 0 => value,
+        _ => return Err(cursor.fail("a fixed nonnegative opponent-count threshold")),
+    };
+    cursor.enter("condition.opponent-count.comparator-connector");
+    cursor.consume("or")?;
+    cursor.enter("condition.opponent-count.comparator-direction");
+    let direction = match cursor.peek() {
+        Some(raw) if raw.eq_ignore_ascii_case("more") => ControlledCountDirection::OrMore,
+        Some(raw) if raw.eq_ignore_ascii_case("fewer") => ControlledCountDirection::OrFewer,
+        _ => return Err(cursor.fail("`more` or `fewer`")),
+    };
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("condition.opponent-count.noun");
+    let noun = cursor.peek().ok_or_else(|| cursor.fail("`opponents`"))?;
+    cursor.require(
+        noun.eq_ignore_ascii_case("opponents")
+            || (threshold == 1 && noun.eq_ignore_ascii_case("opponent")),
+        "`opponents`",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("condition.opponent-count.complete");
+    Ok(OpponentCountConditionNode {
+        player: LocalPlayerReference::Controller,
+        threshold,
+        direction,
+    })
+}
+
 /// Recognizes `if you control N or more/fewer <permanents>,` and retains the
 /// numeric comparison and selector as independent typed concepts.
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_condition(

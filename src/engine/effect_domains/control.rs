@@ -13,6 +13,7 @@ pub(super) fn movement_is_owned_by_child_frames(effect: &Value) -> bool {
                 | "chooseOneEffect"
                 | "optionalEffects"
                 | "optionalAction"
+                | "performAction"
                 | "conditional"
                 | "conditionalEffect"
                 | "ifTargetWasChosen"
@@ -51,6 +52,17 @@ fn supports_known_effect(effect: &Value) -> bool {
                     effects
                         .as_array()
                         .is_some_and(|effects| effects.iter().all(effect_supported))
+                })
+        }
+        // A mandatory instruction whose measured performance gates its
+        // outcome (CR 603.12 reflexive `When you do`).
+        Some("performAction") => {
+            effect_supported(&effect["action"])
+                && super::super::optional_action::optional_action_witness_supported(
+                    &effect["action"],
+                )
+                && effect["onPerformed"].as_array().is_some_and(|effects| {
+                    !effects.is_empty() && effects.iter().all(effect_supported)
                 })
         }
         Some("optionalEffects") => {
@@ -289,6 +301,9 @@ impl GameEngine {
             }
             Some("optionalAction") => {
                 self.execute_optional_action(effect, stack_object, bindings, decisions, provider)?;
+            }
+            Some("performAction") => {
+                self.execute_performed_action(effect, stack_object, bindings, decisions, provider)?;
             }
             Some("bind") => {
                 let Some(id) = effect["id"].as_str() else {

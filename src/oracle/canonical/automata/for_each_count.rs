@@ -113,8 +113,7 @@ fn recognize_counted_collection(
     cursor.enter("numeric.for-each.collection");
     let query = recognize_object_collection(cursor)?;
     cursor.require(
-        query.predicate.has_domain(ObjectKind::Permanent)
-            && query.predicate.supports_domain(ObjectKind::Permanent),
+        battlefield_anchored(&query),
         "a counted collection anchored in the battlefield-permanent domain",
     )?;
     cursor.require(
@@ -156,6 +155,68 @@ fn recognize_counted_collection(
     )))
 }
 
+/// A collection is read on the battlefield when a permanent card type anchors
+/// it, or when a noun compatible with permanents (a subtype such as
+/// `Elementals`) is qualified by a control relation: `X you control` names
+/// permanents (CR 108.4, 110.2), not cards in another zone.
+fn battlefield_anchored(query: &ObjectQueryNode) -> bool {
+    query.predicate.supports_domain(ObjectKind::Permanent)
+        && (query.predicate.has_domain(ObjectKind::Permanent)
+            || (query.controller.is_some() && query.predicate.has_nominal_head()))
+}
+
+/// Lexical lookahead for `the greatest power|toughness among ...`.
+pub(in crate::oracle::canonical) fn greatest_property_among_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("greatest"))
+}
+
+/// `the greatest power|toughness among COLLECTION`: a maximum aggregate over
+/// the same battlefield collection the counting introducers read. The engine
+/// evaluates it for the ability controller's permanents only, so any other
+/// controller relation is refused explicitly.
+pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.greatest-among.quantifier");
+    cursor.consume_phrase(&["the", "greatest"])?;
+    cursor.enter("numeric.greatest-among.property");
+    let property = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("power") => NumericObjectProperty::Power,
+        Some("toughness") => NumericObjectProperty::Toughness,
+        _ => return Err(cursor.fail("`power` or `toughness` after `the greatest`")),
+    };
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    cursor.enter("numeric.greatest-among.among");
+    cursor.consume("among")?;
+    cursor.enter("numeric.greatest-among.collection");
+    let query = recognize_object_collection(cursor)?;
+    cursor.require(
+        battlefield_anchored(&query),
+        "an aggregated collection anchored in the battlefield-permanent domain",
+    )?;
+    cursor.require(
+        !predicate_needs_declaration(&query.predicate),
+        "an aggregated collection predicate independent of targets and declared variables",
+    )?;
+    cursor.enter("numeric.greatest-among.controller");
+    cursor.require(
+        query.controller == Some(ObjectControllerScope::AbilityController),
+        "an aggregated collection controlled by you",
+    )?;
+    Ok(NumericExpression::GreatestPropertyAmong {
+        property,
+        predicate: query.predicate,
+    })
+}
+
 /// Multiplies an action's literal base quantity by a shared count. A base of
 /// one is the count itself; any other positive literal is an explicit product.
 /// A non-literal base (a variable, an expression) has no proved reading of
@@ -188,7 +249,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         LocalEffectNode::PlayerAction(node) => match &mut node.action {
             SingularPlayerAction::Draw(quantity) | SingularPlayerAction::Mill(quantity) => quantity,
             SingularPlayerAction::Life(life) => &mut life.amount,
-            SingularPlayerAction::Discard(_) | SingularPlayerAction::Sacrifice(_) => return false,
+            SingularPlayerAction::Discard(_)
+            | SingularPlayerAction::Sacrifice(_)
+            | SingularPlayerAction::Venture(_) => return false,
         },
         _ => return false,
     };

@@ -72,6 +72,9 @@ fn negated_subtype_batch_filters_targets_and_executes_atomic_destruction() {
     engine.state.players[0].hand = vec![test_instance("batch-destruction", spell, "player-0")];
     engine.state.players[1].battlefield = vec![bear, rogue, assassin, changeling, artifact];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let casts = engine
         .legal_priority_actions(0)
         .into_iter()

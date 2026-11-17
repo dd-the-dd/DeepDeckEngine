@@ -3,7 +3,7 @@ use super::*;
 fn effect(amount: NumericAtom, players: PlayerSetReferenceNode) -> LocalEffectNode {
     LocalEffectNode::DealDamage(DamageEffectNode {
         source: LocalObjectReference::SourceSelf,
-        amount,
+        amount: NumericExpression::Atom(amount),
         recipient: DamageRecipientNode::PlayerSet(players),
     })
 }

@@ -70,6 +70,9 @@ fn stack_depth_after_cast(scope: &str, caster: usize) -> usize {
         })
         .expect("the zero-cost test sorcery is castable by the active player");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(96))
         .expect("the test spell is cast through the normal priority path");
     engine.state.stack.len()

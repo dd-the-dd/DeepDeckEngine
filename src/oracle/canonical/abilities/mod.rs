@@ -5,10 +5,12 @@ mod alternative_cost_native;
 mod alternative_return_cost_native;
 mod blight_native;
 mod conditional_mana_native;
+mod dungeon_native;
 
 mod enchant_native;
 mod equip_native;
 mod flashback_native;
+mod suspend_native;
 mod typecycling_native;
 
 mod keyword_native;
@@ -39,10 +41,12 @@ pub(super) use alternative_cost_native::*;
 pub(super) use alternative_return_cost_native::*;
 pub(super) use blight_native::*;
 pub(super) use conditional_mana_native::*;
+pub(super) use dungeon_native::*;
 
 pub(super) use enchant_native::*;
 pub(super) use equip_native::*;
 pub(super) use flashback_native::*;
+pub(super) use suspend_native::*;
 pub(super) use typecycling_native::*;
 
 pub(super) use keyword_native::*;

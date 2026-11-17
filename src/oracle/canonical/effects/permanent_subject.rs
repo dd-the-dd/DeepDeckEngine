@@ -11,6 +11,12 @@ pub(in crate::oracle::canonical) fn lower_bound_permanent_reference(
         PermanentEffectReference::Observed(TypedObservedEventObject::EnteringPermanent) => {
             Ok(json!({"kind":"observedEventObject","event":"permanentEntered"}))
         }
+        PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens) => {
+            Ok(json!({"kind":"boundObjects","binding":CREATED_TOKENS_BINDING}))
+        }
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield) => {
+            Ok(json!({"kind":"singleBoundObject","binding":MOVED_ONTO_BATTLEFIELD_BINDING}))
+        }
         PermanentEffectReference::Target(target) => bindings
             .iter()
             .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id)))
@@ -29,7 +35,7 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::BecomeTypes(node) => &node.objects,
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
-        LocalEffectNode::Regenerate(node) => &node.targets,
+        LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         _ => return None,
     };
     match operand {

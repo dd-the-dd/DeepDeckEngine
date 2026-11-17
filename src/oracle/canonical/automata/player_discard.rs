@@ -20,7 +20,8 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_effect(
     antecedent: Option<PlayerBinding>,
 ) -> MachineResult<PlayerDiscardEffectNode> {
     cursor.enter("effect.player-discard.subject");
-    let player = recognize_player_effect_subject(cursor, declared_target_binding, antecedent)?;
+    let player =
+        recognize_player_effect_subject(cursor, declared_target_binding, antecedent, false)?;
     let form = match player {
         PlayerEffectSubject::Controller => DiscardVerbForm::Imperative,
         _ => DiscardVerbForm::ThirdPersonSingular,

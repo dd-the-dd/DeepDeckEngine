@@ -61,15 +61,15 @@ fn resolve_swords(power_modifier: i32) -> GameEngine {
             instance_id: "borrowed-creature".to_string(),
         },
     )]);
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the clamped snapshot sequence should resolve");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the clamped snapshot sequence should resolve");
     engine
 }
 

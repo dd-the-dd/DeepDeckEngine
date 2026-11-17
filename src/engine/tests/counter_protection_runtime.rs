@@ -82,6 +82,9 @@ fn filtered_continuous_prohibition_protects_only_matching_controlled_spells() {
         .push(spell("instant", "Instant", "player-0"));
 
     instant_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    instant_engine
         .counter_stack_object("stack:instant", "counter", "player-1", false)
         .expect("counter attempt completes");
 
@@ -122,6 +125,9 @@ fn continuous_prohibition_is_evaluated_when_countering_not_when_casting() {
         .stack
         .push(spell("late-creature", "Creature", "player-0"));
     leaves_after_cast
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    leaves_after_cast
         .move_permanent_to_graveyard("departing-protection", "destroyed")
         .expect("protection source leaves");
 
@@ -142,6 +148,9 @@ fn selector_controller_and_existing_intrinsic_flag_remain_distinct() {
         .stack
         .push(spell("opponent-creature", "Creature", "player-1"));
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .counter_stack_object("stack:opponent-creature", "counter", "player-0", false)
         .expect("opponent spell is not protected by the selector");

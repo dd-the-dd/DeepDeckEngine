@@ -472,7 +472,13 @@ impl GameEngine {
                     "battlefield" => {
                         let tapped = effect["to"]["tapped"].as_bool().unwrap_or(false);
                         let mut prepared_entries = Vec::with_capacity(moved.len());
-                        for moved_card in moved {
+                        for mut moved_card in moved {
+                            // The card becomes a new object with no memory of
+                            // its previous existence, and counters on it are
+                            // not retained (CR 400.7, 122.2).
+                            super::super::card_zone_transition::reset_owned_movement_card(
+                                &mut moved_card,
+                            )?;
                             let mut card = moved_card.card;
                             card.controller = if destination_uses_each_owner {
                                 card.owner.clone()

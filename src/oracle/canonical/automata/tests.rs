@@ -44,7 +44,7 @@ fn linked_source_damage_and_life_are_independent_typed_effects() {
         [
             LocalEffectNode::DealDamage(DamageEffectNode {
                 source: LocalObjectReference::SourceSelf,
-                amount: NumericAtom::Integer(3),
+                amount: NumericExpression::Atom(NumericAtom::Integer(3)),
                 recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Any)),
             }),
             LocalEffectNode::GainLife(GainLifeEffectNode {
@@ -79,7 +79,7 @@ fn any_and_typed_damage_targets_share_target_list_and_selector_children() {
         sequence.effects,
         [LocalEffectNode::DealDamage(DamageEffectNode {
             source: LocalObjectReference::SourceSelf,
-            amount: NumericAtom::Integer(3),
+            amount: NumericExpression::Atom(NumericAtom::Integer(3)),
             recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Object(
                 SelectorPredicate::Intersection(vec![
                     SelectorPredicate::CardType(ObjectCardType::Artifact),
@@ -112,7 +112,7 @@ fn this_spell_variable_damage_and_word_life_use_the_same_submachines() {
         sequence.effects[0],
         LocalEffectNode::DealDamage(DamageEffectNode {
             source: LocalObjectReference::SourceSelf,
-            amount: NumericAtom::VariableX,
+            amount: NumericExpression::Atom(NumericAtom::VariableX),
             recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Player(
                 PlayerPredicate::Any,
             ))),
@@ -160,7 +160,9 @@ fn sentence_sequence_resolves_controller_and_power_against_the_exile_target() {
 }
 
 #[test]
-fn missing_numeric_atom_fails_at_the_numeric_submachine() {
+fn missing_damage_amount_fails_where_the_equal_to_amount_is_required() {
+    // `deals damage` defers its amount to an `equal to` clause, before or
+    // after the recipient; without one the frame reports the missing amount.
     let tokens = recognize_entities("Example Source deals damage to any target.");
     let links = [current_card_link(&tokens)];
     let mut cursor = OracleTokenCursor::new("test.effect-sequence", &tokens);
@@ -168,9 +170,8 @@ fn missing_numeric_atom_fails_at_the_numeric_submachine() {
     let failure =
         recognize_effect_sequence(&mut cursor, &links, None).expect_err("amount is required");
 
-    assert_eq!(failure.state, "numeric.atom.start");
-    assert_eq!(failure.actual.as_deref(), Some("damage"));
-    assert_eq!(failure.expected, "integer, number word, or X");
+    assert_eq!(failure.state, "effect.damage.postposed-amount");
+    assert_eq!(failure.expected, "`equal to` and the amount of damage");
 }
 
 #[test]

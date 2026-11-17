@@ -111,6 +111,9 @@ fn destroy_search_uses_the_pre_destroy_controller_and_owner_graveyard() {
     );
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &stack_object,

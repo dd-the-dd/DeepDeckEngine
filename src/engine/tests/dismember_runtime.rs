@@ -67,15 +67,15 @@ fn parsed_dismember_executes_the_generic_temporary_modifier_and_state_based_deat
         .battlefield
         .push(creature("six-six", 6, 6));
     let stack = dismember_stack(&rule, "six-six");
-    survivor_engine
-        .execute_effects(
-            &rule["effects"],
-            &stack,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Dismember resolves on the surviving creature");
+    execute_effects_at_resolution_start(
+        &mut survivor_engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("Dismember resolves on the surviving creature");
     let survivor = &survivor_engine.state.players[1].battlefield[0];
     assert_eq!(survivor_engine.current_power(survivor), 1);
     assert_eq!(survivor_engine.current_toughness(survivor), 1);
@@ -91,15 +91,15 @@ fn parsed_dismember_executes_the_generic_temporary_modifier_and_state_based_deat
         .battlefield
         .push(creature("four-four", 4, 4));
     let stack = dismember_stack(&rule, "four-four");
-    lethal_engine
-        .execute_effects(
-            &rule["effects"],
-            &stack,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Dismember resolves on the lethal target");
+    execute_effects_at_resolution_start(
+        &mut lethal_engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("Dismember resolves on the lethal target");
     lethal_engine.check_state_based_actions();
     assert!(lethal_engine.state.players[1].battlefield.is_empty());
     assert!(

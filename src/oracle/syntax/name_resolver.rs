@@ -122,13 +122,37 @@ impl NameResolutionContext {
         current_card_name: &str,
         face_names: impl IntoIterator<Item = &'a str>,
     ) -> Self {
+        Self::with_legendary_names(
+            current_card_name,
+            false,
+            face_names.into_iter().map(|name| (name, false)),
+        )
+    }
+
+    /// Like `new`, with each name's legendary supertype. Only a legendary
+    /// name is read through a leading proper-noun shortening (CR 201.5c).
+    pub(crate) fn with_legendary_names<'a>(
+        current_card_name: &str,
+        current_card_legendary: bool,
+        faces: impl IntoIterator<Item = (&'a str, bool)>,
+    ) -> Self {
         let mut aliases = Vec::new();
-        push_name_aliases(&mut aliases, NameLinkKind::CurrentCard, current_card_name);
-        for face_name in face_names {
+        push_name_aliases(
+            &mut aliases,
+            NameLinkKind::CurrentCard,
+            current_card_name,
+            current_card_legendary,
+        );
+        for (face_name, legendary) in faces {
             if face_name.eq_ignore_ascii_case(current_card_name) {
                 continue;
             }
-            push_name_aliases(&mut aliases, NameLinkKind::CurrentFace, face_name);
+            push_name_aliases(
+                &mut aliases,
+                NameLinkKind::CurrentFace,
+                face_name,
+                legendary,
+            );
         }
         aliases.sort_by(|left, right| right.tokens.len().cmp(&left.tokens.len()));
         Self { aliases }
@@ -208,6 +232,11 @@ struct Alias {
     kind: NameLinkKind,
     canonical_name: String,
     tokens: Vec<String>,
+    /// A shortened name read as a leading part of the printed name (CR
+    /// 201.5c) is accepted only where every matched token is UNKNOWN to the
+    /// Oracle vocabulary, so a prefix such as `Black` or `Forest` never
+    /// shadows the ordinary word it spells.
+    proper_noun_only: bool,
 }
 
 #[derive(Clone)]
@@ -376,7 +405,8 @@ fn contextual_candidates(
         }
         for start in 0..=(tokens.len() - alias.tokens.len()) {
             let end = start + alias.tokens.len();
-            let matched = contextual_tokens_match(&tokens[start..end], &alias.tokens);
+            let matched = contextual_tokens_match(&tokens[start..end], &alias.tokens)
+                .filter(|_| !alias.proper_noun_only || tokens[start..end].iter().all(is_unknown));
             // Known nonmatches need no diagnostic attempt or trace allocation.
             // UNKNOWN failed attempts retain their existing evidence/rollback.
             if matched.is_none() && !contains_unknown(&tokens[start..end]) {
@@ -493,32 +523,63 @@ fn named_card_candidates(
     candidates
 }
 
-fn push_name_aliases(aliases: &mut Vec<Alias>, kind: NameLinkKind, canonical_name: &str) {
-    push_alias(aliases, kind, canonical_name, canonical_name);
-    if let Some((short_name, _)) = canonical_name.split_once(',') {
-        let short_name = short_name.trim();
-        if !short_name.is_empty() {
-            push_alias(aliases, kind, canonical_name, short_name);
-        }
+/// Text printed on a card may refer to it by a shortened name (CR 201.5c):
+/// the part before the first comma (`Toph` for `Toph, Hardheaded Teacher`)
+/// or, for a legendary name, a leading run of proper-noun words (`Arcanis`
+/// for `Arcanis the Omnipotent`, `Legolas` for `Legolas Greenleaf`). A
+/// leading run is only linked where the text spells it with UNKNOWN tokens.
+fn push_name_aliases(
+    aliases: &mut Vec<Alias>,
+    kind: NameLinkKind,
+    canonical_name: &str,
+    legendary: bool,
+) {
+    push_alias(aliases, kind, canonical_name, canonical_name, false);
+    let full = canonical_name
+        .split_once(',')
+        .map_or(canonical_name, |(short_name, _)| {
+            let short_name = short_name.trim();
+            if !short_name.is_empty() {
+                push_alias(aliases, kind, canonical_name, short_name, false);
+            }
+            short_name
+        });
+    let words = if legendary {
+        recognize_entities(full)
+    } else {
+        Vec::new()
+    };
+    for width in 1..words.len() {
+        let prefix = &full[words[0].span_start..words[width - 1].span_end];
+        push_alias(aliases, kind, canonical_name, prefix, true);
     }
 }
 
-fn push_alias(aliases: &mut Vec<Alias>, kind: NameLinkKind, canonical_name: &str, alias: &str) {
+fn push_alias(
+    aliases: &mut Vec<Alias>,
+    kind: NameLinkKind,
+    canonical_name: &str,
+    alias: &str,
+    proper_noun_only: bool,
+) {
     let tokens = recognize_entities(alias)
         .into_iter()
         .map(|token| token.raw.to_lowercase())
         .collect::<Vec<_>>();
-    if aliases.iter().any(|existing| {
-        existing.kind == kind
-            && existing.canonical_name.eq_ignore_ascii_case(canonical_name)
-            && existing.tokens == tokens
-    }) {
+    if tokens.is_empty()
+        || aliases.iter().any(|existing| {
+            existing.kind == kind
+                && existing.canonical_name.eq_ignore_ascii_case(canonical_name)
+                && existing.tokens == tokens
+        })
+    {
         return;
     }
     aliases.push(Alias {
         kind,
         canonical_name: canonical_name.to_string(),
         tokens,
+        proper_noun_only,
     });
 }
 

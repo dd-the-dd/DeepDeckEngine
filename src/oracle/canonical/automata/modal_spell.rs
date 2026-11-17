@@ -138,6 +138,14 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal(
     while cursor.peek().is_some_and(|raw| raw == "\u{2022}") {
         cursor.enter("modal.effect-sequence.mode-marker");
         cursor.consume("\u{2022}")?;
+        // CR 207.2d: a flavor word (`Pray for Protection —`) labels the mode
+        // and has no rules meaning; the mode body starts after its dash.
+        let label_width =
+            flavor_word_label_width(cursor.token_slice(cursor.position(), usize::MAX));
+        if label_width > 0 {
+            cursor.enter("modal.effect-sequence.mode-flavor-word");
+            cursor.advance_to(cursor.position() + label_width + 1)?;
+        }
         let mode_start = cursor.position();
         let mut mode_end = mode_start;
         while let Some(raw) = cursor.peek_ahead(mode_end - mode_start) {
@@ -198,6 +206,28 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal(
     })
 }
 
+/// Width of a mode's leading flavor-word label: a short run of words closed
+/// by an em dash before any punctuation of the mode's own text. Zero when the
+/// mode starts directly with its effect.
+fn flavor_word_label_width(tokens: &[crate::oracle::model::RecognizedEntity]) -> usize {
+    const MAXIMUM_LABEL_WORDS: usize = 6;
+    let width = tokens
+        .iter()
+        .take(MAXIMUM_LABEL_WORDS + 1)
+        .take_while(|token| token.raw.chars().next().is_some_and(char::is_alphanumeric))
+        .count();
+    if width > 0
+        && width <= MAXIMUM_LABEL_WORDS
+        && tokens
+            .get(width)
+            .is_some_and(|token| token.raw == "\u{2014}")
+    {
+        width
+    } else {
+        0
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ModalCardinalityNode {
     pub minimum: u32,
@@ -218,7 +248,7 @@ pub(in crate::oracle::canonical) enum ModalPrimitiveActionNode {
 impl ModalPrimitiveActionNode {
     pub(in crate::oracle::canonical) fn uses_x(&self) -> bool {
         match self {
-            Self::Damage(effect) => effect.amount == NumericAtom::VariableX,
+            Self::Damage(effect) => effect.amount.uses_x(),
             Self::TargetedTokenCreation(effect) => effect.quantity == NumericAtom::VariableX,
             Self::TargetPlayerScryThenDraw(effect) => effect.scry_count.uses_x(),
             Self::ZoneChange(effect) => effect

@@ -65,6 +65,86 @@ pub(in crate::oracle::canonical) fn recognize_source_object_property(
     }
 }
 
+fn object_property_word(raw: &str) -> Option<NumericObjectProperty> {
+    if raw.eq_ignore_ascii_case("power") {
+        Some(NumericObjectProperty::Power)
+    } else if raw.eq_ignore_ascii_case("toughness") {
+        Some(NumericObjectProperty::Toughness)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead for `its power|toughness`; the parent decides whether a
+/// subject antecedent exists before the child is allowed to read it.
+pub(in crate::oracle::canonical) fn subject_possessive_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| object_property_word(raw).is_some())
+}
+
+/// `its power|toughness` bound to the subject supplied by the enclosing action
+/// frame. The pronoun never mints a reference: without a parent subject the
+/// arithmetic grammar does not offer this child at all.
+pub(in crate::oracle::canonical) fn recognize_subject_possessive_property(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: LocalObjectReference,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.subject-possessive.pronoun");
+    cursor.consume("its")?;
+    cursor.enter("numeric.subject-possessive.property");
+    let property = cursor
+        .peek()
+        .and_then(object_property_word)
+        .ok_or_else(|| cursor.fail("`power` or `toughness`"))?;
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    Ok(NumericExpression::ObjectProperty {
+        object: subject,
+        property,
+    })
+}
+
+/// Lexical lookahead for `the sacrificed NOUN's ...`.
+pub(in crate::oracle::canonical) fn sacrificed_cost_object_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("sacrificed"))
+}
+
+/// `the sacrificed NOUN's power|toughness`: a characteristic of the permanent
+/// sacrificed to pay a cost of this ability (CR 601.2h, 602.2b), read as last
+/// known information when the cost was paid (CR 608.2h). The symbolic
+/// reference is resolved against a same-face cost producer after card
+/// composition; it never borrows another object.
+pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_property(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.sacrificed-cost-object.reference");
+    cursor.consume_phrase(&["the", "sacrificed"])?;
+    cursor.enter("numeric.sacrificed-cost-object.possessive-object");
+    let object = cursor.consume_type("possessiveTypeWord")?;
+    cursor.require(
+        registered_possessive_object(&object.raw),
+        "a registered possessive card type or object domain",
+    )?;
+    cursor.enter("numeric.sacrificed-cost-object.property");
+    let token = cursor.consume_type("propertyWord")?;
+    let property =
+        object_property_word(&token.raw).ok_or_else(|| cursor.fail("`power` or `toughness`"))?;
+    Ok(NumericExpression::SacrificedCostObjectProperty(property))
+}
+
 fn registered_possessive_object(raw: &str) -> bool {
     let Some(base) = raw.strip_suffix("'s").or_else(|| raw.strip_suffix("’s")) else {
         return false;

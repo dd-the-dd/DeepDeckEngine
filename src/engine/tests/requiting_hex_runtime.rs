@@ -62,6 +62,9 @@ fn requiting_hex_paid_blight_crosses_rules_and_executes_all_primitives() {
         "player-1",
     )];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()

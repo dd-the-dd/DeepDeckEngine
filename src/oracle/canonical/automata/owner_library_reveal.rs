@@ -64,6 +64,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::Subtype(_)
         | ObjectPredicate::CharacteristicBatch(_)
         | ObjectPredicate::Color(_)
+        | ObjectPredicate::ColorQuantity(_)
         | ObjectPredicate::Supertype(_)
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)

@@ -44,17 +44,20 @@ pub(in crate::oracle::canonical) fn claims_promoted_chosen_name_spell_tax_family
         && token_is(input, 5, "cost")
 }
 
-pub(in crate::oracle::canonical) fn claims_promoted_chosen_name_activation_prohibition_family(
+/// Claims `Activated abilities of ... can't be activated`: the structural
+/// head and the prohibition verb phrase at top level. Cost changes to the
+/// same abilities (`... cost {2} more to activate`) are another family.
+pub(in crate::oracle::canonical) fn claims_promoted_activation_prohibition_family(
     input: &AbilityInput<'_>,
 ) -> bool {
     token_is(input, 0, "activated")
         && token_is(input, 1, "abilities")
         && token_is(input, 2, "of")
-        && token_is(input, 3, "sources")
-        && token_is(input, 4, "with")
-        && token_is(input, 5, "the")
-        && token_is(input, 6, "chosen")
-        && token_is(input, 7, "name")
+        && input.tokens.windows(3).any(|window| {
+            window[0].raw.eq_ignore_ascii_case("can't")
+                && window[1].raw.eq_ignore_ascii_case("be")
+                && window[2].raw.eq_ignore_ascii_case("activated")
+        })
 }
 
 fn lower_player(reference: &LocalPlayerReference) -> Value {
@@ -183,16 +186,29 @@ pub(in crate::oracle::canonical) fn parse_promoted_chosen_name_spell_tax(
     ))
 }
 
-pub(in crate::oracle::canonical) fn parse_promoted_chosen_name_activation_prohibition(
+pub(in crate::oracle::canonical) fn parse_promoted_activation_prohibition(
     input: &AbilityInput<'_>,
 ) -> MachineResult<CanonicalRuleDraft> {
-    let mut cursor = OracleTokenCursor::new("chosen-name-activation-prohibition", input.tokens);
-    let node = recognize_chosen_name_activation_prohibition(&mut cursor)?;
-    cursor.enter("chosen-name-activation-prohibition.binding-validation");
-    cursor.require(
-        node.predicate.binding == ChoiceBinding::CardName,
-        "the stored card-name choice",
-    )?;
+    let mut cursor = OracleTokenCursor::new("activation-prohibition", input.tokens);
+    let node = recognize_activation_prohibition(&mut cursor)?;
+    cursor.enter("activation-prohibition.sources");
+    let source_where = match &node.sources {
+        ActivationSourcesNode::ChosenName(predicate) => {
+            cursor.require(
+                predicate.binding == ChoiceBinding::CardName,
+                "the stored card-name choice",
+            )?;
+            lower_stored_card_name(*predicate)
+        }
+        ActivationSourcesNode::Permanents(objects) => {
+            // The prohibition's source filter has no player relation slot.
+            cursor.require(
+                objects.controller.is_none(),
+                "a source collection without a controller relation",
+            )?;
+            lower_permanent_object_predicate(&objects.predicate)
+        }
+    };
     let ability_predicate = if node.excludes_mana_abilities {
         not(json!({ "kind": "isManaAbility" }))
     } else {
@@ -208,13 +224,13 @@ pub(in crate::oracle::canonical) fn parse_promoted_chosen_name_activation_prohib
                 "kind": "prohibitActivation",
                 "abilities": {
                     "kind": "activatedAbilities",
-                    "sourceWhere": lower_stored_card_name(node.predicate),
+                    "sourceWhere": source_where,
                     "where": ability_predicate,
                 },
             }],
         }),
         &[
-            "Resolve a stored card-name predicate through the shared choice binding",
+            "Read the sources as a stored card-name predicate or a shared permanent collection",
             "Select activated abilities independently from their sources",
             "Model the mana-ability exception as a negated ability predicate",
             "Lower one atomic activation prohibition",

@@ -167,35 +167,13 @@ pub(in crate::oracle::canonical) fn lower_targeted_zone_change_effect(
 fn target_contains_batch(target: &TargetListNode, expected: CharacteristicBatch) -> bool {
     target.slots.iter().any(|slot| match &slot.selector {
         TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
-            predicate_contains_batch(predicate, expected)
+            predicate.contains_characteristic_batch(expected)
         }
         TargetSelector::Any
         | TargetSelector::Union(_)
         | TargetSelector::Player(_)
         | TargetSelector::StackItem(_) => false,
     })
-}
-
-fn predicate_contains_batch(predicate: &SelectorPredicate, expected: CharacteristicBatch) -> bool {
-    match predicate {
-        SelectorPredicate::CharacteristicBatch(batch) => *batch == expected,
-        SelectorPredicate::Not(operand) => predicate_contains_batch(operand, expected),
-        SelectorPredicate::Intersection(operands) | SelectorPredicate::Union(operands) => operands
-            .iter()
-            .any(|operand| predicate_contains_batch(operand, expected)),
-        SelectorPredicate::IsCommander
-        | SelectorPredicate::IsToken
-        | SelectorPredicate::CardType(_)
-        | SelectorPredicate::Subtype(_)
-        | SelectorPredicate::Color(_)
-        | SelectorPredicate::Supertype(_)
-        | SelectorPredicate::ExactManaCost(_)
-        | SelectorPredicate::Status(_)
-        | SelectorPredicate::HasKeyword(_)
-        | SelectorPredicate::ObjectKind(_)
-        | SelectorPredicate::ChosenCreatureType
-        | SelectorPredicate::NumericComparison { .. } => false,
-    }
 }
 
 #[cfg(test)]

@@ -133,6 +133,9 @@ fn exile_binding_contains_only_permanents_that_actually_moved_to_exile() {
     );
     let mut moved_bindings = BTreeMap::new();
     moved_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    moved_engine
         .execute_effects(
             &json!([effect.clone()]),
             &moved_stack,
@@ -242,6 +245,9 @@ fn move_cards_source_zone_constraint_does_not_pull_a_bound_card_from_another_zon
         "player-0",
     ));
     let mut exile_bindings = bindings();
+    exile_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     exile_engine
         .execute_effects(
             &json!([effect]),

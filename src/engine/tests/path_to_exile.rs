@@ -127,6 +127,9 @@ fn resolve_path(accept_search: bool) -> (GameEngine, PathSearchProvider) {
         card_selection_calls: 0,
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &stack_object,

@@ -36,9 +36,17 @@ fn source_availability_requires_retaining_costs_and_a_permanent_face() {
         );
         assert!(context.source.is_none());
         assert!(!context.source_cast_x);
+        // A card discarded or sacrificed to pay for its own ability is the
+        // only object a leading `it` can name; retained-source costs and
+        // another sacrificed object prove no anaphor.
         assert_eq!(
             context.source_anaphor_binding,
-            SourceAnaphorBinding::Unproved
+            if text == "Discard this card" || text == "Sacrifice this creature" {
+                SourceAnaphorBinding::EventSubject(LocalObjectReference::SourceSelf)
+            } else {
+                SourceAnaphorBinding::Unproved
+            },
+            "{text}"
         );
         let spell =
             activation_body_context("Instant", &costs, &EffectRecognitionContext::default());

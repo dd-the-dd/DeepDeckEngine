@@ -307,13 +307,7 @@ impl<'a> ManaProjectionContext<'a> {
             if !GameEngine::static_selector_matches(&granting, &modifier["objects"], source) {
                 continue;
             }
-            if value_kind(&modifier) == Some("setSubtypes")
-                || (value_kind(&modifier) == Some("addSubtype")
-                    && matches!(
-                        modifier["subtype"].as_str(),
-                        Some("Plains" | "Island" | "Swamp" | "Mountain")
-                    ))
-            {
+            if value_kind(&modifier) == Some("setSubtypes") {
                 return Err(ManaProjectionContextError::new(
                     "mana.projection.subtype-environment",
                     &source.instance_id,

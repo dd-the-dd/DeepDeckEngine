@@ -86,6 +86,9 @@ fn explicit_activation_x_selects_one_legal_declaration_without_hiding_ambiguity(
             "player-0",
         ),
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let activation = CanonicalActivatedAbilityActivation {
         controller_id: "player-0".into(),
         source_definition_id: "variable-source".into(),

@@ -2,8 +2,8 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     AddAnyColorManaEffectNode, AddCountedManaEffectNode, AddFixedManaEffectNode,
     AddManaChoiceEffectNode, AddManaEffectNode, AddScopedManaEffectNode, ManaChoiceDomain,
-    NumericAtom, NumericExpression, ObjectCardType, ObjectControllerScope, ObjectPredicate,
-    PermanentCountMeasure, recognize_fixed_mana_sequence, recognize_numeric_atom,
+    ManaColorDistribution, NumericAtom, NumericExpression, ObjectCardType, ObjectControllerScope,
+    ObjectPredicate, PermanentCountMeasure, recognize_fixed_mana_sequence, recognize_numeric_atom,
     recognize_object_query,
 };
 
@@ -128,15 +128,20 @@ enum ManaOutputDomain {
 pub(in crate::oracle::canonical) fn recognize_add_any_color_mana_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<AddAnyColorManaEffectNode> {
-    recognize_add_any_mana_head(cursor, false)
-        .map(|(amount, _)| AddAnyColorManaEffectNode { amount })
+    recognize_add_any_mana_head(cursor, false).map(|(amount, _, distribution)| {
+        AddAnyColorManaEffectNode {
+            amount,
+            distribution,
+        }
+    })
 }
 
 fn recognize_add_any_mana_head(
     cursor: &mut OracleTokenCursor<'_>,
     allow_types: bool,
-) -> MachineResult<(i64, ManaOutputDomain)> {
+) -> MachineResult<(i64, ManaOutputDomain, ManaColorDistribution)> {
     let mut output_domain = ManaOutputDomain::Color;
+    let mut distribution = ManaColorDistribution::OneColor;
     let mut state = AddAnyColorManaState::Action;
     let mut amount = None;
     loop {
@@ -162,8 +167,20 @@ fn recognize_add_any_mana_head(
             }
             AddAnyColorManaState::Of => {
                 cursor.enter("effect.add-any-color-mana.of");
-                cursor.consume("of")?;
-                AddAnyColorManaState::Any
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
+                {
+                    // `in any combination of colors`: one independent color
+                    // choice per mana.
+                    cursor.enter("effect.add-any-color-mana.combination");
+                    cursor.consume_phrase(&["in", "any", "combination", "of", "colors"])?;
+                    distribution = ManaColorDistribution::AnyCombination;
+                    AddAnyColorManaState::Complete
+                } else {
+                    cursor.consume("of")?;
+                    AddAnyColorManaState::Any
+                }
             }
             AddAnyColorManaState::Any => {
                 cursor.enter("effect.add-any-color-mana.any");
@@ -185,6 +202,20 @@ fn recognize_add_any_mana_head(
                     )?;
                     output_domain = ManaOutputDomain::Type;
                 } else {
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("one"))
+                    {
+                        // `any one color`: the explicit single-color form.
+                        cursor.enter("effect.add-any-color-mana.one-color");
+                        cursor.consume("one")?;
+                        cursor.require(
+                            cursor
+                                .peek()
+                                .is_some_and(|raw| raw.eq_ignore_ascii_case("color")),
+                            "the singular `color` after `any one`",
+                        )?;
+                    }
                     cursor.consume_type("colorNoun")?;
                 }
                 AddAnyColorManaState::Complete
@@ -194,6 +225,7 @@ fn recognize_add_any_mana_head(
                 return Ok((
                     cursor.require_value(amount, "a populated mana amount")?,
                     output_domain,
+                    distribution,
                 ));
             }
         };
@@ -356,11 +388,16 @@ fn recognize_add_mana_output(
         let production = recognize_add_fixed_mana_or_choice_effect(cursor)?;
         return recognize_optional_mana_for_each_count(cursor, production);
     }
-    let (amount, output_domain) = recognize_add_any_mana_head(cursor, true)?;
+    let (amount, output_domain, distribution) = recognize_add_any_mana_head(cursor, true)?;
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
     {
+        cursor.enter("effect.add-mana.scoped-domain.distribution");
+        cursor.require(
+            distribution == ManaColorDistribution::OneColor,
+            "a single-color production before a scoped color domain",
+        )?;
         return recognize_land_color_domain(cursor, amount, output_domain)
             .map(AddManaEffectNode::ScopedColor);
     }
@@ -371,6 +408,7 @@ fn recognize_add_mana_output(
     )?;
     Ok(AddManaEffectNode::AnyColor(AddAnyColorManaEffectNode {
         amount,
+        distribution,
     }))
 }
 

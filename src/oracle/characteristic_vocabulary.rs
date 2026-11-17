@@ -457,6 +457,41 @@ pub(in crate::oracle) fn lookup_card_color(raw: &str) -> Option<CardColor> {
         .find(|color| raw.eq_ignore_ascii_case(color.oracle_name()))
 }
 
+/// CR 105.2a-c: how many colors an object has. These adjectives describe the
+/// size of an object's color set; they are not colors themselves.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle) enum ColorQuantity {
+    /// CR 105.2c: no color.
+    Colorless,
+    /// CR 105.2a: exactly one color.
+    Monocolored,
+    /// CR 105.2b: two or more colors.
+    Multicolored,
+}
+
+impl ColorQuantity {
+    pub(in crate::oracle) const fn oracle_name(self) -> &'static str {
+        match self {
+            Self::Colorless => "colorless",
+            Self::Monocolored => "monocolored",
+            Self::Multicolored => "multicolored",
+        }
+    }
+}
+
+const COLOR_QUANTITIES: &[ColorQuantity] = &[
+    ColorQuantity::Colorless,
+    ColorQuantity::Monocolored,
+    ColorQuantity::Multicolored,
+];
+
+pub(in crate::oracle) fn lookup_color_quantity(raw: &str) -> Option<ColorQuantity> {
+    COLOR_QUANTITIES
+        .iter()
+        .copied()
+        .find(|quantity| raw.eq_ignore_ascii_case(quantity.oracle_name()))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle) enum CardCategory {
     Permanent,
@@ -800,6 +835,41 @@ pub(in crate::oracle) fn lookup_noncreature_subtype_forms(
         lookup_noncreature_subtype(stem)
     })?;
     (!found.contains('\u{2019}')).then_some(found)
+}
+
+static PERMANENT_SUBTYPES: OnceLock<HashMap<String, bool>> = OnceLock::new();
+
+/// Whether every object that can carry this subtype (by its IR name) has a
+/// permanent card type: CR 205.3d forbids a subtype that corresponds to none
+/// of the object's types, and land, artifact, enchantment, planeswalker and
+/// battle subtypes correspond only to those permanent types. Creature
+/// subtypes are excluded (Kindred spells carry them), as are spell subtypes.
+pub(in crate::oracle) fn noncreature_subtype_implies_permanent(ir_name: &str) -> bool {
+    const PERMANENT_FAMILIES: [&str; 5] =
+        ["land", "artifact", "enchantment", "planeswalker", "battle"];
+    PERMANENT_SUBTYPES
+        .get_or_init(|| {
+            let snapshot: serde_json::Value =
+                serde_json::from_str(NONCREATURE_SUBTYPE_SNAPSHOT_JSON)
+                    .expect("the versioned CR 205.3 noncreature-subtype snapshot is valid JSON");
+            snapshot["canonical"]
+                .as_array()
+                .expect("canonical noncreature subtypes")
+                .iter()
+                .filter_map(|entry| {
+                    let name = entry["irName"].as_str()?;
+                    let families = std::iter::once(&entry["family"])
+                        .chain(entry["otherFamilies"].as_array().into_iter().flatten());
+                    let permanent = families
+                        .map(|family| family.as_str().unwrap_or_default())
+                        .all(|family| PERMANENT_FAMILIES.contains(&family));
+                    Some((name.to_owned(), permanent))
+                })
+                .collect()
+        })
+        .get(ir_name)
+        .copied()
+        .unwrap_or(false)
 }
 
 /// One `[type]walk` keyword word (CR 702.14a) whose type is a land subtype

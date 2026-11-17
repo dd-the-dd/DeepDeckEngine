@@ -93,8 +93,9 @@ enum Domain {
 fn domain(effect: &Value) -> Option<Domain> {
     match value_kind(effect) {
         Some(
-            "forEachObject" | "chooseOneEffect" | "optionalEffects" | "optionalAction" | "bind"
-            | "conditional" | "conditionalEffect" | "ifTargetWasChosen" | "chooseUnusedMode",
+            "forEachObject" | "chooseOneEffect" | "optionalEffects" | "optionalAction"
+            | "performAction" | "bind" | "conditional" | "conditionalEffect" | "ifTargetWasChosen"
+            | "chooseUnusedMode",
         ) => Some(Domain::Control),
         Some("optionalPayLife") => Some(Domain::Payments),
 
@@ -250,7 +251,8 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "createEmblemPermanentModifier"
             | "createEmblem"
             | "replaceGraveyardWithExileUntilEndOfTurn"
-            | "goadAllCreaturesUntilNextTurn",
+            | "goadAllCreaturesUntilNextTurn"
+            | "goadPermanents",
         ) => Some(Domain::RulesPermissions),
         Some(
             "installUntapRestriction"

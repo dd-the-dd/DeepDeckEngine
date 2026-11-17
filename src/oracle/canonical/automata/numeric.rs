@@ -218,7 +218,14 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
             NumericExpressionState::Equality => {
                 cursor.enter("numeric.expression.equality");
                 cursor.consume_phrase(&["equal", "to"])?;
-                NumericExpressionState::ObjectReference
+                if super::equal_to_quantity_family_starts(cursor) {
+                    // A count, aggregate or cost-object quantity is the
+                    // same `equal to` amount every action consumer reads.
+                    expression = Some(super::recognize_equal_to_amount_expression(cursor, None)?);
+                    NumericExpressionState::Complete
+                } else {
+                    NumericExpressionState::ObjectReference
+                }
             }
             NumericExpressionState::ObjectReference => {
                 object = Some(recognize_numeric_object_reference(cursor, antecedent)?);

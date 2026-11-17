@@ -48,6 +48,7 @@ pub(in crate::oracle::canonical) fn object_predicate_uses_x(predicate: &ObjectPr
         | ObjectPredicate::Subtype(_)
         | ObjectPredicate::CharacteristicBatch(_)
         | ObjectPredicate::Color(_)
+        | ObjectPredicate::ColorQuantity(_)
         | ObjectPredicate::Supertype(_)
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)

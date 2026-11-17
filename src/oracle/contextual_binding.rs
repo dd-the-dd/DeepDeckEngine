@@ -18,10 +18,18 @@ pub(crate) const WHERE_X_BINDING_ID: &str = "whereX";
 /// produces it, and the validator below rejects a rule without that producer.
 pub(crate) const RESOLUTION_CREATURE_TYPE_DECISION: &str = "resolutionCreatureType";
 
+/// Stack values bound when a sacrifice cost is paid, keyed by the cost field
+/// that asks the engine to record them (CR 608.2h last known information).
+const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
+    ("sacrificedPermanentPower", "bindPowerAs"),
+    ("sacrificedPermanentToughness", "bindToughnessAs"),
+];
+
 pub(crate) fn validate_native_contextual_bindings(
     request: &OracleCardParseRequest,
     abilities: &mut [ParsedOracleAbility],
 ) {
+    bind_sacrificed_cost_objects(abilities);
     for ability in abilities {
         if ability.status != "canonical" || ability.recognizer != RecognizerProvenance::Native {
             continue;
@@ -245,3 +253,131 @@ fn declares_number(rule: &Value, decision_id: &str) -> bool {
                 && decision["id"].as_str() == Some(decision_id)
         })
 }
+
+fn reject_binding(ability: &mut ParsedOracleAbility, state: &str, expected: &str, message: &str) {
+    let source_span_end = ability.source.text.len();
+    ability.status = "unsupported".to_string();
+    ability.rule = None;
+    ability.iterations.clear();
+    ability.diagnostics.push(ParserDiagnostic {
+        code: "oracle_context_binding_failure".to_string(),
+        message: message.to_string(),
+        severity: "unsupported".to_string(),
+        automaton: Some("card-context-binding".to_string()),
+        state: Some(state.to_string()),
+        token_index: None,
+        span_start: Some(0),
+        span_end: Some(source_span_end),
+        expected: Some(expected.to_string()),
+        found: Some("a sacrificed cost object reference".to_string()),
+        trace: Vec::new(),
+    });
+}
+
+/// Paths (`costs` of an activated rule, or a spell declaration's
+/// `additionalCosts`) to the sacrifice costs a rule pays itself.
+fn sacrifice_cost_count(rule: &Value) -> usize {
+    let count = |costs: &Value| {
+        costs
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| cost["kind"].as_str() == Some("sacrificePermanent"))
+            .count()
+    };
+    count(&rule["costs"]) + count(&rule["declaration"]["additionalCosts"])
+}
+
+fn install_sacrifice_bindings(rule: &mut Value, fields: &[(&str, &str)]) {
+    for key in ["costs", "additionalCosts"] {
+        let costs = if key == "costs" {
+            rule.get_mut("costs")
+        } else {
+            rule.get_mut("declaration")
+                .and_then(|declaration| declaration.get_mut("additionalCosts"))
+        };
+        for cost in costs
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten()
+            .filter(|cost| cost["kind"].as_str() == Some("sacrificePermanent"))
+        {
+            for (binding, field) in fields {
+                cost[*field] = Value::String((*binding).to_string());
+            }
+        }
+    }
+}
+
+/// A rule reading `the sacrificed NOUN's power|toughness` (CR 601.2h, 602.2b)
+/// needs exactly one sacrifice cost producer: its own activation cost, or the
+/// additional cost of the same spell face (a separate spell rule). The
+/// producing cost records the value when it is paid; a missing or ambiguous
+/// producer is a binding failure, never a zero.
+fn bind_sacrificed_cost_objects(abilities: &mut [ParsedOracleAbility]) {
+    for index in 0..abilities.len() {
+        let ability = &abilities[index];
+        if ability.status != "canonical" || ability.recognizer != RecognizerProvenance::Native {
+            continue;
+        }
+        let Some(rule) = ability.rule.as_ref() else {
+            continue;
+        };
+        let fields = SACRIFICED_COST_OBJECT_BINDINGS
+            .iter()
+            .copied()
+            .filter(|(binding, _)| references_decision(rule, binding))
+            .collect::<Vec<_>>();
+        if fields.is_empty() {
+            continue;
+        }
+        let own = sacrifice_cost_count(rule);
+        let producer = if own > 0 {
+            (own == 1).then_some(index)
+        } else if rule["kind"].as_str() == Some("spellAbility") {
+            let face = ability.source.face_id.clone();
+            let producers = abilities
+                .iter()
+                .enumerate()
+                .filter(|(other, candidate)| {
+                    *other != index
+                        && candidate.source.face_id == face
+                        && candidate.status == "canonical"
+                        && candidate.rule.as_ref().is_some_and(|rule| {
+                            rule["kind"].as_str() == Some("spellAbility")
+                                && sacrifice_cost_count(rule) > 0
+                        })
+                })
+                .map(|(other, candidate)| {
+                    (
+                        other,
+                        candidate.rule.as_ref().map_or(0, sacrifice_cost_count),
+                    )
+                })
+                .collect::<Vec<_>>();
+            match producers.as_slice() {
+                [(other, 1)] => Some(*other),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        match producer {
+            Some(producer) => {
+                if let Some(rule) = abilities[producer].rule.as_mut() {
+                    install_sacrifice_bindings(rule, &fields);
+                }
+            }
+            None => reject_binding(
+                &mut abilities[index],
+                "binding.sacrificed-cost-object.source",
+                "exactly one sacrifice cost of this ability or of the same spell face",
+                "The canonical rule reads the sacrificed permanent, but no unique same-face sacrifice cost produces it.",
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "equal_amount_card_tests.rs"]
+mod equal_amount_card_tests;

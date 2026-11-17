@@ -123,6 +123,8 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         | NumericExpression::Subtract { .. }
         | NumericExpression::Multiply { .. }
         | NumericExpression::PlayerFact { .. }
+        | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
         | NumericExpression::Divide { .. } => {
             return Err(cursor.fail("a literal conditional life amount"));

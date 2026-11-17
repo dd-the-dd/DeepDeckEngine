@@ -4,7 +4,7 @@ use super::*;
 fn targeted_damage_lowering_keeps_declaration_and_recipient_id_together() {
     let damage = DamageEffectNode {
         source: LocalObjectReference::SourceSelf,
-        amount: NumericAtom::Integer(1),
+        amount: NumericExpression::Atom(NumericAtom::Integer(1)),
         recipient: DamageRecipientNode::Targets(TargetListNode {
             slots: vec![TargetSlot {
                 selector: TargetSelector::Any,

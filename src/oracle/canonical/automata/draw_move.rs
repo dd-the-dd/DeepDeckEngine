@@ -2,9 +2,8 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CollectionOrder, EffectRecognitionContext, LibraryPosition, LocalPlayerReference, LocalZone,
     NumericAtom, NumericExpression, recognize_card_noun, recognize_collection_order,
-    recognize_controller_zone, recognize_half_controller_library_count, recognize_library_position,
-    recognize_positive_card_count, recognize_source_cast_x_numeric_expression,
-    recognize_that_many_event_value,
+    recognize_controller_zone, recognize_library_position, recognize_positive_card_count,
+    recognize_source_cast_x_numeric_expression, recognize_that_many_event_value,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -134,18 +133,21 @@ fn recognize_draw_action_attempt(
         cursor.enter("effect.draw-cards.equal-expression.action");
         cursor.consume_phrase(&[verb, "cards", "equal", "to"])?;
         cursor.enter("effect.draw-cards.equal-expression.count");
-        // The complete prefix does not commit every numeric-expression family.
-        // Only the implemented half-library family owns a hard syntax failure.
-        if !cursor
+        // The count is the shared `equal to` quantity; each numeric family
+        // owns its own failure and the consumer's lowering its capability.
+        // A malformed implemented half-library count stays committed; any
+        // other unsupported family remains a rejected candidate.
+        let half = cursor
             .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("half"))
-        {
-            cursor.enter("effect.draw-cards.equal-expression.unsupported-count");
-            return Err(DrawCardsEffectParseFailure::UnsupportedGrammar(
-                cursor.fail("a supported numeric draw-count family"),
-            ));
-        }
-        let count = recognize_half_controller_library_count(cursor)?;
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("half"));
+        let count =
+            super::recognize_equal_to_amount_expression(cursor, None).map_err(|failure| {
+                if half {
+                    DrawCardsEffectParseFailure::Malformed(failure)
+                } else {
+                    DrawCardsEffectParseFailure::UnsupportedGrammar(failure)
+                }
+            })?;
         cursor.enter("effect.draw-cards.equal-expression.complete");
         return Ok(DrawCardsEffectNode {
             player: LocalPlayerReference::Controller,
@@ -208,6 +210,8 @@ fn recognize_draw_action_attempt(
                     | NumericExpression::Subtract { .. }
                     | NumericExpression::Multiply { .. }
                     | NumericExpression::PlayerFact { .. }
+                    | NumericExpression::SacrificedCostObjectProperty(_)
+                    | NumericExpression::GreatestPropertyAmong { .. }
                     | NumericExpression::CardsInZone { .. }
                     | NumericExpression::Divide { .. } => {
                         cursor.consume("cards")?;

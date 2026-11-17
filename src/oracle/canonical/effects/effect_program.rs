@@ -9,6 +9,10 @@ mod optional_cost_steps_tests;
 #[path = "optional_action_program_tests.rs"]
 mod optional_action_program_tests;
 
+#[cfg(test)]
+#[path = "reflexive_action_program_tests.rs"]
+mod reflexive_action_program_tests;
+
 pub(in crate::oracle::canonical) fn lower_effect_program(
     cursor: &mut OracleTokenCursor<'_>,
     program: &EffectProgramNode,
@@ -48,8 +52,51 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         return lower_optional_action(cursor, player, action, *outcome, body)
             .map_err(program_failure);
     }
+    if let EffectProgramNode::ReflexiveAction { action, body } = step {
+        let action = lower(cursor, action.inner_sequence())?;
+        let body = lower(cursor, body.inner_sequence())?;
+        return lower_reflexive_action(cursor, action, body).map_err(program_failure);
+    }
     let lowered = lower(cursor, step.inner_sequence())?;
     wrap_lowered_effect_program(cursor, step, lowered).map_err(program_failure)
+}
+
+/// `performAction{action, onPerformed}`: the mandatory instruction runs, and
+/// only its measured performance creates the reflexive ability (CR 603.12),
+/// which declares its own targets when it is put on the stack.
+fn lower_reflexive_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    action: LoweredEffectSequence,
+    body: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.reflexive-action.action");
+    let [instruction] = action.effects.as_slice() else {
+        return Err(cursor.fail("exactly one reflexive-trigger instruction"));
+    };
+    cursor.require(
+        optional_action_measured(instruction),
+        "an instruction whose performance the runtime measures",
+    )?;
+    cursor.enter("lower.program.reflexive-action.effects");
+    cursor.require(
+        !body.effects.is_empty(),
+        "a nonempty reflexive outcome program",
+    )?;
+    let instruction_names = local_result_names(instruction);
+    cursor.require(
+        body.effects
+            .iter()
+            .all(|effect| local_result_names(effect).is_disjoint(&instruction_names)),
+        "distinct local results across the instruction and its reflexive outcome",
+    )?;
+    Ok(LoweredEffectSequence {
+        decisions: action.decisions,
+        effects: vec![json!({
+            "kind": "performAction",
+            "action": instruction.clone(),
+            "onPerformed": [reflexive_trigger(&controller(), body)],
+        })],
+    })
 }
 
 /// Contract with the runtime's `optional_action_witness_supported`: the
@@ -249,9 +296,9 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             cursor.enter("lower.program.steps");
             Err(cursor.fail("program steps lowered one step at a time"))
         }
-        EffectProgramNode::OptionalAction { .. } => {
+        EffectProgramNode::OptionalAction { .. } | EffectProgramNode::ReflexiveAction { .. } => {
             cursor.enter("lower.program.optional-action");
-            Err(cursor.fail("an optional action lowered with its action sentence"))
+            Err(cursor.fail("an outcome action lowered with its action sentence"))
         }
         EffectProgramNode::OptionalCost {
             player,

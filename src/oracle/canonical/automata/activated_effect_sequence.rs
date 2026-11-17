@@ -15,6 +15,9 @@ pub(in crate::oracle::canonical) struct ActivatedEffectSequenceNode {
     pub effects: EffectSequenceNode,
     pub timing_annotation: Option<ActivationTimingAnnotation>,
     pub restrictions: super::ActivationRestrictionsNode,
+    /// `This ability costs {N} less to activate for each ...`: activation
+    /// metadata after the effects, never an effect (CR 601.2f via 602.2b).
+    pub reduction: Option<super::ActivationCostReductionNode>,
 }
 
 pub(in crate::oracle::canonical) enum ActivatedEffectSequenceParseAttempt {
@@ -35,6 +38,21 @@ pub(in crate::oracle::canonical) enum ExplicitActivationSourceAvailability {
 fn recognize_activation_prefix(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ActivationCostSequenceNode> {
+    // CR 207.2c: an ability word (`Channel —`) labels the ability and has
+    // no rules meaning; the costs start after its em dash.
+    let label_width = cursor
+        .token_slice(cursor.position(), usize::MAX)
+        .iter()
+        .take_while(|token| token.token_type == "abilityWord")
+        .count();
+    if label_width > 0
+        && cursor
+            .peek_ahead(label_width)
+            .is_some_and(|raw| raw == "\u{2014}")
+    {
+        cursor.enter("activation.effect-sequence.label");
+        cursor.advance_to(cursor.position() + label_width + 1)?;
+    }
     cursor.enter("activation.effect-sequence.costs");
     let costs = recognize_activation_cost_sequence(cursor)?;
     cursor.enter("activation.effect-sequence.separator");
@@ -59,6 +77,7 @@ pub(in crate::oracle::canonical) fn recognize_activated_effect_sequence(
         effects,
         timing_annotation: None,
         restrictions: super::ActivationRestrictionsNode::default(),
+        reduction: None,
     })
 }
 
@@ -178,6 +197,24 @@ fn try_recognize_activation_program(
     } else {
         None
     };
+    let reduction = if allow_annotation
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("ability"))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("costs"))
+    {
+        match super::recognize_activation_cost_reduction(cursor) {
+            Ok(reduction) => Some(reduction),
+            Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
+        }
+    } else {
+        None
+    };
     cursor.enter("activation.effect-sequence.complete");
     if let Err(failure) = cursor.finish() {
         return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
@@ -187,6 +224,7 @@ fn try_recognize_activation_program(
         effects,
         timing_annotation,
         restrictions,
+        reduction,
     })
 }
 

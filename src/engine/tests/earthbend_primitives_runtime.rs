@@ -108,15 +108,15 @@ fn setup_lowered_earthbend() -> (GameEngine, Value, StackObject) {
 }
 
 fn resolve_earthbend(engine: &mut GameEngine, rule: &Value, stack: &StackObject) {
-    engine
-        .execute_effects(
-            &rule["effects"],
-            stack,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("lowered Earthbend primitives resolve");
+    execute_effects_at_resolution_start(
+        engine,
+        &rule["effects"],
+        stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("lowered Earthbend primitives resolve");
 }
 
 #[test]
@@ -272,6 +272,11 @@ fn return_is_a_no_op_if_the_triggering_zone_object_moved_before_resolution() {
             .expect("triggering card leaves its graveyard");
     moved.flags.clear();
     engine.state.players[0].hand.push(moved);
+    // A card that changed zones is a new object (CR 400.7): the fixture
+    // admits the new occurrence with its own incarnation.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("the new occurrence is admitted");
 
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
@@ -296,6 +301,11 @@ fn repeated_zone_occurrence_with_the_same_instance_id_is_not_the_tracked_object(
         GameEngine::take_card_from_player_zones(&mut engine.state.players[0], "earthbend-source")
             .expect("old occurrence leaves graveyard");
     engine.state.players[0].graveyard.push(moved);
+    // A card that changed zones is a new object (CR 400.7): the fixture
+    // admits the new occurrence with its own incarnation.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("the new occurrence is admitted");
 
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
@@ -427,6 +437,9 @@ fn green_mana_ability_remains_available_while_earthbend_obeys_sorcery_timing() {
         },
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let has_rule = |engine: &GameEngine, rule_index: u64| {
         engine.legal_priority_actions(0).into_iter().any(|action| {
             action.kind == ActionKind::ActivateAbility

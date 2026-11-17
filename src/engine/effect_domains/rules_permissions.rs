@@ -107,6 +107,11 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && integer_value(&effect["timeCounters"]).is_some_and(|count| count > 0)
         }
         Some("goadAllCreaturesUntilNextTurn") => true,
+        // CR 701.38a over the shared object operand (a target or a set).
+        Some("goadPermanents") => {
+            object_expression_supported(&effect["objects"])
+                || target_reference_supported(&effect["objects"])
+        }
         _ => false,
     }
 }
@@ -523,6 +528,39 @@ impl GameEngine {
                     "sourceCardInstanceId": stack_object.card.instance_id,
                     "expiresAfterTurn": self.state.turn_number,
                 }));
+            }
+            Some("goadPermanents") => {
+                // CR 701.38a: the ability controller goads each creature;
+                // a target that became illegal or is no creature is ignored.
+                let instance_ids = if object_expression_supported(&effect["objects"]) {
+                    self.resolve_runtime_object_ids(
+                        &effect["objects"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )
+                    .unwrap_or_default()
+                } else {
+                    self.resolve_target(&effect["objects"], stack_object, bindings)
+                        .and_then(|target| match target {
+                            TargetRef::Permanent { instance_id } => Some(vec![instance_id]),
+                            _ => None,
+                        })
+                        .unwrap_or_default()
+                };
+                let mut goaded = BTreeSet::new();
+                for instance_id in instance_ids {
+                    let is_creature =
+                        self.permanent_position(&instance_id)
+                            .is_some_and(|(player, index)| {
+                                self.permanent_is_creature(
+                                    &self.state.players[player].battlefield[index],
+                                )
+                            });
+                    if is_creature && goaded.insert(instance_id.clone()) {
+                        self.goad_permanent(&instance_id, &stack_object.controller);
+                    }
+                }
             }
             Some("goadAllCreaturesUntilNextTurn") => {
                 let creature_ids = self

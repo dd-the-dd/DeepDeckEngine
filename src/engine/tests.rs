@@ -11,6 +11,15 @@ mod bound_object_zone_identity;
 #[path = "tests/landwalk_runtime.rs"]
 mod landwalk_runtime;
 
+#[path = "tests/league_regression_runtime.rs"]
+mod league_regression_runtime;
+
+#[path = "tests/league_permission_selection_runtime.rs"]
+mod league_permission_selection_runtime;
+
+#[path = "tests/league_reference_runtime.rs"]
+mod league_reference_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_lki_runtime.rs"]
 mod source_lki_runtime;
@@ -22,8 +31,15 @@ mod destroy_permanent_contract;
 #[path = "tests/token_runtime.rs"]
 mod token_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/suspend_keyword_runtime.rs"]
+mod suspend_keyword_runtime;
+
 #[path = "tests/regeneration_shield_runtime.rs"]
 mod regeneration_shield_runtime;
+
+#[path = "tests/restored_actions_runtime.rs"]
+mod restored_actions_runtime;
 
 #[path = "tests/attach_legality_runtime.rs"]
 mod attach_legality_runtime;
@@ -73,6 +89,10 @@ mod riot_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/conditional_static_runtime.rs"]
 mod conditional_static_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/static_characteristics_runtime.rs"]
+mod static_characteristics_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/mobilize_primitives_runtime.rs"]
@@ -471,7 +491,8 @@ fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
             Ok(request
                 .options
                 .iter()
-                .position(|option| option.label.contains("Discard a matching card"))
+                // Each payable discard choice is labelled with its card name.
+                .position(|option| option.label.starts_with("Discard "))
                 .unwrap_or(0))
         }
     }
@@ -530,6 +551,9 @@ fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
         ),
     ];
     matching_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    matching_engine
         .execute_effects(
             &rule["effects"],
             &stack_object,
@@ -564,6 +588,9 @@ fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
             "player-0",
         ),
     ];
+    fallback_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     fallback_engine
         .execute_effects(
             &rule["effects"],
@@ -671,7 +698,11 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
     let protected_player = TargetRef::Player {
         player_id: "player-0".to_string(),
     };
-    assert!(!damage_engine.target_is_legal_for_stack_object("target", &protected_player, &hostile_spell));
+    assert!(!damage_engine.target_is_legal_for_stack_object(
+        "target",
+        &protected_player,
+        &hostile_spell
+    ));
 
     assert_eq!(
         damage_engine
@@ -699,7 +730,11 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
         !damage_engine
             .permanent_has_keyword(&damage_engine.state.players[0].battlefield[1], "hexproof")
     );
-    assert!(damage_engine.target_is_legal_for_stack_object("target", &protected_player, &hostile_spell));
+    assert!(damage_engine.target_is_legal_for_stack_object(
+        "target",
+        &protected_player,
+        &hostile_spell
+    ));
 
     let mut destroy_engine = test_engine(2);
     let captain = make_entering_captain(&mut destroy_engine);
@@ -2432,6 +2467,9 @@ fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
         .find(|action| action.decisions.get("typecycling") == Some(&Value::Bool(true)))
         .expect("typecycling is a legal hand activation");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("typecycling pays, discards, and creates its stack ability");
     assert!(engine.state.players[0].hand.is_empty());
@@ -2542,6 +2580,9 @@ fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     assert!(effect_supported(&effect));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -2600,6 +2641,9 @@ fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
 
     engine.enqueue_enter_battlefield_triggers(&land);
     assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the graveyard landfall trigger resolves");
@@ -2710,6 +2754,9 @@ fn hob_batch9_bound_damage_recipient_is_filtered_before_destruction() {
     assert!(effects.as_array().unwrap().iter().all(effect_supported));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &stack_object,
@@ -2755,6 +2802,35 @@ impl DecisionProvider for EmeritusDecisionProvider {
             _ => Some(0),
         };
         selected.ok_or_else(|| EngineError::new("test decision has no matching option"))
+    }
+}
+
+/// CR 701.49a lets the venturing player choose any dungeon from outside the
+/// game, including the canonical built-in pieces. A fixture that expects a
+/// particular dungeon names it explicitly instead of relying on option order;
+/// every other decision falls back to `EmeritusDecisionProvider`.
+struct NamedOptionDecisionProvider {
+    option: &'static str,
+}
+
+impl DecisionProvider for NamedOptionDecisionProvider {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let named = request.options.iter().position(|action| {
+            action.kind == ActionKind::ChooseResolution
+                && action.decisions.values().any(|value| {
+                    value
+                        .as_array()
+                        .is_some_and(|values| values.len() == 1 && values[0] == self.option)
+                })
+        });
+        match named {
+            Some(index) => Ok(index),
+            None => EmeritusDecisionProvider.choose(state, request),
+        }
     }
 }
 
@@ -3095,6 +3171,77 @@ fn test_instance(instance_id: &str, definition: CardDefinition, owner: &str) -> 
     instance
 }
 
+/// Target designation for a fixture-built stack object: casting, activation
+/// and trigger placement capture each chosen target's object identity when
+/// the target is chosen (CR 601.2c, 602.2b, 603.3d). A fixture that builds
+/// the object directly performs that step here, while its targets are legal.
+fn designate_fixture_targets(engine: &GameEngine, stack_object: &mut StackObject) {
+    for (target_id, target) in stack_object.targets.clone() {
+        engine
+            .capture_target_incarnation(&mut stack_object.decisions, &target_id, &target)
+            .expect("fixture target is designated");
+    }
+}
+
+/// Designates the targets of the stack object a fixture just pushed.
+fn designate_fixture_stack_targets(engine: &mut GameEngine) {
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let mut object = engine
+        .state
+        .stack
+        .pop()
+        .expect("a fixture stack object was pushed");
+    designate_fixture_targets(engine, &mut object);
+    engine.state.stack.push(object);
+}
+
+/// Runs an already designated stack object's effect program directly, inside
+/// the single resolution-start target legality snapshot that resolution takes
+/// before its first effect (CR 608.2b).
+fn execute_designated_effects<P: DecisionProvider>(
+    engine: &mut GameEngine,
+    effects: &Value,
+    stack_object: &StackObject,
+    bindings: &mut BTreeMap<String, RuntimeBinding>,
+    decisions: &mut BTreeMap<String, Value>,
+    provider: &mut P,
+) -> Result<(), EngineError> {
+    let context = engine.target_numeric_context(stack_object);
+    engine.with_target_numeric_context(context, |engine| {
+        engine.execute_effects(effects, stack_object, bindings, decisions, provider)
+    })
+}
+
+/// Fixture adapter for tests that run a fixture-built stack object's effect
+/// program directly instead of resolving it from the stack: completes fixture
+/// admission, lets an ability adopt its source's incarnation, designates the
+/// targets and then executes from the resolution-start snapshot.
+fn execute_effects_at_resolution_start<P: DecisionProvider>(
+    engine: &mut GameEngine,
+    effects: &Value,
+    stack_object: &StackObject,
+    bindings: &mut BTreeMap<String, RuntimeBinding>,
+    decisions: &mut BTreeMap<String, Value>,
+    provider: &mut P,
+) -> Result<(), EngineError> {
+    engine.admit_explicit_test_fixture_objects()?;
+    let mut stack_object = stack_object.clone();
+    if !super::card_zone_transition::stack_requires_checkpoint(&stack_object) {
+        engine.adopt_fixture_ability_source_identity(&mut stack_object.card)?;
+    }
+    designate_fixture_targets(engine, &mut stack_object);
+    execute_designated_effects(
+        engine,
+        effects,
+        &stack_object,
+        bindings,
+        decisions,
+        provider,
+    )
+}
+
 fn test_engine(player_count: usize) -> GameEngine {
     let filler = test_definition("filler", "Basic Land - Plains");
     GameEngine::new(
@@ -3193,6 +3340,9 @@ fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
         },
         "order": { "kind": "random" },
     });
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effect(
             &move_to_library,
@@ -4203,6 +4353,9 @@ fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
         .expect("the player loses life and creates the trigger");
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the linked mill trigger resolves");
 
@@ -4240,32 +4393,32 @@ fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
         targets: BTreeMap::new(),
     };
 
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "optionalAction",
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([{
+            "kind": "optionalAction",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "action": {
+                "kind": "sacrificePermanents",
                 "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "action": {
-                    "kind": "sacrificePermanents",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                    "count": { "kind": "integer", "value": 1 },
-                    "excludeSource": true,
-                    "bindPowerAs": "sacrificedPermanentPower",
-                },
-                "onPerformed": [{
-                    "kind": "putCounters",
-                    "permanent": { "kind": "self" },
-                    "counter": "+1/+1",
-                    "count": { "kind": "boundValue", "id": "sacrificedPermanentPower" },
-                }],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the sacrifice and linked counters resolve");
+                "where": { "kind": "cardTypeContains", "value": "Creature" },
+                "count": { "kind": "integer", "value": 1 },
+                "excludeSource": true,
+                "bindPowerAs": "sacrificedPermanentPower",
+            },
+            "onPerformed": [{
+                "kind": "putCounters",
+                "permanent": { "kind": "self" },
+                "counter": "+1/+1",
+                "count": { "kind": "boundValue", "id": "sacrificedPermanentPower" },
+            }],
+        }]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the sacrifice and linked counters resolve");
 
     assert!(
         engine.state.players[0]
@@ -4297,6 +4450,9 @@ fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     );
     engine.state.players[1].battlefield.push(first);
     engine.state.players[2].battlefield.push(second);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("recent-creature-a", "destroyed")
         .expect("the first opponent creature dies this turn");
@@ -4426,6 +4582,9 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     ));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards_with_replacements("player-0", 1, &mut ChooseDredge)
         .expect("a legal dredge replaces the draw");
 
@@ -4461,6 +4620,9 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
         dredge_definition,
         "player-0",
     ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .draw_cards_with_replacements("player-0", 1, &mut EmeritusDecisionProvider)
         .expect("an unavailable dredge falls back to the normal draw");
@@ -4559,6 +4721,9 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     engine.check_state_based_actions();
     assert!(engine.permanent_position("completed-saga").is_some());
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the final Saga chapter resolves");
@@ -4936,6 +5101,9 @@ fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
         }),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&definition, "player-0")
         .expect("escalate declarations are generated");
@@ -5141,6 +5309,9 @@ fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
         blocker_id: None,
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_flashback_cost(&action, &spell, &mut EmeritusDecisionProvider)
         .expect("flashback sacrifice cost is payable");
 
@@ -5215,6 +5386,9 @@ fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
                     .is_some_and(|cards| cards.iter().any(|card| card == "splice-source"))
         })
         .expect("the Arcane spell has a legal spliced casting declaration");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("the spliced spell can be cast");
@@ -5335,6 +5509,9 @@ fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
         })
         .expect("four card types produce a legal escape declaration");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("escape casts the creature and exiles its selected payment cards");
     assert!(engine.state.players[0].graveyard.is_empty());
@@ -5401,6 +5578,9 @@ fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expir
                     == Some(true)
         })
         .expect("the impending alternative cast is legal");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("the impending spell is cast");
@@ -5487,6 +5667,9 @@ fn graveyard_destination_replacement_applies_from_any_zone_without_death_trigger
     ));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("opponent-creature", "destroyed")
         .expect("the opponent permanent changes zones");
     assert!(
@@ -5555,6 +5738,9 @@ fn stacked_mill_multipliers_apply_to_opponents_only() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .mill_cards("player-1", 1, Some("player-0"))
         .expect("four Bruvacs multiply one mill event by sixteen");
     assert_eq!(engine.state.players[1].graveyard.len(), 16);
@@ -5610,6 +5796,9 @@ fn profane_memento_triggers_once_for_each_matching_milled_card() {
     ];
     let life_before = engine.state.players[0].life;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .mill_cards("player-1", 3, Some("player-0"))
         .expect("the three cards are milled");
@@ -5683,6 +5872,9 @@ fn linked_exiled_creatures_return_with_entering_characteristics() {
         },
     });
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effect(
             &effect,
@@ -5934,6 +6126,9 @@ fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     )]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_enter_replacements_with_decisions(
             &mut entering,
             &mut EmeritusDecisionProvider,
@@ -6040,6 +6235,9 @@ fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leave
         "player-1",
     ));
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -6410,6 +6608,9 @@ fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut CastRevealedCard)
         .expect("the energy cascade trigger resolves");
     assert!(engine.state.players[0].library.is_empty());
@@ -6546,6 +6747,9 @@ fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     let mut decisions = stack_object.decisions.clone();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([{
                 "kind": "destroyPermanent",
@@ -6645,24 +6849,24 @@ fn multi_target_permanent_effects_mutate_every_chosen_target() {
         ]),
     };
 
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "destroyPermanent",
-                    "permanent": { "kind": "chosenTargets", "id": "destroyTargets" },
-                },
-                {
-                    "kind": "exilePermanent",
-                    "permanent": { "kind": "chosenTargets", "id": "exileTargets" },
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut RandomAi::seeded(23),
-        )
-        .expect("multi-target effects resolve");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "destroyPermanent",
+                "permanent": { "kind": "chosenTargets", "id": "destroyTargets" },
+            },
+            {
+                "kind": "exilePermanent",
+                "permanent": { "kind": "chosenTargets", "id": "exileTargets" },
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut RandomAi::seeded(23),
+    )
+    .expect("multi-target effects resolve");
 
     assert!(engine.state.players[1].battlefield.is_empty());
     assert_eq!(engine.state.players[1].graveyard.len(), 2);
@@ -6707,6 +6911,9 @@ fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -6848,6 +7055,9 @@ fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
         targets: BTreeMap::new(),
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([
@@ -7045,6 +7255,9 @@ fn activated_declarations_bind_source_counter_variables_before_filtering_cards()
             "tapped": false,
         }],
     });
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(&rule, "player-0", "counter-source")
         .expect("counter-bound declarations are generated");
@@ -7177,6 +7390,9 @@ fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack
         })
         .expect("the hand mana ability is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(37))
         .expect("the hand mana ability resolves immediately");
 
@@ -7248,6 +7464,9 @@ fn target_groups_can_be_constrained_to_one_zone_owner() {
     })];
     engine.state.players[0].battlefield.push(source);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(
             &engine.state.players[0].battlefield[0].definition.rules[0].clone(),
@@ -7357,6 +7576,9 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
     ));
     engine.state.players[0].hand.push(source);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let legal_actions = engine.legal_priority_actions(0);
     assert!(
         legal_actions.iter().all(|action| {
@@ -7442,6 +7664,9 @@ fn targeted_player_can_copy_the_resolving_spell() {
             },
         )]),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([
@@ -7708,29 +7933,29 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
         "kind": "untilNextTurn",
         "player": { "kind": "controllerOf", "object": { "kind": "self" } },
     });
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "grantKeyword",
-                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    "keyword": "cantAttack",
-                    "duration": until_next_turn,
-                },
-                {
-                    "kind": "modifyPowerToughness",
-                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    "power": { "kind": "integer", "value": -4 },
-                    "toughness": { "kind": "integer", "value": 0 },
-                    "duration": until_next_turn,
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the dungeon room installs next-turn modifiers");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "cantAttack",
+                "duration": until_next_turn,
+            },
+            {
+                "kind": "modifyPowerToughness",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "power": { "kind": "integer", "value": -4 },
+                "toughness": { "kind": "integer", "value": 0 },
+                "duration": until_next_turn,
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the dungeon room installs next-turn modifiers");
     let live_target = &engine.state.players[1].battlefield[0];
     assert!(engine.permanent_has_keyword(live_target, "cantAttack"));
     assert_eq!(engine.current_power(live_target), -2);
@@ -7764,6 +7989,9 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     }
     let mut bindings = BTreeMap::new();
     let mut decisions = BTreeMap::new();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([
@@ -7891,11 +8119,24 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     regular_engine
         .venture_into_dungeon(
             &stack_object,
-            &mut EmeritusDecisionProvider,
+            &mut NamedOptionDecisionProvider {
+                option: "open-dungeon",
+            },
             "player-0",
             None,
         )
         .expect("ordinary venture enters an unrestricted Dungeon");
+    let offered = regular_engine
+        .state
+        .game_pieces
+        .iter()
+        .filter(|piece| has_card_type(piece, "Dungeon"))
+        .map(|piece| piece.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        offered.contains(&"Undercity") && offered.contains(&"Tomb of Annihilation"),
+        "outside-game canonical dungeons remain available alongside fixtures: {offered:?}"
+    );
     assert!(regular_engine.state.rule_modifiers.iter().any(|modifier| {
         value_kind(modifier) == Some("dungeonPosition")
             && modifier["dungeonId"] == open.id
@@ -7935,6 +8176,9 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     effect_engine.state.players[0]
         .library
         .push(creature.clone());
+    effect_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture library cards are admitted");
     let mut effect_bindings = BTreeMap::new();
     let mut effect_decisions = BTreeMap::new();
     effect_engine
@@ -8044,7 +8288,12 @@ fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     engine.state.players[0].battlefield.push(acererak.clone());
     engine.enqueue_enter_battlefield_triggers(&acererak);
     engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .resolve_top_stack(&mut NamedOptionDecisionProvider {
+            option: "Tomb of Annihilation",
+        })
         .expect("Acererak's incomplete-Tomb trigger resolves");
 
     assert!(engine.state.players[0].battlefield.is_empty());
@@ -8539,6 +8788,9 @@ fn variable_player_counter_payment_drives_the_following_sweep() {
     };
     let mut decisions = BTreeMap::from([("xValue".to_string(), Value::from(3))]);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([
                 {
@@ -8630,31 +8882,31 @@ fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     };
     let mut engine = test_engine(2);
     engine.state.players[1].battlefield.push(target.clone());
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "conditional",
-                "condition": {
-                    "kind": "compare",
-                    "operator": "<=",
-                    "left": {
-                        "kind": "manaValueOf",
-                        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    },
-                    "right": { "kind": "colorsOfManaSpentToCastSource" },
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([{
+            "kind": "conditional",
+            "condition": {
+                "kind": "compare",
+                "operator": "<=",
+                "left": {
+                    "kind": "manaValueOf",
+                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
                 },
-                "then": [{
-                    "kind": "exilePermanent",
-                    "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
-                }],
-                "else": [],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the target is exiled when its mana value fits the paid color count");
+                "right": { "kind": "colorsOfManaSpentToCastSource" },
+            },
+            "then": [{
+                "kind": "exilePermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+            }],
+            "else": [],
+        }]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the target is exiled when its mana value fits the paid color count");
     assert!(engine.permanent_position(&target.instance_id).is_none());
     assert!(
         engine.state.players[1]
@@ -8698,43 +8950,43 @@ fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "sacrificePermanents",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                    "count": { "kind": "integer", "value": 1 },
-                    "excludeSource": false,
-                },
-                {
-                    "kind": "discardCards",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "count": { "kind": "integer", "value": 1 },
-                },
-                {
-                    "kind": "loseLife",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "amount": { "kind": "integer", "value": 3 },
-                },
-                {
-                    "kind": "drawCards",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "count": { "kind": "integer", "value": 1 },
-                },
-                {
-                    "kind": "gainLife",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "amount": { "kind": "integer", "value": 3 },
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the composed targeted sequence resolves");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "sacrificePermanents",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "where": { "kind": "cardTypeContains", "value": "Creature" },
+                "count": { "kind": "integer", "value": 1 },
+                "excludeSource": false,
+            },
+            {
+                "kind": "discardCards",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "count": { "kind": "integer", "value": 1 },
+            },
+            {
+                "kind": "loseLife",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "amount": { "kind": "integer", "value": 3 },
+            },
+            {
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 },
+            },
+            {
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 3 },
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the composed targeted sequence resolves");
 
     assert!(engine.permanent_position(&victim.instance_id).is_none());
     assert_eq!(engine.state.players[1].hand.len(), target_hand_before - 1);
@@ -8840,6 +9092,9 @@ fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
         targets: BTreeMap::new(),
     };
     let mut decisions = stack_object.decisions.clone();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -9017,6 +9272,9 @@ fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     let mut declined = test_engine(2);
     declined.state.stack.push(stack_for("declined-entry"));
     declined
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    declined
         .resolve_top_stack(&mut DeclineReplacement)
         .expect("declining the discard replaces entry with the graveyard");
     assert!(declined.permanent_position("declined-entry").is_none());
@@ -9030,6 +9288,8 @@ fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     let mut paid = test_engine(2);
     let hand_before = paid.state.players[0].hand.len();
     paid.state.stack.push(stack_for("paid-entry"));
+    paid.admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     paid.resolve_top_stack(&mut PayReplacement)
         .expect("discarding a matching card allows entry");
     assert!(paid.permanent_position("paid-entry").is_some());
@@ -9071,6 +9331,9 @@ fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() 
         instance_id: "legend-b".to_string(),
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .check_state_based_actions_with_provider(Some(&mut provider))
         .expect("legend-rule choice resolves");
@@ -9114,6 +9377,9 @@ fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
         test_instance("hand-token", definition, "player-0"),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("grave-token", "sacrificed")
         .expect("token reaches graveyard");
@@ -9359,6 +9625,9 @@ fn deterministic_puzzle_can_configure_an_exact_opening_hand() {
             "player-0",
         ),
     ]);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     engine
         .configure_fixed_opening_hand("player-0", &["combo-b".to_string(), "combo-a".to_string()])
@@ -9680,6 +9949,9 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
         mana_source("island", "Basic Land — Island", "{U}", None),
         mana_source("swamp", "Basic Land — Swamp", "{B}", None),
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -9711,6 +9983,9 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
         let card = test_instance(id, definition, "player-1");
         engine.state.players[1].battlefield.push(card);
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("late fixture permanents are admitted");
     engine.state.players[0].mana_pool = floating_mana(&["C", "C"]);
     let activate = engine
         .legal_priority_actions(0)
@@ -9860,6 +10135,9 @@ fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
     );
 
     let mut provider = EmeritusDecisionProvider;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&warp_cast, &mut provider)
         .expect("Broodguard Elite is cast for its Warp cost");
@@ -10147,6 +10425,9 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
         }),
         rule,
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&spell, "player-0")
         .expect("conditional owned target declarations are executable");
@@ -10184,7 +10465,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     }));
 
     let source = test_instance("eagles-coming", spell, "player-0");
-    let stack_object = StackObject {
+    let mut stack_object = StackObject {
         id: "stack:kicked-return".to_string(),
         controller: "player-0".to_string(),
         card: source,
@@ -10214,6 +10495,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
             ),
         ]),
     };
+    designate_fixture_targets(&engine, &mut stack_object);
     engine
         .move_permanent_to_graveyard("owned-1", "destroyed")
         .expect("one target becomes illegal before resolution");
@@ -10238,15 +10520,15 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
             }],
         },
     ]);
-    engine
-        .execute_effects(
-            &effects,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("returns bind into the delayed trigger");
+    execute_designated_effects(
+        &mut engine,
+        &effects,
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("returns bind into the delayed trigger");
     let delayed = engine
         .state
         .rule_modifiers
@@ -10411,6 +10693,9 @@ fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
         "exileIfLeavesBattlefield": false,
     });
     let mut provider = EmeritusDecisionProvider;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effect(
             &effect,
@@ -10591,6 +10876,11 @@ fn fear_and_flying_only_block_restrictions_are_enforced() {
     }));
     let ground_attacker = keyword_creature("ground", "haste", "{R}", "Creature - Goblin");
     let flying_attacker = keyword_creature("flyer", "flying", "{U}", "Creature - Bird");
+    // The restriction is a static ability that functions on the battlefield
+    // (CR 113.6), where a blocking creature is (CR 509.1a).
+    engine.state.players[0]
+        .battlefield
+        .push(sky_blocker.clone());
     assert!(!engine.can_block(&sky_blocker, &ground_attacker));
     assert!(engine.can_block(&sky_blocker, &flying_attacker));
 
@@ -10717,6 +11007,9 @@ fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     );
     engine.state.players[1].battlefield = vec![target];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .deal_damage_amount_with_kind(
             TargetRef::Player {
@@ -10933,6 +11226,9 @@ fn bound_discard_action_feeds_a_reflexive_trigger() {
     assert!(effect_supported(&effect));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -11005,6 +11301,9 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
                 && action.card_instance_id.as_deref() == Some("regenerator")
         })
         .expect("regeneration can be activated while a matching card exists");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("graveyard-card cost is paid");
@@ -11210,6 +11509,9 @@ fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
         blocker_id: None,
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_casting_discard_costs(&action, &spell_definition)
         .expect("additional discard cost is paid");
@@ -11712,6 +12014,9 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     let mut provider = CountedCastLoopDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_priority_window(&mut provider)
         .expect("the changing Acererak-style loop uses the chosen bounded count");
 
@@ -11806,6 +12111,9 @@ fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     let mut provider = CountedLoopDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_priority_window(&mut provider)
         .expect("all six tokens can be consumed before priority is passed");
 
@@ -11886,6 +12194,9 @@ fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     ];
     let mut provider = CountedLoopDecisionProvider::default();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .run_priority_window(&mut provider)
         .expect("the state-equivalent token replacement is offered as a shortcut");
@@ -12153,6 +12464,9 @@ fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     ]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &source,
@@ -12279,6 +12593,9 @@ fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
         },
     ]);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &effects,
@@ -12441,6 +12758,9 @@ fn split_library_search_moves_one_selected_card_to_each_destination() {
     let mut provider = SplitSearchSelectionProvider { call_index: 0 };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &source,
@@ -12542,6 +12862,9 @@ fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     let mut bindings = BTreeMap::new();
     let mut decisions = BTreeMap::new();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     for _ in 0..3 {
         engine
             .execute_effects(
@@ -13150,6 +13473,9 @@ fn looked_at_library_top_is_remembered_until_that_library_changes() {
     }));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards("player-1", 1)
         .expect("the opponent draws the known top card");
     assert!(
@@ -13506,6 +13832,9 @@ fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
 
     engine.enqueue_enter_battlefield_triggers(&shepherd);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Starfield Shepherd's search resolves");
 
@@ -13594,6 +13923,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
         )]),
     });
     acquire_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    acquire_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the cross-player battlefield search resolves");
     let acquired = acquire_engine.state.players[0]
@@ -13667,6 +13999,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
             },
         )]),
     });
+    grasp_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     grasp_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the linked face-down exile search resolves");
@@ -13806,6 +14141,9 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
         choice_was_presented: false,
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut provider)
         .expect("the targeted hand choice resolves");
 
@@ -13852,6 +14190,9 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     })];
     let protected = test_instance("protected-angel", protected_definition, "player-0");
     engine.state.players[0].battlefield = vec![protected.clone()];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     let targeted_rule = json!({
         "kind": "spellAbility",
@@ -13904,6 +14245,9 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     let red_source = test_instance("red-source", red_creature_definition, "player-1");
     engine.state.players[1].battlefield = vec![black_source.clone(), red_source.clone()];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(!engine.can_block(&black_source, &protected));
     assert!(engine.can_block(&red_source, &protected));
     engine
@@ -13959,6 +14303,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
             },
         )]),
     });
+    designate_fixture_stack_targets(&mut control_engine);
     control_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("indefinite control resolves");
@@ -14014,6 +14359,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
             },
         )]),
     });
+    designate_fixture_stack_targets(&mut control_engine);
     control_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("blink under the ability controller resolves");
@@ -14060,6 +14406,9 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     });
+    sacrifice_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     sacrifice_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("each player sacrifice resolves");
@@ -14109,6 +14458,9 @@ fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
         json!([first.instance_id, second.instance_id]),
     )]);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effect(
             &json!({
@@ -14221,6 +14573,7 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Yenna's Aura-copy ability resolves");
@@ -14363,6 +14716,12 @@ fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
         .expect("the commander starts in the command zone");
     commander.definition.name = "Omnath, Locus of All".to_string();
     commander.definition.mana_cost = "{W}{U}{B/P}{R}{G}".to_string();
+    // Deck loading records the commander's color identity explicitly.
+    commander.definition.rules.push(json!({
+        "kind": "rulesMarker",
+        "text": "Color identity",
+        "colorIdentity": ["W", "U", "B", "R", "G"],
+    }));
     assert_eq!(
         card_color_symbols(&commander.definition),
         BTreeSet::from([
@@ -14699,6 +15058,9 @@ fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards("player-0", 3)
         .expect("the third card is drawn");
     assert_eq!(engine.state.stack.len(), 1);
@@ -14793,6 +15155,9 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
         .collect();
     let mut provider = EmeritusDecisionProvider;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     for draw_number in 1..=3 {
         engine
             .draw_cards_with_replacements("player-0", 1, &mut provider)
@@ -15115,6 +15480,9 @@ fn engine_with_offspring_creature() -> GameEngine {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
 }
 
 fn smothering_abomination(instance_id: &str) -> CardInstance {
@@ -15276,6 +15644,9 @@ fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
         })
         .expect("three-mana creature can be cast");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("creature spell is cast");
 
@@ -15320,6 +15691,9 @@ fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
                 && action.card_instance_id.as_deref() == Some("one-drop")
         })
         .expect("one-mana creature can be cast");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("creature spell is cast");
@@ -15395,6 +15769,9 @@ fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
 
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut provider)
         .expect("upkeep sacrifice trigger resolves");
     assert!(
@@ -15432,6 +15809,9 @@ fn smothering_abomination_self_sacrifice_still_draws_a_card() {
     engine.state.players[0].battlefield = vec![smothering_abomination("abomination")];
     let hand_size = engine.state.players[0].hand.len();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("abomination", "sacrificed")
         .expect("Smothering Abomination is sacrificed");
@@ -15557,6 +15937,9 @@ fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     assert_eq!(cast.decisions["manaPayment"][1]["mana"], json!(["W"]));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("white spell is cast through Talon");
 
@@ -15586,6 +15969,9 @@ fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
         ),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -15891,6 +16277,9 @@ fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     assert_eq!(cast.payment_sources, vec!["payment-pool".to_string()]);
 
     payment_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    payment_engine
         .apply_priority_action(&cast, &mut RandomAi::seeded(1))
         .expect("spell is cast with Reflecting Pool");
     assert!(payment_engine.state.players[0].battlefield[0].tapped);
@@ -15982,6 +16371,9 @@ fn city_of_brass_payment_trigger_is_above_the_spell() {
         })
         .expect("City of Brass can pay for the spell");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("spell is cast using City of Brass");
@@ -16471,6 +16863,9 @@ fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine.legal_priority_actions(0);
     let normal = actions.iter().find(|action| {
         action.kind == ActionKind::CastSpell
@@ -16631,6 +17026,9 @@ fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
         Some("triggeredAbility")
     );
     declined_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    declined_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: false })
         .expect("decline ward payment");
     assert!(declined_engine.state.stack.is_empty());
@@ -16682,6 +17080,9 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
         "where": { "kind": "cardTypeContains", "value": "Creature" },
     });
     sacrifice_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    sacrifice_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay ward by sacrificing a creature");
     assert_eq!(sacrifice_engine.state.stack.len(), 1);
@@ -16719,6 +17120,9 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
             ],
         },
     });
+    discard_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     discard_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay ward by discarding a card");
@@ -16847,6 +17251,9 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
             )]),
         });
         engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine
     };
 
     let mut declined_engine = build_engine();
@@ -16875,6 +17282,9 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
             source
         })
         .collect();
+    paid_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     paid_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay counter cost");
@@ -16965,6 +17375,9 @@ fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
                 && action.decisions.get("cycling") == Some(&Value::Bool(true))
         })
         .expect("cycling action");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("activate cycling");
@@ -17090,6 +17503,7 @@ fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("resolve the graveyard-cast original");
@@ -17312,6 +17726,9 @@ fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -17697,6 +18114,9 @@ fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &rule["effects"],
@@ -18357,6 +18777,9 @@ fn negate_targets_and_counters_only_a_noncreature_spell() {
         })
     );
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&negate_actions[0], &mut RandomAi::seeded(1))
         .expect("cast Negate");
     engine
@@ -18455,6 +18878,9 @@ fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
         5
     );
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -18512,6 +18938,9 @@ fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
         vec![test_instance("lotus-petal", lotus_definition, "player-0")];
     engine.state.players[0].hand = vec![test_instance("black-spell", spell_definition, "player-0")];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -18580,6 +19009,9 @@ fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_
     engine.state.players[0].battlefield = vec![source];
     engine.state.players[1].battlefield = vec![target, indestructible];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .deal_damage(
             TargetRef::Player {
@@ -18804,6 +19236,9 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Infestation Sage resolves");
 
@@ -18824,6 +19259,9 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
         test_definition("other-creature", "Creature - Rat"),
         "player-0",
     ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("other-creature", "destroyed")
         .expect("another creature dies");
@@ -18895,6 +19333,9 @@ fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
         ),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("victim", "sacrificed")
         .expect("creature moves to graveyard");
@@ -19188,6 +19629,9 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
         })
         .expect("graveyard land play is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("graveyard land is played");
 
@@ -19237,6 +19681,9 @@ fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counte
         targets: BTreeMap::new(),
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effect(
             &json!({
@@ -19320,6 +19767,9 @@ fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
         .find(|action| action.card_instance_id.as_deref() == Some("land-watcher"))
         .expect("the trigger-bearing land can be played");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&play_watcher, &mut EmeritusDecisionProvider)
         .expect("the trigger-bearing land is played");
 
@@ -19400,6 +19850,9 @@ fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     engine.state.players[0].battlefield = vec![creature];
     engine.state.players[0].hand = vec![test_instance("bulk-up", bulk_up_definition, "player-0")];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -19452,6 +19905,9 @@ fn self_leave_trigger_can_require_the_graveyard_destination() {
     })];
     engine.state.players[0].battlefield = vec![wellspring];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("wellspring", "destroyed")
         .expect("Wellspring moves to graveyard");
@@ -19515,6 +19971,9 @@ fn self_counter_effects_execute_after_a_sacrifice_cost() {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -19631,6 +20090,9 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
                 && action.card_instance_id.as_deref() == Some("fetch-land")
         })
         .expect("fetch-land activation is legal");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("fetch-land costs are payable");
@@ -19786,6 +20248,9 @@ fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() 
     }
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut provider)
         .expect("Day of Judgment is cast");
     engine
@@ -19847,6 +20312,9 @@ fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
         })
         .expect("Spirit Water Revival is castable");
     let mut provider = EmeritusDecisionProvider;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut provider)
         .expect("Spirit Water Revival is cast");
@@ -19939,6 +20407,9 @@ fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
         })
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine.legal_priority_actions(0);
     let action = actions
         .iter()
@@ -20013,6 +20484,9 @@ fn creature_entered_during_combat_trigger_ignores_main_phase_entries() {
     engine.state.step = GameStep::DeclareAttackers;
     engine.enqueue_enter_battlefield_triggers(&entrant);
     assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("combat entry trigger resolves");
@@ -20155,6 +20629,9 @@ fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
     };
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&cast, &mut provider)
         .expect("the permanent is cast");
     assert!(engine.state.stack[0].targets.is_empty());
@@ -20242,6 +20719,9 @@ fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
         })
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .run_combat(&mut EmeritusDecisionProvider)
         .expect("combat and the attack trigger resolve");
@@ -20496,6 +20976,9 @@ fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
         .expect("prepared spell copy is created");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("emeritus", "destroyed")
         .expect("source leaves the battlefield");
 
@@ -20565,6 +21048,9 @@ fn tablet_permission_survives_until_the_current_turn_cleanup() {
         vec![test_instance("milled-card", milled_instant, "player-0")];
     engine.put_triggered_ability_on_stack(&tablet, trigger_rule);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Tablet's trigger resolves");
 
@@ -20626,6 +21112,9 @@ fn single_cast_permission_prohibits_later_spells_for_the_turn() {
                 && action.card_instance_id.as_deref() == Some("graveyard-permanent")
         })
         .expect("the selected graveyard permanent is castable");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("the single permitted spell is cast");
@@ -20875,6 +21364,9 @@ fn permanent_target_declarations_include_opponent_lands() {
         ..test_definition("bounce-spell", "Instant")
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&bounce_spell, "player-0")
         .expect("the canonical declaration is supported");
@@ -21002,6 +21494,9 @@ fn nonland_permanent_declarations_filter_the_complete_battlefield() {
         ..test_definition("nonland-target-spell", "Instant")
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&spell, "player-0")
         .expect("the nonland declaration is supported");
@@ -21080,6 +21575,9 @@ fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
         })
         .expect("paid conspire cast is legal");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("conspired spell is cast");
@@ -21182,6 +21680,9 @@ fn replicate_pays_each_additional_cost_and_copies_the_spell() {
         })
         .expect("one replicate payment is legal");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("replicated spell is cast");
@@ -21290,6 +21791,9 @@ fn threefold_signal_replicates_three_color_permanents_as_tokens() {
         .expect("Threefold Signal grants one affordable replicate payment");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("three-color permanent is cast with replicate");
     engine
@@ -21384,6 +21888,9 @@ fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
         5
     );
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the copied permanent's enter trigger resolves");
 
@@ -21443,6 +21950,9 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
                 && action.decisions.get("roomDoor").and_then(Value::as_u64) == Some(0)
         })
         .expect("first room door can be cast");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("room cast succeeds");
@@ -21526,6 +22036,9 @@ fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
         .find(|action| action.kind == ActionKind::CastSpell)
         .expect("waterbend spell is payable without lands");
     assert_eq!(action.payment_sources.len(), 2);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("waterbend spell casts");
@@ -21966,6 +22479,9 @@ fn fuse_casts_both_split_halves_with_independent_targets() {
         .map(|id| test_instance(id, test_definition(id, "Sorcery"), "player-0"))
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let fused = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -22041,6 +22557,9 @@ fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
                     == Some(true)
         })
         .expect("Megamorph card can be cast face down for three mana");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&face_down_cast, &mut EmeritusDecisionProvider)
         .expect("face-down spell is cast");
@@ -22252,6 +22771,9 @@ fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
         symbol: "C".to_string(),
         spend_restriction: None,
     }];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(engine.legal_priority_actions(0).iter().any(|action| {
         action.kind == ActionKind::CastSpell
             && action.card_instance_id.as_deref() == Some("reduced-spell")
@@ -22408,6 +22930,9 @@ fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
         .expect("Aeve is castable");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("Aeve is cast");
     assert!(
@@ -22467,6 +22992,9 @@ fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
         .find(|action| action.decisions["plot"] == true)
         .expect("plot action is legal");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&plot, &mut EmeritusDecisionProvider)
         .expect("plot special action succeeds");
@@ -22556,6 +23084,9 @@ fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Taigam trigger resolves");
 
@@ -22600,14 +23131,31 @@ fn suspend_removes_time_counters_and_casts_the_card_for_free() {
         .find(|action| action.decisions["suspend"] == true)
         .expect("suspend action is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&suspend, &mut EmeritusDecisionProvider)
         .expect("card is suspended");
     assert_eq!(engine.state.players[0].exile[0].counters["time"], 1);
 
     engine.enqueue_step_triggers("upkeep");
+    assert_eq!(
+        engine.state.stack.len(),
+        1,
+        "the exile-zone upkeep trigger of the suspended card"
+    );
     engine
         .resolve_top_stack(&mut CastSpellDecisionProvider)
-        .expect("last time counter is removed and card is cast");
+        .expect("the upkeep trigger removes the last time counter");
+    assert_eq!(engine.state.players[0].exile[0].counters["time"], 0);
+    // CR 702.62a: removing the last counter is a separate triggered ability.
+    assert!(engine.state.stack.iter().any(|object| {
+        object.card.instance_id == "rift-sower"
+            && object.ability_kind.as_deref() == Some("triggeredAbility")
+    }));
+    engine
+        .resolve_top_stack(&mut CastSpellDecisionProvider)
+        .expect("the last-counter trigger casts the card without paying");
     assert!(engine.state.stack.iter().any(|object| {
         object.card.instance_id == "rift-sower" && object.ability_rule.is_none()
     }));
@@ -22660,6 +23208,9 @@ fn imoti_grants_cascade_to_six_mana_spells() {
         .find(|action| action.card_instance_id.as_deref() == Some("large-spell"))
         .expect("six-mana spell is castable");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("six-mana spell is cast");
 
@@ -22696,6 +23247,9 @@ fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     colorless_creature.summoning_sick = true;
     engine.state.players[0].battlefield = vec![white_creature, colorless_creature];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -22768,6 +23322,9 @@ fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     assert!(action.payment_sources.is_empty());
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("teamwork spell is cast");
 
@@ -22817,6 +23374,9 @@ fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
         .library
         .push(test_instance("terminus", terminus, "player-0"));
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine.draw_cards("player-0", 1).expect("card is drawn");
     assert!(engine.state.stack.iter().any(|object| {
         object
@@ -22879,6 +23439,9 @@ fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
         )
         .expect("Predator damages the victim");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("victim", "destroyed")
         .expect("victim dies later this turn");
     engine
@@ -22931,6 +23494,9 @@ fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
         )]),
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -23020,6 +23586,9 @@ fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     assert_eq!(engine.current_power(copied), 6);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("alteration", "destroyed")
         .expect("Aura leaves");
     let restored = engine.state.players[0]
@@ -23066,6 +23635,9 @@ fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
         .into_iter()
         .find(|action| action.decisions["usePrototype"] == true)
         .expect("prototype cast is available");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("prototype is cast");
@@ -23198,6 +23770,9 @@ fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
         targets: BTreeMap::new(),
     });
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Seething Song resolves");
@@ -23379,6 +23954,9 @@ fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() 
         ),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let equip_actions = |engine: &GameEngine| {
         engine
             .legal_priority_actions(0)
@@ -23489,6 +24067,9 @@ fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     engine.enqueue_step_triggers("beginCombat");
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("resolve the draw-threshold combat trigger");
 
@@ -23554,6 +24135,9 @@ fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     }];
     engine.state.players[1].battlefield = vec![tapped, untapped];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -23760,6 +24344,7 @@ fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Thran Temporal Gateway ability resolves");
@@ -23817,6 +24402,9 @@ fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
     engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("activate unearth");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut RandomAi::seeded(1))
         .expect("resolve unearth");
@@ -24019,6 +24607,9 @@ fn linked_exchange_targets_and_resolution_share_one_player() {
             "card": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
         }],
     });
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(&rule, "player-0", "exchange-source")
         .expect("linked target declarations are executable");
@@ -24153,6 +24744,9 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &effects,
@@ -24296,6 +24890,9 @@ fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
         targets: BTreeMap::new(),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([{
                 "kind": "optionalPayCostCreateReflexiveTrigger",
@@ -24397,6 +24994,9 @@ fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
         blocker_id: None,
     };
     // The delve maximum is the generic component of the printed {5}{U}{U}.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_delve_cost(&action, &spell, 5)
         .expect("delve exiles the declared graveyard cards");
@@ -25271,15 +25871,15 @@ fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() 
         )]),
     };
     let mut resolution_decisions = stack_object.decisions.clone();
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut resolution_decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the selected type-changing mode executes");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut resolution_decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the selected type-changing mode executes");
 
     let (player_index, card_index) = engine.permanent_position("sunlight-target").unwrap();
     let target = &engine.state.players[player_index].battlefield[card_index];
@@ -25618,23 +26218,24 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
         ability_kind: Some("spellAbility".to_string()),
         ability_rule: Some(rule.clone()),
         decisions: BTreeMap::from([("chosenModes".to_string(), json!(["mode1"]))]),
+        // The parser declares the countered spell as `mode1:targetSpell`.
         targets: BTreeMap::from([(
-            "mode1:targetStackObject".to_string(),
+            "mode1:targetSpell".to_string(),
             TargetRef::StackObject {
                 stack_id: "stack:modal-target".to_string(),
             },
         )]),
     };
     let mut counter_decisions = counter_spell.decisions.clone();
-    counter_engine
-        .execute_effects(
-            &rule["effects"],
-            &counter_spell,
-            &mut BTreeMap::new(),
-            &mut counter_decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the selected counter mode executes");
+    execute_effects_at_resolution_start(
+        &mut counter_engine,
+        &rule["effects"],
+        &counter_spell,
+        &mut BTreeMap::new(),
+        &mut counter_decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the selected counter mode executes");
     assert!(counter_engine.state.stack.is_empty());
     assert!(
         counter_engine.state.players[1]
@@ -25673,6 +26274,9 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
         targets: BTreeMap::new(),
     };
     let mut loot_decisions = loot_spell.decisions.clone();
+    loot_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     loot_engine
         .execute_effects(
             &rule["effects"],
@@ -27513,15 +28117,15 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &trigger,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the target opponent chooses and sacrifices the matching permanent");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &trigger,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the target opponent chooses and sacrifices the matching permanent");
 
     assert!(engine.permanent_position("blade-sacrifice").is_none());
     assert!(engine.permanent_position("blade-kept-artifact").is_some());
@@ -28610,14 +29214,15 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
         "player-0",
     );
     let targets = BTreeMap::from([
+        // The parser declares the Equipment and the creature in order.
         (
-            "targetAttachment".to_string(),
+            "targetPermanent1".to_string(),
             TargetRef::Permanent {
                 instance_id: "stalwart-equipment".to_string(),
             },
         ),
         (
-            "targetAttachmentRecipient".to_string(),
+            "targetPermanent2".to_string(),
             TargetRef::Permanent {
                 instance_id: "stalwart-recipient".to_string(),
             },
@@ -28636,16 +29241,15 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
     };
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![equipment, recipient];
-    engine
-        .execute_effect(
-            &rule["effects"][0],
-            None,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the declared Equipment attachment executes");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([rule["effects"][0].clone()]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the declared Equipment attachment executes");
 
     assert_eq!(
         engine.state.players[0].battlefield[0]
@@ -28782,6 +29386,9 @@ fn parsed_optional_counted_discard_draw_mutates_live_zones() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &rule["effects"][0],
             None,
@@ -28847,6 +29454,9 @@ fn parsed_top_library_exile_installs_a_live_play_permission() {
         "player-0",
     )];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &rule["effects"],
@@ -31947,13 +32557,15 @@ mod quantified_player_sacrifice_runtime;
 #[path = "tests/player_action_sacrifice_runtime.rs"]
 mod player_action_sacrifice_runtime;
 
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[path = "tests/source_combat_restriction_runtime.rs"]
-mod source_combat_restriction_runtime;
+#[path = "tests/choose_instruction_runtime.rs"]
+mod choose_instruction_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]
 mod damage_prevention_runtime;
+#[path = "tests/equal_amount_reflexive_runtime.rs"]
+mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/intervening_if_condition_runtime.rs"]
 mod intervening_if_condition_runtime;
-#[path = "tests/choose_instruction_runtime.rs"]
-mod choose_instruction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/source_combat_restriction_runtime.rs"]
+mod source_combat_restriction_runtime;

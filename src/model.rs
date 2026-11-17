@@ -96,7 +96,10 @@ fn compile_token_oracle_definition(
     power: Option<String>,
     toughness: Option<String>,
 ) -> Result<CardDefinition, String> {
-    Ok(compile_playable_card(PlayableCardInput {
+    let catalog_input = oracle_text
+        .clone()
+        .map(|oracle| (type_line.clone(), oracle));
+    let compiled = compile_playable_card(PlayableCardInput {
         id: format!("token:{}", name.trim().to_lowercase()),
         face_id: None,
         is_token: true,
@@ -112,8 +115,22 @@ fn compile_token_oracle_definition(
             layout,
             faces: Vec::new(),
         },
-    })?
-    .card)
+    })?;
+    let mut card = compiled.card;
+    // A token's printed text that the card grammar leaves incomplete is still
+    // compiled by the shared token compiler that also builds the parser-free
+    // runtime artifact (for example Map's exploration program). The token is
+    // never created with a silently missing printed ability when that
+    // compiler covers the complete text.
+    if (compiled.unsupported_ability_count != 0 || compiled.unexecutable_rule_count != 0)
+        && let Some(rules) = catalog_input.and_then(|(type_line, oracle)| {
+            crate::oracle::compile_named_token_catalog_rules(name, &type_line, &oracle)
+        })
+        && rules.iter().all(rule_is_executable)
+    {
+        card.rules = rules;
+    }
+    Ok(card)
 }
 
 pub fn compile_named_token_definition(name: &str) -> Result<Option<CardDefinition>, String> {

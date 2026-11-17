@@ -94,6 +94,11 @@ fn setup(quest_counters: i32, source_on_battlefield: bool) -> (GameEngine, Stack
         "player-0",
     );
     source.counters.insert("quest".to_string(), quest_counters);
+    // The trigger's source copy carries the incarnation of the permanent that
+    // triggered, whether or not that permanent is still on the battlefield.
+    engine
+        .assign_new_object_incarnation(&mut source)
+        .expect("the source has an incarnation");
     if source_on_battlefield {
         engine.state.players[0].battlefield.push(source.clone());
     }
@@ -123,15 +128,15 @@ fn execute_counter_sequence(engine: &mut GameEngine, stack: &StackObject) {
             .as_array()
             .is_some_and(|effects| effects.iter().all(effect_supported))
     );
-    engine
-        .execute_effects(
-            &effects,
-            stack,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("counter placement and reflexive trigger resolve");
+    execute_effects_at_resolution_start(
+        engine,
+        &effects,
+        stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("counter placement and reflexive trigger resolve");
 }
 
 #[test]

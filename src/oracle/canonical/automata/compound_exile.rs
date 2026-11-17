@@ -91,6 +91,7 @@ fn predicate_is_permanent_card_type(predicate: &SelectorPredicate) -> bool {
         }
         SelectorPredicate::Not(predicate) => predicate_is_permanent_card_type(predicate),
         SelectorPredicate::Color(_)
+        | SelectorPredicate::ColorQuantity(_)
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Status(_)

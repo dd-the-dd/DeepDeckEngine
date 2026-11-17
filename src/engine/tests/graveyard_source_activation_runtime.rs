@@ -35,6 +35,9 @@ fn activate(engine: &mut GameEngine, source_id: &str) {
         })
         .expect("the graveyard activation is offered");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(7))
         .expect("activation pays its costs");
     engine

@@ -260,7 +260,7 @@ fn recognize_revealed_hand(
         state = match state {
             RevealHandState::Target => {
                 cursor.enter("hand-disruption.reveal.target");
-                let subject = recognize_player_effect_subject(cursor, player, None)?;
+                let subject = recognize_player_effect_subject(cursor, player, None, false)?;
                 cursor.enter("hand-disruption.reveal.target.validation");
                 let PlayerEffectSubject::DeclaredTarget {
                     target: targets,
@@ -402,7 +402,7 @@ fn recognize_discard_chosen_card(
         state = match state {
             DiscardChosenCardState::Player => {
                 cursor.enter("hand-disruption.discard.player");
-                let subject = recognize_player_effect_subject(cursor, player, Some(player))?;
+                let subject = recognize_player_effect_subject(cursor, player, Some(player), false)?;
                 cursor.require(
                     subject == PlayerEffectSubject::Bound(player),
                     "the previously targeted player binding",

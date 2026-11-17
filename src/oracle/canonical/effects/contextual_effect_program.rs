@@ -141,6 +141,7 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
         .with_sentence_conditionals()
         .with_unless_frames();
     let mut restrictions = ActivationRestrictionsNode::default();
+    let mut reduction = None;
     let (costs, effects, annotation) = match context {
         EffectProgramContext::Activated => {
             match try_recognize_activated_effect_sequence_with_cost_context(
@@ -152,6 +153,7 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
             ) {
                 ActivatedEffectSequenceParseAttempt::Parsed(program) => {
                     restrictions = program.restrictions;
+                    reduction = program.reduction;
                     (
                         Some(program.costs),
                         EffectProgramNode::Sequence(program.effects),
@@ -167,42 +169,9 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
             }
         }
         EffectProgramContext::Spell => {
-            let checkpoint = cursor.checkpoint();
-            // A program operator either opens the ability or opens a later
-            // sentence; otherwise the shared sequence keeps its diagnostic.
-            let optional_head = cursor.peek().is_some_and(|s| s.eq_ignore_ascii_case("you"))
-                && cursor
-                    .peek_ahead(1)
-                    .is_some_and(|s| s.eq_ignore_ascii_case("may"))
-                || later_optional_outcome_block(&cursor).is_some();
-            match try_recognize_effect_sequence_with_context(
-                &mut cursor,
-                input.name_links,
-                input.name_resolution_failure,
-                &recognition_context,
-            ) {
-                EffectSequenceParseAttempt::Parsed(effects) => {
-                    (None, EffectProgramNode::Sequence(effects), None)
-                }
-                EffectSequenceParseAttempt::RejectedCandidate(failure) if !optional_head => {
-                    return EffectProgramParseAttempt::Unpromoted(failure);
-                }
-                EffectSequenceParseAttempt::FailedCommitted(failure) if !optional_head => {
-                    return EffectProgramParseAttempt::Failed(failure);
-                }
-                EffectSequenceParseAttempt::RejectedCandidate(_)
-                | EffectSequenceParseAttempt::FailedCommitted(_) => {
-                    cursor.rollback(checkpoint);
-                    match recognize_effect_program_with_context(
-                        &mut cursor,
-                        input.name_links,
-                        input.name_resolution_failure,
-                        &recognition_context,
-                    ) {
-                        Ok(program) => (None, program, None),
-                        Err(failure) => return EffectProgramParseAttempt::Failed(failure),
-                    }
-                }
+            match recognize_imperative_program_body(&mut cursor, input, &recognition_context) {
+                Ok(program) => (None, program, None),
+                Err(attempt) => return attempt,
             }
         }
         EffectProgramContext::Mana => unreachable!("mana context is derived from typed effects"),
@@ -214,7 +183,121 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
         effects,
         annotation,
     );
+    let outcome = apply_activation_cost_reduction(&mut cursor, outcome, reduction);
     apply_activation_restrictions(outcome, restrictions)
+}
+
+/// A generic activation-cost reduction is metadata of the activated ability
+/// (CR 601.2f via 602.2b); a mana ability keeps no reduction slot.
+fn apply_activation_cost_reduction(
+    cursor: &mut OracleTokenCursor<'_>,
+    outcome: EffectProgramParseAttempt,
+    reduction: Option<ActivationCostReductionNode>,
+) -> EffectProgramParseAttempt {
+    let Some(reduction) = reduction else {
+        return outcome;
+    };
+    let EffectProgramParseAttempt::Parsed(mut draft) = outcome else {
+        return outcome;
+    };
+    cursor.enter("activation.reduction.owner");
+    if draft.rule["kind"] != "activatedAbility" {
+        return EffectProgramParseAttempt::FailedSupport(
+            cursor.fail("an activated ability (not a mana ability) owning the cost reduction"),
+        );
+    }
+    draft.rule["manaCostReduction"] = lower_activation_cost_reduction(&reduction);
+    draft
+        .operations
+        .push("Attach the per-permanent activation cost reduction".to_string());
+    EffectProgramParseAttempt::Parsed(draft)
+}
+
+/// The costless imperative body shared by spell abilities and other parents
+/// whose resolution is an ordinary instruction program (CR 608.2). A program
+/// operator either opens the body or opens a later sentence; otherwise the
+/// shared sequence keeps its diagnostic.
+fn recognize_imperative_program_body(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+    recognition_context: &EffectRecognitionContext,
+) -> Result<EffectProgramNode, EffectProgramParseAttempt> {
+    let checkpoint = cursor.checkpoint();
+    let optional_head = cursor.peek().is_some_and(|s| s.eq_ignore_ascii_case("you"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|s| s.eq_ignore_ascii_case("may"))
+        || later_optional_outcome_block(cursor).is_some();
+    match try_recognize_effect_sequence_with_context(
+        cursor,
+        input.name_links,
+        input.name_resolution_failure,
+        recognition_context,
+    ) {
+        EffectSequenceParseAttempt::Parsed(effects) => Ok(EffectProgramNode::Sequence(effects)),
+        EffectSequenceParseAttempt::RejectedCandidate(failure) if !optional_head => {
+            Err(EffectProgramParseAttempt::Unpromoted(failure))
+        }
+        EffectSequenceParseAttempt::FailedCommitted(failure) if !optional_head => {
+            Err(EffectProgramParseAttempt::Failed(failure))
+        }
+        EffectSequenceParseAttempt::RejectedCandidate(_)
+        | EffectSequenceParseAttempt::FailedCommitted(_) => {
+            cursor.rollback(checkpoint);
+            recognize_effect_program_with_context(
+                cursor,
+                input.name_links,
+                input.name_resolution_failure,
+                recognition_context,
+            )
+            .map_err(EffectProgramParseAttempt::Failed)
+        }
+    }
+}
+
+/// A costless instruction program owned by a parent frame other than a spell
+/// face (for example a Dungeon room, CR 309.4c). The parent bounds the cursor;
+/// recognition and lowering are exactly those of a spell ability's body.
+pub(in crate::oracle::canonical) fn recognize_and_lower_imperative_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+) -> MachineResult<(Value, Option<Value>)> {
+    let recognition_context = EffectRecognitionContext::default()
+        .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
+        .with_sentence_conditionals()
+        .with_unless_frames();
+    let program = recognize_imperative_program_body(cursor, input, &recognition_context).map_err(
+        |attempt| match attempt {
+            EffectProgramParseAttempt::Unpromoted(failure)
+            | EffectProgramParseAttempt::Failed(failure)
+            | EffectProgramParseAttempt::FailedSupport(failure) => failure,
+            EffectProgramParseAttempt::Parsed(_) | EffectProgramParseAttempt::NotApplicable => {
+                cursor.fail("an imperative instruction program")
+            }
+        },
+    )?;
+    match lower_contextual_effect_program_with_annotation(
+        cursor,
+        EffectProgramContext::Spell,
+        None,
+        program,
+        None,
+    ) {
+        EffectProgramParseAttempt::Parsed(mut draft) => {
+            let effects = draft.rule["effects"].take();
+            let declaration = draft
+                .rule
+                .as_object_mut()
+                .and_then(|rule| rule.remove("declaration"));
+            Ok((effects, declaration))
+        }
+        EffectProgramParseAttempt::Unpromoted(failure)
+        | EffectProgramParseAttempt::Failed(failure)
+        | EffectProgramParseAttempt::FailedSupport(failure) => Err(failure),
+        EffectProgramParseAttempt::NotApplicable => {
+            Err(cursor.fail("an applicable imperative instruction program"))
+        }
+    }
 }
 
 /// CR 606: a loyalty ability is an activated ability whose cost is the signed
@@ -298,11 +381,20 @@ fn apply_activation_restrictions(
         return EffectProgramParseAttempt::Parsed(draft);
     }
     // Sorcery timing already implies the controller's own turn (CR 307.1).
-    if restrictions.sorcery_timing {
-        draft.rule["activationCondition"] = json!({ "kind": "sorceryTiming" });
+    let timing = if restrictions.sorcery_timing {
+        Some(json!({ "kind": "sorceryTiming" }))
     } else if restrictions.controller_turn {
-        draft.rule["activationCondition"] =
-            json!({ "kind": "duringControllerTurn", "player": controller() });
+        Some(json!({ "kind": "duringControllerTurn", "player": controller() }))
+    } else {
+        None
+    };
+    let condition = restrictions.condition.as_ref().map(lower_static_condition);
+    match (timing, condition) {
+        (Some(timing), Some(condition)) => {
+            draft.rule["activationCondition"] = and(vec![timing, condition]);
+        }
+        (Some(only), None) | (None, Some(only)) => draft.rule["activationCondition"] = only,
+        (None, None) => {}
     }
     if restrictions.once_each_turn {
         draft.rule["activationLimit"] =
@@ -341,6 +433,21 @@ fn activation_body_context(
     let mut context = base.clone();
     context.source = None;
     context.source_cast_x = false;
+    // A card discarded, exiled or sacrificed to pay for its own ability is
+    // the only object `it` can name: the ability's source, read through its
+    // last known information once it has left its zone (CR 113.7a, 602.2).
+    if costs.costs.iter().any(|cost| {
+        matches!(
+            cost,
+            LocalActivationCostNode::DiscardSelf(_)
+                | LocalActivationCostNode::ExileSelf(_)
+                | LocalActivationCostNode::SacrificeSelf(_)
+        )
+    }) {
+        context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
+    }
+    context.source_numeric_reads =
+        type_line_has_permanent_card_type(face_type_line) && !spell_face(face_type_line);
     context.activation_source_availability = if retained
         && type_line_has_permanent_card_type(face_type_line)
         && !spell_face(face_type_line)
@@ -590,3 +697,7 @@ mod tests;
 #[cfg(test)]
 #[path = "activation_source_context_tests.rs"]
 mod activation_source_tests;
+
+#[cfg(test)]
+#[path = "restored_shared_actions_tests.rs"]
+mod restored_shared_actions_tests;

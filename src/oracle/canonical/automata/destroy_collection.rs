@@ -1,5 +1,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{DestroyPermanentCollectionEffectNode, ObjectKind, recognize_object_collection};
+use super::{
+    DestroyPermanentCollectionEffectNode, ObjectKind, recognize_object_collection,
+    recognize_object_query_before_separator_with_source,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DestroyCollectionState {
@@ -14,6 +17,17 @@ enum DestroyCollectionState {
 /// action. Punctuation and effect sequencing remain owned by EffectSequence.
 pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effect(
     cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DestroyPermanentCollectionEffectNode> {
+    recognize_destroy_permanent_collection_effect_with_source(cursor, false)
+}
+
+/// The same action where the parent proves its source (or its last-known
+/// information) for numeric reads: a single-branch collection may compare a
+/// property with the source's counters (`with mana value equal to the number
+/// of charge counters on this artifact`).
+pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effect_with_source(
+    cursor: &mut OracleTokenCursor<'_>,
+    source_numeric_reads: bool,
 ) -> MachineResult<DestroyPermanentCollectionEffectNode> {
     let mut state = DestroyCollectionState::Action;
     let mut objects = None;
@@ -38,7 +52,14 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
             }
             DestroyCollectionState::ObjectCollection => {
                 cursor.enter("destroy.collection.objects");
-                objects = Some(recognize_object_collection(cursor)?);
+                objects = Some(match cursor.attempt(recognize_object_collection) {
+                    Ok(objects) => objects,
+                    Err(_) if source_numeric_reads => {
+                        cursor.enter("destroy.collection.source-numeric-objects");
+                        recognize_object_query_before_separator_with_source(cursor, true)?
+                    }
+                    Err(failure) => return Err(failure),
+                });
                 DestroyCollectionState::PermanentDomain
             }
             DestroyCollectionState::PermanentDomain => {

@@ -61,6 +61,8 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::PlayerFact { .. }
+        | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. } => false,
     }
 }
@@ -110,7 +112,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             }
             SingularPlayerAction::Life(life) => independent_number(&life.amount),
             // Choice-bearing player actions keep the native lowering boundary.
-            SingularPlayerAction::Discard(_) | SingularPlayerAction::Sacrifice(_) => false,
+            SingularPlayerAction::Discard(_)
+            | SingularPlayerAction::Sacrifice(_)
+            | SingularPlayerAction::Venture(_) => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),
         LocalEffectNode::GainLife(node) => {
@@ -134,7 +138,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             }
             CardActionNode::Reveal(operand) => simple_operand(operand),
             // A permission window is lowered by the native collection lowerer.
-            CardActionNode::Permit(_) | CardActionNode::RevealUntil { .. } => false,
+            CardActionNode::Permit(_)
+            | CardActionNode::RevealUntil { .. }
+            | CardActionNode::Shuffle { .. } => false,
             CardActionNode::Move { cards, destination } => {
                 simple_operand(cards)
                     && match destination.owner {
@@ -187,9 +193,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::ModifyStats(_)
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::UntapTarget(_)
-        | LocalEffectNode::UntapPermanents(_)
+        | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
-        | LocalEffectNode::Regenerate(_)
+        | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -206,7 +212,9 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         }
         // The checked scope walks one sequence; independent steps and the
         // two sentences of an optional action keep the native lowering checks.
-        EffectProgramNode::Steps(_) | EffectProgramNode::OptionalAction { .. } => false,
+        EffectProgramNode::Steps(_)
+        | EffectProgramNode::OptionalAction { .. }
+        | EffectProgramNode::ReflexiveAction { .. } => false,
     }
 }
 
@@ -298,7 +306,7 @@ fn resolve_sequence(
         match effect {
             LocalEffectNode::PlayerAction(action) => {
                 match &action.player {
-                    PlayerEffectSubject::Controller => {}
+                    PlayerEffectSubject::Controller | PlayerEffectSubject::EventPlayer => {}
                     PlayerEffectSubject::DeclaredTarget { binding, target } => {
                         let [slot] = target.slots.as_slice() else {
                             return Err(error(
@@ -353,7 +361,9 @@ fn resolve_sequence(
                 }
                 CardActionNode::Reveal(operand) => collections.operand(operand)?,
                 CardActionNode::Move { cards, .. } => collections.operand(cards)?,
-                CardActionNode::Permit(_) | CardActionNode::RevealUntil { .. } => {
+                CardActionNode::Permit(_)
+                | CardActionNode::RevealUntil { .. }
+                | CardActionNode::Shuffle { .. } => {
                     unreachable!("a permission window is outside the checked scope slice")
                 }
             },
@@ -403,9 +413,9 @@ fn resolve_sequence(
             | LocalEffectNode::ModifyStats(_)
             | LocalEffectNode::BecomeTypes(_)
             | LocalEffectNode::UntapTarget(_)
-            | LocalEffectNode::UntapPermanents(_)
+            | LocalEffectNode::SelectedPermanents(_)
             | LocalEffectNode::TapPermanents(_)
-            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)

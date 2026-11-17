@@ -216,6 +216,9 @@ fn sacrifice_event_and_trigger_survive_a_graveyard_to_exile_replacement() {
     }));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("replacement-sacrifice", "sacrificed")
         .expect("the sacrifice is replaced with exile");
 

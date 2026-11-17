@@ -14,15 +14,21 @@ pub(in crate::oracle::canonical) enum PlayerEffectSubject {
         binding: PlayerBinding,
     },
     Bound(PlayerBinding),
+    /// `that player` naming the player of the triggering event, such as the
+    /// player dealt combat damage (CR 603.2). The event, not the effect
+    /// program, binds this player; the runtime reads it as the triggering player.
+    EventPlayer,
 }
 
 /// Recognizes a player acting as the subject of an effect. `that player`
-/// resolves only to the exact binding supplied by the parent; it never opens
-/// a new target declaration implicitly.
+/// resolves only to the exact binding supplied by the parent, or, without a
+/// local antecedent, to the player of a triggering event that names one
+/// (`event_player`); it never opens a new target declaration implicitly.
 pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
     cursor: &mut OracleTokenCursor<'_>,
     declared_target_binding: PlayerBinding,
     antecedent: Option<PlayerBinding>,
+    event_player: bool,
 ) -> MachineResult<PlayerEffectSubject> {
     cursor.enter("player-subject.start");
     let Some(first) = cursor.peek_token().cloned() else {
@@ -60,6 +66,11 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
         cursor.enter("player-subject.bound.reference");
         cursor.consume_phrase(&["that", "player"])?;
         cursor.enter("player-subject.bound.resolve");
+        if antecedent.is_none() && event_player {
+            cursor.enter("player-subject.event-player");
+            cursor.enter("player-subject.complete");
+            return Ok(PlayerEffectSubject::EventPlayer);
+        }
         let binding = antecedent.ok_or_else(|| {
             cursor.fail_with_span(
                 "a prior player binding for `that player`",

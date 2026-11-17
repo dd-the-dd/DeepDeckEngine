@@ -126,6 +126,9 @@ fn card_only_opponent_replacement_preserves_both_scope_and_token_filter() {
         .battlefield
         .push(test_token("opponent-token", "player-1"));
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("opponent-token", "destroyed")
         .expect("card-only replacement should leave a token in the graveyard");
     assert!(

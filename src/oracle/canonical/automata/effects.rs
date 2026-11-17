@@ -3,11 +3,11 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterEffectNode, DamageEffectNode, DamageRecipientNode, GainLifeEffectNode, LifeVerbForm,
-    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, NumericAtom, ObjectCardType,
+    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, NumericExpression, ObjectCardType,
     ObjectKind, PlayerTargetBinding, SelectorPredicate, TargetBinding, TargetCardinality,
     TargetPlayerLifeAction, TargetPlayerLifeEffectNode, TargetSelector, ZoneChangeAction,
     ZoneChangeDestination, ZoneChangeEffectNode, ZoneChangeRegenerationPolicy,
-    recognize_life_action, recognize_numeric_atom, recognize_numeric_expression,
+    recognize_equal_to_amount_expression, recognize_life_action, recognize_numeric_expression,
     recognize_player_reference, recognize_source_reference_with_typed_antecedent,
     recognize_target_list, recognize_target_slot_selector,
 };
@@ -95,6 +95,7 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Color(_)
+        | SelectorPredicate::ColorQuantity(_)
         | SelectorPredicate::Supertype(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::HasKeyword(_)
@@ -107,6 +108,7 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
                     | SelectorPredicate::Subtype(_)
                     | SelectorPredicate::CharacteristicBatch(_)
                     | SelectorPredicate::Color(_)
+                    | SelectorPredicate::ColorQuantity(_)
                     | SelectorPredicate::HasKeyword(_)
                     | SelectorPredicate::Supertype(_)
                     | SelectorPredicate::NumericComparison { .. }
@@ -143,8 +145,21 @@ enum DamageState {
 #[derive(Default)]
 struct DamageMemory {
     source: Option<super::LocalObjectReference>,
-    amount: Option<NumericAtom>,
+    amount: Option<NumericExpression>,
     recipient: Option<DamageRecipientNode>,
+}
+
+/// `equal to EXPR` after `damage`, either before or after the recipient
+/// (`deals damage equal to E to R` / `deals damage to R equal to E`). The
+/// amount is the shared numeric expression; the damage source is the only
+/// antecedent a possessive `its` may name inside this frame.
+fn recognize_damage_equal_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: Option<super::LocalObjectReference>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("effect.damage.equal-amount");
+    cursor.consume_phrase(&["equal", "to"])?;
+    recognize_equal_to_amount_expression(cursor, source)
 }
 
 pub(in crate::oracle::canonical) fn recognize_damage_effect(
@@ -183,12 +198,28 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
             }
             DamageState::Amount => {
                 cursor.enter("effect.damage.amount");
-                memory.amount = Some(recognize_numeric_atom(cursor)?);
+                // `deals damage equal to ...` defers the amount to its
+                // `equal to` clause; otherwise the amount precedes `damage`.
+                if !cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"))
+                {
+                    // The shared arithmetic grammar: literals, X, event-bound
+                    // `that much`, and their arithmetic (CR 120.3).
+                    memory.amount = Some(recognize_numeric_expression(cursor, None)?);
+                }
                 DamageState::Resource
             }
             DamageState::Resource => {
                 cursor.enter("effect.damage.resource");
                 cursor.consume("damage")?;
+                if memory.amount.is_none()
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
+                {
+                    memory.amount = Some(recognize_damage_equal_amount(cursor, memory.source)?);
+                }
                 DamageState::Destination
             }
             DamageState::Destination => {
@@ -250,6 +281,16 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
                 DamageState::Complete
             }
             DamageState::Complete => {
+                if memory.amount.is_none() {
+                    cursor.enter("effect.damage.postposed-amount");
+                    cursor.require(
+                        cursor
+                            .peek()
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("equal")),
+                        "`equal to` and the amount of damage",
+                    )?;
+                    memory.amount = Some(recognize_damage_equal_amount(cursor, memory.source)?);
+                }
                 cursor.enter("effect.damage.complete");
                 return Ok(LocalEffectNode::DealDamage(DamageEffectNode {
                     source: cursor.require_value(memory.source, "a populated damage source")?,
@@ -286,6 +327,7 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Color(_)
+        | SelectorPredicate::ColorQuantity(_)
         | SelectorPredicate::Supertype(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::Status(_)
@@ -632,6 +674,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
         SelectorPredicate::IsCommander
         | SelectorPredicate::IsToken
         | SelectorPredicate::Color(_)
+        | SelectorPredicate::ColorQuantity(_)
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Supertype(_)
@@ -651,6 +694,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
             operand.as_ref(),
             SelectorPredicate::CardType(_)
                 | SelectorPredicate::Color(_)
+                | SelectorPredicate::ColorQuantity(_)
                 | SelectorPredicate::Supertype(_)
                 | SelectorPredicate::Subtype(_)
                 | SelectorPredicate::CharacteristicBatch(_)

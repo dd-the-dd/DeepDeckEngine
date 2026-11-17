@@ -55,7 +55,8 @@ fn stack_spell(cant_be_countered: bool) -> StackObject {
         ),
         cant_be_countered,
         exile_on_leave_stack: false,
-        ability_kind: Some("spellAbility".to_string()),
+        // A spell on the stack is not an ability object (CR 112.1, 113.1).
+        ability_kind: None,
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
@@ -94,6 +95,9 @@ fn library_card(id: &str, owner: &str) -> CardInstance {
 fn captured_target_controller_chooses_two_and_caster_draws_one_at_next_upkeep() {
     let rules = parsed_rules();
     let mut engine = test_engine(2);
+    // Only the delayed draws may put cards into these hands.
+    engine.state.players[0].hand.clear();
+    engine.state.players[1].hand.clear();
     engine.state.players[0].library = vec![library_card("caster-draw", "player-0")];
     engine.state.players[1].library = vec![
         library_card("target-draw-one", "player-1"),
@@ -102,24 +106,24 @@ fn captured_target_controller_chooses_two_and_caster_draws_one_at_next_upkeep() 
     engine.state.stack.push(stack_spell(false));
     let arcane = arcane_stack(rules[0].clone());
 
-    engine
-        .execute_effects(
-            &rules[0]["effects"],
-            &arcane,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut MaximumDrawProvider,
-        )
-        .expect("counter and first delayed draw install");
-    engine
-        .execute_effects(
-            &rules[1]["effects"],
-            &arcane,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut MaximumDrawProvider,
-        )
-        .expect("caster delayed draw installs");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[0]["effects"],
+        &arcane,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut MaximumDrawProvider,
+    )
+    .expect("counter and first delayed draw install");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[1]["effects"],
+        &arcane,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut MaximumDrawProvider,
+    )
+    .expect("caster delayed draw installs");
 
     assert!(engine.state.stack.is_empty());
     assert_eq!(engine.state.players[0].hand.len(), 0);
@@ -164,6 +168,9 @@ fn captured_target_controller_chooses_two_and_caster_draws_one_at_next_upkeep() 
 fn uncounterable_target_remains_but_its_controller_still_gets_the_delayed_draw() {
     let rules = parsed_rules();
     let mut engine = test_engine(2);
+    // Only the delayed draws may put cards into these hands.
+    engine.state.players[0].hand.clear();
+    engine.state.players[1].hand.clear();
     engine.state.players[1].library = vec![
         library_card("uncounterable-draw-one", "player-1"),
         library_card("uncounterable-draw-two", "player-1"),
@@ -171,15 +178,15 @@ fn uncounterable_target_remains_but_its_controller_still_gets_the_delayed_draw()
     engine.state.stack.push(stack_spell(true));
     let arcane = arcane_stack(rules[0].clone());
 
-    engine
-        .execute_effects(
-            &rules[0]["effects"],
-            &arcane,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut MaximumDrawProvider,
-        )
-        .expect("failed counter does not abort the following delayed effect");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[0]["effects"],
+        &arcane,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut MaximumDrawProvider,
+    )
+    .expect("failed counter does not abort the following delayed effect");
 
     assert!(
         engine

@@ -501,8 +501,8 @@ pub(in crate::oracle::canonical) fn try_recognize_effect_sequence_with_context(
     }
 }
 
-/// The activation parent owns any annotation after the final effect period.
-/// This leaves the immutable annotation tokens unconsumed for its typed child.
+/// The activation parent owns any annotation or cost-reduction sentence after
+/// the final effect period. Their tokens stay unconsumed for its typed children.
 pub(in crate::oracle::canonical) fn try_recognize_effect_sequence_before_activation_annotation(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -516,7 +516,7 @@ pub(in crate::oracle::canonical) fn try_recognize_effect_sequence_before_activat
         name_links,
         name_failure,
         context,
-        false,
+        true,
         true,
         &mut frame,
     ) {
@@ -620,12 +620,30 @@ fn recognize_effect_sequence_attempt_internal(
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
                     let parsed = cursor.attempt(|attempt| {
-                        if !source_reference_starts_at(
-                            attempt.position(),
-                            attempt.peek(),
-                            name_links,
-                            name_failure,
-                        ) {
+                        // `sacrifice A, B, and C`: one verb, independent
+                        // headed objects, each its own sacrifice action. Any
+                        // other `and a ...` clause stays with the other readers.
+                        if memory.connectors.last() == Some(&EffectConnector::And)
+                            && super::elided_sacrifice_operand_starts(
+                                attempt,
+                                memory.effects.last(),
+                            )
+                            && let Ok(operand) =
+                                attempt.attempt(super::recognize_elided_sacrifice_operand)
+                        {
+                            return Ok(LocalEffectNode::Sacrifice(operand));
+                        }
+                        // The keyword action `venture into …` (CR 701.49) is
+                        // an action head even when the lexical name resolver
+                        // left its words unresolved; it is never a source name.
+                        if super::venture_action_starts(attempt)
+                            || !source_reference_starts_at(
+                                attempt.position(),
+                                attempt.peek(),
+                                name_links,
+                                name_failure,
+                            )
+                        {
                             match super::try_recognize_player_action(
                                 attempt,
                                 super::PlayerBinding(effect_index),
@@ -836,7 +854,7 @@ fn recognize_effect_sequence_attempt_internal(
                             node.duration.as_ref() == Some(duration)
                         }
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
-                            &node.duration == duration
+                            node.duration.as_ref() == Some(duration)
                         }
                         _ => false,
                     };
@@ -1146,8 +1164,9 @@ fn recognize_effect_sequence_attempt_internal(
                             && cursor
                                 .peek_ahead(2)
                                 .is_some_and(|raw| raw.eq_ignore_ascii_case("next"))
-                            && let Some(LocalEffectNode::Regenerate(regenerate)) =
+                            && let Some(LocalEffectNode::PermanentKeywordAction(regenerate)) =
                                 memory.effects.last()
+                            && regenerate.action == super::PermanentKeywordAction::Regenerate
                         {
                             // CR 701.15a: the reminder restates the keyword
                             // action and is validated against its object.
@@ -1226,7 +1245,17 @@ fn recognize_effect_sequence_attempt_internal(
                         let player = memory
                             .last_player_target
                             .filter(|binding| binding.effect_index >= first_effect);
-                        let clause = super::recognize_unless_clause(cursor, target, player)?;
+                        let quantified_subject = end_effect == first_effect + 1
+                            && matches!(
+                                memory.effects.get(first_effect),
+                                Some(LocalEffectNode::QuantifiedPlayerAction(_))
+                            );
+                        let clause = super::recognize_unless_clause(
+                            cursor,
+                            target,
+                            player,
+                            quantified_subject,
+                        )?;
                         memory.unless.push(super::UnlessFrameNode {
                             first_effect,
                             end_effect,
@@ -1419,7 +1448,14 @@ fn recognize_effect(
         .is_some_and(|token| token.eq_ignore_ascii_case("regenerate"))
     {
         return super::recognize_regenerate_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::Regenerate);
+            .map(LocalEffectNode::PermanentKeywordAction);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("goad"))
+    {
+        return super::recognize_goad_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::PermanentKeywordAction);
     }
     if cursor
         .peek()
@@ -1459,7 +1495,7 @@ fn recognize_effect(
                         fragment.end_position == cursor.position(),
                         "the selected untap child boundary",
                     )?;
-                    return Ok(LocalEffectNode::UntapPermanents(fragment.node));
+                    return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
                 }
                 Err(failure) => {
                     // `untap OBJECT` shares the tap verb frame and its
@@ -1687,8 +1723,11 @@ fn recognize_effect(
             token.eq_ignore_ascii_case("all") || token.eq_ignore_ascii_case("each")
         })
     {
-        return recognize_destroy_permanent_collection_effect(cursor)
-            .map(LocalEffectNode::DestroyCollection);
+        return super::recognize_destroy_permanent_collection_effect_with_source(
+            cursor,
+            context.source_numeric_reads,
+        )
+        .map(LocalEffectNode::DestroyCollection);
     }
     if cursor
         .peek()
@@ -1767,6 +1806,22 @@ fn recognize_effect(
     {
         return recognize_source_zone_move_effect(cursor, name_links, name_failure, context)
             .map(LocalEffectNode::MoveSource);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("return"))
+    {
+        // A resolution choice (`a land you control`) shares the selection
+        // operand with `untap`; a target head stays with the targeted frame.
+        let mut trial = cursor.clone();
+        if let Ok(fragment) = super::recognize_return_selected_permanents_effect(&mut trial) {
+            *cursor = trial;
+            cursor.require(
+                fragment.end_position == cursor.position(),
+                "the selected return child boundary",
+            )?;
+            return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
+        }
     }
     if cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("exile")

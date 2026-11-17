@@ -153,6 +153,9 @@ fn read_reduction(
     };
     cursor.enter("casting-reduction.terminator");
     cursor.consume(".")?;
+    if let CastingReductionSubject::SpellSet(query) = &subject {
+        recognize_optional_batch_reminder_for(cursor, &query.predicate)?;
+    }
     cursor.enter("casting-reduction.complete");
     cursor.finish()?;
     Ok(CastingCostReductionNode {

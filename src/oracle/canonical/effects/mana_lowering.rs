@@ -33,7 +33,7 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
                 .collect::<Vec<_>>(),
         }),
         AddManaEffectNode::AnyColor(effect) => json!({
-            "kind": "chooseColor",
+            "kind": effect.runtime_mana_kind(),
             "amount": effect.amount,
         }),
         AddManaEffectNode::EachColor(effect) => {

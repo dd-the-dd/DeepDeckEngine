@@ -66,6 +66,34 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     controller: SourceMoveController::Preserve,
                 });
             }
+            if origin.is_none()
+                && cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+            {
+                // CR 108.3: a permanent returns to its owner's hand, which
+                // may differ from its controller's.
+                cursor.enter("effect.move-source.return.owners-hand");
+                cursor.consume("its")?;
+                let owner = cursor
+                    .peek()
+                    .filter(|raw| {
+                        raw.eq_ignore_ascii_case("owner's")
+                            || raw.eq_ignore_ascii_case("owner\u{2019}s")
+                    })
+                    .map(str::to_owned)
+                    .ok_or_else(|| cursor.fail("owner's"))?;
+                cursor.consume(&owner)?;
+                cursor.consume("hand")?;
+                cursor.enter("effect.move-source.complete");
+                return Ok(MoveSourceEffectNode {
+                    source,
+                    from: SourceZone::Battlefield,
+                    to: SourceZone::Hand,
+                    face_change: SourceFaceChange::Preserve,
+                    controller: SourceMoveController::Owner,
+                });
+            }
             cursor.consume_phrase(&["the", "battlefield"])?;
             cursor.enter("effect.move-source.return.face-change");
             cursor.consume("transformed")?;

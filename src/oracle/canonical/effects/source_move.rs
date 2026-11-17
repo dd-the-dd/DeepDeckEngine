@@ -16,6 +16,12 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
         (SourceZone::Battlefield | SourceZone::Exile, _) => None,
     };
     let mut primitive = match effect.to {
+        // A permanent leaves the battlefield through the permanent-movement
+        // primitive, which owns its zone-specific lifecycle (CR 400.7).
+        SourceZone::Hand if effect.controller == SourceMoveController::Owner => json!({
+            "kind": "returnToOwnersHand",
+            "object": cards,
+        }),
         SourceZone::Hand => json!({
             "kind": "moveCards",
             "cards": cards,

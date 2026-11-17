@@ -80,6 +80,9 @@ fn parsed_mana_value_counter_offers_only_legal_threshold_targets_and_counters_on
     );
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&actions[0], &mut RandomAi::seeded(18))
         .expect("cast Disdainful Stroke");
     engine

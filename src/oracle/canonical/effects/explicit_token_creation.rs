@@ -21,5 +21,11 @@ pub(in crate::oracle::canonical) fn lower_explicit_token_creation(
     if node.tapped {
         effect["tapped"] = json!(true);
     }
+    if let Some(name) = &node.name {
+        effect["token"]["name"] = json!(name);
+    }
+    if node.legendary {
+        effect["token"]["supertypes"] = json!(["Legendary"]);
+    }
     Ok(effect)
 }

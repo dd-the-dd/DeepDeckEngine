@@ -112,7 +112,9 @@ fn lower_quantified_action(
 
 /// `each other player` is every player except the ability controller, which is
 /// exactly the controller's opponents in the engine's player model.
-fn lower_quantified_population(node: &QuantifiedPlayerActionNode) -> Value {
+pub(in crate::oracle::canonical) fn lower_quantified_population(
+    node: &QuantifiedPlayerActionNode,
+) -> Value {
     if node.excluding_controller {
         lower_player_set_reference(PlayerSetReferenceNode::OpponentsOfAbilityController)
     } else {

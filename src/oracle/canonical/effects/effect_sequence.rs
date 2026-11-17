@@ -137,6 +137,20 @@ pub(in crate::oracle::canonical) fn try_lower_local_effect_sequence_with_context
     }
 }
 
+/// Whether the next action that reads or replaces the card-collection scope
+/// reads it through a lexical reference (`that card`, `it`, `them`).
+fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
+    following.iter().find_map(|effect| match effect {
+        LocalEffectNode::CardAction(
+            CardActionNode::Move { cards, .. }
+            | CardActionNode::Reveal(cards)
+            | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+        ) => Some(matches!(cards, CardOperandNode::Reference(_))),
+        LocalEffectNode::CardAction(_) => Some(false),
+        _ => None,
+    }) == Some(true)
+}
+
 fn lower_local_effect_sequence_attempt(
     cursor: &mut OracleTokenCursor<'_>,
     sequence: &EffectSequenceNode,
@@ -164,7 +178,7 @@ fn lower_local_effect_sequence_with_collections(
             | LocalEffectNode::BecomeTypes(_)
             | LocalEffectNode::PutCounters(_)
             | LocalEffectNode::TapPermanents(_)
-            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::TemporaryKeywordGrant(_) => ordinary_action_targets(effect)
                 .into_iter()
                 .flat_map(|targets| targets.slots.iter())
@@ -337,7 +351,9 @@ fn lower_local_effect_sequence_with_collections(
                         .ok_or_else(|| {
                             cursor.fail("an earlier declared player subject target slot")
                         })?,
-                    PlayerEffectSubject::Controller => String::new(),
+                    PlayerEffectSubject::Controller | PlayerEffectSubject::EventPlayer => {
+                        String::new()
+                    }
                 };
                 let antecedent = match &action.player {
                     PlayerEffectSubject::Bound(binding) => Some(BoundPlayerLowering {
@@ -401,6 +417,15 @@ fn lower_local_effect_sequence_with_collections(
                         );
                         continue;
                     }
+                    SingularPlayerAction::Venture(venture) => {
+                        let mut effect =
+                            json!({"kind": "ventureDungeon", "player": lowered.player});
+                        if let Some(dungeon) = &venture.dungeon {
+                            effect["procedure"] = json!(format!("venture into {dungeon}"));
+                        }
+                        effects.push(effect);
+                        continue;
+                    }
                     SingularPlayerAction::Sacrifice(sacrifice) => {
                         effects.extend(
                             lower_player_sacrifice_effects(
@@ -427,6 +452,18 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 let mut effect = json!({"kind": kind, "player": lowered.player});
                 effect[field] = amount;
+                // `draw N cards and reveal them`: the drawn cards are the
+                // antecedent of the next card action, never otherwise bound.
+                if let SingularPlayerAction::Draw(count) = &action.action
+                    && matches!(action.player, PlayerEffectSubject::Controller)
+                    && drawn_cards_are_next_antecedent(sequence, effect_index)
+                {
+                    let maximum = match count {
+                        NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+                        _ => None,
+                    };
+                    effect["bind"] = json!(collections.observe_drawn_cards(maximum));
+                }
                 effects.push(effect);
             }
             LocalEffectNode::CardAction(action) => {
@@ -739,11 +776,14 @@ fn lower_local_effect_sequence_with_collections(
                     effects.push(lower_tap_state_change(tap.untap, object));
                 }
             }
-            LocalEffectNode::Regenerate(regenerate) => {
-                cursor.enter("lower.regenerate.object");
+            LocalEffectNode::PermanentKeywordAction(keyword_action) => {
+                cursor.enter(match keyword_action.action {
+                    PermanentKeywordAction::Regenerate => "lower.regenerate.object",
+                    PermanentKeywordAction::Goad => "lower.goad.object",
+                });
                 let objects = lower_ordinary_permanent_subject(
                     cursor,
-                    &regenerate.targets,
+                    &keyword_action.targets,
                     effect_index,
                     false,
                     &permanent_target_base_ids,
@@ -752,7 +792,10 @@ fn lower_local_effect_sequence_with_collections(
                     &mut target_bindings,
                 )?;
                 for object in objects {
-                    effects.push(lower_regeneration_shield(object));
+                    effects.push(lower_permanent_keyword_action(
+                        keyword_action.action,
+                        object,
+                    ));
                 }
             }
             LocalEffectNode::Attach(attach) => {
@@ -989,11 +1032,17 @@ fn lower_local_effect_sequence_with_collections(
                     &target_id,
                     ZoneChangeTargetSupport::DestroyCollection,
                 )?;
-                effects.push(lower_targeted_zone_change_node(
-                    cursor,
-                    zone_change,
-                    target,
-                )?);
+                let mut operation = lower_targeted_zone_change_node(cursor, zone_change, target)?;
+                // A later card action reading `that card`/`it` names the object
+                // this exile produced; record that result only when it is read.
+                if zone_change.action == ZoneChangeAction::Exile
+                    && maximum == 1
+                    && zone_change.target.slots.len() == 1
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                {
+                    operation["bind"] = json!(collections.observe_exiled_object());
+                }
+                effects.push(operation);
                 if minimum == 1 && maximum == 1 && zone_change.target.slots.len() == 1 {
                     target_bindings.push((
                         TargetBinding {
@@ -1137,6 +1186,35 @@ fn lower_local_effect_sequence_with_collections(
                     "amount": amount,
                 }));
             }
+            LocalEffectNode::Earthbend(earthbend) => {
+                // CR 701.65a: the keyword action targets a land its performer
+                // controls. The sequence owns that target declaration, as for
+                // any other targeted action; the action keeps its primitives.
+                cursor.enter("lower.earthbend.quantity");
+                cursor.require(
+                    !numeric_atom_uses_x(&earthbend.quantity),
+                    "an Earthbend quantity independent of an unavailable X binding",
+                )?;
+                cursor.enter("lower.earthbend.target");
+                let target_id = earthbend_target_id(effect_index);
+                cursor.require(
+                    !used_target_base_ids.contains(&target_id.as_str()),
+                    "a unique Earthbend target declaration",
+                )?;
+                let lowered = lower_earthbend_action(
+                    earthbend,
+                    &target_id,
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": card_type("Land"),
+                    }),
+                    1,
+                    1,
+                );
+                decisions.push(lowered.decision);
+                effects.extend(lowered.effects);
+            }
             effect => {
                 let declarations = match context {
                     EffectSequenceLoweringContext::NoExternalX => {
@@ -1146,7 +1224,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
-                let lowered = lower_targetless_local_effects(
+                let mut lowered = lower_targetless_local_effects(
                     effect,
                     declarations,
                     Some(&format!("effect{effect_index}")),
@@ -1156,6 +1234,29 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail(error.expectation()),
                     )
                 })?;
+                // `create ... tokens. They gain ...`: the created tokens are
+                // bound only when the next action names them.
+                if matches!(effect, LocalEffectNode::CreateExplicitTokens(_))
+                    && created_tokens_are_next_antecedent(sequence, effect_index)
+                    && let [creation] = lowered.as_mut_slice()
+                    && creation["kind"] == "createTokens"
+                {
+                    creation["bind"] = json!(CREATED_TOKENS_BINDING);
+                }
+                // `draw N cards and reveal them`: the drawn cards are the
+                // antecedent of the next card action, never otherwise bound.
+                if let LocalEffectNode::DrawCards(draw) = effect
+                    && draw.player == LocalPlayerReference::Controller
+                    && drawn_cards_are_next_antecedent(sequence, effect_index)
+                    && let [draw_effect] = lowered.as_mut_slice()
+                    && draw_effect["kind"] == "drawCards"
+                {
+                    let maximum = match &draw.count {
+                        NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+                        _ => None,
+                    };
+                    draw_effect["bind"] = json!(collections.observe_drawn_cards(maximum));
+                }
                 effects.extend(lowered);
             }
         }
@@ -1172,6 +1273,7 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     apply_unless_frames(
         cursor,
+        sequence,
         &sequence.unless,
         &mut action_starts,
         &decisions,
@@ -1388,6 +1490,7 @@ fn apply_where_x_bindings(
 /// first so earlier action positions stay valid; later positions are shifted.
 fn apply_unless_frames(
     cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
     frames: &[UnlessFrameNode],
     action_starts: &mut [(usize, usize)],
     decisions: &[Value],
@@ -1404,6 +1507,10 @@ fn apply_unless_frames(
         cursor.require(from < to, "guarded actions that lower to executable steps")?;
         let guarded = effects.drain(from..to).collect::<Vec<_>>();
         let replacement = match &frame.clause {
+            UnlessClauseNode::Payment {
+                payer: UnlessPayerNode::QuantifiedPlayer,
+                cost,
+            } => lower_distributed_unless_payment(cursor, sequence, frame, cost)?,
             UnlessClauseNode::Payment { payer, cost } => {
                 cursor.enter("lower.unless.payer");
                 let player = match payer {
@@ -1443,6 +1550,9 @@ fn apply_unless_frames(
                             })?;
                         chosen_target(id)
                     }
+                    UnlessPayerNode::QuantifiedPlayer => {
+                        unreachable!("the distributed payer is lowered above")
+                    }
                 };
                 cursor.enter("lower.unless.cost");
                 let cost = lower_unless_cost(cursor, cost)?;
@@ -1480,6 +1590,72 @@ fn apply_unless_frames(
         }
     }
     Ok(())
+}
+
+/// `each player loses N life unless they PAY` (CR 118.12, 101.4): the frame
+/// distributes over the quantified population. In APNAP order each player
+/// chooses whether to pay; a player who does not pay suffers the guarded
+/// life action. The iteration binds the payer; the action is ordinary.
+fn lower_distributed_unless_payment(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    frame: &UnlessFrameNode,
+    cost: &ResolutionCostNode,
+) -> Result<Vec<Value>, EffectSequenceLoweringFailure> {
+    cursor.enter("lower.unless.quantified-payer");
+    let node = match sequence.effects.get(frame.first_effect) {
+        Some(LocalEffectNode::QuantifiedPlayerAction(node))
+            if frame.end_effect == frame.first_effect + 1 =>
+        {
+            node
+        }
+        _ => {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one guarded quantified player action"),
+            ));
+        }
+    };
+    let [QuantifiedPlayerAction::Life(life)] = node.actions.as_slice() else {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one life action suffered by each player who does not pay"),
+        ));
+    };
+    let amount = lower_numeric_expression(&life.amount).ok_or_else(|| {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("a life amount the shared numeric lowering represents"),
+        )
+    })?;
+    cursor.enter("lower.unless.cost");
+    let cost = lower_unless_cost(cursor, cost)?;
+    let player_id = format!("unlessPayer{}", frame.first_effect);
+    let payment_id = format!("unlessPayment{}", frame.first_effect);
+    let player = json!({ "kind": "boundValue", "id": player_id });
+    Ok(vec![json!({
+        "kind": "forEachPlayer",
+        "players": lower_quantified_population(node),
+        "bind": player_id,
+        "effects": [
+            { "kind": "tryPayCost", "id": payment_id, "player": player, "cost": cost },
+            {
+                "kind": "conditional",
+                "condition": {
+                    "kind": "costWasPaid",
+                    "decisionId": payment_id,
+                    "value": false,
+                    "required": true,
+                },
+                "then": [{
+                    "kind": match life.action {
+                        TargetPlayerLifeAction::Gain => "gainLife",
+                        TargetPlayerLifeAction::Lose => "loseLife",
+                    },
+                    "player": player,
+                    "amount": amount,
+                }],
+                "else": [],
+            },
+        ],
+    })])
 }
 
 /// The resolution cost program of an `unless` payment. A variable mana
@@ -1595,7 +1771,7 @@ fn sequence_numeric_target_slots(
                 | LocalEffectNode::BecomeTypes(_)
                 | LocalEffectNode::TemporaryKeywordGrant(_)
                 | LocalEffectNode::TapPermanents(_)
-                | LocalEffectNode::Regenerate(_)
+                | LocalEffectNode::PermanentKeywordAction(_)
                 | LocalEffectNode::PutCounters(_) => (
                     ordinary_action_targets(sequence.effects.get(binding.effect_index)?)?,
                     false,
@@ -1742,6 +1918,55 @@ mod target_numeric_sequence_tests;
 /// collection form for untapping; tapping accepts both reference arities.
 /// CR 701.15a: `regenerate OBJECT` creates one regeneration shield per object
 /// for this turn; a collection reference uses the plural primitive.
+/// The binding of the tokens a creation action created (`they`).
+pub(in crate::oracle::canonical) const CREATED_TOKENS_BINDING: &str = "createdTokens";
+
+fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
+    let reference = PermanentOperandNode::BoundReference(PermanentEffectReference::Observed(
+        TypedObservedEventObject::CreatedTokens,
+    ));
+    sequence
+        .effects
+        .get(effect_index + 1)
+        .and_then(|next| match next {
+            LocalEffectNode::TemporaryKeywordGrant(node) => Some(&node.objects),
+            LocalEffectNode::ModifyStats(node) => Some(&node.targets),
+            LocalEffectNode::PutCounters(node) => Some(&node.permanent),
+            LocalEffectNode::TapPermanents(node) => Some(&node.targets),
+            LocalEffectNode::PermanentKeywordAction(node) => Some(&node.targets),
+            _ => None,
+        })
+        .is_some_and(|operand| *operand == reference)
+}
+
+/// True when the action after a draw names the drawn cards by anaphora
+/// (`... and reveal them`, `you may cast one of them ...`).
+fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
+    matches!(
+        sequence.effects.get(effect_index + 1),
+        Some(LocalEffectNode::CardAction(
+            CardActionNode::Reveal(CardOperandNode::Reference(_))
+                | CardActionNode::Permit(CardPermissionNode {
+                    cards: CardOperandNode::Reference(_) | CardOperandNode::Selection(_),
+                    ..
+                })
+        ))
+    )
+}
+
+/// One primitive per keyword action over its lowered permanent operand.
+pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
+    action: PermanentKeywordAction,
+    object: Value,
+) -> Value {
+    match action {
+        PermanentKeywordAction::Regenerate => lower_regeneration_shield(object),
+        // CR 701.38a: the ability controller goads; the designation lasts
+        // until that player's next turn (engine `goaded` modifier).
+        PermanentKeywordAction::Goad => json!({"kind": "goadPermanents", "objects": object}),
+    }
+}
+
 pub(in crate::oracle::canonical) fn lower_regeneration_shield(object: Value) -> Value {
     let duration = json!({"kind": "untilEndOfCurrentTurn"});
     match object["kind"].as_str() {

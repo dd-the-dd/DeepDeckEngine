@@ -13,7 +13,10 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("grantNoMaximumHandSize") => player_reference_supported(&effect["player"]),
         Some("loseGame") => player_reference_supported(&effect["player"]),
 
-        Some("ventureDungeon") => player_reference_supported(&effect["player"]),
+        Some("ventureDungeon") => {
+            player_reference_supported(&effect["player"])
+                && effect.get("procedure").is_none_or(Value::is_string)
+        }
         Some("restrictPlayerActions") => {
             player_reference_supported(&effect["player"])
                 && effect["castSpells"].is_boolean()
@@ -99,7 +102,9 @@ impl GameEngine {
                 if let Some(player_id) =
                     self.resolve_player(&effect["player"], stack_object, bindings)
                 {
-                    self.venture_into_dungeon(stack_object, provider, &player_id, None)?;
+                    // CR 701.49c: a named procedure enters only its Dungeon.
+                    let procedure = effect["procedure"].as_str();
+                    self.venture_into_dungeon(stack_object, provider, &player_id, procedure)?;
                 }
             }
             Some("restrictPlayerActions") => {

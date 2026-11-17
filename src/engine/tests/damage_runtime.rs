@@ -22,6 +22,9 @@ fn combat_supports_multiple_blockers_and_current_damage_assignment() {
     let mut provider = MultipleBlockersDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_combat(&mut provider)
         .expect("multiple blockers and their damage assignment resolve");
 
@@ -99,6 +102,9 @@ fn trample_assigns_lethal_damage_in_order_then_hits_the_defending_player() {
     assert_eq!(assignments["tramper"]["blocker-a"], 2);
     assert_eq!(assignments["tramper"]["blocker-b"], 3);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_combat_damage(&attacks, &blocks, &assignments)
         .expect("trample damage resolves");
@@ -296,6 +302,9 @@ fn first_and_double_strike_use_distinct_combat_damage_steps() {
         "first-striker".to_string(),
         BTreeMap::from([("normal-blocker".to_string(), 2)]),
     )]);
+    first_strike_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     first_strike_engine
         .resolve_combat_damage_step(
             &attacks,

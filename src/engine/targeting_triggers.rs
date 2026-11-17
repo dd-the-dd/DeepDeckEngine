@@ -134,6 +134,11 @@ impl GameEngine {
                 {
                     BTreeMap::new()
                 }
+                // Special actions (CR 116.2), such as turning a face-down
+                // permanent face up (116.2b), putting a companion into hand
+                // (116.2g) or unlocking a Room door, have no ability rule and
+                // choose no targets, so there is no ward cost to validate.
+                None if action.targets.is_empty() => BTreeMap::new(),
                 None => {
                     return Err(EngineError::new(
                         "activated target validation has no selected ability rule",

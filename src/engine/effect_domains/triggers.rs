@@ -318,46 +318,62 @@ impl GameEngine {
                     }) {
                         return Ok(());
                     }
-                    let declarations = self
-                        .declarations_for_triggered_rule(&ability, &player_id, &stack_object.card)?
-                        .unwrap_or_default();
-                    if declarations.is_empty() {
-                        return Ok(());
+                    // CR 603.3d removes a reflexive ability only when it can't
+                    // choose its targets; one that declares nothing goes on the
+                    // stack with the bindings it inherits.
+                    if ability["declaration"]["decisions"]
+                        .as_array()
+                        .is_none_or(Vec::is_empty)
+                    {
+                        (ability, inherited_decisions, inherited_targets)
+                    } else {
+                        let declarations = self
+                            .declarations_for_triggered_rule(
+                                &ability,
+                                &player_id,
+                                &stack_object.card,
+                            )?
+                            .unwrap_or_default();
+                        if declarations.is_empty() {
+                            return Ok(());
+                        }
+                        let options = declarations
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, declaration)| LegalAction {
+                                id: format!("reflexiveTargets:{}:{index}", stack_object.id),
+                                kind: ActionKind::ChooseResolution,
+                                player_id: player_id.clone(),
+                                label: "Choose targets for the reflexive ability".to_string(),
+                                card_instance_id: Some(stack_object.card.instance_id.clone()),
+                                payment_sources: Vec::new(),
+                                decisions: declaration.decisions,
+                                targets: declaration.targets,
+                                target_order: declaration.target_order,
+                                attacker_id: None,
+                                blocker_id: None,
+                            })
+                            .collect::<Vec<_>>();
+                        let choice = self.choose_action(
+                            provider,
+                            EngineDecisionRequest {
+                                id: format!("reflexiveTargets:{}", stack_object.id),
+                                kind: DecisionKind::ResolutionChoice,
+                                player_id: player_id.clone(),
+                                source_card: Some(stack_object.card.clone()),
+                                source_card_instance_id: Some(
+                                    stack_object.card.instance_id.clone(),
+                                ),
+                                choice: None,
+                                options,
+                            },
+                        )?;
+                        let mut reflexive_decisions = inherited_decisions;
+                        reflexive_decisions.extend(choice.decisions);
+                        let mut reflexive_targets = inherited_targets;
+                        reflexive_targets.extend(choice.targets);
+                        (ability, reflexive_decisions, reflexive_targets)
                     }
-                    let options = declarations
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, declaration)| LegalAction {
-                            id: format!("reflexiveTargets:{}:{index}", stack_object.id),
-                            kind: ActionKind::ChooseResolution,
-                            player_id: player_id.clone(),
-                            label: "Choose targets for the reflexive ability".to_string(),
-                            card_instance_id: Some(stack_object.card.instance_id.clone()),
-                            payment_sources: Vec::new(),
-                            decisions: declaration.decisions,
-                            targets: declaration.targets,
-                            target_order: declaration.target_order,
-                            attacker_id: None,
-                            blocker_id: None,
-                        })
-                        .collect::<Vec<_>>();
-                    let choice = self.choose_action(
-                        provider,
-                        EngineDecisionRequest {
-                            id: format!("reflexiveTargets:{}", stack_object.id),
-                            kind: DecisionKind::ResolutionChoice,
-                            player_id: player_id.clone(),
-                            source_card: Some(stack_object.card.clone()),
-                            source_card_instance_id: Some(stack_object.card.instance_id.clone()),
-                            choice: None,
-                            options,
-                        },
-                    )?;
-                    let mut reflexive_decisions = inherited_decisions;
-                    reflexive_decisions.extend(choice.decisions);
-                    let mut reflexive_targets = inherited_targets;
-                    reflexive_targets.extend(choice.targets);
-                    (ability, reflexive_decisions, reflexive_targets)
                 } else {
                     let effects = self.materialize_reflexive_numeric_expressions(
                         &effect["effects"],

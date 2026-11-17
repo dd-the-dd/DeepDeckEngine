@@ -544,6 +544,9 @@ fn triggered_ability_targets_are_committed_before_resolution_and_dispatch_target
     engine.state.stack.push(targeting);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .commit_pending_triggered_targets(&mut FirstDecisionProvider)
         .expect("trigger targets are committed");
 
@@ -654,6 +657,9 @@ fn triggered_target_commitment_reaches_quiescence_after_a_target_event_cascade()
     }));
     engine.state.stack.push(initial);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .commit_pending_triggered_targets(&mut FirstDecisionProvider)
         .expect("the initial and newly-created trigger both commit targets");

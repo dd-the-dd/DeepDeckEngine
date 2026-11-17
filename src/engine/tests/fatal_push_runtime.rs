@@ -70,6 +70,9 @@ fn resolve_fatal_push(target_mana_value: u32, revolt: bool) -> GameEngine {
             }),
         });
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     let action = engine
         .legal_priority_actions(0)

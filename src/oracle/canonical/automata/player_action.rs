@@ -20,6 +20,9 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `mill N cards` (CR 701.17): the player's verb; N is the shared numeric
     /// expression and the counted noun agrees with it.
     Mill(NumericExpression),
+    /// `venture into the dungeon` / `venture into NAME` (CR 701.49): the
+    /// named form is the restricted procedure of that Dungeon (CR 701.49c).
+    Venture(VentureActionNode),
     /// `discards N cards [at random]`: the same action child that quantified
     /// subjects use. The node's own subject repeats the enclosing one.
     Discard(PlayerDiscardEffectNode),
@@ -49,6 +52,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         && cursor.peek_ahead(1).is_some_and(|raw| {
             raw.eq_ignore_ascii_case("player") || raw.eq_ignore_ascii_case("opponent")
         });
+    // The historical explicit life reader declares only `target player`;
+    // every other declared player role uses this shared subject reader.
+    let historical_life_target = explicit_target
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
     let explicit_bound = head.eq_ignore_ascii_case("that")
         && cursor
             .peek_ahead(1)
@@ -57,10 +66,10 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     let player = if explicit_target || explicit_bound || explicit_you {
         // Binding validation is tentative until this child owns the action.
         // Another parent may supply a different typed player relationship.
-        recognize_player_effect_subject(cursor, binding, antecedent)
+        recognize_player_effect_subject(cursor, binding, antecedent, context.event_player)
     } else if let Some(player) = inherited {
         Ok(player.clone())
-    } else if head.eq_ignore_ascii_case("mill") {
+    } else if head.eq_ignore_ascii_case("mill") || head.eq_ignore_ascii_case("venture") {
         // Imperative mood: an instruction without a subject is performed by
         // the ability's controller (`Mill two cards.`). Draw and life keep
         // their established imperative readers and exact historical IR.
@@ -72,10 +81,14 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     let is_draw = matches!(verb.as_str(), "draw" | "draws");
     let is_life = matches!(verb.as_str(), "gain" | "gains" | "lose" | "loses");
     let is_mill = matches!(verb.as_str(), "mill" | "mills");
+    let is_venture = matches!(verb.as_str(), "venture" | "ventures")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("into"));
     // Imperative `discard`/`sacrifice` of the controller keeps its established
     // readers; these third-person actions belong to a non-controller subject.
     let is_third_person_other = matches!(verb.as_str(), "discards" | "sacrifices");
-    let claimed = is_draw || is_life || is_mill || is_third_person_other;
+    let claimed = is_draw || is_life || is_mill || is_venture || is_third_person_other;
     // Exact old explicit life paths retain their nodes and diagnostics. The
     // shared sequence can still inherit their declared player for the next verb.
     if !claimed
@@ -93,7 +106,11 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         ));
     }
     if !claimed
-        || (is_life && (explicit_target || explicit_bound))
+        || (is_life
+            && (historical_life_target
+                // The historical reader binds `that player` only to a
+                // declared target; an event player belongs to this reader.
+                || (explicit_bound && (antecedent.is_some() || !context.event_player))))
         // An unresolved subject (`that player` without antecedent) leaves
         // the other established parents in charge instead of committing.
         || (is_third_person_other
@@ -105,14 +122,16 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     let player = player?;
     let form = match player {
         PlayerEffectSubject::Controller => LifeVerbForm::Base,
-        PlayerEffectSubject::DeclaredTarget { .. } | PlayerEffectSubject::Bound(_) => {
-            LifeVerbForm::ThirdPersonSingular
-        }
+        PlayerEffectSubject::DeclaredTarget { .. }
+        | PlayerEffectSubject::Bound(_)
+        | PlayerEffectSubject::EventPlayer => LifeVerbForm::ThirdPersonSingular,
     };
     let action = if is_draw {
         SingularPlayerAction::Draw(recognize_draw_action_fragment(cursor, form, context)?)
     } else if is_mill {
         SingularPlayerAction::Mill(recognize_mill_action_fragment(cursor, form)?)
+    } else if is_venture {
+        SingularPlayerAction::Venture(recognize_venture_action_fragment(cursor, form)?)
     } else if verb == "discards" {
         SingularPlayerAction::Discard(recognize_player_discard_action_fragment(
             cursor,
@@ -137,11 +156,79 @@ pub(in crate::oracle::canonical) fn recognize_mill_action_fragment(
         LifeVerbForm::Base => "mill",
         LifeVerbForm::ThirdPersonSingular => "mills",
     })?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
+    {
+        // `mills cards equal to EXPR`: the shared `equal to` quantity.
+        cursor.enter("player-action.mill.equal-amount");
+        cursor.consume_phrase(&["cards", "equal", "to"])?;
+        return super::recognize_equal_to_amount_expression(cursor, None);
+    }
     cursor.enter("player-action.mill.count");
     let count = recognize_numeric_expression(cursor, None)?;
     cursor.enter("player-action.mill.cards");
     recognize_card_count_noun(cursor, &count)?;
     Ok(count)
+}
+
+/// `venture into` opens the imperative keyword action (CR 701.49).
+pub(in crate::oracle::canonical) fn venture_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("venture"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("into"))
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct VentureActionNode {
+    /// `None` for `the dungeon` (any Dungeon without an entry restriction).
+    pub dungeon: Option<String>,
+}
+
+/// Subject-free `venture into the dungeon|NAME` child (CR 701.49).
+pub(in crate::oracle::canonical) fn recognize_venture_action_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: LifeVerbForm,
+) -> MachineResult<VentureActionNode> {
+    cursor.enter("player-action.venture.verb");
+    cursor.consume(match form {
+        LifeVerbForm::Base => "venture",
+        LifeVerbForm::ThirdPersonSingular => "ventures",
+    })?;
+    cursor.consume("into")?;
+    cursor.enter("player-action.venture.dungeon");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("dungeon"))
+    {
+        cursor.consume_phrase(&["the", "dungeon"])?;
+        return Ok(VentureActionNode { dungeon: None });
+    }
+    let mut words = Vec::new();
+    while let Some(raw) = cursor.peek() {
+        let name_word = raw.starts_with(|character: char| character.is_ascii_uppercase())
+            && raw.chars().all(|character| {
+                character.is_alphanumeric() || character == '\'' || character == '\u{2019}'
+            });
+        if !name_word {
+            break;
+        }
+        words.push(raw.to_string());
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    cursor.require(!words.is_empty(), "`the dungeon` or a Dungeon name")?;
+    Ok(VentureActionNode {
+        dungeon: Some(words.join(" ")),
+    })
 }
 
 /// Declarations become bound uses in grammatical memory, never cloned targets.

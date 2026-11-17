@@ -428,18 +428,38 @@ impl GameEngine {
                     Some("self" | "abilitySource") => stack_object.card.instance_id.clone(),
                     _ => return Ok(()),
                 };
-                let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
+                // The ability's own object: a permanent, or a card whose
+                // ability functions in exile (CR 113.6k, e.g. Suspend).
+                let location = match self.permanent_position(&instance_id) {
+                    Some(position) => Some(("battlefield", position)),
+                    None => self
+                        .exiled_object_position(&stack_object.card)
+                        .map(|position| ("exile", position)),
+                };
+                let Some((zone, (player_index, card_index))) = location else {
                     return Ok(());
                 };
                 let counter = effect["counter"].as_str().unwrap_or_default();
                 let count = integer_value(&effect["count"]).unwrap_or(0).max(0);
-                let counters = self.state.players[player_index].battlefield[card_index]
-                    .counters
-                    .entry(counter.to_string())
-                    .or_default();
+                let object = match zone {
+                    "battlefield" => &mut self.state.players[player_index].battlefield[card_index],
+                    _ => &mut self.state.players[player_index].exile[card_index],
+                };
+                let counters = object.counters.entry(counter.to_string()).or_default();
                 let removed = *counters >= count;
                 if removed {
                     *counters -= count;
+                }
+                let remaining = *counters;
+                if removed && count > 0 {
+                    let object = object.clone();
+                    self.record_event(
+                        "counterRemoved",
+                        Some(stack_object.controller.clone()),
+                        Some(instance_id.clone()),
+                        json!({ "counter": counter, "count": count, "remaining": remaining }),
+                    );
+                    self.enqueue_counter_removed_triggers(&object, zone, counter, remaining);
                 }
                 if let Some(binding) = effect["bind"].as_str() {
                     bindings.insert(

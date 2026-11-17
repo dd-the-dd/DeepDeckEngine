@@ -28,6 +28,13 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         outcome: CostOutcomeContinuation,
         body: Box<EffectProgramNode>,
     },
+    /// `ACTION. When you do, BODY.`: a mandatory instruction whose actual
+    /// performance creates a reflexive triggered ability (CR 603.12). Both
+    /// sentences are bounded; the body chooses its own targets.
+    ReflexiveAction {
+        action: Box<EffectProgramNode>,
+        body: Box<EffectProgramNode>,
+    },
     /// Independent sentence groups in written order. An outcome continuation
     /// conditions its own sentence only (CR 608.2c); later sentences are
     /// ordinary instructions. Steps are flat: no step is itself `Steps`.
@@ -41,7 +48,8 @@ impl EffectProgramNode {
             // The outcome sentence is the last written sentence of the block.
             Self::Optional { body, .. }
             | Self::OptionalCost { body, .. }
-            | Self::OptionalAction { body, .. } => body.inner_sequence(),
+            | Self::OptionalAction { body, .. }
+            | Self::ReflexiveAction { body, .. } => body.inner_sequence(),
             // The last written sentence group: trailing reminders and limits
             // read its final action. Lowering visits every step instead.
             Self::Steps(steps) => steps
@@ -61,7 +69,7 @@ impl EffectProgramNode {
         match self {
             Self::Sequence(sequence) => sequence.effects.len(),
             Self::Optional { body, .. } | Self::OptionalCost { body, .. } => body.action_count(),
-            Self::OptionalAction { action, body, .. } => {
+            Self::OptionalAction { action, body, .. } | Self::ReflexiveAction { action, body } => {
                 action.action_count() + body.action_count()
             }
             Self::Steps(steps) => steps.iter().map(Self::action_count).sum(),
@@ -86,6 +94,30 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         let failure = match sequence {
             Ok(sequence) => return Ok(EffectProgramNode::Sequence(sequence)),
             Err(failure) => failure,
+        };
+        // A mandatory first sentence may be the instruction of a reflexive
+        // `When you do,` outcome (CR 603.12).
+        let failure = if reflexive_outcome_follows_first_sentence(cursor) {
+            match cursor.attempt(|attempt| {
+                recognize_reflexive_action_block(attempt, name_links, name_failure, context)
+            }) {
+                Ok(block) => {
+                    return complete_outcome_block(
+                        cursor,
+                        block,
+                        name_links,
+                        name_failure,
+                        context,
+                    );
+                }
+                // Report the reading that progressed furthest.
+                Err(block_failure) if block_failure.token_index > failure.token_index => {
+                    block_failure
+                }
+                Err(_) => failure,
+            }
+        } else {
+            failure
         };
         // A later sentence may open an optional-cost block. The leading
         // sentences are then an ordinary, separately bounded program step.
@@ -238,6 +270,55 @@ fn recognize_optional_action_block(
         player,
         action: Box::new(EffectProgramNode::Sequence(action)),
         outcome,
+        body: Box::new(body),
+    })
+}
+
+/// True when the current top-level sentence is followed by `When you do,`.
+fn reflexive_outcome_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
+    let Some(end) = top_level_sentence_end(cursor) else {
+        return false;
+    };
+    let offset = end - cursor.position();
+    ["when", "you", "do", ","]
+        .iter()
+        .enumerate()
+        .all(|(index, word)| {
+            cursor
+                .peek_ahead(offset + index)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `ACTION. When you do, BODY.` without a permission: the action is the
+/// shared effect sequence bounded to its own sentence.
+fn recognize_reflexive_action_block(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.reflexive-action.action");
+    let action_end = top_level_sentence_end(cursor)
+        .ok_or_else(|| cursor.fail("one complete instruction sentence"))?;
+    let action = cursor.bounded(action_end, |cursor| {
+        recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+    })?;
+    cursor.enter("program.reflexive-action.outcome");
+    let outcome = recognize_outcome_connector(cursor)?;
+    cursor.require(
+        outcome == CostOutcomeContinuation::WhenPaid,
+        "a reflexive `When you do,` outcome after a mandatory instruction",
+    )?;
+    let body = recognize_outcome_body(
+        cursor,
+        "program.reflexive-action.body",
+        name_links,
+        name_failure,
+        context,
+    )?;
+    Ok(EffectProgramNode::ReflexiveAction {
+        action: Box::new(EffectProgramNode::Sequence(action)),
         body: Box::new(body),
     })
 }

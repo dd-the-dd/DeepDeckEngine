@@ -43,6 +43,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                     })
                 })
                 && effect.get("tapped").is_none_or(Value::is_boolean)
+                // CR 205.4: supertypes named by the effect precede the types.
+                && effect["token"].get("supertypes").is_none_or(|supertypes| {
+                    supertypes.as_array().is_some_and(|supertypes| {
+                        supertypes.iter().all(|supertype| {
+                            matches!(supertype.as_str(), Some("Legendary" | "Snow" | "Basic"))
+                        })
+                    })
+                })
                 && effect
                     .get("exileWhenSourceLeaves")
                     .is_none_or(Value::is_boolean)

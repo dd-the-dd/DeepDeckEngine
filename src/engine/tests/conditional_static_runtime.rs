@@ -113,6 +113,9 @@ fn controller_event_history_condition_counts_only_the_current_turn() {
         "player-0",
     ));
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards("player-0", 1)
         .expect("controller draws a card");
     assert_eq!(source_state(&engine), (true, 3));

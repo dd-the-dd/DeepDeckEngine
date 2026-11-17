@@ -66,6 +66,32 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             json!({ "kind": "countOpponentsWhoLostLifeThisTurn", "player": controller() }),
             integer(1),
         ),
+        StaticConditionAtom::OpponentControlledCountComparison {
+            predicate,
+            relation,
+        } => {
+            let filter = lower_permanent_object_predicate(predicate);
+            let controller_count = json!({
+                "kind": "countPermanents",
+                "player": controller(),
+                "where": filter.clone(),
+            });
+            // The greatest opponent count decides both quantified relations:
+            // some opponent exceeds a value iff the greatest one does.
+            let greatest_opponent_count = json!({
+                "kind": "greatestOpponentPermanentCount",
+                "player": controller(),
+                "where": filter,
+            });
+            match relation {
+                OpponentCountRelation::SomeOpponentExceedsController => {
+                    compare(">", greatest_opponent_count, controller_count)
+                }
+                OpponentCountRelation::ControllerExceedsEveryOpponent => {
+                    compare(">", controller_count, greatest_opponent_count)
+                }
+            }
+        }
         StaticConditionAtom::ControllerLifeTotal {
             threshold,
             direction,
@@ -121,6 +147,17 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
         ),
         StaticConditionAtom::ControllerHasEnduringStory => {
             json!({ "kind": "hasEnduringStory", "player": controller() })
+        }
+        StaticConditionAtom::ControllerCompletedDungeon { dungeon, completed } => {
+            let mut atom = json!({ "kind": "completedDungeon", "player": controller() });
+            if let Some(dungeon) = dungeon {
+                atom["name"] = json!(dungeon);
+            }
+            if *completed {
+                atom
+            } else {
+                json!({ "kind": "not", "operand": atom })
+            }
         }
     }
 }

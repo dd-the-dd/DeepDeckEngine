@@ -148,9 +148,23 @@ fn a_revealed_top_card_can_be_the_object_of_a_choice_and_a_move() {
 }
 
 #[test]
+fn unbounded_permission_over_exiled_cards_lasts_while_they_remain_exiled() {
+    // CR 611.2a: no stated window lasts for the game; CR 400.7 ends it when
+    // the card leaves exile. Only cards this program exiled are admitted.
+    let parsed = parse(
+        "Sorcery",
+        "{1}{R}",
+        "Exile the top card of your library. You may play that card.",
+    );
+    let effects = effects_of(&parsed, 0);
+    assert_eq!(kinds(&effects), ["bind", "moveCards", "grantPermission"]);
+    assert_eq!(effects[2]["duration"]["kind"], "whileInExile");
+    // Revealed (not exiled) cards have no zone that bounds the permission.
+    assert_not_canonical("Reveal the top card of your library. You may play that card.");
+}
+
+#[test]
 fn unsupported_neighbours_fail_explicitly() {
-    // No permission window: `that card` is not playable forever.
-    assert_not_canonical("Exile the top card of your library. You may play that card.");
     // The runtime ends a window at a turn boundary, not before it starts.
     assert_not_canonical(
         "Exile the top card of your library. You may play that card until your next turn.",

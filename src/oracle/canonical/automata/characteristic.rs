@@ -1,14 +1,38 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{CharacteristicBatch, CharacteristicBatchReminderNode};
+use super::{
+    CardSupertype, CharacteristicBatch, CharacteristicBatchReminderNode, ObjectCardType,
+    ObjectPredicate,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CharacteristicBatchExpansion {
-    SubtypeUnion(&'static [CharacteristicBatchMember]),
+    /// The batch word means "has any one of these characteristics".
+    CharacteristicUnion(&'static [CharacteristicBatchMember]),
+}
+
+/// One typed member characteristic of a batch word. Members reuse the shared
+/// object-predicate atoms; a batch never introduces a second evaluator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum BatchMemberCharacteristic {
+    Subtype(&'static str),
+    CardType(ObjectCardType),
+    Supertype(CardSupertype),
+}
+
+impl BatchMemberCharacteristic {
+    pub(in crate::oracle::canonical) fn predicate(self) -> ObjectPredicate {
+        match self {
+            Self::Subtype(subtype) => ObjectPredicate::Subtype(subtype.to_string()),
+            Self::CardType(card_type) => ObjectPredicate::CardType(card_type),
+            Self::Supertype(supertype) => ObjectPredicate::Supertype(supertype),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CharacteristicBatchMember {
-    pub subtype: &'static str,
+    pub characteristic: BatchMemberCharacteristic,
+    /// The member's form in the official reminder (`Rogues`, `legendaries`).
     pub reminder_plural: &'static str,
 }
 
@@ -19,28 +43,40 @@ pub(in crate::oracle::canonical) struct CharacteristicBatchDefinition {
     pub expansion: CharacteristicBatchExpansion,
 }
 
+const fn subtype_member(
+    subtype: &'static str,
+    reminder_plural: &'static str,
+) -> CharacteristicBatchMember {
+    CharacteristicBatchMember {
+        characteristic: BatchMemberCharacteristic::Subtype(subtype),
+        reminder_plural,
+    }
+}
+
 const OUTLAW_MEMBERS: &[CharacteristicBatchMember] = &[
-    CharacteristicBatchMember {
-        subtype: "Assassin",
-        reminder_plural: "Assassins",
-    },
-    CharacteristicBatchMember {
-        subtype: "Mercenary",
-        reminder_plural: "Mercenaries",
-    },
-    CharacteristicBatchMember {
-        subtype: "Pirate",
-        reminder_plural: "Pirates",
-    },
-    CharacteristicBatchMember {
-        subtype: "Rogue",
-        reminder_plural: "Rogues",
-    },
-    CharacteristicBatchMember {
-        subtype: "Warlock",
-        reminder_plural: "Warlocks",
-    },
+    subtype_member("Assassin", "Assassins"),
+    subtype_member("Mercenary", "Mercenaries"),
+    subtype_member("Pirate", "Pirates"),
+    subtype_member("Rogue", "Rogues"),
+    subtype_member("Warlock", "Warlocks"),
 ];
+
+/// CR 700.6: an object is historic if it has the legendary supertype, the
+/// artifact card type, or the Saga subtype.
+const HISTORIC_MEMBERS: &[CharacteristicBatchMember] = &[
+    CharacteristicBatchMember {
+        characteristic: BatchMemberCharacteristic::CardType(ObjectCardType::Artifact),
+        reminder_plural: "Artifacts",
+    },
+    CharacteristicBatchMember {
+        characteristic: BatchMemberCharacteristic::Supertype(CardSupertype::Legendary),
+        reminder_plural: "legendaries",
+    },
+    subtype_member("Saga", "Sagas"),
+];
+
+const CHARACTERISTIC_BATCHES: [CharacteristicBatch; 2] =
+    [CharacteristicBatch::Outlaw, CharacteristicBatch::Historic];
 
 pub(in crate::oracle::canonical) fn characteristic_batch_definition(
     batch: CharacteristicBatch,
@@ -49,7 +85,13 @@ pub(in crate::oracle::canonical) fn characteristic_batch_definition(
         CharacteristicBatch::Outlaw => CharacteristicBatchDefinition {
             singular: "outlaw",
             plural: "outlaws",
-            expansion: CharacteristicBatchExpansion::SubtypeUnion(OUTLAW_MEMBERS),
+            expansion: CharacteristicBatchExpansion::CharacteristicUnion(OUTLAW_MEMBERS),
+        },
+        // An adjective: its reminder's predicate form is the same word.
+        CharacteristicBatch::Historic => CharacteristicBatchDefinition {
+            singular: "historic",
+            plural: "historic",
+            expansion: CharacteristicBatchExpansion::CharacteristicUnion(HISTORIC_MEMBERS),
         },
     }
 }
@@ -57,33 +99,52 @@ pub(in crate::oracle::canonical) fn characteristic_batch_definition(
 pub(in crate::oracle::canonical) fn characteristic_batch_from_word(
     raw: &str,
 ) -> Option<CharacteristicBatch> {
-    [CharacteristicBatch::Outlaw].into_iter().find(|batch| {
+    CHARACTERISTIC_BATCHES.into_iter().find(|batch| {
         let definition = characteristic_batch_definition(*batch);
         raw.eq_ignore_ascii_case(definition.singular) || raw.eq_ignore_ascii_case(definition.plural)
     })
 }
 
-pub(in crate::oracle::canonical) fn canonical_batch_member(raw: &str) -> Option<&'static str> {
-    [CharacteristicBatch::Outlaw]
+pub(in crate::oracle::canonical) fn canonical_batch_member(
+    raw: &str,
+) -> Option<BatchMemberCharacteristic> {
+    CHARACTERISTIC_BATCHES
         .into_iter()
-        .flat_map(
-            |batch| match characteristic_batch_definition(batch).expansion {
-                CharacteristicBatchExpansion::SubtypeUnion(members) => members.iter().copied(),
-            },
-        )
+        .flat_map(|batch| characteristic_batch_members(batch).iter().copied())
         .find(|member| {
-            raw.eq_ignore_ascii_case(member.subtype)
-                || raw.eq_ignore_ascii_case(member.reminder_plural)
+            raw.eq_ignore_ascii_case(member.reminder_plural)
+                || matches!(
+                    member.characteristic,
+                    BatchMemberCharacteristic::Subtype(subtype) if raw.eq_ignore_ascii_case(subtype)
+                )
         })
-        .map(|member| member.subtype)
+        .map(|member| member.characteristic)
 }
 
 pub(in crate::oracle::canonical) fn characteristic_batch_members(
     batch: CharacteristicBatch,
 ) -> &'static [CharacteristicBatchMember] {
     match characteristic_batch_definition(batch).expansion {
-        CharacteristicBatchExpansion::SubtypeUnion(members) => members,
+        CharacteristicBatchExpansion::CharacteristicUnion(members) => members,
     }
+}
+
+/// CR 207.2: an optional trailing batch-definition reminder. Its members are
+/// validated by the registry, and the batch it defines must occur in the
+/// predicate of the sentence it follows.
+pub(in crate::oracle::canonical) fn recognize_optional_batch_reminder_for(
+    cursor: &mut OracleTokenCursor<'_>,
+    predicate: &ObjectPredicate,
+) -> MachineResult<()> {
+    if cursor.peek() != Some("(") {
+        return Ok(());
+    }
+    let reminder = recognize_characteristic_batch_reminder(cursor)?;
+    cursor.enter("reminder.characteristic-batch.predicate-match");
+    cursor.require(
+        predicate.contains_characteristic_batch(reminder.batch),
+        "a reminder describing a characteristic batch of the sentence",
+    )
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,7 +164,7 @@ enum BatchReminderState {
 
 #[derive(Default)]
 struct BatchReminderFrame {
-    members: Vec<&'static str>,
+    members: Vec<BatchMemberCharacteristic>,
     batch: Option<CharacteristicBatch>,
 }
 
@@ -126,10 +187,10 @@ pub(in crate::oracle::canonical) fn recognize_characteristic_batch_reminder(
                 cursor.enter("reminder.characteristic-batch.member");
                 let raw = cursor
                     .peek()
-                    .ok_or_else(|| cursor.fail("a registered batch member subtype"))?
+                    .ok_or_else(|| cursor.fail("a registered batch member characteristic"))?
                     .to_string();
                 let member = canonical_batch_member(&raw)
-                    .ok_or_else(|| cursor.fail("a registered batch member subtype"))?;
+                    .ok_or_else(|| cursor.fail("a registered batch member characteristic"))?;
                 cursor.advance_to(cursor.position() + 1)?;
                 frame.members.push(member);
                 BatchReminderState::SeparatorOrCopula
@@ -179,7 +240,7 @@ pub(in crate::oracle::canonical) fn recognize_characteristic_batch_reminder(
                         .copied()
                         .eq(characteristic_batch_members(batch)
                             .iter()
-                            .map(|member| member.subtype)),
+                            .map(|member| member.characteristic)),
                     "the registry's complete ordered batch member list",
                 )?;
                 frame.batch = Some(batch);

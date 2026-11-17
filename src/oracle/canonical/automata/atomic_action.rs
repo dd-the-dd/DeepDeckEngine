@@ -23,6 +23,9 @@ pub(in crate::oracle::canonical::automata) struct DiscardActionNode<T> {
 pub(in crate::oracle::canonical::automata) enum DiscardVerbForm {
     Imperative,
     ThirdPersonSingular,
+    /// The base verb for a plural third-person payer (`unless they sacrifice
+    /// ... of their choice`): imperative surface, third-person chooser marker.
+    ThirdPersonPlural,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -68,7 +71,9 @@ pub(in crate::oracle::canonical::automata) fn recognize_sacrifice_action_with_fo
                 // The shared lexicon types only the imperative `sacrifice` as
                 // an action word; the third-person form is read by its raw word.
                 let action = match verb_form {
-                    DiscardVerbForm::Imperative => cursor.consume_type("actionWord")?.clone(),
+                    DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => {
+                        cursor.consume_type("actionWord")?.clone()
+                    }
                     DiscardVerbForm::ThirdPersonSingular => {
                         let token = cursor
                             .peek_token()
@@ -81,7 +86,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_sacrifice_action_with_fo
                     }
                 };
                 let expected = match verb_form {
-                    DiscardVerbForm::Imperative => "sacrifice",
+                    DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => "sacrifice",
                     DiscardVerbForm::ThirdPersonSingular => "sacrifices",
                 };
                 if !action.raw.eq_ignore_ascii_case(expected) {
@@ -130,7 +135,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_discard_action<T>(
                 cursor.enter("action.discard.verb");
                 let action = cursor.consume_type("actionWord")?;
                 let expected = match verb_form {
-                    DiscardVerbForm::Imperative => "discard",
+                    DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => "discard",
                     DiscardVerbForm::ThirdPersonSingular => "discards",
                 };
                 if !action.raw.eq_ignore_ascii_case(expected) {
@@ -221,7 +226,9 @@ pub(in crate::oracle::canonical::automata) fn recognize_action_with_form<T>(
     let [verb_state, operand_state, complete_state] = verb.states();
     cursor.enter(verb_state);
     match verb_form {
-        DiscardVerbForm::Imperative => cursor.consume(verb.word())?,
+        DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => {
+            cursor.consume(verb.word())?
+        }
         DiscardVerbForm::ThirdPersonSingular => cursor.consume(&format!("{}s", verb.word()))?,
     };
     cursor.enter(operand_state);

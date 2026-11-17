@@ -539,6 +539,13 @@ fn empty_selection_receipt_uses_the_same_longest_owner_as_nonempty_members() {
         .as_array_mut()
         .unwrap()
         .push(nested);
+    // A triggered ability needs an effect program to be executable at all;
+    // the declaration shape is the subject of this test.
+    rule["effects"] = json!([{
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 },
+    }]);
     assert!(
         rule_is_executable(&rule),
         "opaque IDs permit prefix relationships"

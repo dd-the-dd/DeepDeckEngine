@@ -101,6 +101,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         .with_unless_frames();
     // This parent reads `This ability triggers only ...` after the body.
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
+    context.event_player = event_names_player(&event.value);
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
@@ -127,6 +128,21 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         },
         once_each_turn,
     })
+}
+
+/// Events whose occurrence names exactly one player that the runtime records
+/// as the triggering player: the player dealt combat damage.
+fn event_names_player(event: &GenericTriggerEventNode) -> bool {
+    matches!(
+        event,
+        GenericTriggerEventNode::Local(
+            LocalTriggerEventNode::CombatDamageToPlayer { .. }
+                | LocalTriggerEventNode::AttachedObjectEvent {
+                    action: AttachedObjectEventAction::DealCombatDamageToPlayer,
+                    ..
+                }
+        )
+    )
 }
 
 /// The referents available to a trigger's intervening `if` (CR 603.4): the

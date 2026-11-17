@@ -4,10 +4,15 @@
 //! Static    := [ability word "—"] ["as long as" Condition ","]
 //!              Subject Predicate ("and" Predicate)*
 //!              ["as long as" Condition] "." [keyword reminder]
-//! Subject   := source reference | "equipped creature" | "enchanted creature"
-//!            | ["other"] permanent collection
+//! Subject   := source reference | "equipped creature" | "enchanted" PERMANENT
+//!            | ["each" | "all"] ["other"] permanent collection
 //! Predicate := ("get" | "gets") signed P/T delta | ("have" | "has") keyword list
+//!            | ("is" | "are") type change
 //! ```
+//!
+//! Predicates are joined by `and`, or by a serial comma before a predicate
+//! verb. The copula's number must agree with the subject (`each land is`,
+//! `lands are`); the shared type-change child then reads the same number.
 //!
 //! `as long as` (CR 611.3a) gates the whole static ability with one shared
 //! Boolean condition that the engine re-evaluates continuously; it lowers to
@@ -18,7 +23,9 @@
 //! battlefield-active modifier the engine already executes. Adding a subject
 //! form or a predicate verb extends this frame once for every combination.
 use super::super::*;
-use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
+use crate::oracle::characteristic_vocabulary::{
+    AcceptedForms, lookup_permanent_card_type, type_line_has_permanent_card_type,
+};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) enum StaticContinuousParseAttempt {
@@ -92,10 +99,11 @@ fn read_static_continuous_effect(
         cursor.enter("static.continuous.leading-condition.separator");
         cursor.consume(",")?;
     }
-    let (objects, _collection_for_reminder_schema) = read_subject(cursor, input)?;
+    let (objects, subject_predicate, subject_number) = read_subject(cursor, input)?;
     let source_subject = objects == self_ref();
     let mut modifiers = Vec::new();
     let mut granted = Vec::new();
+    let mut changes_types = false;
     loop {
         cursor.enter("static.continuous.predicate");
         let verb = cursor
@@ -128,7 +136,8 @@ fn read_static_continuous_effect(
                 *committed = true;
                 cursor.enter("static.continuous.keywords");
                 for keyword in
-                    recognize_standalone_granted_list(cursor, GRANTED_OBJECT_TYPE_LINE)?.keywords
+                    recognize_granted_list_before_connector(cursor, GRANTED_OBJECT_TYPE_LINE)?
+                        .keywords
                 {
                     granted.push(keyword.clone());
                     modifiers.push(match keyword {
@@ -151,12 +160,57 @@ fn read_static_continuous_effect(
                     });
                 }
             }
-            _ => return Err(cursor.fail("`get(s)` or `have`/`has` continuous predicate")),
+            "is" | "are" => {
+                let number = if verb == "is" {
+                    TypeChangeNumber::Singular
+                } else {
+                    TypeChangeNumber::Plural
+                };
+                cursor.require(
+                    number == subject_number,
+                    "a copula agreeing in number with the static subject",
+                )?;
+                cursor.consume(&verb)?;
+                cursor.enter("static.continuous.type-change");
+                cursor.require(
+                    type_change_characteristics_start(cursor, number),
+                    "a type-change characteristic after the copula",
+                )?;
+                *committed = true;
+                let change = recognize_type_change_characteristics(cursor, number)?;
+                // A replacing land-subtype change needs a land-only subject.
+                let lands = subject_predicate
+                    .as_ref()
+                    .is_some_and(|predicate| predicate.guarantees_card_type(ObjectCardType::Land));
+                cursor.enter("static.continuous.type-change.lowering");
+                modifiers.extend(
+                    lower_continuous_type_change(&objects, lands, &change)
+                        .map_err(|expected| cursor.fail(expected))?,
+                );
+                changes_types = true;
+            }
+            _ => {
+                return Err(
+                    cursor.fail("`get(s)`, `have`/`has` or `is`/`are` continuous predicate")
+                );
+            }
         }
         cursor.enter("static.continuous.connector");
         // A quoted ability that ends with its own period closes the sentence.
         if cursor.peek().is_none() && quoted_sentence_just_closed(cursor) {
             break;
+        }
+        if cursor.peek() == Some(",") && serial_predicate_follows(cursor) {
+            // A serial comma before the next predicate verb (`is legendary,
+            // gets +1/+1, and has flying`); `and` may follow the comma.
+            cursor.consume(",")?;
+            if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            {
+                cursor.consume("and")?;
+            }
+            continue;
         }
         match cursor.peek() {
             Some(raw) if raw.eq_ignore_ascii_case("and") => cursor.consume("and")?,
@@ -182,8 +236,9 @@ fn read_static_continuous_effect(
             _ => return Err(cursor.fail("`and` or the end of the static ability")),
         }
     }
-    if !granted.is_empty() && cursor.peek() == Some("(") {
-        // CR 207.2: reminder text of a granted keyword has no rules meaning.
+    if (!granted.is_empty() || changes_types) && cursor.peek() == Some("(") {
+        // CR 207.2: reminder text of a granted keyword or of a type change
+        // (`They're still affected by summoning sickness.`) has no rules meaning.
         // Only one trailing, balanced parenthetical is admitted. Schema
         // validation is deferred: the shared reminder schemas do not yet
         // cover the official collection/attachment wordings (136 abilities).
@@ -197,6 +252,25 @@ fn read_static_continuous_effect(
     cursor.enter("static.continuous.complete");
     cursor.finish()?;
     Ok((modifiers, condition))
+}
+
+const PREDICATE_VERBS: [&str; 6] = ["get", "gets", "have", "has", "is", "are"];
+
+fn predicate_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        PREDICATE_VERBS
+            .iter()
+            .any(|verb| raw.eq_ignore_ascii_case(verb))
+    })
+}
+
+/// `, VERB` or `, and VERB` continues the predicate list of the same subject.
+fn serial_predicate_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    predicate_verb_at(cursor, 1)
+        || (cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            && predicate_verb_at(cursor, 2))
 }
 
 fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {
@@ -260,18 +334,25 @@ fn read_optional_for_each_count(
         .ok_or_else(|| cursor.fail("a counted collection lowered to a runtime count"))
 }
 
-/// Returns the lowered subject and, for a queried collection, its predicate
-/// (the binding a collection keyword reminder must describe).
+/// Returns the lowered subject, its predicate for a queried collection, and
+/// the grammatical number a copula must agree with.
 fn read_subject(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
-) -> MachineResult<(Value, Option<ObjectPredicate>)> {
+) -> MachineResult<(Value, Option<ObjectPredicate>, TypeChangeNumber)> {
     cursor.enter("static.continuous.subject");
     let attachment = cursor.peek().map(str::to_ascii_lowercase);
-    if matches!(attachment.as_deref(), Some("equipped" | "enchanted"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("creature"))
+    let attached_noun = cursor.peek_ahead(1).map(str::to_ascii_lowercase);
+    // An Aura may enchant any permanent kind (CR 303.4); Equipment only
+    // creatures (CR 301.5).
+    let enchanted_permanent = attachment.as_deref() == Some("enchanted")
+        && attached_noun.as_deref().is_some_and(|noun| {
+            noun == "permanent"
+                || lookup_permanent_card_type(noun, AcceptedForms::SingularOnly).is_some()
+        });
+    if (matches!(attachment.as_deref(), Some("equipped" | "enchanted"))
+        && attached_noun.as_deref() == Some("creature"))
+        || enchanted_permanent
     {
         // The attachment subject is meaningful only on the matching
         // attachment subtype (CR 301.5, 303.4).
@@ -290,10 +371,16 @@ fn read_subject(
         )?;
         let word = attachment.expect("checked attachment word");
         cursor.consume(&word)?;
-        cursor.consume("creature")?;
+        let noun = attached_noun.expect("checked attached noun");
+        cursor.consume(&noun)?;
+        // The attached noun is the subject's type (`enchanted land`); it is
+        // the proof a land-only change such as `is a Swamp` requires.
+        let noun_type = lookup_permanent_card_type(&noun, AcceptedForms::SingularOnly)
+            .map(ObjectPredicate::CardType);
         return Ok((
             json!({ "kind": "attachedPermanent", "attachment": self_ref() }),
-            None,
+            noun_type,
+            TypeChangeNumber::Singular,
         ));
     }
     if source_reference_starts_at(
@@ -304,9 +391,22 @@ fn read_subject(
     ) {
         cursor.enter("static.continuous.subject.source");
         recognize_source_reference(cursor, input.name_links, input.name_resolution_failure)?;
-        return Ok((self_ref(), None));
+        return Ok((self_ref(), None, TypeChangeNumber::Singular));
     }
     cursor.enter("static.continuous.subject.collection");
+    // `each` distributes over a singular noun; `all` and a bare collection
+    // are plural. Both denote universal membership (no choice).
+    let number = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("each") => {
+            cursor.consume("each")?;
+            TypeChangeNumber::Singular
+        }
+        Some("all") => {
+            cursor.consume("all")?;
+            TypeChangeNumber::Plural
+        }
+        _ => TypeChangeNumber::Plural,
+    };
     let exclude_source = recognize_optional_source_exclusion(cursor)?;
     let query = recognize_object_collection(cursor)?;
     cursor.require(
@@ -334,7 +434,7 @@ fn read_subject(
     if exclude_source {
         objects["excludeSource"] = json!(true);
     }
-    Ok((objects, Some(query.predicate)))
+    Ok((objects, Some(query.predicate), number))
 }
 
 #[cfg(test)]

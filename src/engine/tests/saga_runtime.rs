@@ -233,6 +233,11 @@ fn saga_entry_lore_and_chapter_are_not_suppressed_with_etb_triggers() {
         "player-0",
     ));
     engine.mark_saga_entry_lore_pending(&mut saga, None);
+    // The initial lore counter is placed by the entry replacement pipeline
+    // (CR 714.3a) before the Saga is put onto the battlefield.
+    engine
+        .apply_enter_replacements(&mut saga, &mut EmeritusDecisionProvider)
+        .expect("entry replacements apply");
     engine.state.players[0].battlefield.push(saga.clone());
 
     engine.enqueue_enter_battlefield_triggers(&saga);
@@ -372,6 +377,9 @@ fn final_chapter_with_no_search_candidate_still_shuffles_and_sacrifices_the_saga
     engine.enqueue_saga_chapter_triggers(&saga, 3);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the empty search resolves and the final chapter leaves the stack");
 
@@ -400,6 +408,9 @@ fn countered_final_chapter_still_allows_the_completed_saga_to_be_sacrificed() {
     engine.state.players[0].battlefield = vec![saga.clone()];
     engine.enqueue_saga_chapter_triggers(&saga, 3);
     engine.state.stack.clear();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     engine.check_state_based_actions();
 

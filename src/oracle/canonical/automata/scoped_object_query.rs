@@ -116,6 +116,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::Subtype(_)
         | ObjectPredicate::CharacteristicBatch(_)
         | ObjectPredicate::Color(_)
+        | ObjectPredicate::ColorQuantity(_)
         | ObjectPredicate::Supertype(_)
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)

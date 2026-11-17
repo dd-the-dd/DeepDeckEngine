@@ -21,11 +21,9 @@ mod alternative_cost;
 mod alternative_return_cost;
 mod amass;
 mod arithmetic_expression;
-mod player_numeric_fact;
-mod unless_clause;
-mod where_x_definition;
 mod attach;
 mod attack_tax;
+mod become_types;
 mod block_restriction;
 mod boolean_condition;
 mod bound_collection_untap;
@@ -71,15 +69,15 @@ mod counter_name;
 mod counter_named_token;
 mod counter_prohibition;
 mod counter_unless_paid;
+mod damage_prevention;
 mod delayed_blink;
 mod delayed_draw;
 mod delayed_step;
 mod delve;
 mod destroy_collection;
 mod destroy_regeneration;
-mod regenerate;
-mod damage_prevention;
 mod draw_move;
+mod dungeon_room;
 mod duration;
 mod early_turn_entry;
 mod earthbend;
@@ -87,10 +85,10 @@ mod effect_program;
 mod effects;
 mod emblem;
 mod empower_jace;
+mod enchant;
 mod entry_counters;
 mod entry_or_repeat_trigger;
 pub(in crate::oracle::canonical) mod entry_replacement;
-mod enchant;
 mod equip;
 mod event_actor;
 mod event_bound_payment;
@@ -103,7 +101,6 @@ mod graveyard_destination;
 mod hand_disruption;
 mod investigate;
 mod keyword;
-mod become_types;
 mod keyword_grant;
 mod labeled_activated_effect_sequence;
 mod landfall_reflexive_counter;
@@ -151,9 +148,10 @@ mod permanent_selection;
 mod phase_trigger_sequence;
 mod phyrexian_mana;
 mod player_action;
-mod player_sacrifice;
 mod player_counter_sweep;
+mod player_numeric_fact;
 mod player_permission;
+mod player_sacrifice;
 mod player_set;
 mod player_spell_tax_draw;
 mod power_toughness;
@@ -165,6 +163,7 @@ mod quantified_player_action;
 mod quantity_event;
 mod quantity_replacement;
 mod reference;
+mod regenerate;
 mod replicate;
 mod resolution_cost;
 mod resource_payment;
@@ -179,6 +178,7 @@ mod scoped_object_query;
 mod scry;
 mod selector;
 mod selector_atom;
+mod sentence_condition;
 mod sequence;
 mod set_anaphora;
 mod simple_keyword;
@@ -195,11 +195,11 @@ mod spell_cast_event;
 mod spell_cost_increase;
 mod static_collection_keyword;
 mod static_condition;
-mod sentence_condition;
 mod static_granted_activation;
 mod static_keyword_grant;
 mod static_spell_reduction;
 mod surveil;
+mod suspend;
 mod target_card_zone_change;
 mod target_domain;
 mod target_list;
@@ -222,8 +222,11 @@ mod trigger_multiplicity;
 mod trigger_program;
 mod trigger_suppression;
 mod turn_step_event;
+mod type_change;
 mod typecycling;
 mod typed_target_reference;
+mod unless_clause;
+mod where_x_definition;
 mod zone_list;
 mod zone_prohibition;
 
@@ -244,14 +247,13 @@ pub(super) use alternative_cost::*;
 pub(super) use alternative_return_cost::*;
 pub(super) use amass::*;
 pub(super) use arithmetic_expression::{
+    equal_to_quantity_family_starts, recognize_equal_to_amount_expression,
     recognize_event_bound_numeric_expression, recognize_query_numeric_expression,
     recognize_variable_definition_expression,
 };
-pub(super) use player_numeric_fact::*;
-pub(super) use unless_clause::*;
-pub(super) use where_x_definition::*;
 pub(super) use attach::*;
 pub(super) use attack_tax::*;
+pub(super) use become_types::*;
 pub(super) use block_restriction::*;
 pub(super) use bound_collection_untap::*;
 pub(super) use bound_object_condition::*;
@@ -296,15 +298,15 @@ pub(super) use counter_name::*;
 pub(super) use counter_named_token::*;
 pub(super) use counter_prohibition::*;
 pub(super) use counter_unless_paid::*;
+pub(super) use damage_prevention::*;
 pub(super) use delayed_blink::*;
 pub(super) use delayed_draw::*;
 pub(super) use delayed_step::*;
 pub(super) use delve::*;
 pub(super) use destroy_collection::*;
 pub(super) use destroy_regeneration::*;
-pub(super) use regenerate::*;
-pub(super) use damage_prevention::*;
 pub(super) use draw_move::*;
+pub(super) use dungeon_room::*;
 pub(super) use duration::*;
 pub(super) use early_turn_entry::*;
 pub(super) use earthbend::*;
@@ -312,9 +314,9 @@ pub(super) use effect_program::*;
 pub(super) use effects::*;
 pub(super) use emblem::*;
 pub(super) use empower_jace::*;
+pub(super) use enchant::*;
 pub(super) use entry_counters::*;
 pub(super) use entry_or_repeat_trigger::*;
-pub(super) use enchant::*;
 pub(super) use equip::*;
 pub(super) use event_actor::*;
 pub(super) use event_bound_payment::*;
@@ -327,7 +329,6 @@ pub(super) use graveyard_destination::*;
 pub(super) use hand_disruption::*;
 pub(super) use investigate::*;
 pub(super) use keyword::*;
-pub(super) use become_types::*;
 pub(super) use keyword_grant::*;
 pub(super) use labeled_activated_effect_sequence::*;
 pub(super) use landfall_reflexive_counter::*;
@@ -375,9 +376,10 @@ pub(super) use permanent_selection::*;
 pub(super) use phase_trigger_sequence::*;
 pub(super) use phyrexian_mana::*;
 pub(super) use player_action::*;
-pub(super) use player_sacrifice::*;
 pub(super) use player_counter_sweep::*;
+pub(super) use player_numeric_fact::*;
 pub(super) use player_permission::*;
+pub(super) use player_sacrifice::*;
 pub(super) use player_set::*;
 pub(super) use player_spell_tax_draw::*;
 pub(super) use power_toughness::*;
@@ -389,6 +391,7 @@ pub(super) use quantified_player_action::*;
 pub(super) use quantity_event::*;
 pub(super) use quantity_replacement::*;
 pub(super) use reference::*;
+pub(super) use regenerate::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
 pub(super) use resource_payment::*;
@@ -422,6 +425,7 @@ pub(super) use static_granted_activation::*;
 pub(super) use static_keyword_grant::*;
 pub(super) use static_spell_reduction::*;
 pub(super) use surveil::*;
+pub(super) use suspend::*;
 pub(super) use target_card_zone_change::*;
 pub(super) use target_domain::*;
 pub(super) use target_list::*;
@@ -440,8 +444,11 @@ pub(super) use trigger_event::*;
 pub(super) use trigger_multiplicity::*;
 pub(super) use trigger_suppression::*;
 pub(super) use turn_step_event::*;
+pub(super) use type_change::*;
 pub(super) use typecycling::*;
 pub(super) use typed_target_reference::*;
+pub(super) use unless_clause::*;
+pub(super) use where_x_definition::*;
 pub(super) use zone_list::*;
 pub(super) use zone_prohibition::*;
 
@@ -495,6 +502,11 @@ pub(in crate::oracle::canonical) struct ZoneReplacementNode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum TypedObservedEventObject {
     EnteringPermanent,
+    /// The one card this program just put onto the battlefield (CR 400.7:
+    /// the effect that moved it can find the new object).
+    MovedOntoBattlefield,
+    /// The tokens the immediately preceding creation action created.
+    CreatedTokens,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -544,10 +556,18 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// Whether the parent lowers `unless` frames through the shared sequence
     /// lowering. Any other parent rejects `unless` at the sentence boundary.
     pub unless_frames: UnlessFrameSupport,
+    /// The ability's source permanent, or its last-known information once it
+    /// left the battlefield to pay a cost, can answer numeric reads such as
+    /// its counters (CR 608.2h, 112.7a). Set only by a permanent's activation.
+    pub source_numeric_reads: bool,
+    /// The triggering event names one player (the player dealt combat
+    /// damage), so `that player` without a local antecedent denotes it.
+    /// Set only by the trigger parent from its typed event.
+    pub event_player: bool,
 }
 
 /// Only a parent whose actions are lowered by the shared sequence lowering,
-/// outside a `you may` permission, enables `EFFECT unless …` frames.
+/// outside a `you may` permission, enables `EFFECT unless â€¦` frames.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum UnlessFrameSupport {
     #[default]
@@ -746,6 +766,16 @@ pub(super) enum NumericExpression {
         right: Box<NumericExpression>,
         rounding: NumericRounding,
     },
+    /// A characteristic of the permanent sacrificed to pay a cost of this
+    /// ability, as last known when the cost was paid. Its producer is
+    /// resolved against the same face after card composition.
+    SacrificedCostObjectProperty(NumericObjectProperty),
+    /// The greatest power or toughness among the ability controller's
+    /// permanents matching the predicate (zero when there are none).
+    GreatestPropertyAmong {
+        property: NumericObjectProperty,
+        predicate: ObjectPredicate,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -870,6 +900,7 @@ impl NumericExpression {
                 required_nominal, ..
             } => object_predicate_uses_x(required_nominal),
             Self::PermanentCount(count) => object_predicate_uses_x(&count.predicate),
+            Self::GreatestPropertyAmong { predicate, .. } => object_predicate_uses_x(predicate),
             Self::Add { left, right }
             | Self::Subtract { left, right }
             | Self::Multiply { left, right }
@@ -883,6 +914,7 @@ impl NumericExpression {
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
             | Self::PlayerFact { .. }
+            | Self::SacrificedCostObjectProperty(_)
             | Self::CardsInZone { .. } => false,
         }
     }
@@ -908,6 +940,8 @@ pub(super) use crate::oracle::characteristic_vocabulary::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CharacteristicBatch {
     Outlaw,
+    /// CR 700.6.
+    Historic,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -971,6 +1005,8 @@ pub(super) enum GrantedKeyword {
     Changeling,
     Deathtouch,
     Defender,
+    /// CR 702.114: characteristic-defining colorlessness.
+    Devoid,
     DoubleStrike,
     Exalted,
     Fear,
@@ -992,8 +1028,13 @@ pub(super) enum GrantedKeyword {
     Shadow,
     Shroud,
     Skulk,
+    /// CR 702.40: a cast trigger copying the spell for each spell cast
+    /// before it this turn.
+    Storm,
     Sunburst,
     Trample,
+    /// CR 702.89: Aura destruction replacement for the enchanted permanent.
+    UmbraArmor,
     Undying,
     Vigilance,
 }
@@ -1008,6 +1049,7 @@ impl GrantedKeyword {
             Self::Changeling => "changeling",
             Self::Deathtouch => "deathtouch",
             Self::Defender => "defender",
+            Self::Devoid => "devoid",
             Self::DoubleStrike => "doubleStrike",
             Self::Exalted => "exalted",
             Self::Fear => "fear",
@@ -1029,8 +1071,10 @@ impl GrantedKeyword {
             Self::Shadow => "shadow",
             Self::Shroud => "shroud",
             Self::Skulk => "skulk",
+            Self::Storm => "storm",
             Self::Sunburst => "sunburst",
             Self::Trample => "trample",
+            Self::UmbraArmor => "umbraArmor",
             Self::Undying => "undying",
             Self::Vigilance => "vigilance",
         }
@@ -1040,11 +1084,15 @@ impl GrantedKeyword {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum EffectDurationNode {
     UntilEndOfCurrentTurn,
-    UntilNextTurn { player: LocalPlayerReference },
+    UntilNextTurn {
+        player: LocalPlayerReference,
+    },
     /// Through the cleanup of the player's next turn (CR 514.2). Produced only
     /// by `recognize_play_window_duration`; the continuous-effect readers keep
     /// the narrower `recognize_effect_duration` and never see this window.
-    UntilEndOfNextTurn { player: LocalPlayerReference },
+    UntilEndOfNextTurn {
+        player: LocalPlayerReference,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1152,7 +1200,7 @@ pub(super) enum DamageRecipientNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct DamageEffectNode {
     pub source: LocalObjectReference,
-    pub amount: NumericAtom,
+    pub amount: NumericExpression,
     pub recipient: DamageRecipientNode,
 }
 
@@ -1288,6 +1336,7 @@ pub(in crate::oracle::canonical) struct LoyaltyCostNode {
 }
 
 pub(super) use crate::oracle::characteristic_vocabulary::CardColor;
+pub(super) use crate::oracle::characteristic_vocabulary::ColorQuantity;
 pub(super) use crate::oracle::characteristic_vocabulary::LandwalkWord;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1350,6 +1399,26 @@ pub(super) struct AddCountedManaEffectNode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct AddAnyColorManaEffectNode {
     pub amount: i64,
+    pub distribution: ManaColorDistribution,
+}
+
+/// How the colors of a multi-mana production are chosen (CR 106.1b wording):
+/// `of any [one] color` chooses one color for every mana, while `in any
+/// combination of colors` chooses a color independently for each mana.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ManaColorDistribution {
+    OneColor,
+    AnyCombination,
+}
+
+impl AddAnyColorManaEffectNode {
+    /// Runtime mana-value kind for this distribution.
+    pub(super) fn runtime_mana_kind(&self) -> &'static str {
+        match self.distribution {
+            ManaColorDistribution::OneColor => "chooseColor",
+            ManaColorDistribution::AnyCombination => "chooseColors",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1594,9 +1663,9 @@ pub(super) enum LocalEffectNode {
     ModifyStats(TemporaryPowerToughnessNode<PermanentOperandNode>),
     BecomeTypes(BecomeTypesNode<PermanentOperandNode>),
     UntapTarget(UntapTargetEffectNode),
-    UntapPermanents(UntapPermanentsEffectNode),
+    SelectedPermanents(SelectedPermanentsEffectNode),
     TapPermanents(TapPermanentsEffectNode),
-    Regenerate(RegenerateEffectNode),
+    PermanentKeywordAction(PermanentKeywordActionNode),
     PreventDamage(PreventDamageEffectNode),
     Attach(AttachEffectNode),
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),
@@ -1614,10 +1683,18 @@ pub(super) struct TapPermanentsEffectNode {
     pub untap: bool,
 }
 
-/// Keyword action `regenerate OBJECT` (CR 701.15): the object slot is the
-/// shared permanent operand; the shield itself is an engine primitive.
+/// Keyword actions whose only operand is a permanent: `regenerate OBJECT`
+/// (CR 701.15) and `goad OBJECT` (CR 701.38). The object slot is the shared
+/// permanent operand; the shield or goad designation is an engine primitive.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PermanentKeywordAction {
+    Regenerate,
+    Goad,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct RegenerateEffectNode {
+pub(super) struct PermanentKeywordActionNode {
+    pub action: PermanentKeywordAction,
     pub targets: PermanentOperandNode,
 }
 
@@ -1753,8 +1830,8 @@ pub(super) struct PlayerCompoundExileNode {
     pub connector: CompoundObjectConnector,
 }
 
-pub(super) use static_condition::*;
 pub(super) use sentence_condition::*;
+pub(super) use static_condition::*;
 pub(super) use trigger_envelope::*;
 pub(super) use trigger_guard::*;
 pub(super) use trigger_program::*;

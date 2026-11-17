@@ -5,7 +5,7 @@
 //! proposition that the engine evaluates continuously, not a card recipe.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    BooleanConditionNode, ControlledCountDirection, LocalConditionNode, NumericAtom,
+    BooleanConditionNode, ControlledCountDirection, LocalConditionNode, NumericAtom, ObjectKind,
     ObjectPredicate, recognize_boolean_condition_list_before_separator, recognize_numeric_atom,
     recognize_object_query_before_condition_connector, recognize_search_card_selector,
     recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
@@ -25,6 +25,18 @@ pub(in crate::oracle::canonical) enum SourceStateProposition {
 pub(in crate::oracle::canonical) enum ControllerTurnEvent {
     CardDrawn,
     SpellCast,
+}
+
+/// The quantified player relation of a controlled-permanent count comparison.
+/// Each variant is one comparison between the controller's count and the
+/// counts of its opponents; forms that need the least opponent count (`an
+/// opponent controls fewer ...`) have no evaluator and stay explicit failures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum OpponentCountRelation {
+    /// There is an opponent whose count exceeds the controller's count.
+    SomeOpponentExceedsController,
+    /// The controller's count exceeds the count of every opponent.
+    ControllerExceedsEveryOpponent,
 }
 
 /// What a `last turn` spell-cast condition asserts about the previous turn.
@@ -54,6 +66,13 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     ControllerLostLifeThisTurn,
     /// `an opponent lost life this turn` (any opponent of the controller).
     OpponentLostLifeThisTurn,
+    /// `an opponent controls more lands than you`, `you control fewer creatures
+    /// than an opponent`, `you control more QUERY than each opponent`: the
+    /// shared permanent query counted for the controller and for opponents.
+    OpponentControlledCountComparison {
+        predicate: ObjectPredicate,
+        relation: OpponentCountRelation,
+    },
     /// `you have N or more life` / `N or less life`: the controller's life total.
     ControllerLifeTotal {
         threshold: i64,
@@ -75,6 +94,12 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
         predicate: ObjectPredicate,
     },
     ControllerHasEnduringStory,
+    /// `you've completed a dungeon` / `you haven't completed NAME` (CR
+    /// 309.7): `dungeon` names one Dungeon, or any Dungeon when absent.
+    ControllerCompletedDungeon {
+        dungeon: Option<String>,
+        completed: bool,
+    },
 }
 
 pub(in crate::oracle::canonical) type StaticConditionNode =
@@ -120,12 +145,16 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     context: StaticConditionContext<'_>,
 ) -> MachineResult<StaticConditionAtom> {
     cursor.enter("condition.static.atom-kind");
+    if opponent_count_comparison_starts(cursor) {
+        return recognize_opponent_count_comparison_atom(cursor);
+    }
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_trigger_guard_atom(cursor).map(StaticConditionAtom::Local);
     }
     if contraction_is(cursor, 0, "you", "ve")
         || (word_is(cursor, 0, "you")
             && (word_is(cursor, 1, "have")
+                || contraction_is(cursor, 1, "haven", "t")
                 || word_is(cursor, 1, "gained")
                 || word_is(cursor, 1, "attacked")
                 || word_is(cursor, 1, "lost")))
@@ -279,6 +308,12 @@ fn recognize_controller_history_atom(
     if contraction_is(cursor, 0, "you", "ve") {
         let raw = cursor.peek().expect("contraction was checked").to_string();
         cursor.consume(&raw)?;
+    } else if word_is(cursor, 0, "you") && contraction_is(cursor, 1, "haven", "t") {
+        cursor.consume("you")?;
+        let raw = cursor.peek().expect("contraction was checked").to_string();
+        cursor.consume(&raw)?;
+        cursor.enter("condition.static.controller-history.negated-verb");
+        return recognize_completed_dungeon_atom(cursor, false);
     } else {
         cursor.consume("you")?;
         // `you gained life this turn` is the simple-past form of the same history.
@@ -353,10 +388,51 @@ fn recognize_controller_history_atom(
             cursor.consume_phrase(&["an", "enduring", "story"])?;
             Ok(StaticConditionAtom::ControllerHasEnduringStory)
         }
+        "completed" => recognize_completed_dungeon_atom(cursor, true),
         _ => {
             Err(cursor.fail("`drawn`, `cast`, `gained`, `lost`, a life total or an enduring story"))
         }
     }
+}
+
+/// `completed a dungeon` or `completed NAME` (CR 309.7). A named Dungeon is
+/// read up to the condition's end; it is compared with completed Dungeons.
+fn recognize_completed_dungeon_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    completed: bool,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.completed-dungeon");
+    cursor.consume("completed")?;
+    if word_is(cursor, 0, "a") && word_is(cursor, 1, "dungeon") {
+        cursor.consume_phrase(&["a", "dungeon"])?;
+        return Ok(StaticConditionAtom::ControllerCompletedDungeon {
+            dungeon: None,
+            completed,
+        });
+    }
+    cursor.enter("condition.static.completed-dungeon.name");
+    cursor.require(
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.starts_with(|character: char| character.is_ascii_uppercase())),
+        "`a dungeon` or a capitalized Dungeon name",
+    )?;
+    let mut words = Vec::new();
+    while let Some(raw) = cursor.peek() {
+        let name_word = raw.chars().all(|character| {
+            character.is_alphanumeric() || character == '\'' || character == '\u{2019}'
+        }) && (raw.starts_with(|character: char| character.is_ascii_uppercase())
+            || matches!(raw, "of" | "the"));
+        if !name_word {
+            break;
+        }
+        words.push(raw.to_string());
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    Ok(StaticConditionAtom::ControllerCompletedDungeon {
+        dungeon: Some(words.join(" ")),
+        completed,
+    })
 }
 
 /// `N or more life` / `N or less life` after `you have`: the controller's life
@@ -383,6 +459,76 @@ fn recognize_life_total_atom(
     Ok(StaticConditionAtom::ControllerLifeTotal {
         threshold,
         direction,
+    })
+}
+
+/// `an opponent controls more|fewer ...` or `you control more|fewer ...`: a
+/// comparison of two controlled-permanent counts rather than a fixed bound.
+pub(in crate::oracle::canonical) fn opponent_count_comparison_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let comparative = |offset| word_is(cursor, offset, "more") || word_is(cursor, offset, "fewer");
+    (word_is(cursor, 0, "an") && word_is(cursor, 1, "opponent") && word_is(cursor, 2, "controls"))
+        && comparative(3)
+        || (word_is(cursor, 0, "you") && word_is(cursor, 1, "control") && comparative(2))
+}
+
+/// `an opponent controls more QUERY than you` (an opponent's count exceeds
+/// the controller's), `you control fewer QUERY than an opponent` (the same
+/// relation), and `you control more QUERY than each opponent`. The permanent
+/// query is the shared object query; only the quantified relation is local.
+fn recognize_opponent_count_comparison_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.count-comparison.subject");
+    let opponent_subject = word_is(cursor, 0, "an");
+    if opponent_subject {
+        cursor.consume_phrase(&["an", "opponent", "controls"])?;
+    } else {
+        cursor.consume_phrase(&["you", "control"])?;
+    }
+    cursor.enter("condition.static.count-comparison.direction");
+    let more = word_is(cursor, 0, "more");
+    let direction = if more { "more" } else { "fewer" };
+    cursor.consume(direction)?;
+    cursor.enter("condition.static.count-comparison.query");
+    let query = recognize_object_query_before_condition_connector(cursor)?;
+    cursor.require(
+        query.controller.is_none(),
+        "a permanent query without its own controller relation",
+    )?;
+    cursor.require(
+        query.predicate.supports_domain(ObjectKind::Permanent),
+        "a predicate valid for a battlefield permanent",
+    )?;
+    cursor.enter("condition.static.count-comparison.than");
+    cursor.consume("than")?;
+    cursor.enter("condition.static.count-comparison.other-player");
+    let relation = if opponent_subject {
+        cursor.consume("you")?;
+        cursor.require(
+            more,
+            "`more ... than you`; an opponent with fewer permanents has no evaluator",
+        )?;
+        OpponentCountRelation::SomeOpponentExceedsController
+    } else if word_is(cursor, 0, "an") {
+        cursor.consume_phrase(&["an", "opponent"])?;
+        cursor.require(
+            !more,
+            "`fewer ... than an opponent`; more than some opponent has no evaluator",
+        )?;
+        OpponentCountRelation::SomeOpponentExceedsController
+    } else {
+        cursor.consume_phrase(&["each", "opponent"])?;
+        cursor.require(
+            more,
+            "`more ... than each opponent`; fewer than every opponent has no evaluator",
+        )?;
+        OpponentCountRelation::ControllerExceedsEveryOpponent
+    };
+    Ok(StaticConditionAtom::OpponentControlledCountComparison {
+        predicate: query.predicate,
+        relation,
     })
 }
 

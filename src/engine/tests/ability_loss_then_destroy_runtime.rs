@@ -100,6 +100,9 @@ fn all_qualifying_creatures_lose_indestructible_before_the_bound_set_is_destroye
     };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &stack_object,

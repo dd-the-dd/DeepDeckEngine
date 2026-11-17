@@ -5,8 +5,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, PermanentOperandNode, RegenerateEffectNode,
-    recognize_contextual_permanent_operand,
+    EffectRecognitionContext, PermanentKeywordAction, PermanentKeywordActionNode,
+    PermanentOperandNode, recognize_contextual_permanent_operand,
 };
 
 /// Recognizes `regenerate OBJECT`. Punctuation and reminder text stay with the
@@ -16,7 +16,7 @@ pub(in crate::oracle::canonical) fn recognize_regenerate_effect(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
-) -> MachineResult<RegenerateEffectNode> {
+) -> MachineResult<PermanentKeywordActionNode> {
     cursor.enter("effect.regenerate.action");
     let mut trial = cursor.clone();
     trial.consume("regenerate")?;
@@ -24,7 +24,31 @@ pub(in crate::oracle::canonical) fn recognize_regenerate_effect(
     let targets =
         recognize_contextual_permanent_operand(&mut trial, name_links, name_failure, context)?;
     *cursor = trial;
-    Ok(RegenerateEffectNode { targets })
+    Ok(PermanentKeywordActionNode {
+        action: PermanentKeywordAction::Regenerate,
+        targets,
+    })
+}
+
+/// Recognizes the keyword action `goad OBJECT` (CR 701.38a) over the shared
+/// permanent operand. The goading player is the ability controller.
+pub(in crate::oracle::canonical) fn recognize_goad_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PermanentKeywordActionNode> {
+    cursor.enter("effect.goad.action");
+    let mut trial = cursor.clone();
+    trial.consume("goad")?;
+    cursor.enter("effect.goad.object");
+    let targets =
+        recognize_contextual_permanent_operand(&mut trial, name_links, name_failure, context)?;
+    *cursor = trial;
+    Ok(PermanentKeywordActionNode {
+        action: PermanentKeywordAction::Goad,
+        targets,
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

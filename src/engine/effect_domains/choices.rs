@@ -342,6 +342,9 @@ impl GameEngine {
                         "choosePermanents.minimum",
                     )?
                     .max(0) as usize;
+                // Choosing N when fewer qualify chooses all of them; the
+                // instruction is performed as far as possible (CR 609.3).
+                let minimum = minimum.min(objects.len());
                 let maximum = self
                     .checked_runtime_numeric_expression(
                         &effect["maximum"],

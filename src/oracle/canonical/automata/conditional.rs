@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     DamageEffectNode, DamageRecipientNode, LocalConditionNode, LocalEffectNode,
-    LocalObjectReference, NumericAtom, PlayerPredicate, SelectorPredicate, TargetListNode,
+    LocalObjectReference, NumericExpression, PlayerPredicate, SelectorPredicate, TargetListNode,
     TargetSelector, recognize_kicked_condition, recognize_numeric_atom,
 };
 use crate::oracle::{
@@ -33,7 +33,7 @@ enum ReplacementState {
 struct ReplacementMemory {
     condition: Option<LocalConditionNode>,
     source: Option<LocalObjectReference>,
-    amount: Option<NumericAtom>,
+    amount: Option<NumericExpression>,
     target: Option<TargetListNode>,
 }
 
@@ -71,7 +71,7 @@ pub(in crate::oracle::canonical) fn recognize_conditional_damage_replacement(
             }
             ReplacementState::Amount => {
                 cursor.enter("replacement.damage.amount");
-                memory.amount = Some(recognize_numeric_atom(cursor)?);
+                memory.amount = Some(NumericExpression::Atom(recognize_numeric_atom(cursor)?));
                 ReplacementState::Resource
             }
             ReplacementState::Resource => {
@@ -173,6 +173,7 @@ fn object_noun(predicate: &SelectorPredicate, noun: &str) -> bool {
         SelectorPredicate::IsCommander
         | SelectorPredicate::IsToken
         | SelectorPredicate::Color(_)
+        | SelectorPredicate::ColorQuantity(_)
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Status(_)

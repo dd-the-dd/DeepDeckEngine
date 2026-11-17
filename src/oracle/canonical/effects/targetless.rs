@@ -95,6 +95,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::Subtract { .. }
         | NumericExpression::Multiply { .. }
         | NumericExpression::PlayerFact { .. }
+        | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
         | NumericExpression::Divide { .. } => {
             lower_numeric_expression(expression).ok_or(TargetlessLoweringError::UnsupportedEffect)
@@ -136,8 +138,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
     if let LocalEffectNode::QuantifiedPlayerAction(node) = effect {
         return lower_quantified_player_actions(node, declarations, scope);
     }
-    if let LocalEffectNode::UntapPermanents(untap) = effect {
-        return lower_untap_permanents_effects(untap, declarations, scope);
+    if let LocalEffectNode::SelectedPermanents(untap) = effect {
+        return lower_selected_permanents_effects(untap, declarations, scope);
     }
     if let LocalEffectNode::Amass(amass) = effect {
         return lower_amass_effects(amass, declarations, scope);
@@ -205,7 +207,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
                 "source": match &effect.source {
                     LocalObjectReference::SourceSelf => self_ref(),
                 },
-                "amount": lower_atom(&effect.amount, declarations)?,
+                "amount": lower_targetless_numeric_expression(&effect.amount, declarations)?,
                 "recipient": recipient,
             }))
         }
@@ -256,7 +258,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
         LocalEffectNode::DiscardCards(_)
-        | LocalEffectNode::UntapPermanents(_)
+        | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::Scry(_)
         | LocalEffectNode::Surveil(_) => {
             // A library procedure is a vector of primitives. Scalar callers
@@ -274,8 +276,11 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             effect.untap,
             lower_nontargeted_permanent_operand(&effect.targets)?,
         )),
-        LocalEffectNode::PreventDamage(effect) => lower_targetless_prevent_damage(effect, declarations),
-        LocalEffectNode::Regenerate(effect) => Ok(lower_regeneration_shield(
+        LocalEffectNode::PreventDamage(effect) => {
+            lower_targetless_prevent_damage(effect, declarations)
+        }
+        LocalEffectNode::PermanentKeywordAction(effect) => Ok(lower_permanent_keyword_action(
+            effect.action,
             lower_nontargeted_permanent_operand(&effect.targets)?,
         )),
         LocalEffectNode::PutCounters(effect) => Ok(json!({
@@ -317,8 +322,12 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         // Only a source move with an explicitly proved origin is a standalone
         // primitive here; the other source moves need a caller-owned binding.
         LocalEffectNode::MoveSource(movement)
-            if movement.from == SourceZone::Graveyard
-                && movement.source == LocalObjectReference::SourceSelf =>
+            if movement.source == LocalObjectReference::SourceSelf
+                && (movement.from == SourceZone::Graveyard
+                    // `return SOURCE to its owner's hand` (CR 108.3).
+                    || (movement.from == SourceZone::Battlefield
+                        && movement.to == SourceZone::Hand
+                        && movement.controller == SourceMoveController::Owner)) =>
         {
             Ok(lower_source_move_effect(movement, self_ref(), None))
         }

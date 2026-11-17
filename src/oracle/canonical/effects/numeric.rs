@@ -21,6 +21,18 @@ pub(in crate::oracle::canonical) fn lower_target_cardinality_bound(atom: Numeric
     }
 }
 
+/// Stack value bound when the sacrifice cost is paid (`bindPowerAs` /
+/// `bindToughnessAs` on the producing cost). Card composition installs the
+/// binding on the same-face cost that produces it.
+pub(in crate::oracle::canonical) fn sacrificed_cost_object_binding(
+    property: NumericObjectProperty,
+) -> &'static str {
+    match property {
+        NumericObjectProperty::Power => "sacrificedPermanentPower",
+        NumericObjectProperty::Toughness => "sacrificedPermanentToughness",
+    }
+}
+
 /// Lowers expressions that do not require a target-property binding. The
 /// caller retains ownership of binding-aware forms such as `PowerOf`.
 pub(in crate::oracle::canonical) fn lower_numeric_expression(
@@ -193,6 +205,20 @@ fn lower_numeric_expression_in_context(
                 NumericRounding::Down => "down",
                 NumericRounding::Up => "up",
             },
+        })),
+        NumericExpression::SacrificedCostObjectProperty(property) => {
+            Some(decision_result(sacrificed_cost_object_binding(*property)))
+        }
+        NumericExpression::GreatestPropertyAmong {
+            property,
+            predicate,
+        } => Some(json!({
+            "kind": match property {
+                NumericObjectProperty::Power => "greatestPower",
+                NumericObjectProperty::Toughness => "greatestToughness",
+            },
+            "player": controller(),
+            "where": lower_permanent_object_predicate(predicate),
         })),
         NumericExpression::PowerOf(binding) => Some(json!({
             "kind":"powerOf", "object":target_binding?(*binding)?,

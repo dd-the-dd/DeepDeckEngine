@@ -42,6 +42,9 @@ fn canonical_activated_ability_executes_a_legal_source_from_hand() {
         Ok(true)
     );
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .activate_canonical_ability(&activation(), &mut EmeritusDecisionProvider)
         .expect("the deterministic boundary reuses the legal hand activation");
 

@@ -482,6 +482,25 @@ fn lower_local_event(
             action,
             one_or_more,
         } => lower_player_event(cursor, *actor, *action, *one_or_more),
+        LocalTriggerEventNode::AttachedObjectEvent { role: _, action } => {
+            // The runtime resolves the subject from the source's attachment;
+            // Aura and Equipment attachments share the same matcher.
+            Ok(match action {
+                AttachedObjectEventAction::DealCombatDamageToPlayer => {
+                    json!({"kind": "attachedPermanentCombatDamageToPlayer"})
+                }
+                AttachedObjectEventAction::Attack => {
+                    json!({"kind": "attachedPermanentDeclaredAttacker"})
+                }
+                AttachedObjectEventAction::Die => json!({"kind": "attachedPermanentDied"}),
+                AttachedObjectEventAction::BecomeTapped => {
+                    json!({"kind": "attachedPermanentTapped", "attachment": self_ref()})
+                }
+                AttachedObjectEventAction::BecomeBlocked => {
+                    json!({"kind": "attachedCreatureBecameBlocked", "attachment": self_ref()})
+                }
+            })
+        }
         LocalTriggerEventNode::CardDrawn { .. }
         | LocalTriggerEventNode::OrdinalCardDrawn { .. } => {
             cursor.enter("trigger.program.local-event-support");

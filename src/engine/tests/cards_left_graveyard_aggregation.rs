@@ -61,6 +61,9 @@ fn per_card_graveyard_leave_enqueues_and_resolves_one_trigger_per_matching_card(
 
     assert_eq!(engine.state.stack.len(), 2);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("first per-card trigger resolves");
     engine

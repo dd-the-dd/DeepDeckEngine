@@ -50,6 +50,9 @@ fn engine_with_spell(life: i32, include_discard_card: bool) -> GameEngine {
         "player-1",
     )];
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
 }
 
 fn casting_actions(engine: &GameEngine) -> Vec<LegalAction> {

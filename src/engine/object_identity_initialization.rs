@@ -20,7 +20,13 @@ struct AdmittedCarrier {
     identity: Option<String>,
 }
 
-fn live_carriers(state: &GameState) -> Vec<(ObjectZone, &CardInstance)> {
+/// Physical (noncopy) spells on the stack are carriers too. Only explicit test
+/// fixture admission includes them: a new game and setup updates start from an
+/// empty stack, and ability objects merely reference their source's carrier.
+fn live_carriers(
+    state: &GameState,
+    include_stack_spells: bool,
+) -> Vec<(ObjectZone, &CardInstance)> {
     let mut cards = Vec::new();
     for player in &state.players {
         for (zone, values) in [
@@ -34,12 +40,22 @@ fn live_carriers(state: &GameState) -> Vec<(ObjectZone, &CardInstance)> {
             cards.extend(values.iter().map(|card| (zone.clone(), card)));
         }
     }
+    if include_stack_spells {
+        cards.extend(
+            state
+                .stack
+                .iter()
+                .filter(|object| super::card_zone_transition::stack_requires_checkpoint(object))
+                .map(|object| (ObjectZone::Stack, &object.card)),
+        );
+    }
     cards
 }
 
 fn collect_admitted_carriers(
     state: &GameState,
     require_identity: bool,
+    include_stack_spells: bool,
 ) -> Result<BTreeMap<String, AdmittedCarrier>, EngineError> {
     let owners = state
         .players
@@ -48,7 +64,7 @@ fn collect_admitted_carriers(
         .collect::<BTreeSet<_>>();
     let mut identities = BTreeSet::new();
     let mut result = BTreeMap::new();
-    for (zone, card) in live_carriers(state) {
+    for (zone, card) in live_carriers(state, include_stack_spells) {
         if card.instance_id.is_empty()
             || result.contains_key(&card.instance_id)
             || !owners.contains(card.owner.as_str())
@@ -111,10 +127,11 @@ fn collect_admitted_carriers(
 fn assign_setup_requests(
     state: &mut GameState,
     requests: &BTreeMap<String, IdentityAssignment>,
+    include_stack_spells: bool,
 ) -> Result<(), EngineError> {
     // Stable vector order is shared between preparation and installation.
     let prepared = {
-        let cards = live_carriers(state);
+        let cards = live_carriers(state, include_stack_spells);
         let selected = cards
             .iter()
             .filter_map(|(_, card)| {
@@ -130,6 +147,7 @@ fn assign_setup_requests(
     };
     let GameState {
         players,
+        stack,
         battlefield_incarnation_sequence,
         ..
     } = state;
@@ -150,6 +168,15 @@ fn assign_setup_requests(
             }
         }
     }
+    if include_stack_spells {
+        for object in stack {
+            if super::card_zone_transition::stack_requires_checkpoint(object)
+                && requests.contains_key(&object.card.instance_id)
+            {
+                selected.push(&mut object.card);
+            }
+        }
+    }
     install_object_identities(battlefield_incarnation_sequence, &mut selected, prepared)?;
     Ok(())
 }
@@ -163,15 +190,22 @@ impl GameEngine {
         &mut self,
         mode: ConstructionAdmission,
     ) -> Result<(), EngineError> {
-        if !self.state.stack.is_empty()
-            || !self.state.permissions.is_empty()
-            || !self.state.rule_modifiers.is_empty()
+        // A new game must start reference-free. A test fixture may already hold
+        // stack objects, permissions or modifiers that name carriers by
+        // instance ID; admitting only the still-unadmitted carriers cannot
+        // invalidate them, because no incarnation-bound reference can exist
+        // for a carrier that has no incarnation yet.
+        if matches!(mode, ConstructionAdmission::NewGame)
+            && (!self.state.stack.is_empty()
+                || !self.state.permissions.is_empty()
+                || !self.state.rule_modifiers.is_empty())
         {
             return Err(EngineError::new(
                 "initial admission requires a reference-free starting state",
             ));
         }
-        let carriers = collect_admitted_carriers(&self.state, false)?;
+        let include_stack_spells = !matches!(mode, ConstructionAdmission::NewGame);
+        let carriers = collect_admitted_carriers(&self.state, false, include_stack_spells)?;
         if matches!(mode, ConstructionAdmission::NewGame)
             && carriers.values().any(|carrier| carrier.identity.is_some())
         {
@@ -184,7 +218,7 @@ impl GameEngine {
             .filter(|(_, carrier)| carrier.identity.is_none())
             .map(|(id, _)| (id, IdentityAssignment::Admission))
             .collect();
-        assign_setup_requests(&mut self.state, &requests)
+        assign_setup_requests(&mut self.state, &requests, include_stack_spells)
     }
 
     fn with_setup_identity_update<F>(&mut self, configure: F) -> Result<(), EngineError>
@@ -196,12 +230,12 @@ impl GameEngine {
                 "cannot configure setup inside an active transaction",
             ));
         }
-        let before = collect_admitted_carriers(&self.state, true)?;
+        let before = collect_admitted_carriers(&self.state, true, false)?;
         // Setup may clear event history; the gameplay append-only checkpoint is
         // intentionally inapplicable. This snapshot is construction-only.
         let previous = self.clone();
         let result = configure(self).and_then(|()| {
-            let after = collect_admitted_carriers(&self.state, false)?;
+            let after = collect_admitted_carriers(&self.state, false, false)?;
             let mut requests = BTreeMap::new();
             for (id, current) in &after {
                 match before.get(id) {
@@ -217,8 +251,8 @@ impl GameEngine {
                     _ => {}
                 }
             }
-            assign_setup_requests(&mut self.state, &requests)?;
-            collect_admitted_carriers(&self.state, true)?;
+            assign_setup_requests(&mut self.state, &requests, false)?;
+            collect_admitted_carriers(&self.state, true, false)?;
             Ok(())
         });
         if result.is_err() {

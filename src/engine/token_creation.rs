@@ -134,6 +134,19 @@ impl GameEngine {
             })
             .filter(|types| !types.is_empty())
             .map(|types| {
+                let supertypes = token["supertypes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>();
+                if supertypes.is_empty() {
+                    types
+                } else {
+                    format!("{} {types}", supertypes.join(" "))
+                }
+            })
+            .map(|types| {
                 if subtypes.is_empty() {
                     types
                 } else {

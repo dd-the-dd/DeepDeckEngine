@@ -93,6 +93,9 @@ fn clue_token_uses_its_parsed_catalog_ability_to_draw_a_card() {
         })
         .expect("Clue activation is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("pay and sacrifice Clue");
     assert!(
@@ -188,6 +191,9 @@ fn created_blood_token_uses_catalog_oracle_and_executes_all_of_its_costs() {
         })
         .expect("Blood activation is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("pay Blood activation costs");
     assert!(
@@ -279,6 +285,9 @@ fn map_token_pays_taps_and_sacrifices_before_target_creature_explores() {
         test_definition("explored-card", "Instant"),
         "player-0",
     )];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     let action = engine
         .legal_priority_actions(0)
@@ -286,7 +295,8 @@ fn map_token_pays_taps_and_sacrifices_before_target_creature_explores() {
         .find(|action| {
             action.kind == ActionKind::ActivateAbility
                 && action.card_instance_id.as_deref() == Some("map")
-                && action.targets.get("targetCreature")
+                // The embedded Map definition declares `targetPermanent`.
+                && action.targets.get("targetPermanent")
                     == Some(&TargetRef::Permanent {
                         instance_id: "explorer".to_string(),
                     })
@@ -398,6 +408,9 @@ fn catalog_mutagen_token_pays_sacrifices_and_puts_a_counter_on_a_target_creature
         ),
         mana_source("wastes", "Basic Land - Wastes", "{C}", None),
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()

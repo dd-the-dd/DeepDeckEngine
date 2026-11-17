@@ -5,15 +5,27 @@ pub(in crate::oracle::canonical) fn claims_promoted_conditional_entry_family(
     input: &AbilityInput<'_>,
 ) -> bool {
     let tokens = input.tokens;
-    tokens.len() >= 8
+    let this_type_source = tokens.len() >= 2
         && tokens[0].raw.eq_ignore_ascii_case("this")
-        && tokens[1].token_type == "typeWord"
-        && tokens[2].raw.eq_ignore_ascii_case("enters")
-        && tokens[3].raw.eq_ignore_ascii_case("tapped")
-        && tokens[4].raw.eq_ignore_ascii_case("unless")
-        && tokens[5].raw.eq_ignore_ascii_case("you")
-        && tokens[6].raw.eq_ignore_ascii_case("control")
-        && (tokens[7].raw.eq_ignore_ascii_case("a") || tokens[7].raw.eq_ignore_ascii_case("an"))
+        && tokens[1].token_type == "typeWord";
+    let named_source = !tokens.is_empty()
+        && !tokens[0].raw.eq_ignore_ascii_case("this")
+        && source_reference_starts_at(
+            0,
+            Some(tokens[0].raw.as_str()),
+            input.name_links,
+            input.name_resolution_failure,
+        );
+    (this_type_source || named_source)
+        && tokens.windows(6).any(|window| {
+            window[0].raw.eq_ignore_ascii_case("enters")
+                && window[1].raw.eq_ignore_ascii_case("tapped")
+                && window[2].raw.eq_ignore_ascii_case("unless")
+                && window[3].raw.eq_ignore_ascii_case("you")
+                && window[4].raw.eq_ignore_ascii_case("control")
+                && (window[5].raw.eq_ignore_ascii_case("a")
+                    || window[5].raw.eq_ignore_ascii_case("an"))
+        })
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_conditional_entry(

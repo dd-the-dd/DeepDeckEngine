@@ -81,6 +81,9 @@ fn setup_engine(mana_pool: Vec<FloatingMana>) -> GameEngine {
 #[test]
 fn normal_cast_requires_one_nonland_permanent_not_controlled_by_the_caster() {
     let mut engine = setup_engine(mana(&["C", "U"]));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let casts = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -141,6 +144,9 @@ fn normal_cast_requires_one_nonland_permanent_not_controlled_by_the_caster() {
 #[test]
 fn overload_has_no_targets_and_returns_each_other_player_nonland() {
     let mut engine = setup_engine(mana(&["C", "C", "C", "C", "C", "C", "U"]));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let overload = engine
         .legal_priority_actions(0)
         .into_iter()

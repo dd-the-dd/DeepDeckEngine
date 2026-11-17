@@ -1,6 +1,6 @@
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, CharacteristicLexeme, ObjectCharacteristic, lookup_basic_land_subtype,
-    lookup_card_color, lookup_card_type, lookup_creature_subtype_tokens,
+    lookup_card_color, lookup_card_type, lookup_color_quantity, lookup_creature_subtype_tokens,
     lookup_noncreature_subtype_forms, lookup_object_characteristic, lookup_object_domain,
     lookup_object_selector_lexeme, lookup_supertype,
 };
@@ -121,6 +121,9 @@ fn recognize_positive_atom(
     }
     if let Some(color) = lookup_card_color(first) {
         return Some((ObjectPredicate::Color(color), 1));
+    }
+    if let Some(quantity) = lookup_color_quantity(first) {
+        return Some((ObjectPredicate::ColorQuantity(quantity), 1));
     }
     if let Some(subtype) = lookup_basic_land_subtype(first, forms) {
         return Some((ObjectPredicate::Subtype(subtype.ir_name().to_string()), 1));

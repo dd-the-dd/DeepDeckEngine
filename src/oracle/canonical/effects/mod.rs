@@ -65,6 +65,7 @@ mod player_set;
 mod quantified_player_action;
 
 mod become_types;
+mod continuous_type_change;
 mod keyword_grant;
 mod labeled_activated_zone_change;
 mod land_play_trigger;
@@ -203,6 +204,7 @@ pub(super) use player_set::*;
 pub(super) use quantified_player_action::*;
 
 pub(super) use become_types::*;
+pub(super) use continuous_type_change::*;
 pub(super) use keyword_grant::*;
 pub(super) use labeled_activated_zone_change::*;
 pub(super) use land_play_trigger::*;
@@ -308,6 +310,21 @@ mod regenerate_tests;
 #[cfg(test)]
 #[path = "choose_instruction_tests.rs"]
 mod choose_instruction_tests;
+#[cfg(test)]
+#[path = "league_regression_concepts_tests.rs"]
+mod league_regression_concepts_tests;
+#[cfg(test)]
+#[path = "league_reference_concepts_tests.rs"]
+mod league_reference_concepts_tests;
+#[cfg(test)]
+#[path = "player_permission_selection_tests.rs"]
+mod player_permission_selection_tests;
+#[cfg(test)]
+#[path = "storm_keyword_tests.rs"]
+mod storm_keyword_tests;
+#[cfg(test)]
+#[path = "static_characteristics_concepts_tests.rs"]
+mod static_characteristics_concepts_tests;
 
 #[cfg(test)]
 #[path = "attach_tests.rs"]

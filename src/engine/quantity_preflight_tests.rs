@@ -134,12 +134,11 @@ fn inline_source_introduced_before_late_failure_is_rolled_back_and_retry_is_clea
 }
 
 fn put_source_in_graveyard(engine: &mut GameEngine) -> String {
-    let mut source = card_instance(
-        "player-0",
-        &definition("quantity-source", "Enchantment"),
-        702,
-    );
-    source.definition.rules = vec![source_rule()];
+    // The rules are printed characteristics of the card, so they survive the
+    // zone change that resets the moved card to its printed definition.
+    let mut source_definition = definition("quantity-source", "Enchantment");
+    source_definition.rules = vec![source_rule()];
+    let source = card_instance("player-0", &source_definition, 702);
     let id = source.instance_id.clone();
     engine.state.players[0].graveyard.push(source);
     engine

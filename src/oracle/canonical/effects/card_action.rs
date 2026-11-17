@@ -7,6 +7,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     view_maximum: Option<i64>,
     /// The verb that produced `view` when a later `VERBed this way` restates it.
     view_verb: Option<CardCollectionVerb>,
+    /// The zone holding the observed cards when the producing action proves
+    /// it (drawn cards are in hand). Readers needing a zone require it.
+    view_zone: Option<CardZoneName>,
     selected: Vec<Value>,
     complement_basis: Option<(Value, Option<i64>)>,
     complement_exclusions: Vec<Value>,
@@ -22,6 +25,11 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     next_zone_target: usize,
     next_card_target: usize,
 }
+
+/// The card collection this program put onto the battlefield; `it` after
+/// that move reads this binding. One battlefield move per program.
+pub(in crate::oracle::canonical) const MOVED_ONTO_BATTLEFIELD_BINDING: &str =
+    "movedOntoBattlefield";
 
 fn fresh(base: &str, next: &mut usize) -> String {
     *next += 1;
@@ -69,6 +77,7 @@ impl CardCollectionMemory {
         self.view = snapshot.view.clone();
         self.view_maximum = snapshot.view_maximum;
         self.view_verb = snapshot.view_verb;
+        self.view_zone = snapshot.view_zone;
         self.selected = snapshot.selected.clone();
         self.complement_basis = snapshot.complement_basis.clone();
         self.complement_exclusions = snapshot.complement_exclusions.clone();
@@ -82,6 +91,7 @@ impl CardCollectionMemory {
         self.view == other.view
             && self.view_maximum == other.view_maximum
             && self.view_verb == other.view_verb
+            && self.view_zone == other.view_zone
             && self.selected == other.selected
             && self.complement_basis == other.complement_basis
             && self.complement_exclusions == other.complement_exclusions
@@ -97,9 +107,37 @@ impl CardCollectionMemory {
         self.complement_exclusions.clear();
         self.view_maximum = None;
         self.view_verb = None;
+        self.view_zone = None;
         self.singular_focus = None;
         self.plural_focus = None;
         self.removed_up_to_size = 0;
+    }
+
+    /// The cards a controller draw just put into hand become the observed
+    /// collection (`draw three cards and reveal them`). Returns the binding
+    /// the draw primitive must record.
+    pub(in crate::oracle::canonical) fn observe_drawn_cards(
+        &mut self,
+        maximum: Option<i64>,
+    ) -> String {
+        let id = fresh("drawnCards", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        self.observe(&id, maximum);
+        self.view_zone = Some(CardZoneName::Hand);
+        id
+    }
+
+    /// The permanent a scalar exile instruction just moved is the observed
+    /// collection of its program: a later `that card` or `it` reads the
+    /// object it became in exile (CR 400.7, 610.3). Returns the binding the
+    /// exile primitive must record.
+    pub(in crate::oracle::canonical) fn observe_exiled_object(&mut self) -> String {
+        let id = fresh("exiledObject", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        self.observe(&id, Some(1));
+        self.view_verb = Some(CardCollectionVerb::Exiled);
+        self.view_zone = Some(CardZoneName::Exile);
+        id
     }
 
     fn mention(&mut self, value: (Value, Option<i64>)) {
@@ -380,6 +418,23 @@ impl CardCollectionMemory {
             if let Some(predicate) = &query.predicate {
                 objects["where"] = lower_card_object_predicate(predicate)
             }
+            if let Some(quantity) = &query.quantity {
+                // The acting player chooses on resolution (no target): as many
+                // matching cards as stated, or all of them if fewer exist.
+                let NumericExpression::Atom(NumericAtom::Integer(fixed)) = quantity else {
+                    return Err(cursor.fail("a literal number of cards chosen from the zone"));
+                };
+                cursor.require(*fixed > 0, "a positive number of chosen cards")?;
+                let id = fresh("chosenZoneCards", &mut self.next_selection);
+                self.allocated_ids.insert(id.clone());
+                effects.push(json!({"kind":"chooseCards", "id":id, "player":controller(),
+                    "from":objects.clone(),
+                    "count":{"kind":"minimum", "operands":[integer(*fixed), count(objects)]}}));
+                self.clear_antecedent();
+                let result = decision_result(&id);
+                self.mention((result.clone(), Some(*fixed)));
+                return Ok((result, Some(*fixed)));
+            }
             // A named zone is not an observation or selection result. Never
             // inherit an unrelated earlier look as its later complement.
             self.clear_antecedent();
@@ -485,6 +540,74 @@ impl CardCollectionMemory {
         Ok((result, fixed))
     }
 
+    /// CR 608.2g: `you may cast N of them without paying` casts during this
+    /// resolution, from the zone the observed cards are proved to be in.
+    fn lower_resolution_cast(
+        &mut self,
+        cursor: &mut OracleTokenCursor<'_>,
+        permit: &CardPermissionNode,
+        effects: &mut Vec<Value>,
+    ) -> MachineResult<Vec<Value>> {
+        cursor.enter("lower.card-action.resolution-cast");
+        cursor.require(
+            permit.verb == CardPermissionVerb::Cast,
+            "`cast`: playing a land is not a resolution-time free cast",
+        )?;
+        let (cards, maximum) = match &permit.cards {
+            CardOperandNode::Reference(reference) => self.reference(cursor, *reference)?,
+            CardOperandNode::Selection(selection) => {
+                let (from, _) = self.reference(cursor, selection.from)?;
+                let maximum = match &selection.quantity {
+                    CardSelectionQuantityNode::Exactly(NumericExpression::Atom(
+                        NumericAtom::Integer(value),
+                    ))
+                    | CardSelectionQuantityNode::UpTo(NumericExpression::Atom(
+                        NumericAtom::Integer(value),
+                    )) if *value > 0 => Some(*value),
+                    CardSelectionQuantityNode::AnyNumber => None,
+                    _ => {
+                        return Err(cursor
+                            .fail("a positive literal or `any number` of observed cards to cast"));
+                    }
+                };
+                let cards = match &selection.predicate {
+                    Some(predicate) => json!({"kind":"filterObjects", "objects":from,
+                        "where":lower_card_object_predicate(predicate)}),
+                    None => from,
+                };
+                (cards, maximum)
+            }
+            _ => return Err(cursor.fail("an observed card collection to cast from")),
+        };
+        let zone = self.view_zone.ok_or_else(|| {
+            cursor.fail("observed cards whose zone (hand, graveyard or exile) is proved")
+        })?;
+        cursor.require(
+            matches!(
+                zone,
+                CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
+            ),
+            "a hand, graveyard or exile source zone for the cast",
+        )?;
+        let mut cast = json!({
+            "kind": "castAnyNumber",
+            "player": controller(),
+            "cards": cards,
+            "where": {"kind": "canBeCastAsSpell"},
+            "timing": {"kind": "duringResolution"},
+            "withoutPayingManaCost": true,
+            "alternativeCostsAllowed": false,
+            "additionalCostsApply": true,
+            "variableManaValue": integer(0),
+            "sourceZone": zone.ir_name(),
+        });
+        if let Some(maximum) = maximum {
+            cast["maximum"] = integer(maximum);
+        }
+        effects.push(cast);
+        Ok(std::mem::take(effects))
+    }
+
     pub(in crate::oracle::canonical) fn lower_action(
         &mut self,
         cursor: &mut OracleTokenCursor<'_>,
@@ -557,6 +680,22 @@ impl CardCollectionMemory {
                 self.complement_exclusions.push(matching.clone());
                 self.mention((matching, maximum));
             }
+            CardActionNode::Shuffle { owner } => {
+                cursor.enter("lower.card-action.shuffle");
+                cursor.require(
+                    *owner == LocalPlayerReference::Controller,
+                    "the controller's library",
+                )?;
+                // Shuffled cards are new unordered identities for later text.
+                self.clear_antecedent();
+                effects.push(json!({"kind":"shuffleZone",
+                    "zone":{"kind":"library", "player":controller()}}));
+            }
+            CardActionNode::Permit(permit)
+                if permit.without_paying_mana_cost && permit.duration.is_none() =>
+            {
+                return self.lower_resolution_cast(cursor, permit, &mut effects);
+            }
             CardActionNode::Permit(permit) => {
                 let (cards, maximum) = self.operand(
                     cursor,
@@ -566,6 +705,8 @@ impl CardCollectionMemory {
                     target_decisions,
                 )?;
                 cursor.enter("lower.card-action.permit");
+                let permits_exiled_view = self.view_verb == Some(CardCollectionVerb::Exiled)
+                    && Some(&cards) == self.view.as_ref();
                 let card = match value_kind_name(&cards) {
                     Some("boundObjects") if maximum.is_some_and(|maximum| maximum <= 1) => {
                         json!({"kind":"boundObject", "binding":cards["binding"]})
@@ -575,13 +716,27 @@ impl CardCollectionMemory {
                         return Err(cursor.fail("a bound card collection as the permission object"));
                     }
                 };
+                cursor.require(
+                    !permit.without_paying_mana_cost,
+                    "a free casting permission window the runtime represents",
+                )?;
                 let duration = match &permit.duration {
-                    EffectDurationNode::UntilEndOfCurrentTurn => {
+                    // CR 611.2a + 400.7: an unbounded permission over cards
+                    // this program exiled lasts while they remain in exile.
+                    None => {
+                        cursor.enter("lower.card-action.permit.unbounded");
+                        cursor.require(
+                            permits_exiled_view,
+                            "an unbounded permission over the cards this program exiled",
+                        )?;
+                        json!({"kind":"whileInExile"})
+                    }
+                    Some(EffectDurationNode::UntilEndOfCurrentTurn) => {
                         json!({"kind":"untilEndOfCurrentTurn"})
                     }
-                    EffectDurationNode::UntilEndOfNextTurn {
+                    Some(EffectDurationNode::UntilEndOfNextTurn {
                         player: LocalPlayerReference::Controller,
-                    } => json!({"kind":"untilEndOfNextTurn", "player":controller()}),
+                    }) => json!({"kind":"untilEndOfNextTurn", "player":controller()}),
                     _ => {
                         return Err(cursor.fail(
                             "a permission window the runtime can end: this turn or the end of your next turn",
@@ -609,9 +764,14 @@ impl CardCollectionMemory {
                 )?;
                 let player = match &destination.owner {
                     CardMoveOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
+                    // Exile in each owner's exile zone, or the battlefield
+                    // under each owner's control (CR 110.2a).
                     CardMoveOwnerNode::EachCardOwner => {
                         cursor.require(
-                            destination.zone == CardZoneName::Exile,
+                            matches!(
+                                destination.zone,
+                                CardZoneName::Exile | CardZoneName::Battlefield
+                            ),
                             "a per-card owner destination supported by this movement boundary",
                         )?;
                         json!({"kind":"ownerOf","object":{"kind":"candidate"}})
@@ -654,11 +814,46 @@ impl CardCollectionMemory {
                         "an explicit ordering policy for a multi-card library placement",
                     )?,
                 }
-                // Battlefield movement still requires admitted object identities
-                // and entry replacement proofs; do not claim that backend here.
+                // Battlefield movement is admitted for cards whose identities
+                // are proved: a choice from an observed collection, declared
+                // targets, the object an exile just produced, or a zone query
+                // evaluated on resolution. Other observed references (cards
+                // revealed until a match) still lack a proved runtime writer.
+                // The engine applies entry replacements (CR 614.12).
+                if destination.zone == CardZoneName::Battlefield {
+                    cursor.enter("lower.card-action.battlefield-entry");
+                    let proved_operand = match operand {
+                        CardOperandNode::Selection(_)
+                        | CardOperandNode::Targets(_)
+                        | CardOperandNode::ZoneCollection(_) => true,
+                        CardOperandNode::Reference(_) => {
+                            self.view_verb == Some(CardCollectionVerb::Exiled)
+                                && self.view_zone == Some(CardZoneName::Exile)
+                        }
+                        CardOperandNode::LibraryTop(_) => false,
+                    };
+                    cursor.require(
+                        proved_operand
+                            && !self.allocated_ids.contains(MOVED_ONTO_BATTLEFIELD_BINDING),
+                        "one battlefield entry of chosen, targeted, exiled or zone-queried cards",
+                    )?;
+                    to["tapped"] = json!(destination.tapped);
+                    if let Some(counters) = &destination.entering_counters {
+                        let count =
+                            lower_targetless_numeric_expression(&counters.count, declarations)
+                                .map_err(|error| cursor.fail(error.expectation()))?;
+                        to["enterWithCounters"] =
+                            json!([{"counter": counters.counter.as_str(), "count": count}]);
+                    }
+                    self.allocated_ids
+                        .insert(MOVED_ONTO_BATTLEFIELD_BINDING.to_string());
+                    effects.push(json!({"kind":"moveCards", "cards":cards, "to":to,
+                        "bind":MOVED_ONTO_BATTLEFIELD_BINDING}));
+                    return Ok(effects);
+                }
                 cursor.require(
-                    destination.zone != CardZoneName::Battlefield && !destination.tapped,
-                    "a nonbattlefield destination in this card-collection lowering boundary",
+                    !destination.tapped && destination.entering_counters.is_none(),
+                    "an untapped, counterless nonbattlefield destination",
                 )?;
                 if matches!(operand, CardOperandNode::LibraryTop(_))
                     && destination.zone == CardZoneName::Exile

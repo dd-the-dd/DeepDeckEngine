@@ -66,6 +66,32 @@ fn parse_native_rule(
     input: &AbilityInput<'_>,
     ability_kind: AbilityKindConstraint<'_>,
 ) -> CanonicalParseOutcome {
+    // CR 309.4: a labeled Dungeon room owns its frame before any ability-word
+    // or flavor-label reading of the same em dash.
+    if claims_dungeon_room_family(input) {
+        return match parse_dungeon_room(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+    if claims_dungeon_entry_restriction(input) {
+        return match parse_dungeon_entry_restriction(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
     let mut committed_generic_failure = None;
     if ability_kind == "triggeredAbility" {
         // This atomic native contract predates sequence-local decision IDs.
@@ -923,6 +949,19 @@ fn parse_existing_native_rule(
         };
     }
 
+    if claims_promoted_suspend_family(input) {
+        return match parse_promoted_suspend(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_promoted_enchant_family(input) {
         return match parse_promoted_enchant(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
@@ -1050,8 +1089,8 @@ fn parse_existing_native_rule(
         }
     }
 
-    if claims_promoted_chosen_name_activation_prohibition_family(input) {
-        return match parse_promoted_chosen_name_activation_prohibition(input) {
+    if claims_promoted_activation_prohibition_family(input) {
+        return match parse_promoted_activation_prohibition(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

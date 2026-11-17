@@ -65,6 +65,8 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::PlayerFact { .. }
+        | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. } => return Ok(None),
     };
     // Visit both branches even when the first is symbolic: a bad literal or

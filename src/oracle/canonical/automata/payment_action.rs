@@ -41,8 +41,9 @@ use super::{
     CollectionSelectionMethod, CostConnector, CostSequenceNode, ObjectCardType,
     ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode,
     positive_literal, recognize_counter_name, recognize_mana_cost,
-    recognize_object_query_before_separator, recognize_pay_life_cost,
-    recognize_resource_payment_predicate, recognize_search_card_selector, recognize_tap_self_cost,
+    recognize_object_query_before_cost_separator, recognize_object_query_before_separator,
+    recognize_pay_life_cost, recognize_resource_payment_predicate, recognize_search_card_selector,
+    recognize_tap_self_cost,
 };
 
 /// One ordinary action read in a cost section.
@@ -187,7 +188,9 @@ pub(in crate::oracle::canonical::automata) fn conjugated_payment_action_starts(
     form: DiscardVerbForm,
 ) -> bool {
     match form {
-        DiscardVerbForm::Imperative => payment_action_starts(cursor),
+        DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => {
+            payment_action_starts(cursor)
+        }
         DiscardVerbForm::ThirdPersonSingular => cursor.peek().is_some_and(|raw| {
             PAYMENT_VERBS
                 .iter()
@@ -229,7 +232,8 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
         )));
     }
     let verb = token.raw.to_ascii_lowercase();
-    let form = DiscardVerbForm::Imperative;
+    // A plural payer shares the imperative surface; only its chooser marker
+    // differs, so the form is kept for the object action.
     match verb.as_str() {
         "pay" => {
             let checkpoint = cursor.checkpoint();
@@ -284,31 +288,35 @@ fn recognize_object_payment_action(
     form: DiscardVerbForm,
 ) -> Option<MachineResult<PaymentActionNode>> {
     let chooser_marker = |cursor: &mut OracleTokenCursor<'_>| {
-        if form == DiscardVerbForm::ThirdPersonSingular {
+        if form != DiscardVerbForm::Imperative {
             recognize_acting_player_choice_marker(cursor)?;
         }
         Ok(())
     };
     Some(match verb {
         "tap" => recognize_action_with_form(cursor, ImperativeActionVerb::Tap, form, |cursor| {
-            recognize_payment_objects(cursor, PaymentVerb::Tap)
+            recognize_payment_objects(cursor, PaymentVerb::Tap, false)
         })
         .map(PaymentActionNode::Tap),
         "sacrifice" => recognize_sacrifice_action_with_form(cursor, form, |cursor| {
-            let objects = recognize_payment_objects(cursor, PaymentVerb::Sacrifice)?;
+            let objects = recognize_payment_objects(
+                cursor,
+                PaymentVerb::Sacrifice,
+                form != DiscardVerbForm::Imperative,
+            )?;
             chooser_marker(cursor)?;
             Ok(objects)
         })
         .map(|action| PaymentActionNode::Sacrifice(action.operand)),
         "discard" => recognize_discard_action(cursor, form, |cursor| {
-            let objects = recognize_payment_objects(cursor, PaymentVerb::Discard)?;
+            let objects = recognize_payment_objects(cursor, PaymentVerb::Discard, false)?;
             chooser_marker(cursor)?;
             Ok(objects)
         })
         .map(|action| PaymentActionNode::Discard(action.operand)),
         "exile" => {
             recognize_action_with_form(cursor, ImperativeActionVerb::Exile, form, |cursor| {
-                let objects = recognize_payment_objects(cursor, PaymentVerb::Exile)?;
+                let objects = recognize_payment_objects(cursor, PaymentVerb::Exile, false)?;
                 cursor.enter("cost.payment.exile.origin");
                 let origin = recognize_optional_origin_zone(cursor)?;
                 cursor.require(
@@ -355,9 +363,13 @@ impl PaymentVerb {
 }
 
 /// The shared selection operand: a source reference or chosen objects.
+/// `list_continues`: a third-person payer's object list may continue after a
+/// comma (`unless they sacrifice a creature, artifact, or land`); an
+/// imperative cost list keeps the comma as its own separator.
 fn recognize_payment_objects(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
+    list_continues: bool,
 ) -> MachineResult<PaymentObjectsNode> {
     cursor.enter("cost.payment.selection");
     if cursor
@@ -368,7 +380,7 @@ fn recognize_payment_objects(
         cursor.enter("cost.payment.source.noun");
         return recognize_source_noun(cursor, verb.domain()).map(PaymentObjectsNode::Source);
     }
-    recognize_chosen_objects(cursor, verb).map(PaymentObjectsNode::Chosen)
+    recognize_chosen_objects(cursor, verb, list_continues).map(PaymentObjectsNode::Chosen)
 }
 
 fn recognize_source_noun(
@@ -393,6 +405,7 @@ fn recognize_source_noun(
 fn recognize_chosen_objects(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
+    list_continues: bool,
 ) -> MachineResult<ChosenPaymentObjectsNode> {
     cursor.enter("cost.payment.quantity");
     cursor.require(
@@ -436,7 +449,7 @@ fn recognize_chosen_objects(
     let filter =
         match verb.domain() {
             OperandDomain::Permanent => PaymentObjectFilter::Permanents(
-                recognize_permanent_operand(cursor, verb, exclude_source)?,
+                recognize_permanent_operand(cursor, verb, exclude_source, list_continues)?,
             ),
             OperandDomain::Card => {
                 cursor.enter("cost.payment.card-query");
@@ -465,10 +478,15 @@ fn recognize_permanent_operand(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
     exclude_source: bool,
+    list_continues: bool,
 ) -> MachineResult<ObjectQueryNode> {
     cursor.enter("cost.payment.object-query");
     let query_start = cursor.position();
-    let object = recognize_object_query_before_separator(cursor)?;
+    let object = if list_continues {
+        recognize_object_query_before_cost_separator(cursor)?
+    } else {
+        recognize_object_query_before_separator(cursor)?
+    };
     // `another X or a Y`: each branch has its own article, so one source
     // exclusion cannot be scoped to the whole query.
     cursor.enter("cost.payment.branch-article");
@@ -556,6 +574,7 @@ fn recognize_counter_removal(
                 cursor,
                 PaymentVerb::Remove,
                 false,
+                false,
             )?)
         }
         "among" => {
@@ -563,6 +582,7 @@ fn recognize_counter_removal(
             CounterHolderNode::Among(recognize_permanent_operand(
                 cursor,
                 PaymentVerb::Remove,
+                false,
                 false,
             )?)
         }

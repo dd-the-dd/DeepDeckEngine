@@ -167,7 +167,7 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
         effect: json!({
             "kind": "dealDamage",
             "source": source,
-            "amount": lower_numeric_atom(effect.amount.clone()),
+            "amount": lower_numeric_expression(&effect.amount)?,
             "recipient": chosen_target(decision_id),
         }),
     })
@@ -223,7 +223,7 @@ fn lower_local_effect_sequence(
         LocalEffectNode::CounterSpell(_) => false,
         LocalEffectNode::TemporaryKeywordGrant(_) => false,
         LocalEffectNode::AddMana(_) => false,
-        LocalEffectNode::DealDamage(effect) => effect.amount == NumericAtom::VariableX,
+        LocalEffectNode::DealDamage(effect) => effect.amount.uses_x(),
         LocalEffectNode::GainLife(effect) => {
             effect.amount == NumericExpression::Atom(NumericAtom::VariableX)
         }
@@ -275,9 +275,9 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::QuantifiedPlayerAction(_)
         | LocalEffectNode::TemporaryPlayerPermission(_)
-        | LocalEffectNode::UntapPermanents(_)
+        | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
-        | LocalEffectNode::Regenerate(_)
+        | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -305,9 +305,9 @@ fn lower_local_effect_sequence(
             }
             LocalEffectNode::Retarget(_)
             | LocalEffectNode::CreateExplicitTokens(_)
-            | LocalEffectNode::UntapPermanents(_)
+            | LocalEffectNode::SelectedPermanents(_)
             | LocalEffectNode::TapPermanents(_)
-            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_) => {
@@ -339,7 +339,7 @@ fn lower_local_effect_sequence(
                         };
                         damage_index += 1;
                         let lowered = lower_targeted_damage_effect(&effect, &target_id)
-                            .expect("targeted damage lowers with its target declaration");
+                            .ok_or(DamageFamilySequenceLoweringError::ExistingUnsupported)?;
                         decisions.push(lowered.decision);
                         effects.push(lowered.effect);
                     }
@@ -357,7 +357,8 @@ fn lower_local_effect_sequence(
                         effects.push(json!({
                             "kind": "dealDamage",
                             "source": source,
-                            "amount": lower_numeric_atom(effect.amount.clone()),
+                            "amount": lower_numeric_expression(&effect.amount)
+                                .ok_or(DamageFamilySequenceLoweringError::ExistingUnsupported)?,
                             "recipient": {
                                 "kind": "eachPermanent",
                                 "where": lower_permanent_object_predicate(predicate),
@@ -508,9 +509,9 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
                 recipient: DamageRecipientNode::PlayerSet(_),
                 ..
             }) | LocalEffectNode::PlayerAction(_)
-                | LocalEffectNode::UntapPermanents(_)
+                | LocalEffectNode::SelectedPermanents(_)
                 | LocalEffectNode::TapPermanents(_)
-                | LocalEffectNode::Regenerate(_)
+                | LocalEffectNode::PermanentKeywordAction(_)
                 | LocalEffectNode::PreventDamage(_)
                 | LocalEffectNode::Attach(_)
                 | LocalEffectNode::Choose(_)
@@ -584,9 +585,9 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::BecomeTypes(_)
             | LocalEffectNode::QuantifiedPlayerAction(_)
             | LocalEffectNode::TemporaryPlayerPermission(_)
-            | LocalEffectNode::UntapPermanents(_)
+            | LocalEffectNode::SelectedPermanents(_)
             | LocalEffectNode::TapPermanents(_)
-            | LocalEffectNode::Regenerate(_)
+            | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)
@@ -604,9 +605,9 @@ fn lower_conditional_damage_effect(
                 LocalEffectNode::CardAction(_) | LocalEffectNode::OptionalSequence(_) => None,
                 LocalEffectNode::Retarget(_)
                 | LocalEffectNode::CreateExplicitTokens(_)
-                | LocalEffectNode::UntapPermanents(_)
+                | LocalEffectNode::SelectedPermanents(_)
                 | LocalEffectNode::TapPermanents(_)
-                | LocalEffectNode::Regenerate(_)
+                | LocalEffectNode::PermanentKeywordAction(_)
                 | LocalEffectNode::PreventDamage(_)
                 | LocalEffectNode::Attach(_)
                 | LocalEffectNode::Choose(_) => None,
@@ -619,7 +620,7 @@ fn lower_conditional_damage_effect(
                         "source": match effect.source {
                             LocalObjectReference::SourceSelf => self_ref(),
                         },
-                        "amount": lower_numeric_atom(effect.amount),
+                        "amount": lower_numeric_expression(&effect.amount)?,
                         "recipient": chosen_target(target_id),
                     })
                 }),

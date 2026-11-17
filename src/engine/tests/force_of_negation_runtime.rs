@@ -65,6 +65,9 @@ fn successful_counter_replaces_the_graveyard_destination_with_exile() {
     engine.state.stack.push(target_spell(false));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &counter_stack_object(&rule),
@@ -177,6 +180,9 @@ fn declined_unless_payment_does_not_mark_an_uncounterable_spell_for_later_exile(
             .all(|event| event.kind != "spellCountered")
     );
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the unmarked spell resolves normally");

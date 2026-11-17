@@ -3,17 +3,21 @@
 //! ability metadata, never an effect, and the same reader serves every
 //! activated parent instead of each family re-reading the sentence.
 use super::super::{MachineResult, OracleTokenCursor};
+use super::{StaticConditionContext, StaticConditionNode, recognize_static_condition};
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ActivationRestrictionsNode {
     pub sorcery_timing: bool,
     pub controller_turn: bool,
     pub once_each_turn: bool,
+    /// `Activate only if CONDITION`: the shared state condition, evaluated
+    /// when the ability would be activated (CR 602.5b).
+    pub condition: Option<StaticConditionNode>,
 }
 
 impl ActivationRestrictionsNode {
-    pub(in crate::oracle::canonical) fn is_empty(self) -> bool {
-        self == Self::default()
+    pub(in crate::oracle::canonical) fn is_empty(&self) -> bool {
+        *self == Self::default()
     }
 }
 
@@ -83,8 +87,64 @@ pub(in crate::oracle::canonical) fn recognize_activation_restrictions(
                 cursor.consume_phrase(&["once", "each", "turn"])?;
                 &mut node.once_each_turn
             }
+            Some("if") => {
+                cursor.enter("activation.restriction.condition");
+                cursor.require(node.condition.is_none(), "one `only if` condition")?;
+                cursor.consume("if")?;
+                // The condition ends at the next `and only` restriction or at
+                // the sentence end; its own `and` connectives stay inside.
+                let start = cursor.position();
+                let mut end = start;
+                while let Some(raw) = cursor.peek_ahead(end - start) {
+                    if raw == "."
+                        || (raw.eq_ignore_ascii_case("and")
+                            && cursor
+                                .peek_ahead(end - start + 1)
+                                .is_some_and(|next| next.eq_ignore_ascii_case("only")))
+                    {
+                        break;
+                    }
+                    end += 1;
+                }
+                let mut condition_cursor = OracleTokenCursor::new(
+                    "activation-restriction-condition",
+                    cursor.token_slice(start, end),
+                );
+                // No source subject: `it` has no antecedent in a restriction.
+                let condition = recognize_static_condition(
+                    &mut condition_cursor,
+                    StaticConditionContext {
+                        source_subject: false,
+                        name_links: &[],
+                        name_failure: None,
+                    },
+                )
+                .and_then(|condition| condition_cursor.finish().map(|()| condition))
+                .map_err(|mut failure| {
+                    // Report the failure at its position in the whole ability.
+                    failure.token_index += start;
+                    for transition in &mut failure.trace {
+                        transition.token_index += start;
+                    }
+                    failure
+                })?;
+                node.condition = Some(condition);
+                cursor.advance_to(end)?;
+                cursor.enter("activation.restriction.connector");
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                {
+                    cursor.consume("and")?;
+                    continue;
+                }
+                cursor.consume(".")?;
+                return Ok(node);
+            }
             _ => {
-                return Err(cursor.fail("`as a sorcery`, `during your turn` or `once each turn`"));
+                return Err(cursor.fail(
+                    "`as a sorcery`, `during your turn`, `once each turn` or `if CONDITION`",
+                ));
             }
         };
         cursor.require(!*slot, "each activation restriction stated once")?;

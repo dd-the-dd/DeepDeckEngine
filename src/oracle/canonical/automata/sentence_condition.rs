@@ -166,18 +166,23 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<SentenceConditionAtom> {
     cursor.enter("condition.sentence.atom-kind");
-    if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
+    if word_is(cursor, 0, "you")
+        && word_is(cursor, 1, "control")
+        && !super::opponent_count_comparison_starts(cursor)
+    {
         return recognize_trigger_guard_atom(cursor).map(SentenceConditionAtom::Local);
     }
     if contraction_is(cursor, 0, "you", "ve")
         || (word_is(cursor, 0, "you")
             && (word_is(cursor, 1, "have")
+                || contraction_is(cursor, 1, "haven", "t")
                 || word_is(cursor, 1, "gained")
                 || word_is(cursor, 1, "attacked")
                 || word_is(cursor, 1, "lost")))
         || word_is(cursor, 0, "there")
         || contraction_is(cursor, 0, "there", "s")
         || static_condition_event_count_starts(cursor)
+        || super::opponent_count_comparison_starts(cursor)
     {
         return recognize_static_condition_atom(
             cursor,

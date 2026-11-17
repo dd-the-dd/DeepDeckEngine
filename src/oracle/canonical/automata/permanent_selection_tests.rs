@@ -13,7 +13,7 @@ fn selection_has_bounds_and_query_without_implicit_controller_or_target() {
         let node = recognize_untap_permanents_effect(&mut cursor).unwrap().node;
         assert!(node.operand.query.controller.is_none());
         assert_eq!(
-            node.operand.bounds.minimum,
+            node.operand.bounds.unwrap().minimum,
             super::super::NumericAtom::Integer(0)
         );
         cursor.consume(".").unwrap();
@@ -31,7 +31,7 @@ fn object_coordination_and_parent_comma_have_separate_boundaries() {
         let mut cursor = OracleTokenCursor::new("selected-untap-list", &tokens);
         let sequence = recognize_effect_sequence(&mut cursor, &[], None).unwrap();
         assert_eq!(sequence.effects.len(), 2);
-        let LocalEffectNode::UntapPermanents(node) = &sequence.effects[0] else {
+        let LocalEffectNode::SelectedPermanents(node) = &sequence.effects[0] else {
             panic!("ordinary selected untap");
         };
         assert_eq!(

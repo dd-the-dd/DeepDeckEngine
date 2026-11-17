@@ -239,6 +239,9 @@ fn cast_prohibition_uses_its_player_and_turn_references_dynamically() {
 
     engine.state.active_player = 0;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("cast-prohibition-source", "destroyed")
         .expect("prohibition source leaves");
     assert!(!engine.spell_casting_prohibited("player-1"));

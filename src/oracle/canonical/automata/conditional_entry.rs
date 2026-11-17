@@ -13,7 +13,8 @@ use super::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ControlledPermanentConditionalEntryNode {
     pub source: LocalObjectReference,
-    pub source_type: ObjectCardType,
+    /// The permanent type named by `this TYPE`; `None` for a name reference.
+    pub source_type: Option<ObjectCardType>,
     pub required_permanent: ObjectPredicate,
 }
 
@@ -35,7 +36,8 @@ struct Frame {
     required_permanent: Option<ObjectPredicate>,
 }
 
-/// Recognizes `This TYPE enters tapped unless you control a SELECTOR`.
+/// Recognizes `SOURCE enters tapped unless you control a SELECTOR`, where the
+/// source is `this TYPE` or the card's own name.
 /// The shared controlled-presence child owns the implicit battlefield domain
 /// and object query. This parent owns the entry envelope and negation.
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_conditional_entry(
@@ -49,16 +51,21 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_conditional_e
         state = match state {
             State::Source => {
                 cursor.enter("replacement.conditional-entry.source");
-                let checkpoint = cursor.checkpoint();
-                cursor.consume("this")?;
-                let token = cursor
-                    .peek_token()
-                    .ok_or_else(|| cursor.fail("a permanent type after `this`"))?;
-                frame.source_type = Some(
-                    lookup_permanent_card_type(&token.raw, AcceptedForms::SingularOnly)
-                        .ok_or_else(|| cursor.fail("a permanent type after `this`"))?,
-                );
-                cursor.rollback(checkpoint);
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+                {
+                    let checkpoint = cursor.checkpoint();
+                    cursor.consume("this")?;
+                    let token = cursor
+                        .peek_token()
+                        .ok_or_else(|| cursor.fail("a permanent type after `this`"))?;
+                    frame.source_type = Some(
+                        lookup_permanent_card_type(&token.raw, AcceptedForms::SingularOnly)
+                            .ok_or_else(|| cursor.fail("a permanent type after `this`"))?,
+                    );
+                    cursor.rollback(checkpoint);
+                }
                 frame.source = Some(recognize_source_reference(
                     cursor,
                     name_links,
@@ -102,8 +109,7 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_conditional_e
                 cursor.finish()?;
                 return Ok(ControlledPermanentConditionalEntryNode {
                     source: cursor.require_value(frame.source, "a populated source reference")?,
-                    source_type: cursor
-                        .require_value(frame.source_type, "a populated source type")?,
+                    source_type: frame.source_type,
                     required_permanent: cursor.require_value(
                         frame.required_permanent,
                         "a populated permanent selector",

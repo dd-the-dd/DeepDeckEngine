@@ -1,13 +1,16 @@
-//! Typecycling (CR 702.29e): `[Type]cycling [cost]` is the shared activated-cost
-//! envelope with a hand-zone discard-self cost and a controller library search.
-//! The label supplies the searched-card predicate through the shared
-//! search-card selector; the optional reminder is validated against the
-//! expansion, never lowered separately.
+//! Cycling family (CR 702.29). `Cycling [cost]` (702.29a) and
+//! `[Type]cycling [cost]` (702.29e) share one activated-cost envelope with a
+//! hand-zone discard-self cost. Plain cycling expands to the controller drawing
+//! one card; typecycling expands to a controller library search whose card
+//! predicate comes from the shared search-card selector. The optional reminder
+//! is validated against the expansion through the shared draw/search children,
+//! never lowered separately.
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    CardZoneName, CollectionBinding, LibrarySearchEffectNode, LocalActivationCostNode,
-    LocalPlayerReference, ManaCostNode, ObjectPredicate, SearchDestination, SearchShuffleOrder,
-    recognize_activation_cost_sequence, recognize_controller_library_search,
+    CardZoneName, CollectionBinding, DrawCardsEffectNode, LibrarySearchEffectNode,
+    LocalActivationCostNode, LocalPlayerReference, ManaCostNode, NumericAtom, NumericExpression,
+    ObjectPredicate, SearchDestination, SearchShuffleOrder, recognize_activation_cost_sequence,
+    recognize_controller_library_search, recognize_draw_cards_effect,
     recognize_search_card_selector,
 };
 use crate::oracle::model::RecognizedEntity;
@@ -19,7 +22,16 @@ const MAX_LABEL_WORDS: usize = 4;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TypecyclingKeywordNode {
     pub cost: ManaCostNode,
-    pub search: LibrarySearchEffectNode,
+    pub expansion: CyclingExpansion,
+}
+
+/// The effect of the activated ability a cycling keyword expands to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CyclingExpansion {
+    /// CR 702.29a: draw a card.
+    Draw(DrawCardsEffectNode),
+    /// CR 702.29e: search for a card of the labelled kind.
+    Search(LibrarySearchEffectNode),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,6 +65,16 @@ pub(in crate::oracle::canonical) fn typecycling_label_starts(tokens: &[Recognize
     false
 }
 
+/// True for the unlabelled keyword: `Cycling` immediately followed by a mana
+/// cost (CR 702.29a). Nonmana cycling costs are not claimed here.
+pub(in crate::oracle::canonical) fn plain_cycling_starts(tokens: &[RecognizedEntity]) -> bool {
+    matches!(
+        tokens,
+        [keyword, cost, ..]
+            if keyword.raw.eq_ignore_ascii_case(CYCLING) && cost.token_type == "manaSymbol"
+    )
+}
+
 fn label_failure(cursor: &OracleTokenCursor<'_>, child: MachineFailure) -> MachineFailure {
     cursor.fail(&format!(
         "a card selector for the typecycling label ({})",
@@ -70,6 +92,7 @@ pub(in crate::oracle::canonical) fn recognize_typecycling_keyword(
     let mut printed_mana: Option<ManaCostNode> = None;
     let mut reminder_costs = None;
     let mut reminder_search: Option<LibrarySearchEffectNode> = None;
+    let mut reminder_draw: Option<DrawCardsEffectNode> = None;
     loop {
         state = match state {
             TypecyclingState::Label => {
@@ -96,10 +119,18 @@ pub(in crate::oracle::canonical) fn recognize_typecycling_keyword(
                     }
                     label_words.push(raw);
                 }
-                cursor.require(
-                    !label_words.is_empty(),
-                    "a card type, supertype or subtype before `cycling`",
-                )?;
+                if label_words.is_empty() {
+                    // Plain cycling (CR 702.29a): no searched-card label.
+                    cursor.enter("keyword.cycling.plain");
+                    cursor.require(
+                        cursor
+                            .peek_token()
+                            .is_some_and(|token| token.token_type == "manaSymbol"),
+                        "a mana cost after `cycling`",
+                    )?;
+                    state = TypecyclingState::Cost;
+                    continue;
+                }
                 let synthetic =
                     recognize_oracle_entities(&format!("{} card", label_words.join(" ")));
                 let mut label =
@@ -171,9 +202,23 @@ pub(in crate::oracle::canonical) fn recognize_typecycling_keyword(
                 TypecyclingState::ReminderSearch
             }
             TypecyclingState::ReminderSearch => {
-                cursor.enter("keyword.typecycling.reminder.search");
-                reminder_search = Some(recognize_controller_library_search(cursor)?);
+                if label_filter.is_none() {
+                    cursor.enter("keyword.cycling.reminder.draw");
+                    reminder_draw = Some(recognize_draw_cards_effect(cursor)?);
+                } else {
+                    cursor.enter("keyword.typecycling.reminder.search");
+                    reminder_search = Some(recognize_controller_library_search(cursor)?);
+                }
                 TypecyclingState::ReminderSearchSupport
+            }
+            TypecyclingState::ReminderSearchSupport if label_filter.is_none() => {
+                cursor.enter("keyword.cycling.reminder.draw-support");
+                let draw = cursor.require_value(reminder_draw.take(), "the reminder card draw")?;
+                cursor.require(
+                    draw == plain_expansion_draw(),
+                    "a reminder in which you draw one card",
+                )?;
+                TypecyclingState::ReminderTerminator
             }
             TypecyclingState::ReminderSearchSupport => {
                 cursor.enter("keyword.typecycling.reminder.search-support");
@@ -203,13 +248,24 @@ pub(in crate::oracle::canonical) fn recognize_typecycling_keyword(
             TypecyclingState::Complete => {
                 cursor.enter("keyword.typecycling.complete");
                 cursor.finish()?;
-                let filter = cursor.require_value(label_filter.take(), "the label selector")?;
+                let expansion = match label_filter.take() {
+                    Some(filter) => CyclingExpansion::Search(expansion_search(filter)),
+                    None => CyclingExpansion::Draw(plain_expansion_draw()),
+                };
                 return Ok(TypecyclingKeywordNode {
                     cost: cursor.require_value(printed_mana, "the retained mana cost")?,
-                    search: expansion_search(filter),
+                    expansion,
                 });
             }
         };
+    }
+}
+
+/// CR 702.29a: the controller draws one card.
+fn plain_expansion_draw() -> DrawCardsEffectNode {
+    DrawCardsEffectNode {
+        player: LocalPlayerReference::Controller,
+        count: NumericExpression::Atom(NumericAtom::Integer(1)),
     }
 }
 

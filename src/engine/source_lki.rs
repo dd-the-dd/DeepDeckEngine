@@ -135,6 +135,28 @@ impl GameEngine {
             );
         }
     }
+
+    /// CR 602.2a/602.2h: an activated ability exists before its costs are
+    /// paid. While its costs are committed, the pending ability subscribes to
+    /// the same actual-departure capture as stack abilities, so a source
+    /// sacrificed as a cost leaves authenticated last-known information on the
+    /// ability that is then put on the stack. No snapshot is guessed here.
+    pub(super) fn with_pending_activation_source<T>(
+        &mut self,
+        pending: StackObject,
+        work: impl FnOnce(&mut Self) -> Result<T, super::EngineError>,
+    ) -> Result<(T, StackObject), super::EngineError> {
+        let depth = self.source_lki_contexts.frames.len();
+        self.source_lki_contexts.frames.push(pending);
+        let result = work(self);
+        let frame = self.source_lki_contexts.frames.get(depth).cloned();
+        self.source_lki_contexts.frames.truncate(depth);
+        let value = result?;
+        let frame = frame.ok_or_else(|| {
+            super::EngineError::new("pending activated ability source frame is absent")
+        })?;
+        Ok((value, frame))
+    }
 }
 
 fn capture_departing_source(

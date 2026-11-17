@@ -2,16 +2,28 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ControlledCountDirection, LocalObjectReference, ObjectPredicate,
-    recognize_controlled_permanent_count_query, recognize_source_reference,
+    ControlledCountDirection, LocalObjectReference, ObjectPredicate, OpponentCountConditionNode,
+    recognize_controlled_permanent_count_query, recognize_opponent_count_query,
+    recognize_source_reference,
 };
+
+/// The count condition that exempts the source from entering tapped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum EntryCountConditionNode {
+    /// `you control N or more/fewer [other] PERMANENTS`.
+    ControlledPermanents {
+        threshold: i64,
+        direction: ControlledCountDirection,
+        predicate: ObjectPredicate,
+    },
+    /// `you have N or more/fewer opponents`.
+    Opponents(OpponentCountConditionNode),
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ControlledCountEntryNode {
     pub source: LocalObjectReference,
-    pub threshold: i64,
-    pub direction: ControlledCountDirection,
-    pub predicate: ObjectPredicate,
+    pub condition: EntryCountConditionNode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,14 +39,13 @@ enum State {
 #[derive(Default)]
 struct AttemptFrame {
     source: Option<LocalObjectReference>,
-    threshold: Option<i64>,
-    direction: Option<ControlledCountDirection>,
-    predicate: Option<ObjectPredicate>,
+    condition: Option<EntryCountConditionNode>,
 }
 
-/// Recognizes an entering-state exemption based on how many matching other
-/// permanents the source's controller already controls. Quantity, comparison
-/// direction and permanent selector remain independent typed values.
+/// Recognizes an entering-state exemption based on a count condition of the
+/// source's controller: how many matching permanents they control, or how
+/// many opponents they have. Quantity, comparison direction and the counted
+/// domain remain independent typed values from shared condition children.
 pub(in crate::oracle::canonical) fn recognize_controlled_count_entry(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -65,14 +76,24 @@ pub(in crate::oracle::canonical) fn recognize_controlled_count_entry(
             }
             State::CountQuery => {
                 cursor.enter("replacement.controlled-count-entry.count-query");
-                let condition = recognize_controlled_permanent_count_query(cursor)?;
-                cursor.require(
-                    condition.exclude_source,
-                    "`other` before the counted selector",
-                )?;
-                frame.threshold = Some(condition.threshold);
-                frame.direction = Some(condition.direction);
-                frame.predicate = Some(condition.predicate);
+                frame.condition = Some(
+                    if cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("have"))
+                    {
+                        EntryCountConditionNode::Opponents(recognize_opponent_count_query(cursor)?)
+                    } else {
+                        // `other` is accepted but adds no restriction: the
+                        // replacement is applied before the source exists on
+                        // the battlefield (CR 614.12), so it cannot be counted.
+                        let condition = recognize_controlled_permanent_count_query(cursor)?;
+                        EntryCountConditionNode::ControlledPermanents {
+                            threshold: condition.threshold,
+                            direction: condition.direction,
+                            predicate: condition.predicate,
+                        }
+                    },
+                );
                 State::Terminator
             }
             State::Terminator => {
@@ -85,10 +106,8 @@ pub(in crate::oracle::canonical) fn recognize_controlled_count_entry(
                 cursor.finish()?;
                 return Ok(ControlledCountEntryNode {
                     source: cursor.require_value(frame.source, "the entering source")?,
-                    threshold: cursor.require_value(frame.threshold, "the count threshold")?,
-                    direction: cursor.require_value(frame.direction, "the comparison direction")?,
-                    predicate: cursor
-                        .require_value(frame.predicate, "the counted permanent predicate")?,
+                    condition: cursor
+                        .require_value(frame.condition, "the entering count condition")?,
                 });
             }
         };

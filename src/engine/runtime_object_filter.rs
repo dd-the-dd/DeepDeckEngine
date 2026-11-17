@@ -317,6 +317,10 @@ impl GameEngine {
                     matches_card_filter_with_decisions(card, filter, decisions)
                 }
                 ObjectFilterView::Permanent(permanent) => match value_kind(filter) {
+                    // A color count reads the effective color characteristic.
+                    Some("compare") if value_kind(&filter["left"]) == Some("colorCountOf") => {
+                        self.permanent_matches_effective_filter(permanent, filter)
+                    }
                     // These predicates have an established decision/numeric
                     // producer; preserve that shared evaluator as the authority.
                     Some(

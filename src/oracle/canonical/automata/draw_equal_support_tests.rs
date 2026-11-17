@@ -3,12 +3,12 @@ use crate::oracle::syntax::recognize_entities;
 
 #[test]
 fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
+    // The count is the shared `equal to` quantity: each unimplemented family
+    // reports its own numeric state, and the draw candidate stays tentative.
     for text in [
         "Draw cards equal to the greatest mana value among permanents you control.",
         "Draw cards equal to the number of cards in your hand plus one.",
-        "Draw cards equal to the sacrificed creature's power.",
         "Draw cards equal to the number of instant and sorcery cards in your graveyard.",
-        "You draw cards equal to your life total.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);
@@ -21,11 +21,7 @@ fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
         let super::super::EffectSequenceParseAttempt::RejectedCandidate(failure) = outcome else {
             panic!("an unimplemented numeric family must remain tentative: {text}");
         };
-        assert_eq!(
-            failure.state,
-            "effect.draw-cards.equal-expression.unsupported-count"
-        );
-        assert_eq!(cursor.position(), 0, "{text}");
+        assert_eq!(cursor.position(), 0, "{text}: {}", failure.state);
     }
 }
 

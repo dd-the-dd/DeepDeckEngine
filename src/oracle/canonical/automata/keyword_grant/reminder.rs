@@ -48,6 +48,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Changeling => "changeling",
         GrantedKeyword::Deathtouch => "deathtouch",
         GrantedKeyword::Defender => "defender",
+        GrantedKeyword::Devoid => "devoid",
         GrantedKeyword::DoubleStrike => "double-strike",
         GrantedKeyword::Exalted => "exalted",
         GrantedKeyword::Fear => "fear",
@@ -69,8 +70,10 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Shadow => "shadow",
         GrantedKeyword::Shroud => "shroud",
         GrantedKeyword::Skulk => "skulk",
+        GrantedKeyword::Storm => "storm",
         GrantedKeyword::Sunburst => "sunburst",
         GrantedKeyword::Trample => "trample",
+        GrantedKeyword::UmbraArmor => "umbra-armor",
         GrantedKeyword::Undying => "undying",
         GrantedKeyword::Vigilance => "vigilance",
         _ => return None,
@@ -368,6 +371,34 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
                 ".",
             ],
         },
+        GrantedKeyword::Storm => ParameterlessReminderSchema::Exact(&[
+            "When", "you", "cast", "this", "spell", ",", "copy", "it", "for", "each", "spell",
+            "cast", "before", "it", "this", "turn", ".", "You", "may", "choose", "new", "targets",
+            "for", "the", "copies", ".",
+        ]),
+        GrantedKeyword::Devoid => {
+            ParameterlessReminderSchema::Exact(&["This", "card", "has", "no", "color", "."])
+        }
+        GrantedKeyword::UmbraArmor => ParameterlessReminderSchema::Exact(&[
+            "If",
+            "enchanted",
+            "creature",
+            "would",
+            "be",
+            "destroyed",
+            ",",
+            "instead",
+            "remove",
+            "all",
+            "damage",
+            "from",
+            "it",
+            "and",
+            "destroy",
+            "this",
+            "Aura",
+            ".",
+        ]),
         GrantedKeyword::Vigilance => ParameterlessReminderSchema::Exact(&[
             "Attacking",
             "doesn't",
@@ -413,6 +444,11 @@ fn parameterless_reminder_variants(
         };
     }
     match keyword {
+        // CR 702.40a: printings of an untargeted spell omit the retarget clause.
+        GrantedKeyword::Storm => &[ParameterlessReminderSchema::Exact(&[
+            "When", "you", "cast", "this", "spell", ",", "copy", "it", "for", "each", "spell",
+            "cast", "before", "it", "this", "turn", ".",
+        ])],
         GrantedKeyword::Flash => &[ParameterlessReminderSchema::Exact(&[
             "You", "may", "cast", "this", "card", "any", "time", "you", "could", "cast", "an",
             "instant", ".",

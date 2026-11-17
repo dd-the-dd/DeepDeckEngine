@@ -74,7 +74,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_restricted_mana(
                     "object": self_ref(),
                 },
                 "mana": {
-                    "kind": "chooseColor",
+                    "kind": ability.effect.runtime_mana_kind(),
                     "amount": ability.effect.amount,
                     "spendRestriction": {
                         "kind": "castSpell",

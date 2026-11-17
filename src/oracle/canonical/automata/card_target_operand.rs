@@ -26,7 +26,9 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
                 && matches!(right.as_ref(), NumericExpression::Atom(_))
         }
         // A declaration cannot read a choice made later, on resolution.
-        ObjectPredicate::Color(_) | ObjectPredicate::ChosenCreatureType => false,
+        ObjectPredicate::Color(_)
+        | ObjectPredicate::ColorQuantity(_)
+        | ObjectPredicate::ChosenCreatureType => false,
         ObjectPredicate::Intersection(items) | ObjectPredicate::Union(items) => {
             items.iter().all(declaration_predicate_is_closed)
         }

@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EventNumericBinding, NumericAtom, NumericExpression, NumericRounding, TargetBinding,
-    recognize_numeric_primary_expression, recognize_that_many_event_value,
+    EventNumericBinding, LocalObjectReference, NumericAtom, NumericExpression, NumericRounding,
+    TargetBinding, recognize_numeric_primary_expression, recognize_that_many_event_value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub(in crate::oracle::canonical) fn recognize_arithmetic_expression(
         cursor,
         antecedent,
         None,
-        NumericExpressionReadContext::Ordinary,
+        NumericExpressionReadContext::ordinary(),
     )
 }
 
@@ -37,7 +37,7 @@ pub(in crate::oracle::canonical) fn recognize_event_bound_numeric_expression(
         cursor,
         None,
         Some(binding),
-        NumericExpressionReadContext::Ordinary,
+        NumericExpressionReadContext::ordinary(),
     )
 }
 
@@ -46,7 +46,15 @@ pub(in crate::oracle::canonical) fn recognize_event_bound_numeric_expression(
 pub(in crate::oracle::canonical) fn recognize_query_numeric_expression(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
-    recognize_arithmetic_with_event_binding(cursor, None, None, NumericExpressionReadContext::Query)
+    recognize_arithmetic_with_event_binding(
+        cursor,
+        None,
+        None,
+        NumericExpressionReadContext {
+            kind: NumericReadKind::Query,
+            subject: None,
+        },
+    )
 }
 
 /// Reads the value of a postposed variable definition (`where X is EXPR`).
@@ -59,15 +67,67 @@ pub(in crate::oracle::canonical) fn recognize_variable_definition_expression(
         cursor,
         None,
         None,
-        NumericExpressionReadContext::Definition,
+        NumericExpressionReadContext {
+            kind: NumericReadKind::Definition,
+            subject: None,
+        },
     )
 }
 
-#[derive(Clone, Copy)]
-enum NumericExpressionReadContext {
+/// Reads the quantity of an `ACTION equal to EXPR` frame (damage, cards
+/// drawn, ...). It is the complete definition grammar; the parent action may
+/// additionally supply its own subject, the only antecedent of a possessive
+/// `its` inside that frame (`it deals damage equal to its power`).
+pub(in crate::oracle::canonical) fn recognize_equal_to_amount_expression(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: Option<LocalObjectReference>,
+) -> MachineResult<NumericExpression> {
+    recognize_arithmetic_with_event_binding(
+        cursor,
+        None,
+        None,
+        NumericExpressionReadContext {
+            kind: NumericReadKind::Definition,
+            subject,
+        },
+    )
+}
+
+/// Lexical lookahead for the quantity families an `equal to` amount offers
+/// beyond a referenced object's property. Each child still proves itself.
+pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    super::sacrificed_cost_object_property_starts(cursor)
+        || super::greatest_property_among_starts(cursor)
+        || super::number_of_count_starts(cursor)
+        || cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("twice") || raw.eq_ignore_ascii_case("thrice")
+        })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NumericReadKind {
     Ordinary,
     Query,
     Definition,
+}
+
+/// Which quantity families a consumer can evaluate, plus the parent-owned
+/// subject antecedent. Precedence and operators never depend on it.
+#[derive(Clone, Copy)]
+struct NumericExpressionReadContext {
+    kind: NumericReadKind,
+    subject: Option<LocalObjectReference>,
+}
+
+impl NumericExpressionReadContext {
+    fn ordinary() -> Self {
+        Self {
+            kind: NumericReadKind::Ordinary,
+            subject: None,
+        }
+    }
 }
 
 fn recognize_arithmetic_with_event_binding(
@@ -196,16 +256,31 @@ fn recognize_primary(
         require_separator(cursor, ")")?;
         return Ok(expression);
     }
+    if let Some(subject) = query_context.subject
+        && super::subject_possessive_property_starts(cursor)
+    {
+        return super::recognize_subject_possessive_property(cursor, subject);
+    }
     if matches!(
-        query_context,
-        NumericExpressionReadContext::Query | NumericExpressionReadContext::Definition
+        query_context.kind,
+        NumericReadKind::Query | NumericReadKind::Definition
     ) {
-        if matches!(query_context, NumericExpressionReadContext::Definition)
+        if query_context.kind == NumericReadKind::Definition
             && super::player_numeric_fact_starts(cursor)
         {
             return super::recognize_player_numeric_fact(cursor);
         }
-        if matches!(query_context, NumericExpressionReadContext::Definition)
+        if query_context.kind == NumericReadKind::Definition
+            && super::sacrificed_cost_object_property_starts(cursor)
+        {
+            return super::recognize_sacrificed_cost_object_property(cursor);
+        }
+        if query_context.kind == NumericReadKind::Definition
+            && super::greatest_property_among_starts(cursor)
+        {
+            return super::recognize_greatest_property_among(cursor);
+        }
+        if query_context.kind == NumericReadKind::Definition
             && super::number_of_count_starts(cursor)
             && !super::source_counter_count_starts(cursor)
         {
