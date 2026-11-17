@@ -1,0 +1,20 @@
+{
+  "cards": {
+    "jace": [
+      {
+        "setCode": "keyword-action",
+        "collectorNumber": "jace",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Planeswalker - Jace",
+        "oracleText": "\u22121: Surveil 1. (Look at the top card of your library. You may put that card into your graveyard.)\n\u22123: Draw a card.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ]
+  },
+  "sets": {
+    "keyword-action": "Tokens defined by keyword actions (CR 701)"
+  }
+}

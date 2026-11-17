@@ -4,6 +4,7 @@
 /.local-app/
 /data/*.json
 !/data/builtin-game-pieces.json
+!/data/keyword-action-tokens.json
 .env
 .env.*
 !.env.example

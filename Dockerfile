@@ -1,8 +1,9 @@
 FROM rust:1.97.1-bookworm AS builder
 WORKDIR /source
 COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
 COPY src ./src
-COPY data/builtin-game-pieces.json ./data/builtin-game-pieces.json
+COPY data ./data
 ENV CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0
 RUN cargo build --locked --release --bin mtg-engine-server
 
