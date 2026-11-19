@@ -132,10 +132,19 @@ fn unsupported_boundaries_remain_unclaimed() {
 
 #[test]
 fn third_person_life_verb_is_never_defaulted_to_controller() {
-    assert!(matches!(
-        parse("At the beginning of your upkeep, target player gains 1 life and loses 1 life."),
-        PhaseTriggerParseAttempt::Unpromoted(_)
-    ));
+    // The coordinated predicate shares the declared target player; the second
+    // verb must lower to that chosen target, never to the controller.
+    let rule =
+        parsed("At the beginning of your upkeep, target player gains 1 life and loses 1 life.")
+            .rule;
+    assert_eq!(rule["declaration"]["decisions"][0]["id"], "targetPlayer");
+    assert_eq!(rule["effects"].as_array().map(Vec::len), Some(2));
+    for (index, kind) in [(0, "gainLife"), (1, "loseLife")] {
+        let effect = &rule["effects"][index];
+        assert_eq!(effect["kind"], kind);
+        assert_eq!(effect["player"]["kind"], "chosenTarget", "{effect}");
+        assert_eq!(effect["player"]["id"], "targetPlayer", "{effect}");
+    }
 }
 
 #[test]
@@ -165,35 +174,54 @@ fn malformed_draw_and_dangling_connector_remain_committed_failures() {
 }
 
 #[test]
+fn quantified_opponent_phase_draw_is_complete_native_ir() {
+    // Formerly the quantified-player failure case below: the shared
+    // quantified-player action now composes, in both parser modes.
+    let request = OracleCardParseRequest {
+        card_name: "Master of the Feast".to_string(),
+        type_line: "Enchantment Creature — Demon".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "At the beginning of your upkeep, each opponent draws a card.".to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    for result in [
+        parse_oracle_card_native(request.clone()),
+        parse_oracle_card(request),
+    ] {
+        assert_eq!(result.status, "canonical");
+        let ability = &result.abilities[0];
+        assert!(ability.diagnostics.is_empty(), "{:?}", ability.diagnostics);
+        let rule = ability.rule.as_ref().expect("complete rule");
+        assert_eq!(rule["event"]["step"], "upkeep");
+    }
+}
+
+#[test]
 fn default_preserves_native_phase_failure_without_fallback() {
     for (name, type_line, text, primary_state, candidate_state) in [
-        (
-            "Master of the Feast",
-            "Enchantment Creature — Demon",
-            "At the beginning of your upkeep, each opponent draws a card.",
-            "effect.quantified-player.action",
-            "effect.quantified-player.action",
-        ),
         (
             "Sanctum of Calm Waters",
             "Legendary Enchantment — Shrine",
             "At the beginning of your first main phase, you may draw X cards, where X is the number of Shrines you control. If you do, discard a card.",
-            "program.optional.scope",
-            "sequence.connector.kind",
+            "lower.program.optional-action.action",
+            "condition.sentence.atom-kind",
         ),
         (
             "Sylvan Library",
             "Enchantment",
             "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
-            "program.optional.scope",
+            "effect.draw-cards.unsupported-qualifier",
             "effect.draw-cards.unsupported-qualifier",
         ),
         (
             "Flame Blitz",
             "Enchantment",
             "At the beginning of your end step, this enchantment deals 5 damage to each planeswalker.",
-            "trigger.program.complete",
-            "sequence.complete",
+            "lower.sentence-conditional.ranges",
+            "lower.sentence-conditional.ranges",
         ),
     ] {
         let request = OracleCardParseRequest {

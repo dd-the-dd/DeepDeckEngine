@@ -1,6 +1,10 @@
 use crate::oracle::canonical::LocalEffectNode;
 use crate::oracle::syntax::recognize_oracle_entities;
 
+use super::super::life_action::LifeActionNode;
+use super::super::player_action::{PlayerActionNode, SingularPlayerAction};
+use super::super::source_sacrifice::atomic_action::player_subject::PlayerEffectSubject;
+use super::super::{TargetPlayerLifeAction, TargetPlayerLifeEffectNode};
 use super::{OracleTokenCursor, recognize_permanent_died_effect_sequence};
 
 fn parse(text: &str) -> super::MachineResult<super::PermanentDiedEffectSequenceNode> {
@@ -16,13 +20,30 @@ fn delegates_death_event_and_independent_life_actions_to_shared_children() {
     )
     .expect("death parent should compose event and sequence children");
     assert_eq!(node.event.alternatives.len(), 2);
-    assert!(matches!(
-        node.effects.effects.as_slice(),
-        [
-            LocalEffectNode::TargetPlayerLife(_),
-            LocalEffectNode::GainLife(_)
-        ]
-    ));
+    // Each clause keeps its own subject: the declared target player loses
+    // life and the explicit `you` subject is the shared controller player
+    // action, not a second target or a combined life operation.
+    assert!(
+        matches!(
+            node.effects.effects.as_slice(),
+            [
+                LocalEffectNode::TargetPlayerLife(TargetPlayerLifeEffectNode {
+                    declares_target: true,
+                    action: TargetPlayerLifeAction::Lose,
+                    ..
+                }),
+                LocalEffectNode::PlayerAction(PlayerActionNode {
+                    player: PlayerEffectSubject::Controller,
+                    action: SingularPlayerAction::Life(LifeActionNode {
+                        action: TargetPlayerLifeAction::Gain,
+                        ..
+                    }),
+                })
+            ]
+        ),
+        "{:?}",
+        node.effects.effects
+    );
 }
 
 #[test]
