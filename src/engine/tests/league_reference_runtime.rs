@@ -83,6 +83,7 @@ fn lands(owner: &str, count: usize) -> Vec<CardInstance> {
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_opponent_count_comparison_reads_both_live_counts() {
     let rules = parsed_rules(
@@ -103,6 +104,7 @@ fn parsed_opponent_count_comparison_reads_both_live_counts() {
     assert!(!evaluate(4, 3), "no opponent has more lands");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_activation_condition_gates_the_activation() {
     let rules = parsed_rules(
@@ -119,6 +121,7 @@ fn parsed_activation_condition_gates_the_activation() {
     assert!(engine.condition_value_with_source(condition, "player-0", &BTreeMap::new(), None));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_zone_collection_returns_to_the_battlefield_tapped() {
     let rules = parsed_rules(
@@ -150,6 +153,7 @@ fn parsed_zone_collection_returns_to_the_battlefield_tapped() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_exiled_object_returns_under_its_owners_control() {
     let rules = parsed_rules(
@@ -181,6 +185,7 @@ fn parsed_exiled_object_returns_under_its_owners_control() {
     assert_eq!(returned[0].controller, "player-1");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_all_attacking_creatures_return_to_their_owners_hands() {
     let rules = parsed_rules(
@@ -212,6 +217,7 @@ fn parsed_all_attacking_creatures_return_to_their_owners_hands() {
     assert_eq!(engine.state.players[1].hand.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_sacrificed_source_deals_the_damage() {
     let rules = parsed_rules(
@@ -237,6 +243,7 @@ fn parsed_sacrificed_source_deals_the_damage() {
     assert_eq!(engine.state.players[1].life, 18);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_declared_opponent_loses_life() {
     let rules = parsed_rules(
@@ -265,6 +272,7 @@ fn parsed_declared_opponent_loses_life() {
     assert_eq!(engine.state.players[1].life, 18);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_combat_damage_event_player_discards() {
     let rules = parsed_rules(

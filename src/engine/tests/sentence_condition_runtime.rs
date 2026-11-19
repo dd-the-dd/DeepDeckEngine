@@ -124,6 +124,7 @@ fn permanent_target(id: &str) -> TargetRef {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn controlled_presence_condition_governs_only_its_sentence() {
     // Chilling Trap: the first sentence always applies.
@@ -158,6 +159,7 @@ fn controlled_presence_condition_governs_only_its_sentence() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_new_boolean_combination_needs_every_operand() {
     // Not a printed card: shared presence and turn atoms under `and`.
@@ -184,6 +186,7 @@ fn a_new_boolean_combination_needs_every_operand() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_card_target_is_tested_after_the_earlier_instruction_moved_it() {
     // Cemetery Recruitment: the returned card keeps its card characteristics.
@@ -210,6 +213,7 @@ fn a_card_target_is_tested_after_the_earlier_instruction_moved_it() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn otherwise_branch_reads_the_same_looked_at_card() {
     // Not a printed card: the `Otherwise` sentence is the else-branch.
@@ -240,6 +244,7 @@ fn otherwise_branch_reads_the_same_looked_at_card() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_permanent_target_is_read_with_its_current_state() {
     // Not a printed card: `attacking` exists only on the battlefield object,
@@ -268,6 +273,7 @@ fn a_permanent_target_is_read_with_its_current_state() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn kicker_status_selects_the_branch() {
     // Blink of an Eye: the kicker choice made while casting.
@@ -296,6 +302,7 @@ fn kicker_status_selects_the_branch() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_departed_permanent_is_not_read_without_last_known_information() {
     let mut engine = engine();
@@ -321,6 +328,7 @@ fn a_departed_permanent_is_not_read_without_last_known_information() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_collection_condition_rejects_more_than_one_object() {
     let mut engine = engine();

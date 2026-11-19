@@ -256,9 +256,11 @@ mod received_damage_trigger_runtime;
 #[path = "tests/simultaneous_event_batch_runtime.rs"]
 mod simultaneous_event_batch_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "channel_tests.rs"]
 mod channel;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "phasing_priority_tests.rs"]
 mod phasing_priority;
 

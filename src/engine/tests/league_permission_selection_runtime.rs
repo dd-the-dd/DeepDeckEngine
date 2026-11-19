@@ -60,6 +60,7 @@ fn has_action(engine: &GameEngine, kind: ActionKind, card_id: &str, zone: &str) 
     })
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_graveyard_land_permission_plays_only_land_cards_from_graveyard() {
     let mut engine = test_engine(2);
@@ -116,6 +117,7 @@ fn parsed_graveyard_land_permission_plays_only_land_cards_from_graveyard() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_flash_permission_covers_only_the_first_matching_spell_each_turn() {
     let mut engine = test_engine(2);
@@ -160,6 +162,7 @@ fn parsed_flash_permission_covers_only_the_first_matching_spell_each_turn() {
     assert!(!engine.player_casts_with_flash("player-1"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_library_top_permission_casts_matching_spells_and_plays_lands_only_when_named() {
     let chorus = || {
@@ -249,6 +252,7 @@ fn dimir_aqueduct() -> CardInstance {
     )
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_karoo_returns_exactly_one_chosen_controlled_land_to_its_owners_hand() {
     let mut engine = test_engine(2);
@@ -282,6 +286,7 @@ fn parsed_karoo_returns_exactly_one_chosen_controlled_land_to_its_owners_hand() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_upkeep_selection_returns_only_matching_permanents_and_tolerates_none() {
     let advisor_rule = || {

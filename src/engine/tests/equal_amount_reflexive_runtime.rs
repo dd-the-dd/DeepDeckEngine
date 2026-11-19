@@ -111,6 +111,7 @@ fn run(engine: &mut GameEngine, stack: &StackObject, decisions: BTreeMap<String,
     .expect("the compiled program executes");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn juri_deals_damage_equal_to_its_last_known_power() {
     let rule = rules(
@@ -128,6 +129,7 @@ fn juri_deals_damage_equal_to_its_last_known_power() {
     assert_eq!(engine.state.players[1].life, 17);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn fling_reads_the_sacrificed_creatures_power_when_the_cost_was_paid() {
     let fling = rules(
@@ -173,6 +175,7 @@ fn fling_reads_the_sacrificed_creatures_power_when_the_cost_was_paid() {
 
 const REFLEXIVE: &str = "When this creature enters, sacrifice it. When you do, you gain 3 life.";
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_performed_mandatory_action_creates_its_reflexive_trigger() {
     let rule = rules("Reflexive Probe", "Creature — Wall", REFLEXIVE).remove(0);
@@ -195,6 +198,7 @@ fn a_performed_mandatory_action_creates_its_reflexive_trigger() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn an_unperformed_mandatory_action_creates_no_reflexive_trigger() {
     let rule = rules("Reflexive Probe", "Creature — Wall", REFLEXIVE).remove(0);

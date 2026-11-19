@@ -229,6 +229,9 @@ impl TargetNumericContexts {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4")
+))]
 #[path = "target_numeric_lki_tests.rs"]
 mod tests;

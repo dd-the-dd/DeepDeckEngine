@@ -58,6 +58,7 @@ fn offered(engine: &GameEngine) -> bool {
     })
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn exile_self_cost_is_paid_from_the_graveyard_before_the_effect_resolves() {
     let rule = graveyard_rule(
@@ -90,6 +91,7 @@ fn exile_self_cost_is_paid_from_the_graveyard_before_the_effect_resolves() {
     assert!(!offered(&engine));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn source_return_from_the_graveyard_moves_the_card_to_its_owners_hand() {
     let rule = graveyard_rule(

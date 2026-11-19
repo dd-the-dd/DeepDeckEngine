@@ -83,6 +83,9 @@ impl GameEngine {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4")
+))]
 #[path = "declaration_result_tests.rs"]
 mod tests;

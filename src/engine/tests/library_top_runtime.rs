@@ -93,6 +93,7 @@ fn playable_from_exile(engine: &GameEngine, card: &str) -> bool {
 
 /// Impulse draw (CR 406.3): the exiled card, not whatever is on top afterwards,
 /// is playable this turn and the permission ends in cleanup.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn exiled_top_card_is_playable_this_turn_then_the_permission_expires() {
     let effects = spell_effects(
@@ -117,6 +118,7 @@ fn exiled_top_card_is_playable_this_turn_then_the_permission_expires() {
 
 /// A sibling combination of the same concepts: several cards, a trailing
 /// window, and the end of the controller's next turn (CR 514.2).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn several_exiled_cards_share_a_window_through_the_end_of_the_next_turn() {
     let effects = spell_effects(
@@ -141,6 +143,7 @@ fn several_exiled_cards_share_a_window_through_the_end_of_the_next_turn() {
 }
 
 /// Reveal is a verb on the same collection: the revealed set is the set moved.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn revealed_top_card_is_the_card_put_into_hand() {
     let effects =
@@ -160,6 +163,7 @@ fn revealed_top_card_is_the_card_put_into_hand() {
 }
 
 /// A request larger than the library is bounded by the library, never an error.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn putting_more_cards_than_the_library_holds_moves_only_what_exists() {
     let effects = spell_effects("Put the top five cards of your library into your graveyard.");
@@ -173,6 +177,7 @@ fn putting_more_cards_than_the_library_holds_moves_only_what_exists() {
 }
 
 /// Only the requested prefix of the library is selected.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_bounded_top_selection_leaves_the_rest_of_the_library_untouched() {
     let effects = spell_effects("Put the top two cards of your library into your graveyard.");
@@ -185,6 +190,7 @@ fn a_bounded_top_selection_leaves_the_rest_of_the_library_untouched() {
 
 /// `all X cards revealed this way` and `the rest` partition one fixed snapshot:
 /// the filter is evaluated on the revealed identities, even after some moved.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn matching_revealed_cards_and_the_rest_partition_one_snapshot() {
     let effects = spell_effects(
@@ -202,6 +208,7 @@ fn matching_revealed_cards_and_the_rest_partition_one_snapshot() {
 
 /// `reveal until` observes every revealed card (CR 701.20a); the matching card
 /// moves, and the rest of the same observation goes to the bottom.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn bounded_reveal_stops_at_the_match_and_keeps_the_unrevealed_library_on_top() {
     let effects = spell_effects(

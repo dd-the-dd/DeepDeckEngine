@@ -63,6 +63,7 @@ fn granted_rules<'a>(engine: &'a GameEngine, id: &str) -> Vec<&'a Value> {
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn quoted_triggered_ability_is_granted_to_each_controlled_creature_until_cleanup() {
     let effects = resolving_spell_effects(
@@ -108,6 +109,7 @@ fn quoted_triggered_ability_is_granted_to_each_controlled_creature_until_cleanup
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn quoted_mana_ability_is_granted_alongside_a_keyword_to_the_same_collection() {
     let effects = resolving_spell_effects(
@@ -139,6 +141,7 @@ fn quoted_mana_ability_is_granted_alongside_a_keyword_to_the_same_collection() {
     assert!(granted_rules(&engine, "theirs").is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn permanent_collection_grant_is_not_an_accepted_engine_shape() {
     let mut effect = resolving_spell_effects(

@@ -124,6 +124,7 @@ fn marked(engine: &GameEngine, id: &str) -> i32 {
         .damage_marked
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn next_n_shield_prevents_up_to_n_and_is_consumed() {
     let mut engine = engine_with_creatures();
@@ -154,6 +155,7 @@ fn next_n_shield_prevents_up_to_n_and_is_consumed() {
     assert_eq!(prevented, 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn shield_protects_only_its_recipient_and_only_this_turn() {
     let mut engine = engine_with_creatures();
@@ -183,6 +185,7 @@ fn shield_protects_only_its_recipient_and_only_this_turn() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn all_combat_damage_shield_leaves_noncombat_damage_and_never_runs_out() {
     let mut engine = engine_with_creatures();
@@ -200,6 +203,7 @@ fn all_combat_damage_shield_leaves_noncombat_damage_and_never_runs_out() {
     assert_eq!(life(&engine, "player-1"), 16, "noncombat damage is not");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn source_shield_prevents_only_damage_from_the_chosen_source() {
     let mut engine = engine_with_creatures();
@@ -215,6 +219,7 @@ fn source_shield_prevents_only_damage_from_the_chosen_source() {
     assert_eq!(life(&engine, "player-1"), 17);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn recipient_and_source_restrictions_combine() {
     let mut engine = engine_with_creatures();

@@ -23,6 +23,7 @@ fn enter(entering: &mut CardInstance, engine: &mut GameEngine, decisions: BTreeM
         .expect("the entry-counter replacement resolves");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn literal_entry_counters_are_present_before_the_permanent_enters() {
     let mut engine = test_engine(2);
@@ -32,6 +33,7 @@ fn literal_entry_counters_are_present_before_the_permanent_enters() {
     assert!(engine.state.players[0].battlefield.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn variable_entry_counters_read_the_declared_x() {
     let mut engine = test_engine(2);
@@ -47,6 +49,7 @@ fn variable_entry_counters_read_the_declared_x() {
     assert_eq!(entering.counters.get("+1/+1"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn for_each_entry_counters_count_permanents_already_on_the_battlefield() {
     let mut engine = test_engine(2);

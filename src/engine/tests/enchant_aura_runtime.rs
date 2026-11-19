@@ -49,6 +49,7 @@ fn on_battlefield_after_sba(aura: CardInstance, host: Option<(&str, &str, &str)>
         .any(|permanent| permanent.instance_id == "aura")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn aura_stays_on_a_permanent_matching_its_restriction() {
     assert!(on_battlefield_after_sba(
@@ -57,6 +58,7 @@ fn aura_stays_on_a_permanent_matching_its_restriction() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn aura_attached_to_an_object_failing_its_restriction_is_put_into_the_graveyard() {
     // The enchanted permanent stopped being a creature (CR 704.5m).
@@ -66,6 +68,7 @@ fn aura_attached_to_an_object_failing_its_restriction_is_put_into_the_graveyard(
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn aura_without_an_attachment_or_with_a_missing_host_is_put_into_the_graveyard() {
     assert!(!on_battlefield_after_sba(
@@ -78,6 +81,7 @@ fn aura_without_an_attachment_or_with_a_missing_host_is_put_into_the_graveyard()
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn controller_relation_is_evaluated_for_the_aura_controller() {
     // Sibling combination: `Enchant creature you control` on an opponent's creature.
@@ -106,6 +110,7 @@ fn controller_relation_is_evaluated_for_the_aura_controller() {
     assert_eq!(engine.state.players[0].graveyard.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn aura_spell_whose_target_no_longer_matches_does_not_resolve() {
     let mut engine = test_engine(2);
@@ -137,6 +142,7 @@ fn aura_spell_whose_target_no_longer_matches_does_not_resolve() {
     assert!(!engine.target_is_legal_for_stack_object("enchantTarget", &target, &stack_object));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn enchant_permanent_has_a_null_restriction_and_accepts_any_permanent() {
     assert!(on_battlefield_after_sba(

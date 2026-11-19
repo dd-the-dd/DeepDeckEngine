@@ -60,6 +60,7 @@ fn attached_to_after(
         .and_then(|card| card.attached_to.clone())
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn legal_attachments_move_to_the_recipient() {
     for (attachment, recipient) in [
@@ -76,6 +77,7 @@ fn legal_attachments_move_to_the_recipient() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn illegal_attachments_do_nothing() {
     for (attachment, recipient) in [

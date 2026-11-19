@@ -694,10 +694,16 @@ impl GameEngine {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_payment_tests.rs"]
 mod tests;
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_payment_ordered_tests.rs"]
 mod ordered_tests;

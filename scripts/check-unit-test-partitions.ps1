@@ -8,12 +8,12 @@ $partitionCounts = [ordered]@{
     "ci-unit-tests-4" = 0
 }
 $expectedPartitionCounts = [ordered]@{
-    "ci-unit-tests-1" = 247
-    "ci-unit-tests-2" = 231
-    "ci-unit-tests-3" = 335
-    "ci-unit-tests-4" = 122
+    "ci-unit-tests-1" = 253
+    "ci-unit-tests-2" = 101
+    "ci-unit-tests-3" = 715
+    "ci-unit-tests-4" = 247
 }
-$expectedDedicatedEngineTestFileCount = 59
+$expectedDedicatedEngineTestFileCount = 185
 
 function Get-RelativePath([string]$Root,[string]$Path){return [IO.Path]::GetFullPath($Path).Substring([IO.Path]::GetFullPath($Root).Length).TrimStart([char[]]@('\','/')).Replace('\','/')}
 function Test-IsDedicatedEngineTest([string]$RelativePath){return $RelativePath.StartsWith('src/engine/tests/') -or [IO.Path]::GetFileName($RelativePath) -match '(^tests|_tests)\.rs$'}
@@ -77,7 +77,7 @@ function Get-EngineDedicatedTestInventory([string]$Root){
     $orphans=@($relevantCandidates|Where-Object{-not$included.ContainsKey($_)})
     if($orphans.Count){throw "Orphan engine test files are not included by any test module: $($orphans -join ', ')"}
     $counts=[ordered]@{'ci-unit-tests-1'=0;'ci-unit-tests-2'=0;'ci-unit-tests-3'=0;'ci-unit-tests-4'=0}
-    foreach($relative in $included.Keys|Sort-Object){$lines=[IO.File]::ReadAllLines((Join-Path $Root $relative));for($lineIndex=0;$lineIndex-lt$lines.Length;$lineIndex++){if($lines[$lineIndex].Trim()-ne'#[test]'){continue};$attributes=Get-AttributeContext $lines $lineIndex;$invalid=@([regex]::Matches($attributes,'feature\s*=\s*"(ci-unit-tests-[^"]+)"')|ForEach-Object{$_.Groups[1].Value}|Where-Object{$_-notmatch'^ci-unit-tests-[1-4]$'});if($invalid.Count){throw "${relative}:$($lineIndex+1): invalid CI partition cfg: $($invalid -join ', ')"};$direct=@(Get-PartitionFeatures $attributes);$effective=@(if($direct.Count){$direct}else{@($included[$relative])});if($effective.Count-ne1){throw "${relative}:$($lineIndex+1): test must resolve to exactly one CI partition; found $($effective -join ', ')"};$counts[$effective[0]]++}}
+    foreach($relative in $included.Keys|Sort-Object){$lines=[IO.File]::ReadAllLines((Join-Path $Root $relative));for($lineIndex=0;$lineIndex-lt$lines.Length;$lineIndex++){if($lines[$lineIndex].Trim()-ne'#[test]'){continue};$attributes=Get-AttributeContext $lines $lineIndex;$invalid=@([regex]::Matches($attributes,'feature\s*=\s*"(ci-unit-tests-[^"]+)"')|ForEach-Object{$_.Groups[1].Value}|Where-Object{$_-notmatch'^ci-unit-tests-[1-4]$'});if($invalid.Count){throw "${relative}:$($lineIndex+1): invalid CI partition cfg: $($invalid -join ', ')"};$direct=@(Get-PartitionFeatures $attributes);if($direct.Count-and@($included[$relative]).Count-and($direct[0]-notin@($included[$relative]))){throw "${relative}:$($lineIndex+1): test partition $($direct[0]) is excluded by its module partition(s) $(@($included[$relative]) -join ', ')"};$effective=@(if($direct.Count){$direct}else{@($included[$relative])});if($effective.Count-ne1){throw "${relative}:$($lineIndex+1): test must resolve to exactly one CI partition; found $($effective -join ', ')"};$counts[$effective[0]]++}}
     return [pscustomobject]@{Counts=$counts;Files=@($included.Keys|Sort-Object)}
 }
 
@@ -125,7 +125,6 @@ $coreTestModules = @(
     "src/local_app.rs",
     "src/model.rs",
     "src/observation_delta.rs",
-    "src/oracle/pipeline.rs",
     "src/pilot_catalog.rs",
     "src/punching_bag.rs",
     "src/remote_ai.rs",
@@ -160,10 +159,6 @@ $partitionCounts["ci-unit-tests-1"] += $coreTestCount
 $engineInventory=Get-EngineDedicatedTestInventory $repoRoot
 if($engineInventory.Files.Count-ne$expectedDedicatedEngineTestFileCount){throw "Dedicated engine test file inventory contains $($engineInventory.Files.Count) files; expected $expectedDedicatedEngineTestFileCount"}
 foreach($feature in @($partitionCounts.Keys)){$partitionCounts[$feature]+=[int]$engineInventory.Counts[$feature]}
-Add-PartitionedTests "src/oracle/canonical/tests.rs" @(
-    "ci-unit-tests-2",
-    "ci-unit-tests-3"
-)
 $countMismatches = @()
 foreach ($feature in $expectedPartitionCounts.Keys) {
     if ($partitionCounts[$feature] -ne $expectedPartitionCounts[$feature]) {

@@ -62,6 +62,7 @@ fn is_subtype(engine: &GameEngine, subtype: &str) -> bool {
     )
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn replacement_drops_the_old_creature_types_and_ends_at_cleanup() {
     let (mut engine, stack) = setup("Creature - Elf Warrior");
@@ -94,6 +95,7 @@ fn replacement_drops_the_old_creature_types_and_ends_at_cleanup() {
     assert!(!is_subtype(&engine, DOCTOR));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn addition_keeps_the_old_creature_types() {
     let (mut engine, stack) = setup("Creature - Elf");
@@ -107,6 +109,7 @@ fn addition_keeps_the_old_creature_types() {
     assert!(!is_subtype(&engine, DOCTOR));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn later_changes_follow_timestamp_order() {
     let (mut engine, stack) = setup("Creature - Elf");
@@ -125,6 +128,7 @@ fn later_changes_follow_timestamp_order() {
     assert!(!is_subtype(&engine, "Elf"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn an_object_without_a_creature_type_cannot_gain_a_creature_subtype() {
     let (mut engine, stack) = setup("Artifact");
@@ -136,6 +140,7 @@ fn an_object_without_a_creature_type_cannot_gain_a_creature_subtype() {
     assert!(!is_subtype(&engine, DOCTOR));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn the_runtime_contract_requires_a_registered_subtype_list() {
     for invalid in [

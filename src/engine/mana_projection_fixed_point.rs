@@ -92,6 +92,9 @@ pub(super) fn solve_mana_type_fixed_point_with_error<E>(
     Err(ManaFixedPointFailure::DidNotConverge)
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_projection_fixed_point_tests.rs"]
 mod tests;

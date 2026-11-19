@@ -132,6 +132,9 @@ pub(super) fn certify_pure_mana_program<'a>(
     })
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_projection_contract_tests.rs"]
 mod tests;

@@ -43,6 +43,7 @@ fn room_stack_object(source: &CardInstance, targets: BTreeMap<String, TargetRef>
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn goad_room_designates_the_declared_creature_for_the_goading_player() {
     let rules = parsed_rules(
@@ -80,6 +81,7 @@ fn goad_room_designates_the_declared_creature_for_the_goading_player() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn named_legendary_token_keeps_its_name_and_supertype() {
     let rules = parsed_rules(
@@ -111,6 +113,7 @@ fn named_legendary_token_keeps_its_name_and_supertype() {
     assert!(token.definition.type_line.starts_with("Legendary Creature"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn each_player_who_cannot_pay_suffers_the_guarded_loss() {
     let rules = parsed_rules(

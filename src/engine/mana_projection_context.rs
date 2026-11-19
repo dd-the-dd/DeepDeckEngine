@@ -490,10 +490,16 @@ fn requires_activation_binding(value: &Value) -> bool {
     .any(|kind| rule_contains_kind(value, kind))
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_projection_context_tests.rs"]
 mod tests;
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_projection_cache_tests.rs"]
 mod cache_tests;

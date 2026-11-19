@@ -60,10 +60,16 @@ pub(super) fn node_requires_checkpoint(node: &Value) -> bool {
             .any(|s| super::mana_projection_contract::ManaType::from_symbol(s).is_none())
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_value_execution_tests.rs"]
 mod tests;
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_resolution_tests.rs"]
 mod resolution_tests;

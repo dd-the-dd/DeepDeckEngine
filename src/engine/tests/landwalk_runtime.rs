@@ -62,6 +62,7 @@ fn defender_controls(engine: &mut GameEngine, id: &str, type_line: &str) {
         .push(instance(id, type_line, Vec::new(), "player-1"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn printed_desertwalk_with_reminder_makes_the_attacker_unblockable_by_a_desert_controller() {
     let mut engine = test_engine(2);
@@ -82,6 +83,7 @@ fn printed_desertwalk_with_reminder_makes_the_attacker_unblockable_by_a_desert_c
     assert!(!engine.can_block(&blocker, &attacker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_land_subtype_with_no_printed_walker_uses_the_same_restriction() {
     let mut engine = test_engine(2);
@@ -98,6 +100,7 @@ fn a_land_subtype_with_no_printed_walker_uses_the_same_restriction() {
     assert!(!engine.can_block(&blocker, &attacker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn landwalk_checks_the_defending_player_and_the_walkers_own_type_only() {
     let mut engine = test_engine(2);
@@ -122,6 +125,7 @@ fn landwalk_checks_the_defending_player_and_the_walkers_own_type_only() {
     assert!(!engine.can_block(&blocker, &attacker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn landwalk_keyword_support_follows_the_shared_land_subtype_vocabulary() {
     for kind in ["swampwalk", "desertwalk", "townwalk", "gatewalk"] {

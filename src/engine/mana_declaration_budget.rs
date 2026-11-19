@@ -76,6 +76,9 @@ impl GameEngine {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "mana_declaration_budget_tests.rs"]
 mod tests;

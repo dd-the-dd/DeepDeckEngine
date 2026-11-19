@@ -107,6 +107,7 @@ fn resolve_effects(engine: &mut GameEngine, stack_object: &StackObject, rule: &V
         .expect("regeneration resolves");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn shield_replaces_the_next_destruction_then_is_spent() {
     let (mut engine, stack_object, rule) = engine_with_attacking_regenerator();
@@ -148,6 +149,7 @@ fn shield_replaces_the_next_destruction_then_is_spent() {
     assert!(engine.permanent_position("skeleton").is_none());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_destruction_that_cannot_be_regenerated_ignores_the_shield() {
     let (mut engine, stack_object, rule) = engine_with_attacking_regenerator();
@@ -159,6 +161,7 @@ fn a_destruction_that_cannot_be_regenerated_ignores_the_shield() {
     assert_eq!(event_count(&engine, "permanentRegenerated"), 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn collection_regeneration_shields_every_matching_permanent_once() {
     let rule = parsed_rule("Instant", "Regenerate each creature you control.");
