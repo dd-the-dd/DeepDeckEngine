@@ -45,10 +45,13 @@ fn recognize_add_fixed_mana_or_choice_effect(
             }
             AddFixedManaChoiceState::ConnectorOrComplete => {
                 cursor.enter("effect.add-fixed-mana-choice.connector-or-complete");
+                // A comma continues this choice list only before another
+                // mana option or its final `or`; any other comma is an
+                // effect-sequence boundary owned by the enclosing parent.
                 let effect_connector = cursor.peek() == Some(",")
-                    && cursor.peek_ahead(1).is_some_and(|raw| {
-                        raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")
-                    });
+                    && !cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("or") || raw.starts_with('{'));
                 if effect_connector {
                     AddFixedManaChoiceState::Complete
                 } else if cursor.peek().is_some_and(|raw| raw == ",") {
