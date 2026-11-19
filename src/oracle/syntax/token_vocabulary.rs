@@ -252,6 +252,8 @@ const RULES: &[LexicalRule] = &[
             "play",
             "plays",
             "produce",
+            "proliferate",
+            "proliferates",
             "put",
             "putting",
             "puts",

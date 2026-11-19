@@ -84,8 +84,15 @@ pub(in crate::oracle::canonical) fn recognize_flashback_keyword(
                     "its",
                     "flashback",
                     "cost",
-                    ".",
                 ])?;
+                // Newer printings restate CR 702.34a's additional costs.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                {
+                    cursor.consume_phrase(&["and", "any", "additional", "costs"])?;
+                }
+                cursor.consume(".")?;
                 FlashbackState::ReminderExile
             }
             FlashbackState::ReminderExile => {

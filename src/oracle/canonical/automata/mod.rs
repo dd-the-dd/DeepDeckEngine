@@ -63,6 +63,7 @@ mod connector;
 mod contextual_list;
 mod controlled_count_entry;
 mod cost;
+mod cost_keyword;
 mod counter_delayed_draw;
 mod counter_descriptive_token;
 mod counter_name;
@@ -292,6 +293,7 @@ pub(super) use connector::*;
 pub(super) use contextual_list::*;
 pub(super) use controlled_count_entry::*;
 pub(super) use cost::*;
+pub(super) use cost_keyword::*;
 pub(super) use counter_delayed_draw::*;
 pub(super) use counter_descriptive_token::*;
 pub(super) use counter_name::*;
@@ -732,6 +734,12 @@ pub(super) enum NumericExpression {
         object: LocalObjectReference,
         counter: crate::oracle::counter_name::CounterName,
     },
+    /// Counters of one kind already on the object that receives the enclosing
+    /// action (CR 701.10e doubling). It has no standalone lowering: only an
+    /// action with one recipient per lowered effect may bind it.
+    CountersOnRecipient {
+        counter: crate::oracle::counter_name::CounterName,
+    },
     /// Cardinality of a battlefield collection, or of the distinct colors
     /// among it (shared `for each` count child).
     PermanentCount(Box<PermanentCountNode>),
@@ -910,6 +918,7 @@ impl NumericExpression {
             | Self::PowerOf(_)
             | Self::ManaValueOf(_)
             | Self::CountCounters { .. }
+            | Self::CountersOnRecipient { .. }
             | Self::SourceCastX
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
@@ -1028,6 +1037,9 @@ pub(super) enum GrantedKeyword {
     Shadow,
     Shroud,
     Skulk,
+    /// CR 702.61a: while this spell is on the stack, players can't cast other
+    /// spells or activate abilities that aren't mana abilities.
+    SplitSecond,
     /// CR 702.40: a cast trigger copying the spell for each spell cast
     /// before it this turn.
     Storm,
@@ -1071,6 +1083,7 @@ impl GrantedKeyword {
             Self::Shadow => "shadow",
             Self::Shroud => "shroud",
             Self::Skulk => "skulk",
+            Self::SplitSecond => "splitSecond",
             Self::Storm => "storm",
             Self::Sunburst => "sunburst",
             Self::Trample => "trample",

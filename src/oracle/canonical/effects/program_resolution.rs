@@ -56,6 +56,7 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::QualifiedTargetProperty { .. }
         | NumericExpression::CountQuery(_)
         | NumericExpression::CountCounters { .. }
+        | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)
@@ -114,7 +115,8 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             // Choice-bearing player actions keep the native lowering boundary.
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
-            | SingularPlayerAction::Venture(_) => false,
+            | SingularPlayerAction::Venture(_)
+            | SingularPlayerAction::Proliferate => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),
         LocalEffectNode::GainLife(node) => {

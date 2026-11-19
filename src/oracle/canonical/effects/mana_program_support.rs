@@ -76,7 +76,8 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             SingularPlayerAction::Life(_)
             | SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
-            | SingularPlayerAction::Venture(_) => false,
+            | SingularPlayerAction::Venture(_)
+            | SingularPlayerAction::Proliferate => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
             body.effects.iter().any(moves_cards_to_or_from_library)

@@ -161,7 +161,6 @@ fn removed_opaque_resolvers_and_composites_are_not_executable() {
         "scry",
         "surveil",
         "tapOrUntapPermanent",
-        "proliferate",
     ] {
         let effect = json!({
             "kind":kind,"operation":if kind=="resolveSpellInstruction" {"sunfall"} else {"punchingBagVitalityClock"},
@@ -184,6 +183,11 @@ fn removed_opaque_resolvers_and_composites_are_not_executable() {
     }
 
     assert!(effect_supported(&spell_copy_trigger(2, true)["effects"][0]));
+    // CR 701.34a proliferate is now a typed counter primitive with its own
+    // player selection; only its acting player is a parameter.
+    assert!(effect_supported(
+        &json!({"kind":"proliferate","player":{"kind":"abilityController"}})
+    ));
 }
 
 #[test]

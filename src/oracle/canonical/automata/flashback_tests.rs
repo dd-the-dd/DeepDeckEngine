@@ -10,6 +10,7 @@ fn fixed_flashback_cost_borrows_shared_mana_symbols_and_optional_reminder() {
         for suffix in [
             "",
             " (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+            " (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
         ] {
             let text = format!("Flashback {cost}{suffix}");
             assert_eq!(parse(&text).unwrap().cost.as_oracle_cost(), cost);
@@ -27,6 +28,7 @@ fn unsupported_costs_and_hostile_reminders_never_become_prefix_coverage() {
         "Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then return it.)",
         "Flashback {2}{R}. Draw a card.",
         "Flashback {2}{R} (Then exile it.)",
+        "Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost and any other costs. Then exile it.)",
     ] {
         assert!(parse(text).is_err(), "{text}");
     }

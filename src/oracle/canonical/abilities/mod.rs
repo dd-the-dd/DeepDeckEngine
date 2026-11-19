@@ -5,6 +5,7 @@ mod alternative_cost_native;
 mod alternative_return_cost_native;
 mod blight_native;
 mod conditional_mana_native;
+mod cost_keyword_native;
 mod dungeon_native;
 
 mod enchant_native;
@@ -41,6 +42,7 @@ pub(super) use alternative_cost_native::*;
 pub(super) use alternative_return_cost_native::*;
 pub(super) use blight_native::*;
 pub(super) use conditional_mana_native::*;
+pub(super) use cost_keyword_native::*;
 pub(super) use dungeon_native::*;
 
 pub(super) use enchant_native::*;

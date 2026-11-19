@@ -219,7 +219,8 @@ fn recognize_draw_action_attempt(
                     NumericExpression::CountQuery(_) | NumericExpression::PermanentCount(_) => {
                         return Err(cursor.fail("a proved query-count consumer for draw").into());
                     }
-                    NumericExpression::CountCounters { .. } => {
+                    NumericExpression::CountCounters { .. }
+                    | NumericExpression::CountersOnRecipient { .. } => {
                         return Err(cursor
                             .fail("a proved source-counter information context for draw")
                             .into());

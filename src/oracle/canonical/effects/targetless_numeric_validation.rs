@@ -60,6 +60,7 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
         | NumericExpression::ManaValueOf(_)
         | NumericExpression::QualifiedTargetProperty { .. }
         | NumericExpression::CountCounters { .. }
+        | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)
