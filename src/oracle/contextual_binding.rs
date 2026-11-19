@@ -381,3 +381,7 @@ fn bind_sacrificed_cost_objects(abilities: &mut [ParsedOracleAbility]) {
 #[cfg(test)]
 #[path = "equal_amount_card_tests.rs"]
 mod equal_amount_card_tests;
+
+#[cfg(test)]
+#[path = "control_copy_players_card_tests.rs"]
+mod control_copy_players_card_tests;

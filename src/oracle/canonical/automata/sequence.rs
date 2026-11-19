@@ -263,6 +263,9 @@ struct SequenceMemory {
     /// sentence reads the same antecedents, not the `If` branch's results.
     branch_snapshots: Vec<AnaphorSnapshot>,
     unless: Vec<super::UnlessFrameNode>,
+    /// Remaining per-player actions of one coordinated-subject sentence, in
+    /// reverse order. Each is pushed as its own action joined by `and`.
+    distributed: Vec<LocalEffectNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -616,7 +619,12 @@ fn recognize_effect_sequence_attempt_internal(
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
                 let mut effect_start = cursor.position();
+                let mut distributed_rest = Vec::new();
                 let mut effect = loop {
+                    if let Some(pending) = memory.distributed.pop() {
+                        // A distributed per-player action is already read.
+                        break pending;
+                    }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
                     let parsed = cursor.attempt(|attempt| {
@@ -644,6 +652,30 @@ fn recognize_effect_sequence_attempt_internal(
                                 name_failure,
                             )
                         {
+                            match super::try_recognize_coordinated_player_actions(
+                                attempt,
+                                effect_index,
+                                memory
+                                    .last_player_target
+                                    .map(|binding| super::PlayerBinding(binding.effect_index)),
+                                &action_context,
+                            ) {
+                                Ok(Some(actions)) => {
+                                    let mut actions = actions
+                                        .into_iter()
+                                        .map(LocalEffectNode::PlayerAction)
+                                        .collect::<Vec<_>>();
+                                    actions.reverse();
+                                    let first = actions.pop().expect("two or more subjects");
+                                    distributed_rest = actions;
+                                    return Ok(first);
+                                }
+                                Ok(None) => {}
+                                Err(failure) => {
+                                    attempt_frame.commit();
+                                    return Err(failure);
+                                }
+                            }
                             match super::try_recognize_player_action(
                                 attempt,
                                 super::PlayerBinding(effect_index),
@@ -758,16 +790,16 @@ fn recognize_effect_sequence_attempt_internal(
                                 {
                                     cursor.enter("sequence.conditional.otherwise");
                                     let index = memory
-                                        .else_candidate
-                                        .filter(|index| {
-                                            memory.conditionals[*index].then_end
-                                                == memory.effects.len()
-                                        })
-                                        .ok_or_else(|| {
-                                            cursor.fail(
-                                                "an `Otherwise` sentence directly after a conditional sentence",
-                                            )
-                                        })?;
+                                    .else_candidate
+                                    .filter(|index| {
+                                        memory.conditionals[*index].then_end
+                                            == memory.effects.len()
+                                    })
+                                    .ok_or_else(|| {
+                                        cursor.fail(
+                                            "an `Otherwise` sentence directly after a conditional sentence",
+                                        )
+                                    })?;
                                     cursor.consume("otherwise")?;
                                     cursor.consume(",")?;
                                     let snapshot = memory.branch_snapshots[index].clone();
@@ -845,6 +877,7 @@ fn recognize_effect_sequence_attempt_internal(
                         }
                     }
                 };
+                memory.distributed.extend(distributed_rest);
                 attempt_frame.clear();
                 if let Some(duration) = &preposed_duration {
                     let carries_duration = match &effect {
@@ -856,6 +889,13 @@ fn recognize_effect_sequence_attempt_internal(
                         LocalEffectNode::CardAction(super::CardActionNode::Permit(node)) => {
                             node.duration.as_ref() == Some(duration)
                         }
+                        LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
+                            change:
+                                super::ControlChange::Gain {
+                                    duration: Some(own),
+                                },
+                            ..
+                        }) => own == duration,
                         _ => false,
                     };
                     let own_duration = cursor
@@ -1021,6 +1061,13 @@ fn recognize_effect_sequence_attempt_internal(
             }
             SequenceState::ConnectorOrEnd => {
                 cursor.enter("sequence.connector-or-end");
+                if !memory.distributed.is_empty() {
+                    // The coordinated subjects' remaining actions belong to
+                    // the same sentence: one `and` joins each distributed action.
+                    memory.connectors.push(EffectConnector::And);
+                    state = SequenceState::Effect;
+                    continue;
+                }
                 // An `unless` clause closes its guarded actions: only the
                 // sentence end or a postposed `where X` may follow it.
                 if memory
@@ -1118,6 +1165,18 @@ fn recognize_effect_sequence_attempt_internal(
                             cursor.consume(".")?;
                         }
                         memory.close_conditional_branch();
+                        if super::copy_new_targets_amendment_starts(cursor) {
+                            // CR 707.10c: the permission amends the copy
+                            // instruction of the sentence just closed.
+                            attempt_frame.commit();
+                            let antecedent = match memory.effects.last_mut() {
+                                Some(LocalEffectNode::CopyStackObject(copy)) => Some(copy),
+                                _ => None,
+                            };
+                            super::recognize_copy_new_targets_amendment(cursor, antecedent)?;
+                            cursor.enter("sequence.copy-new-targets.terminator");
+                            cursor.consume(".")?;
+                        }
                         if library_look_reminder_starts_at(cursor)
                             && let Some(reminded) =
                                 memory.effects.iter().rev().find_map(|effect| match effect {
@@ -1173,13 +1232,18 @@ fn recognize_effect_sequence_attempt_internal(
                             super::recognize_regenerate_reminder(cursor, &regenerate.targets)?;
                         }
                         if cursor.peek() == Some("(")
-                            && !stop_before_activation_annotation
+                            && (!stop_before_activation_annotation
+                                || !cursor
+                                    .peek_ahead(1)
+                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("activate")))
                             && !library_look_reminder_starts_at(cursor)
                         {
                             // CR 207.2: reminder text has no rules meaning.
                             // Typed reminders above keep their validation;
                             // any other balanced parenthetical after a
-                            // complete sentence is recorded and skipped.
+                            // complete sentence is recorded and skipped. An
+                            // activation parent keeps only its `(Activate ...)`
+                            // timing annotation, which it validates itself.
                             cursor.enter("sequence.reminder-text");
                             skip_balanced_parenthetical(cursor)?;
                         }
@@ -1362,6 +1426,18 @@ fn recognize_effect(
             return Err(failure);
         }
         super::RetargetActionAttempt::NotClaimed => {}
+    }
+    if super::control_change_starts(cursor) {
+        // `[you] gain control of` / `exchange control of` owns its verb frame;
+        // `gain N life` never reaches this reader.
+        attempt_frame.commit();
+        return super::recognize_control_change_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::ControlChange);
+    }
+    if super::copy_stack_object_starts(cursor) {
+        attempt_frame.commit();
+        return super::recognize_copy_stack_object_effect(cursor)
+            .map(LocalEffectNode::CopyStackObject);
     }
 
     if cursor

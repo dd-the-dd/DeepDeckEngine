@@ -179,6 +179,7 @@ fn lower_local_effect_sequence_with_collections(
             | LocalEffectNode::PutCounters(_)
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::PermanentKeywordAction(_)
+            | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::TemporaryKeywordGrant(_) => ordinary_action_targets(effect)
                 .into_iter()
                 .flat_map(|targets| targets.slots.iter())
@@ -775,6 +776,96 @@ fn lower_local_effect_sequence_with_collections(
                 for object in objects {
                     effects.push(lower_tap_state_change(tap.untap, object));
                 }
+            }
+            LocalEffectNode::ControlChange(change) => {
+                cursor.enter("lower.control-change.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &change.objects,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                match &change.change {
+                    ControlChange::Gain { duration } => {
+                        cursor.enter("lower.control-change.duration");
+                        // The runtime control layer expires only at cleanup of
+                        // the current turn; any other window stays explicit.
+                        let duration = match duration {
+                            None => None,
+                            Some(EffectDurationNode::UntilEndOfCurrentTurn) => {
+                                lower_duration(&EffectDurationNode::UntilEndOfCurrentTurn)
+                            }
+                            Some(_) => {
+                                return Err(
+                                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                        cursor.fail(
+                                            "an indefinite or until-end-of-turn control duration",
+                                        ),
+                                    ),
+                                );
+                            }
+                        };
+                        for object in objects {
+                            let mut effect = json!({
+                                "kind": "gainControlPermanent",
+                                "permanent": object,
+                                "controller": controller(),
+                            });
+                            if let Some(duration) = &duration {
+                                effect["duration"] = duration.clone();
+                            }
+                            effects.push(effect);
+                        }
+                    }
+                    ControlChange::Exchange => {
+                        cursor.enter("lower.control-change.exchange-pair");
+                        let [objects] = objects.as_slice() else {
+                            return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                                cursor.fail("one declared pair of permanents"),
+                            ));
+                        };
+                        cursor.require(
+                            objects["kind"] == "chosenTargets",
+                            "one declared pair of permanents",
+                        )?;
+                        effects.push(json!({"kind": "exchangeControl", "objects": objects}));
+                    }
+                }
+            }
+            LocalEffectNode::CopyStackObject(copy) => {
+                cursor.enter("lower.copy-stack-object.target");
+                let [slot] = copy.target.slots.as_slice() else {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("one stack-object target slot for the copy action"),
+                    ));
+                };
+                // The stack-object target slot (id and candidates) is the one
+                // the counter action declares; only the action differs.
+                let (target_id, candidates, _) = lower_counter_action(slot, false);
+                if decisions
+                    .iter()
+                    .any(|decision| decision["id"].as_str() == Some(target_id))
+                {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("one stack-object target declaration per sequence"),
+                    ));
+                }
+                decisions.push(target_decision(
+                    target_id,
+                    candidates,
+                    i64::from(slot.cardinality.minimum),
+                    i64::from(slot.cardinality.maximum),
+                ));
+                effects.push(json!({
+                    "kind": "copyStackItem",
+                    "object": chosen_target(target_id),
+                    "controller": controller(),
+                    "mayChooseNewTargets": copy.may_choose_new_targets,
+                }));
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
                 cursor.enter(match keyword_action.action {
@@ -1772,6 +1863,7 @@ fn sequence_numeric_target_slots(
                 | LocalEffectNode::TemporaryKeywordGrant(_)
                 | LocalEffectNode::TapPermanents(_)
                 | LocalEffectNode::PermanentKeywordAction(_)
+                | LocalEffectNode::ControlChange(_)
                 | LocalEffectNode::PutCounters(_) => (
                     ordinary_action_targets(sequence.effects.get(binding.effect_index)?)?,
                     false,
