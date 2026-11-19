@@ -1,7 +1,7 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::super::{ObjectCardType, ObjectPredicate};
-use super::{recognize_object_query, recognize_object_type_union_list, OracleTokenCursor};
+use super::{OracleTokenCursor, recognize_object_query, recognize_object_type_union_list};
 
 fn recognize_complete_list(text: &str) -> super::super::super::MachineResult<ObjectPredicate> {
     let tokens = recognize_entities(text);

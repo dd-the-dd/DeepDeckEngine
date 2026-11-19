@@ -31,14 +31,14 @@ mod damage;
 mod delayed_blink;
 mod delayed_draw;
 mod delve;
-mod entry_counters;
 mod draw_move;
 mod early_turn_entry;
 mod earthbend;
-mod empower_jace;
 mod effect_program;
 mod effect_sequence;
 mod emblem;
+mod empower_jace;
+mod entry_counters;
 mod entry_or_repeat_trigger;
 mod event_bound_payment;
 mod exile;
@@ -51,9 +51,9 @@ mod graveyard_destination;
 mod named_token_creation;
 mod program_resolution;
 mod sacrifice;
-mod trigger_event;
-mod static_condition;
 mod sentence_condition;
+mod static_condition;
+mod trigger_event;
 mod trigger_guard;
 mod trigger_program;
 mod zone_prohibition;
@@ -99,8 +99,8 @@ mod phase_trigger_sequence;
 mod player_counter_sweep;
 
 mod casting_permission;
-mod permanent_operand;
 mod damage_prevention;
+mod permanent_operand;
 mod permanent_selection;
 mod player_permission;
 mod player_spell_tax_draw;
@@ -175,14 +175,14 @@ pub(super) use damage::*;
 pub(super) use delayed_blink::*;
 pub(super) use delayed_draw::*;
 pub(super) use delve::*;
-pub(super) use entry_counters::*;
 pub(super) use draw_move::*;
 pub(super) use early_turn_entry::*;
 pub(super) use earthbend::*;
-pub(super) use empower_jace::*;
 pub(super) use effect_program::*;
 pub(super) use effect_sequence::*;
 pub(super) use emblem::*;
+pub(super) use empower_jace::*;
+pub(super) use entry_counters::*;
 pub(super) use entry_or_repeat_trigger::*;
 pub(super) use event_bound_payment::*;
 pub(super) use exile::*;
@@ -239,8 +239,8 @@ pub(super) use phase_trigger_sequence::*;
 pub(super) use player_counter_sweep::*;
 
 pub(super) use casting_permission::*;
-pub(super) use permanent_operand::*;
 pub(super) use damage_prevention::*;
+pub(super) use permanent_operand::*;
 pub(super) use permanent_selection::*;
 pub(super) use player_permission::*;
 pub(super) use player_spell_tax_draw::*;
@@ -283,9 +283,9 @@ pub(super) use zone_change::*;
 pub(super) use zone_change_search::*;
 pub(super) use zone_change_token::*;
 
-pub(super) use trigger_event::*;
-pub(super) use static_condition::*;
 pub(super) use sentence_condition::*;
+pub(super) use static_condition::*;
+pub(super) use trigger_event::*;
 pub(super) use trigger_guard::*;
 pub(super) use trigger_program::*;
 
@@ -299,32 +299,32 @@ pub(in crate::oracle::canonical) use permanent_subject::{
 #[path = "activated_combat_restriction_tests.rs"]
 mod activated_combat_restriction_tests;
 #[cfg(test)]
+#[path = "choose_instruction_tests.rs"]
+mod choose_instruction_tests;
+#[cfg(test)]
 #[path = "destroy_regeneration_tests.rs"]
 mod destroy_regeneration_tests;
 #[cfg(test)]
 #[path = "for_each_multiplier_tests.rs"]
 mod for_each_multiplier_tests;
 #[cfg(test)]
-#[path = "regenerate_tests.rs"]
-mod regenerate_tests;
-#[cfg(test)]
-#[path = "choose_instruction_tests.rs"]
-mod choose_instruction_tests;
+#[path = "league_reference_concepts_tests.rs"]
+mod league_reference_concepts_tests;
 #[cfg(test)]
 #[path = "league_regression_concepts_tests.rs"]
 mod league_regression_concepts_tests;
 #[cfg(test)]
-#[path = "league_reference_concepts_tests.rs"]
-mod league_reference_concepts_tests;
-#[cfg(test)]
 #[path = "player_permission_selection_tests.rs"]
 mod player_permission_selection_tests;
 #[cfg(test)]
-#[path = "storm_keyword_tests.rs"]
-mod storm_keyword_tests;
+#[path = "regenerate_tests.rs"]
+mod regenerate_tests;
 #[cfg(test)]
 #[path = "static_characteristics_concepts_tests.rs"]
 mod static_characteristics_concepts_tests;
+#[cfg(test)]
+#[path = "storm_keyword_tests.rs"]
+mod storm_keyword_tests;
 
 #[cfg(test)]
 #[path = "attach_tests.rs"]

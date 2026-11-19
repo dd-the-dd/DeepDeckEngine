@@ -61,10 +61,7 @@ fn destroyed_type_this_way_rejects_a_mismatched_target() {
     let mut cursor = OracleTokenCursor::new("test.destroy-regeneration", &tokens);
     let failure = recognize_destroy_regeneration_prohibition(&mut cursor)
         .expect_err("the typed result anaphor cannot change target domain");
-    assert_eq!(
-        failure.state,
-        "selector.predicate-atom.complete"
-    );
+    assert_eq!(failure.state, "selector.predicate-atom.complete");
     assert!(failure.expected.contains("referenced card type"));
 }
 

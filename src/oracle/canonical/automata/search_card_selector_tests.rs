@@ -1,7 +1,7 @@
 use crate::oracle::canonical::OracleTokenCursor;
 use crate::oracle::syntax::recognize_entities;
 
-use super::{recognize_search_card_selector, ObjectCardType, ObjectKind, ObjectPredicate};
+use super::{ObjectCardType, ObjectKind, ObjectPredicate, recognize_search_card_selector};
 
 fn exact_cost(raw: &str) -> ObjectPredicate {
     let tokens = recognize_entities(raw);

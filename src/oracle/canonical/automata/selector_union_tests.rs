@@ -1,11 +1,11 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::super::{
-    recognize_damage_effect, ObjectCardType, ObjectKind, ObjectPredicate, PlayerPredicate,
-    TargetSelector,
+    ObjectCardType, ObjectKind, ObjectPredicate, PlayerPredicate, TargetSelector,
+    recognize_damage_effect,
 };
 use super::{
-    recognize_card_type_union_selector, recognize_target_slot_selector, OracleTokenCursor,
+    OracleTokenCursor, recognize_card_type_union_selector, recognize_target_slot_selector,
 };
 
 #[test]

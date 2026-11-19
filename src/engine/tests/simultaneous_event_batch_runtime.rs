@@ -52,11 +52,19 @@ fn one_state_based_pass_is_one_event_and_separate_passes_are_two() {
     let stack = engine.state.stack.len();
     engine.check_state_based_actions();
     assert_eq!(engine.state.players[1].battlefield.len(), 0);
-    assert_eq!(engine.state.stack.len(), stack + 1, "one event, one trigger");
+    assert_eq!(
+        engine.state.stack.len(),
+        stack + 1,
+        "one event, one trigger"
+    );
 
     // A later, separate death is a new event: a second trigger.
     let third = lethal_creature(&mut engine, "bear-3");
     engine.state.players[1].battlefield = vec![third];
     engine.check_state_based_actions();
-    assert_eq!(engine.state.stack.len(), stack + 2, "a new event triggers again");
+    assert_eq!(
+        engine.state.stack.len(),
+        stack + 2,
+        "a new event triggers again"
+    );
 }

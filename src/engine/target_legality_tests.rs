@@ -485,9 +485,11 @@ fn controller_type_and_zone_changes_remove_only_the_affected_candidate() {
         }),
     );
     let stack = stack_object("player-0", source, rule);
-    assert!(engine
-        .declared_stack_target_candidates(&stack, "targetCreature")
-        .is_some_and(|candidates| candidates.contains(&target_ref)));
+    assert!(
+        engine
+            .declared_stack_target_candidates(&stack, "targetCreature")
+            .is_some_and(|candidates| candidates.contains(&target_ref))
+    );
     engine.state.players[1].battlefield[0].controller = "player-0".to_string();
     assert_eq!(
         engine.declared_stack_target_candidates(&stack, "targetCreature"),

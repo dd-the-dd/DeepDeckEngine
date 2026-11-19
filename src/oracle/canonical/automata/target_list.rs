@@ -346,7 +346,9 @@ pub(in crate::oracle::canonical) fn starts_possessive_target_player(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     let mut trial = cursor.clone();
-    trial.peek().is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+    trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
         && trial.consume("target").is_ok()
         && trial
             .peek_token()

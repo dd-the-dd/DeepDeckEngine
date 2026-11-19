@@ -37,10 +37,7 @@ fn parsed_rule(type_line: &str, text: &str) -> Value {
 
 #[test]
 fn murmuring_volume_discards_a_chosen_hand_card_as_an_activation_cost() {
-    let rule = parsed_rule(
-        "Artifact",
-        "{2}, {T}, Discard a card: Draw a card.",
-    );
+    let rule = parsed_rule("Artifact", "{2}, {T}, Discard a card: Draw a card.");
     assert_eq!(rule["kind"], "activatedAbility");
     // Another card is discarded, so the source keeps its default zone.
     assert!(rule.get("activationZone").is_none());

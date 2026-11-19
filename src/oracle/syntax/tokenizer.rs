@@ -232,7 +232,9 @@ fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
         || tokens[..dash]
             .iter()
             .all(|token| token.token_type == "abilityWord")
-        || !tokens[0].raw.starts_with(|ch: char| ch.is_ascii_uppercase())
+        || !tokens[0]
+            .raw
+            .starts_with(|ch: char| ch.is_ascii_uppercase())
     {
         return;
     }
@@ -240,12 +242,12 @@ fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
         token.token_type != "separator"
             && token.category != "boundary"
             && token.raw.chars().any(|ch| ch.is_alphabetic())
-            && token
-                .raw
-                .chars()
-                .all(|ch| ch.is_alphanumeric() || matches!(ch, '\'' | '\u{2019}' | '-' | '.' | '!' | ','))
+            && token.raw.chars().all(|ch| {
+                ch.is_alphanumeric() || matches!(ch, '\'' | '\u{2019}' | '-' | '.' | '!' | ',')
+            })
     });
-    let catalogue_lexeme = (0..dash).any(|position| match_longest_exact(tokens, position).is_some());
+    let catalogue_lexeme =
+        (0..dash).any(|position| match_longest_exact(tokens, position).is_some());
     let typed_mechanic = tokens[..dash].iter().any(|token| {
         matches!(
             token.token_type.as_str(),

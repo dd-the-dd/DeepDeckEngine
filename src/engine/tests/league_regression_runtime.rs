@@ -43,6 +43,7 @@ fn parsed_card(
     test_instance(instance_id, definition, "player-0")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_cycling_discards_from_hand_then_draws_on_resolution() {
     let mut engine = test_engine(2);
@@ -112,6 +113,7 @@ fn mana_choices(engine: &GameEngine, source: &CardInstance, rules: &[Value]) -> 
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_color_distribution_selects_one_color_or_any_combination() {
     let engine = test_engine(2);
@@ -177,6 +179,7 @@ fn sea_of_clouds() -> CardInstance {
     )
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_opponent_count_exemption_reads_the_live_opponent_count() {
     let mut duel = test_engine(2);
@@ -203,6 +206,7 @@ fn canopy_vista() -> CardInstance {
     )
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_controlled_count_exemption_without_other_counts_existing_basics() {
     let basics = |count: usize| {
@@ -228,6 +232,7 @@ fn parsed_controlled_count_exemption_without_other_counts_existing_basics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_named_source_presence_exemption_checks_controlled_legendary_creatures() {
     let minas = || {
@@ -261,6 +266,7 @@ fn parsed_named_source_presence_exemption_checks_controlled_legendary_creatures(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_devoid_defines_a_colorless_object() {
     let drone = parsed_card(
@@ -274,6 +280,7 @@ fn parsed_devoid_defines_a_colorless_object() {
     assert!(has_keyword(&drone.definition, "devoid"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_equipment_death_trigger_observes_the_equipped_creature() {
     let mut engine = test_engine(2);
@@ -348,6 +355,7 @@ fn spell_stack_object(id: &str, rule: &Value, targets: BTreeMap<String, TargetRe
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_sequence_earthbend_declares_its_land_target_and_animates_it() {
     let rules = parsed_rules(
@@ -361,7 +369,8 @@ fn parsed_sequence_earthbend_declares_its_land_target_and_animates_it() {
     assert_eq!(decision["kind"], "chooseTargets");
     let target_id = decision["id"].as_str().expect("a target id").to_string();
     let mut engine = test_engine(2);
-    engine.state.players[0].battlefield = vec![mana_source("forest", "Basic Land - Forest", "{G}", None)];
+    engine.state.players[0].battlefield =
+        vec![mana_source("forest", "Basic Land - Forest", "{G}", None)];
     let stack = spell_stack_object(
         "lesson",
         rule,
@@ -386,6 +395,7 @@ fn parsed_sequence_earthbend_declares_its_land_target_and_animates_it() {
     assert!(engine.permanent_is_creature(forest));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_token_characteristic_sentence_creates_tokens_with_the_ability() {
     let rules = parsed_rules(
@@ -407,9 +417,11 @@ fn parsed_token_characteristic_sentence_creates_tokens_with_the_ability() {
         .expect("the parsed Scion tokens are created");
     let tokens = &engine.state.players[0].battlefield;
     assert_eq!(tokens.len(), 3);
-    assert!(
-        tokens
+    assert!(tokens.iter().all(|token| {
+        token
+            .definition
+            .rules
             .iter()
-            .all(|token| token.definition.rules.iter().any(|rule| rule["kind"] == "manaAbility"))
-    );
+            .any(|rule| rule["kind"] == "manaAbility")
+    }));
 }
