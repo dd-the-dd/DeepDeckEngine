@@ -11061,6 +11061,9 @@ impl GameEngine {
         let temporarily_added = self.state.rule_modifiers.iter().any(|modifier| {
             value_kind(modifier) == Some("temporaryCardType")
                 && modifier["objectId"].as_str() == Some(permanent.instance_id.as_str())
+                && modifier["expiresAfterTurn"]
+                    .as_u64()
+                    .is_none_or(|turn| turn == u64::from(self.state.turn_number))
                 && modifier["cardType"]
                     .as_str()
                     .is_some_and(|value| value.eq_ignore_ascii_case(card_type))
@@ -11083,10 +11086,17 @@ impl GameEngine {
                             )
                         })
                 });
-        if !has_card_type(&permanent.definition, card_type)
-            && !temporarily_added
-            && !continuously_added
-        {
+        // CR 205.1a: the latest card-type set recorded on this object replaces
+        // its printed card types; later additive effects still add theirs.
+        let base_has_type = effect_domains::marker_card_types(&permanent.definition).map_or_else(
+            || has_card_type(&permanent.definition, card_type),
+            |types| {
+                types
+                    .iter()
+                    .any(|value| value.eq_ignore_ascii_case(card_type))
+            },
+        );
+        if !base_has_type && !temporarily_added && !continuously_added {
             return false;
         }
         !self
@@ -11496,6 +11506,9 @@ impl GameEngine {
     }
 
     fn permanent_color_symbols(&self, permanent: &CardInstance) -> BTreeSet<String> {
+        if let Some(colors) = effect_domains::marker_colors(&permanent.definition) {
+            return colors.into_iter().collect();
+        }
         if let Some(colors) = self.state.rule_modifiers.iter().find_map(|modifier| {
             (value_kind(modifier) == Some("temporaryColors")
                 && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
@@ -11783,6 +11796,9 @@ impl GameEngine {
     }
 
     fn static_base_power_toughness(&self, permanent: &CardInstance) -> Option<(i32, i32)> {
+        if let Some(base) = effect_domains::marker_base_power_toughness(&permanent.definition) {
+            return Some(base);
+        }
         if let Some(modifier) = self.state.rule_modifiers.iter().find(|modifier| {
             value_kind(modifier) == Some("temporaryBasePowerToughness")
                 && modifier["objectId"].as_str() == Some(permanent.instance_id.as_str())

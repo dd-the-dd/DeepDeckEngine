@@ -57,10 +57,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("removeSubtypes").is_none_or(Value::is_boolean)
         }
         Some("addCardType") => {
-            (matches!(
-                value_kind(&effect["object"]),
-                Some("self" | "abilitySource")
-            ) || target_reference_supported(&effect["object"]))
+            super::characteristic_object_supported(&effect["object"])
                 && matches!(
                     effect["cardType"].as_str(),
                     Some(
@@ -166,7 +163,7 @@ impl GameEngine {
                 }
             }
             Some("modifySubtypeSet") => {
-                self.execute_modify_subtype_set(effect, stack_object, bindings);
+                self.execute_modify_subtype_set(effect, stack_object, bindings, decisions);
             }
             Some("becomeCreature") => {
                 let instance_id = match value_kind(&effect["object"]) {
@@ -522,19 +519,12 @@ impl GameEngine {
                 }));
             }
             Some("addCardType") => {
-                let instance_id = if matches!(
-                    value_kind(&effect["object"]),
-                    Some("self" | "abilitySource")
+                for instance_id in self.characteristic_object_ids(
+                    &effect["object"],
+                    stack_object,
+                    bindings,
+                    decisions,
                 ) {
-                    Some(stack_object.card.instance_id.clone())
-                } else {
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                        .and_then(|target| match target {
-                            TargetRef::Permanent { instance_id } => Some(instance_id),
-                            _ => None,
-                        })
-                };
-                if let Some(instance_id) = instance_id {
                     if value_kind(&effect["duration"]) == Some("permanent") {
                         if let Some((player_index, card_index)) =
                             self.permanent_position(&instance_id)
@@ -555,7 +545,7 @@ impl GameEngine {
                     } else {
                         self.state.rule_modifiers.push(json!({
                             "kind": "temporaryCardType",
-                            "objectId": instance_id,
+                            "objectId": instance_id.clone(),
                             "cardType": effect["cardType"],
                             "expiresAfterTurn": self.state.turn_number,
                         }));

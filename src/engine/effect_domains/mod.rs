@@ -6,6 +6,7 @@ use super::*;
 mod battlefield_deployment;
 mod card_movement;
 mod casting_permissions;
+mod characteristic_layers;
 mod characteristics;
 mod choices;
 mod continuous_rules;
@@ -36,6 +37,10 @@ mod stack_copying;
 mod tokens_copies;
 mod triggers;
 mod type_modification;
+
+pub(super) use characteristic_layers::{
+    characteristic_object_supported, marker_base_power_toughness, marker_card_types, marker_colors,
+};
 
 pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
     super::card_zone_transition::node_requires_checkpoint(value)
@@ -77,6 +82,7 @@ enum Domain {
     DamageCombat,
     Counters,
     KeywordModification,
+    CharacteristicLayers,
     Characteristics,
     TypeModification,
     TokensCopies,
@@ -207,12 +213,14 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::KeywordModification),
         Some(
             "modifyPowerToughness"
-            | "setBasePowerToughness"
             | "setPower"
             | "grantFirebending"
             | "setPermanentFlag"
             | "suspectPermanent",
         ) => Some(Domain::Characteristics),
+        Some("setCardTypes" | "setColors" | "setBasePowerToughness") => {
+            Some(Domain::CharacteristicLayers)
+        }
         Some(
             "transformPermanent"
             | "modifySubtypeSet"
@@ -346,6 +354,7 @@ pub(super) fn effect_domain_supported(effect: &Value) -> Option<bool> {
         Domain::DamageCombat => damage_combat::supports_effect(effect),
         Domain::Counters => counters::supports_effect(effect),
         Domain::KeywordModification => keyword_modification::supports_effect(effect),
+        Domain::CharacteristicLayers => characteristic_layers::supports_effect(effect),
         Domain::Characteristics => characteristics::supports_effect(effect),
         Domain::TypeModification => type_modification::supports_effect(effect),
         Domain::TokensCopies => tokens_copies::supports_effect(effect),
@@ -529,6 +538,14 @@ impl GameEngine {
                 provider,
             ),
             Domain::KeywordModification => self.execute_keyword_modification_domain(
+                effect,
+                next_effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+            ),
+            Domain::CharacteristicLayers => self.execute_characteristic_layers_domain(
                 effect,
                 next_effect,
                 stack_object,

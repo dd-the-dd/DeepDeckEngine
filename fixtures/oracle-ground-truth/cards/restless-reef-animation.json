@@ -24,22 +24,40 @@
         "kind": "activatedAbility",
         "source": { "kind": "self" },
         "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+        "declaration": { "kind": "castingDeclaration", "decisions": [] },
         "effects": [
           {
-            "kind": "becomeCreature",
+            "kind": "addCardType",
             "object": { "kind": "self" },
-            "addTypes": ["Creature"],
-            "addSubtypes": ["Shark"],
-            "addColors": ["U", "B"],
-            "basePower": { "kind": "integer", "value": 4 },
-            "baseToughness": { "kind": "integer", "value": 4 },
+            "cardType": "Creature",
             "retainExistingTypes": true,
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          },
+          {
+            "kind": "modifySubtypeSet",
+            "object": { "kind": "self" },
+            "subtypeClass": "creature",
+            "mode": "add",
+            "subtypes": ["Shark"],
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          },
+          {
+            "kind": "setColors",
+            "object": { "kind": "self" },
+            "colors": ["U", "B"],
             "duration": { "kind": "untilEndOfCurrentTurn" }
           },
           {
             "kind": "grantKeyword",
             "object": { "kind": "self" },
             "keyword": "deathtouch",
+            "duration": { "kind": "untilEndOfCurrentTurn" }
+          },
+          {
+            "kind": "setBasePowerToughness",
+            "object": { "kind": "self" },
+            "power": { "kind": "integer", "value": 4 },
+            "toughness": { "kind": "integer", "value": 4 },
             "duration": { "kind": "untilEndOfCurrentTurn" }
           }
         ]

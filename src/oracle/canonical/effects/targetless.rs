@@ -331,8 +331,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         {
             Ok(lower_source_move_effect(movement, self_ref(), None))
         }
-        LocalEffectNode::AnimateSource(_)
-        | LocalEffectNode::Investigate(_)
+        LocalEffectNode::Investigate(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::LoseAbilities(_)
         | LocalEffectNode::DestroyReferencedSet(_) => {

@@ -150,6 +150,10 @@ impl GameEngine {
         permanent: &CardInstance,
     ) -> Result<FiveColorSet, ColorSetQueryError> {
         let mut replacements = Vec::new();
+        // A resolved color-setting effect recorded on the object (CR 105.3).
+        if let Some(colors) = effect_domains::marker_colors(&permanent.definition) {
+            replacements.push(json!(colors));
+        }
         for modifier in &self.state.rule_modifiers {
             if value_kind(modifier) == Some("temporaryColors")
                 && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
