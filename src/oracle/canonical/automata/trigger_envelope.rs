@@ -44,6 +44,8 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     Local(LocalTriggerEventNode),
     /// Shared quantified subject + event verb (`one or more cards leave …`).
     Object(super::ObjectEventNode),
+    /// The ability source with one or more event verbs (`attacks or blocks`).
+    SourceEvent(super::SourceEventUnionNode),
 }
 
 impl GenericTriggerEventNode {
@@ -93,6 +95,16 @@ impl GenericTriggerEventNode {
             }) => Some(EventNumericBinding::DamageAmount),
             _ => None,
         }
+    }
+
+    /// A cycling trigger functions while its card is cycled from the hand
+    /// (CR 702.29), so any card type may own it. Every other event here is
+    /// observed by a permanent on the battlefield.
+    pub(in crate::oracle::canonical) fn requires_permanent_face(&self) -> bool {
+        !matches!(
+            self,
+            Self::Local(LocalTriggerEventNode::SourceCycled { .. })
+        )
     }
 
     pub(in crate::oracle::canonical) fn source(&self) -> LocalObjectReference {
@@ -147,8 +159,31 @@ fn recognized(
     })
 }
 
+/// A failure from one event alternative. The envelope keeps the alternative
+/// that read furthest as the precise diagnostic of a claimed trigger.
+fn keep_furthest(best: &mut Option<MachineFailure>, failure: MachineFailure) {
+    if best
+        .as_ref()
+        .is_none_or(|current| failure.token_index > current.token_index)
+    {
+        *best = Some(failure);
+    }
+}
+
+fn is_trigger_introducer(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        ["at", "when", "whenever"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+    })
+}
+
 /// Every successful child returns immediately after the envelope's comma.
 /// In particular, this reader never consumes `if` or `you may` from the body.
+///
+/// The structural introducer (`at`, `when`, `whenever`, CR 603.1) claims the
+/// ability for this frame: when no event alternative is complete, the
+/// alternative that read furthest becomes the committed diagnostic.
 pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -159,6 +194,52 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         Ok(value) => value,
         Err(failure) => return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure),
     };
+    let claimed = is_trigger_introducer(cursor);
+    if !claimed && let Some(failure) = unclassified_label_before_trigger(cursor) {
+        return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+    }
+    match recognize_event_alternatives(cursor, name_links, name_failure, has_ability_word) {
+        GenericTriggerEnvelopeAttempt::RejectedCandidate(failure) if claimed => {
+            GenericTriggerEnvelopeAttempt::FailedCommitted(failure)
+        }
+        GenericTriggerEnvelopeAttempt::NotClaimed if claimed => {
+            cursor.enter("trigger.envelope.event");
+            GenericTriggerEnvelopeAttempt::FailedCommitted(
+                cursor.fail("a supported trigger event after the trigger word"),
+            )
+        }
+        GenericTriggerEnvelopeAttempt::NotClaimed => {
+            cursor.rollback(original);
+            GenericTriggerEnvelopeAttempt::NotClaimed
+        }
+        outcome => outcome,
+    }
+}
+
+/// A short label closed by an em dash and followed by a trigger word is the
+/// structural shape of a labelled trigger (CR 207.2c, 603.1). When the label
+/// is neither an ability word nor a rules-free flavor word (for example it
+/// names a mechanic or a cost), the trigger frame still owns the ability and
+/// reports the unread label instead of leaving the ability unclaimed.
+fn unclassified_label_before_trigger(cursor: &mut OracleTokenCursor<'_>) -> Option<MachineFailure> {
+    const MAXIMUM_LABEL_TOKENS: usize = 8;
+    let dash =
+        (1..=MAXIMUM_LABEL_TOKENS).find(|offset| cursor.peek_ahead(*offset) == Some("\u{2014}"))?;
+    cursor.peek_ahead(dash + 1).filter(|raw| {
+        ["at", "when", "whenever"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+    })?;
+    cursor.enter("trigger.envelope.label");
+    Some(cursor.fail("an ability word or a rules-free flavor word before the trigger word"))
+}
+
+fn recognize_event_alternatives(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    has_ability_word: bool,
+) -> GenericTriggerEnvelopeAttempt {
     let checkpoint = cursor.checkpoint();
 
     if cursor
@@ -184,6 +265,8 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         };
     }
 
+    // Rejected alternatives roll back; the furthest one is the diagnostic.
+    let mut furthest = None;
     match try_recognize_source_trigger_envelope(cursor, name_links, name_failure) {
         SourceTriggerEnvelopeAttempt::Recognized(event) => {
             return recognized(
@@ -193,7 +276,8 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             );
         }
         SourceTriggerEnvelopeAttempt::Unpromoted(failure) => {
-            return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure);
+            keep_furthest(&mut furthest, failure);
+            cursor.rollback(checkpoint);
         }
         SourceTriggerEnvelopeAttempt::NotClaimed => cursor.rollback(checkpoint),
     }
@@ -206,7 +290,8 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             );
         }
         SpellCastEventAttempt::Unpromoted(failure) => {
-            return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure);
+            keep_furthest(&mut furthest, failure);
+            cursor.rollback(checkpoint);
         }
         SpellCastEventAttempt::NotClaimed => cursor.rollback(checkpoint),
     }
@@ -219,7 +304,8 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             );
         }
         super::ActorObjectEventAttempt::Rejected(failure) => {
-            return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure);
+            keep_furthest(&mut furthest, failure);
+            cursor.rollback(checkpoint);
         }
         super::ActorObjectEventAttempt::NotClaimed => cursor.rollback(checkpoint),
     }
@@ -232,7 +318,8 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             );
         }
         SacrificeEventAttempt::Failed(failure) => {
-            return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure);
+            keep_furthest(&mut furthest, failure);
+            cursor.rollback(checkpoint);
         }
         SacrificeEventAttempt::NotClaimed => cursor.rollback(checkpoint),
     }
@@ -242,109 +329,56 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         .peek()
         .filter(|raw| raw.eq_ignore_ascii_case("when") || raw.eq_ignore_ascii_case("whenever"))
     else {
-        cursor.rollback(original);
-        return GenericTriggerEnvelopeAttempt::NotClaimed;
+        return match furthest {
+            Some(failure) => GenericTriggerEnvelopeAttempt::RejectedCandidate(failure),
+            None => GenericTriggerEnvelopeAttempt::NotClaimed,
+        };
     };
     let word = word.to_string();
     if let Err(failure) = cursor.consume(&word) {
         return GenericTriggerEnvelopeAttempt::RejectedCandidate(failure);
     }
     let event_start = cursor.checkpoint();
-    if let Ok(mut subjects) =
-        recognize_permanent_transition_subject(cursor, name_links, name_failure)
-    {
-        let kind = match cursor.peek() {
-            Some(raw) if raw.eq_ignore_ascii_case("enters") => {
-                Some(PermanentTransitionKind::Entered)
-            }
-            Some(raw) if raw.eq_ignore_ascii_case("dies") => Some(PermanentTransitionKind::Died),
-            _ => None,
-        };
-        if let Some(kind) = kind {
-            cursor.enter("trigger.envelope.permanent-transition");
-            let action = match kind {
-                PermanentTransitionKind::Entered => "enters",
-                PermanentTransitionKind::Died => "dies",
-            };
-            if let Err(failure) = cursor.consume(action) {
-                return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
-            }
-            let mut entry_state = None;
-            if kind == PermanentTransitionKind::Entered {
-                cursor.enter("trigger.envelope.permanent-subject");
-                if subjects.alternatives.iter().any(|branch| {
-                    matches!(branch, PermanentDiedEventBranchNode::Filtered { predicate, .. }
-                        if !predicate.has_nominal_head())
-                }) {
-                    return GenericTriggerEnvelopeAttempt::FailedCommitted(
-                        cursor.fail("an entering object subject with a nominal head"),
-                    );
-                }
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-                {
-                    if let Err(failure) = cursor.consume_phrase(&["the", "battlefield"]) {
-                        return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
-                    }
-                }
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("under"))
-                {
-                    let scope = match recognize_entering_controller(cursor) {
-                        Ok(scope) => scope,
-                        Err(failure) => {
-                            return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
-                        }
-                    };
-                    for branch in &mut subjects.alternatives {
-                        let PermanentDiedEventBranchNode::Filtered { controller, .. } = branch
-                        else {
-                            return GenericTriggerEnvelopeAttempt::FailedCommitted(cursor.fail(
-                                "an entering controller qualifier on a filtered object subject",
-                            ));
-                        };
-                        if controller.is_some() {
-                            return GenericTriggerEnvelopeAttempt::FailedCommitted(
-                                cursor.fail("one controller relation per event subject"),
-                            );
-                        }
-                        *controller = Some(scope);
-                    }
-                }
-            }
-            if kind == PermanentTransitionKind::Entered {
-                entry_state = match cursor.peek() {
-                    Some(word) if word.eq_ignore_ascii_case("tapped") => {
-                        Some(EntryStatePredicate::Tapped)
-                    }
-                    Some(word) if word.eq_ignore_ascii_case("untapped") => {
-                        Some(EntryStatePredicate::Untapped)
-                    }
-                    _ => None,
-                };
-                if entry_state.is_some() {
-                    cursor.enter("trigger.envelope.entry-state");
-                    if let Err(failure) = cursor.advance_to(cursor.position() + 1) {
-                        return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
-                    }
-                }
-            }
+    // The source subject with one or more event verbs (`attacks or blocks`).
+    // A complete union must reach the envelope comma to be claimed here.
+    match super::recognize_source_event_union(cursor, name_links, name_failure) {
+        Ok(event) => {
             cursor.enter("trigger.envelope.separator");
-            return match cursor.consume(",") {
-                Ok(()) => recognized(
-                    cursor,
-                    GenericTriggerEventNode::PermanentTransition {
-                        kind,
-                        subjects,
-                        entry_state,
-                    },
-                    has_ability_word,
-                ),
-                Err(failure) => GenericTriggerEnvelopeAttempt::FailedCommitted(failure),
-            };
+            match cursor.consume(",") {
+                Ok(()) => {
+                    // A lone `attacks` keeps its established event atom.
+                    let event = if event.verbs == [super::SourceEventVerb::Attacked] {
+                        GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked {
+                            source: event.source,
+                        })
+                    } else {
+                        GenericTriggerEventNode::SourceEvent(event)
+                    };
+                    return recognized(cursor, event, has_ability_word);
+                }
+                Err(failure) => keep_furthest(&mut furthest, failure),
+            }
         }
+        Err(failure) => keep_furthest(&mut furthest, failure),
+    }
+    cursor.rollback(event_start);
+
+    match recognize_permanent_transition_subject(cursor, name_links, name_failure) {
+        Ok(mut subjects) => {
+            let kind = match cursor.peek() {
+                Some(raw) if raw.eq_ignore_ascii_case("enters") => {
+                    Some(PermanentTransitionKind::Entered)
+                }
+                Some(raw) if raw.eq_ignore_ascii_case("dies") => {
+                    Some(PermanentTransitionKind::Died)
+                }
+                _ => None,
+            };
+            if let Some(kind) = kind {
+                return finish_permanent_transition(cursor, kind, &mut subjects, has_ability_word);
+            }
+        }
+        Err(failure) => keep_furthest(&mut furthest, failure),
     }
     cursor.rollback(event_start);
 
@@ -361,8 +395,9 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         super::recognize_attached_object_event,
     ];
     for reader in local_readers {
-        if let Ok(event) = reader(cursor, name_links, name_failure) {
-            return finish_local(cursor, event, has_ability_word);
+        match reader(cursor, name_links, name_failure) {
+            Ok(event) => return finish_local(cursor, event, has_ability_word),
+            Err(failure) => keep_furthest(&mut furthest, failure),
         }
         cursor.rollback(event_start);
     }
@@ -375,11 +410,18 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
         recognize_player_event,
     ];
     for reader in player_readers {
-        if let Ok(event) = reader(cursor) {
-            return finish_local(cursor, event, has_ability_word);
+        match reader(cursor) {
+            Ok(event) => return finish_local(cursor, event, has_ability_word),
+            Err(failure) => keep_furthest(&mut furthest, failure),
         }
         cursor.rollback(event_start);
     }
+    // `you cycle SOURCE`: the player actor with the source as object.
+    match super::recognize_source_cycled_event(cursor, name_links, name_failure) {
+        Ok(event) => return finish_local(cursor, event, has_ability_word),
+        Err(failure) => keep_furthest(&mut furthest, failure),
+    }
+    cursor.rollback(event_start);
     // A plural `N or more` subject commits to the shared object-event frame;
     // a singular subject is claimed only when its verb frame is complete.
     let plural = super::quantified_plural_subject_starts(cursor);
@@ -396,10 +438,102 @@ pub(in crate::oracle::canonical) fn try_recognize_generic_trigger_envelope(
             };
         }
         Err(failure) if plural => return GenericTriggerEnvelopeAttempt::FailedCommitted(failure),
-        Err(_) => cursor.rollback(event_start),
+        Err(failure) => {
+            keep_furthest(&mut furthest, failure);
+            cursor.rollback(event_start);
+        }
     }
-    cursor.rollback(original);
-    GenericTriggerEnvelopeAttempt::NotClaimed
+    match furthest {
+        Some(failure) => GenericTriggerEnvelopeAttempt::RejectedCandidate(failure),
+        None => GenericTriggerEnvelopeAttempt::NotClaimed,
+    }
+}
+
+fn finish_permanent_transition(
+    cursor: &mut OracleTokenCursor<'_>,
+    kind: PermanentTransitionKind,
+    subjects: &mut PermanentDiedEventNode,
+    has_ability_word: bool,
+) -> GenericTriggerEnvelopeAttempt {
+    cursor.enter("trigger.envelope.permanent-transition");
+    let action = match kind {
+        PermanentTransitionKind::Entered => "enters",
+        PermanentTransitionKind::Died => "dies",
+    };
+    if let Err(failure) = cursor.consume(action) {
+        return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+    }
+    let mut entry_state = None;
+    if kind == PermanentTransitionKind::Entered {
+        cursor.enter("trigger.envelope.permanent-subject");
+        if subjects.alternatives.iter().any(|branch| {
+            matches!(branch, PermanentDiedEventBranchNode::Filtered { predicate, .. }
+                if !predicate.has_nominal_head())
+        }) {
+            return GenericTriggerEnvelopeAttempt::FailedCommitted(
+                cursor.fail("an entering object subject with a nominal head"),
+            );
+        }
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        {
+            if let Err(failure) = cursor.consume_phrase(&["the", "battlefield"]) {
+                return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+            }
+        }
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("under"))
+        {
+            let scope = match recognize_entering_controller(cursor) {
+                Ok(scope) => scope,
+                Err(failure) => {
+                    return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+                }
+            };
+            for branch in &mut subjects.alternatives {
+                let PermanentDiedEventBranchNode::Filtered { controller, .. } = branch else {
+                    return GenericTriggerEnvelopeAttempt::FailedCommitted(
+                        cursor
+                            .fail("an entering controller qualifier on a filtered object subject"),
+                    );
+                };
+                if controller.is_some() {
+                    return GenericTriggerEnvelopeAttempt::FailedCommitted(
+                        cursor.fail("one controller relation per event subject"),
+                    );
+                }
+                *controller = Some(scope);
+            }
+        }
+        entry_state = match cursor.peek() {
+            Some(word) if word.eq_ignore_ascii_case("tapped") => Some(EntryStatePredicate::Tapped),
+            Some(word) if word.eq_ignore_ascii_case("untapped") => {
+                Some(EntryStatePredicate::Untapped)
+            }
+            _ => None,
+        };
+        if entry_state.is_some() {
+            cursor.enter("trigger.envelope.entry-state");
+            if let Err(failure) = cursor.advance_to(cursor.position() + 1) {
+                return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+            }
+        }
+    }
+    cursor.enter("trigger.envelope.separator");
+    match cursor.consume(",") {
+        Ok(()) => recognized(
+            cursor,
+            GenericTriggerEventNode::PermanentTransition {
+                kind,
+                subjects: subjects.clone(),
+                entry_state,
+            },
+            has_ability_word,
+        ),
+        Err(failure) => GenericTriggerEnvelopeAttempt::FailedCommitted(failure),
+    }
 }
 
 fn finish_local(

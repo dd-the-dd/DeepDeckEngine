@@ -98,13 +98,28 @@ fn second_draw_exception_is_a_committed_event_diagnostic() {
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
+    // Trigger frames claim every triggered ability: the generic trigger
+    // program owns the committed diagnostic and the specialized family keeps
+    // its precise state as explicit candidate evidence.
     assert_eq!(
         ability.diagnostics[0].automaton.as_deref(),
-        Some("entry-or-repeat-trigger")
+        Some("generic-trigger-program")
     );
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
+        Some("trigger.envelope.separator")
+    );
+    assert_eq!(
+        ability.diagnostics[1].code,
+        "oracle_candidate_machine_failure"
+    );
+    assert_eq!(
+        ability.diagnostics[1].automaton.as_deref(),
+        Some("entry-or-repeat-trigger")
+    );
+    assert_eq!(
+        ability.diagnostics[1].state.as_deref(),
         Some("event.card-drawn.exception.ordinal")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("second"));
+    assert_eq!(ability.diagnostics[1].found.as_deref(), Some("second"));
 }

@@ -160,12 +160,26 @@ fn malformed_family_is_native_failure_without_legacy_fallback() {
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
     assert!(parsed.abilities[0].rule.is_none());
+    // Trigger frames claim every triggered ability: the generic trigger
+    // program owns the committed diagnostic and the specialized family keeps
+    // its precise state as explicit candidate evidence.
+    let diagnostics = &parsed.abilities[0].diagnostics;
     assert_eq!(
-        parsed.abilities[0].diagnostics[0].automaton.as_deref(),
+        diagnostics[0].automaton.as_deref(),
+        Some("generic-trigger-program")
+    );
+    assert_eq!(
+        diagnostics[0].state.as_deref(),
+        Some("selector.predicate.start")
+    );
+    assert_eq!(diagnostics[0].found.as_deref(), Some("becomes"));
+    assert_eq!(diagnostics[1].code, "oracle_candidate_machine_failure");
+    assert_eq!(
+        diagnostics[1].automaton.as_deref(),
         Some("became-target-trigger")
     );
     assert_eq!(
-        parsed.abilities[0].diagnostics[0].state.as_deref(),
+        diagnostics[1].state.as_deref(),
         Some("event.became-target.subject.article")
     );
 }

@@ -47,7 +47,8 @@ fn compile_recognized_trigger_program(
 ) -> MachineResult<CanonicalRuleDraft> {
     cursor.enter("trigger.program.permanent-face");
     cursor.require(
-        type_line_has_permanent_card_type(input.face_type_line),
+        !envelope.event.requires_permanent_face()
+            || type_line_has_permanent_card_type(input.face_type_line),
         "a permanent source face for this battlefield triggered ability",
     )?;
     let event = lower_generic_trigger_event(cursor, &envelope.event)?;
@@ -155,3 +156,7 @@ mod generic_trigger_attempt_tests;
 #[cfg(test)]
 #[path = "trigger_guard_condition_tests.rs"]
 mod trigger_guard_condition_tests;
+
+#[cfg(test)]
+#[path = "trigger_frame_event_tests.rs"]
+mod trigger_frame_event_tests;

@@ -4829,6 +4829,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some(
             "declaredAttacker"
             | "declaredBlocker"
+            | "permanentBecameBlocked"
             | "permanentTapped"
             | "manaAbilityActivated"
             | "attachedPermanentManaAbilityActivated"
@@ -4881,7 +4882,10 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("objectBecameTargetOfControlledAbility") => {
             player_reference_supported(&event["player"])
         }
-        Some("controlledCreatureBecameBlocked") => player_reference_supported(&event["player"]),
+        Some("controlledCreatureBecameBlocked") => {
+            player_reference_supported(&event["player"])
+                && event.get("where").is_none_or(card_filter_supported)
+        }
         Some("controlledSourceDealtExactDamage") => {
             player_reference_supported(&event["player"])
                 && event["amount"].as_i64().is_some_and(|amount| amount > 0)
@@ -25736,7 +25740,16 @@ impl GameEngine {
                 })
                 .collect::<Vec<_>>();
             for rule in rules {
-                self.put_triggered_ability_on_stack(&source, rule);
+                // The active player is the player whose step began: the
+                // event-bound `that player` of a step trigger (CR 603.2).
+                self.put_triggered_ability_on_stack_with_decisions(
+                    &source,
+                    rule,
+                    BTreeMap::from([(
+                        "triggeringPlayerId".to_string(),
+                        Value::String(active_player_id.clone()),
+                    )]),
+                );
                 if self.check_quantity_failure().is_err() {
                     return;
                 }
@@ -38005,8 +38018,16 @@ impl GameEngine {
                                 triggered_rule_supported(rule)
                                     && triggered_event_variants(&rule["event"]).iter().any(
                                         |event| {
-                                            value_kind(event)
+                                            (value_kind(event)
                                                 == Some("controlledCreatureBecameBlocked")
+                                                && event.get("where").is_none_or(|filter| {
+                                                    matches_permanent_filter(&attacker, filter)
+                                                }))
+                                                // CR 509.1h: the source itself
+                                                // becomes blocked once per combat.
+                                                || (value_kind(event)
+                                                    == Some("permanentBecameBlocked")
+                                                    && source.instance_id == attacker_id)
                                         },
                                     )
                             })

@@ -107,9 +107,29 @@ fn unsupported_period_is_committed_to_native_diagnostic() {
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
+    // Trigger frames claim every triggered ability: the generic trigger
+    // program owns the committed diagnostic and the specialized family keeps
+    // its precise state as explicit candidate evidence.
+    assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("generic-trigger-program")
+    );
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
+        Some("event.spell-cast.ordinal-basis")
+    );
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("each"));
+    assert_eq!(
+        ability.diagnostics[1].code,
+        "oracle_candidate_machine_failure"
+    );
+    assert_eq!(
+        ability.diagnostics[1].automaton.as_deref(),
+        Some("ordinal-spell-tax-draw")
+    );
+    assert_eq!(
+        ability.diagnostics[1].state.as_deref(),
         Some("event.spell-cast.ordinal-period")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("game"));
+    assert_eq!(ability.diagnostics[1].found.as_deref(), Some("game"));
 }
