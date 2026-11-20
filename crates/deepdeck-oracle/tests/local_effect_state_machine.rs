@@ -109,11 +109,22 @@ fn a_connector_inside_a_trigger_envelope_is_not_claimed_as_a_spell_effect_sequen
         "Whenever Example Source deals damage and you gain 3 life, draw a card.",
     );
 
+    // The trigger frame claims the ability and rejects the conjoined event
+    // inside its envelope; no spell effect sequence claims the `and`.
     assert_eq!(parsed.status, "unsupported");
+    let ability = &parsed.abilities[0];
+    assert!(ability.rule.is_none());
+    let diagnostic = &ability.diagnostics[0];
+    assert_eq!(diagnostic.code, "oracle_machine_failure");
     assert_eq!(
-        parsed.abilities[0].diagnostics[0].code,
-        "unsupported_oracle_ability"
+        diagnostic.automaton.as_deref(),
+        Some("generic-trigger-program")
     );
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("event.combat-damage.kind")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("damage"));
 }
 
 #[test]
