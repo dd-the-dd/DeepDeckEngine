@@ -41,6 +41,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     event: SyntaxNode<GenericTriggerEventNode>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
+    source_attachment: Option<AttachedObjectRole>,
 ) -> MachineResult<TriggeredProgramNode> {
     let start = cursor.position();
     // The guard is read before the effect program, so only the ability's own
@@ -102,6 +103,8 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     // This parent reads `This ability triggers only ...` after the body.
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
     context.event_player = event_names_player(&event.value);
+    context.source_attachment = source_attachment;
+    context.defending_player = event_names_defending_player(&event.value);
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
@@ -139,6 +142,21 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             LocalTriggerEventNode::CombatDamageToPlayer { .. }
                 | LocalTriggerEventNode::AttachedObjectEvent {
                     action: AttachedObjectEventAction::DealCombatDamageToPlayer,
+                    ..
+                }
+        )
+    )
+}
+
+/// Attack events by the source or its attached creature: the runtime records
+/// the attacked player (or planeswalker controller) as the triggering player.
+fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
+    matches!(
+        event,
+        GenericTriggerEventNode::Local(
+            LocalTriggerEventNode::SourceAttacked { .. }
+                | LocalTriggerEventNode::AttachedObjectEvent {
+                    action: AttachedObjectEventAction::Attack,
                     ..
                 }
         )

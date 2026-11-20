@@ -215,6 +215,7 @@ mod object_identity_initialization_tests;
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
 ))]
 mod object_identity_tests;
+mod object_relation_lki;
 mod target_legality;
 mod target_numeric_lki;
 mod target_numeric_runtime;
@@ -31225,16 +31226,23 @@ impl GameEngine {
                 ) {
                     return Some(stack_object.controller.clone());
                 }
+                let departed = || {
+                    self.departed_target_player(
+                        object_relation_lki::ObjectPlayerRelation::Controller,
+                        &reference["object"],
+                        stack_object,
+                    )
+                };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => {
+                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
                         let (player_index, card_index) = self.permanent_position(&instance_id)?;
                         Some(
                             self.state.players[player_index].battlefield[card_index]
                                 .controller
                                 .clone(),
                         )
-                    }
+                    }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -31243,7 +31251,8 @@ impl GameEngine {
                         .stack
                         .iter()
                         .find(|object| object.id == stack_id)
-                        .map(|object| object.controller.clone()),
+                        .map(|object| object.controller.clone())
+                        .or_else(departed),
                 }
             }
             Some("ownerOf") => {
@@ -31253,16 +31262,23 @@ impl GameEngine {
                 ) {
                     return Some(stack_object.card.owner.clone());
                 }
+                let departed = || {
+                    self.departed_target_player(
+                        object_relation_lki::ObjectPlayerRelation::Owner,
+                        &reference["object"],
+                        stack_object,
+                    )
+                };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => {
+                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
                         let (player_index, card_index) = self.permanent_position(&instance_id)?;
                         Some(
                             self.state.players[player_index].battlefield[card_index]
                                 .owner
                                 .clone(),
                         )
-                    }
+                    }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -31271,7 +31287,8 @@ impl GameEngine {
                         .stack
                         .iter()
                         .find(|object| object.id == stack_id)
-                        .map(|object| object.card.owner.clone()),
+                        .map(|object| object.card.owner.clone())
+                        .or_else(departed),
                 }
             }
             Some("chosenTarget" | "chosenObject") => {
