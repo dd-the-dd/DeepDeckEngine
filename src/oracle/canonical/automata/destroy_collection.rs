@@ -78,6 +78,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
                 cursor.enter("destroy.collection.complete");
                 return Ok(DestroyPermanentCollectionEffectNode {
                     objects: cursor.require_value(objects, "a permanent object collection")?,
+                    cannot_regenerate: false,
                 });
             }
         };

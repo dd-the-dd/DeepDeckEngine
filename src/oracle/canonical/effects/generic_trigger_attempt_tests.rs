@@ -46,7 +46,7 @@ fn recognized_event_commits_guard_program_and_face_failures() {
             "trigger.program.permanent-face",
         ),
         (
-            "When this creature enters, you may destroy target artifact. Draw a card.",
+            "When this creature enters, you may destroy target artifact and you may draw a card.",
             "Creature",
             "program.optional.scope",
         ),

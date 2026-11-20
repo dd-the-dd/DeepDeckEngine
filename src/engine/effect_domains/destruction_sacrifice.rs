@@ -192,6 +192,26 @@ impl GameEngine {
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
                     )?);
+                } else if value_kind(&effect["permanent"]) == Some("union") {
+                    // Several declared target slots of one instruction are
+                    // destroyed simultaneously; members that became illegal
+                    // are unaffected and the rest still are (CR 608.2b).
+                    let instance_ids = self
+                        .resolve_runtime_object_ids_for_effect(
+                            &effect["permanent"],
+                            stack_object,
+                            bindings,
+                            decisions,
+                        )?
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|instance_id| self.permanent_position(instance_id).is_some())
+                        .collect();
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                        instance_ids,
+                        effect["cannotRegenerate"].as_bool().unwrap_or(false),
+                        stack_object,
+                    )?);
                 } else if object_expression_supported(&effect["permanent"]) {
                     let instance_ids = self
                         .resolve_runtime_object_ids(
