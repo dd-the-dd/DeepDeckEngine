@@ -140,6 +140,7 @@ mod requiting_hex_runtime;
 #[path = "tests/fatal_push_runtime.rs"]
 mod fatal_push_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/trigger_frame_runtime.rs"]
 mod trigger_frame_runtime;
 
