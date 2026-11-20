@@ -6,6 +6,10 @@ edition = "2024"
 [features]
 default = ["oracle-compilation"]
 oracle-compilation = ["dep:deepdeck-oracle"]
+# Runs tests quarantined in docs/coverage-targets.md as ordinary tests.
+# Without it they are reported as ignored with their coverage-target reason;
+# CI executes them with `-- --ignored` in its continue-on-error step.
+coverage-targets = []
 ci-test-partition = []
 ci-unit-tests-1 = ["ci-test-partition"]
 ci-unit-tests-2 = ["ci-test-partition"]

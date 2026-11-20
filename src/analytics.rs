@@ -2794,6 +2794,7 @@ mod tests {
     fn disabled_analytics_forwards_decisions_without_retaining_samples() {
         let state = GameState {
             schema_version: "mtg-game/v1".to_string(),
+            battlefield_incarnation_sequence: 0,
             game_mode: GameMode::Free,
             status: GameStatus::InProgress,
             turn_number: 1,

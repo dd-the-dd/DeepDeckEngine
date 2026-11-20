@@ -6,6 +6,10 @@ publish = false
 
 [features]
 parser-standalone = []
+# Runs tests quarantined in docs/coverage-targets.md as ordinary tests.
+# Without it they are reported as ignored with their coverage-target reason;
+# CI executes them with `-- --ignored` in its continue-on-error step.
+coverage-targets = []
 ci-test-partition = []
 ci-unit-tests-1 = ["ci-test-partition"]
 ci-unit-tests-2 = ["ci-test-partition"]
@@ -17,6 +21,12 @@ deepdeck-engine-runtime = { path = "../deepdeck-engine-runtime", default-feature
 deepdeck-oracle = { path = "../deepdeck-oracle" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Contract tests that compile playable cards (card_structure_factory,
+# emeritus_of_ideation) need the runtime model built with Oracle compilation;
+# the library itself keeps the runtime boundary without it.
+[dev-dependencies]
+deepdeck-engine-runtime = { path = "../deepdeck-engine-runtime", features = ["oracle-compilation"] }
 
 [lib]
 name = "deepdeck_oracle_engine_contracts"
