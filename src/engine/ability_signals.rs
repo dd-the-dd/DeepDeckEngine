@@ -72,6 +72,8 @@ impl GameEngine {
         Ok(true)
     }
 
+    /// The acting player is an event attribute: each observer's `player`
+    /// reference decides whether it observes that player (CR 603.2).
     fn enqueue_ability_signal_triggers(&mut self, player_id: &str, ability_id: &str) {
         let triggers = self
             .state
@@ -79,7 +81,6 @@ impl GameEngine {
             .iter()
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
-            .filter(|source| source.controller == player_id)
             .flat_map(|source| {
                 source
                     .definition
@@ -92,6 +93,11 @@ impl GameEngine {
                                 .any(|event| {
                                     value_kind(event) == Some("abilityPerformed")
                                         && event["abilityId"].as_str() == Some(ability_id)
+                                        && self.event_player_reference_matches(
+                                            &event["player"],
+                                            source,
+                                            player_id,
+                                        )
                                 })
                     })
                     .cloned()
@@ -99,8 +105,12 @@ impl GameEngine {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        let decisions = BTreeMap::from([(
+            "triggeringPlayerId".to_string(),
+            Value::String(player_id.to_string()),
+        )]);
         for (source, rule) in triggers {
-            self.put_triggered_ability_on_stack(&source, rule);
+            self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions.clone());
             if self.check_quantity_failure().is_err() {
                 return;
             }

@@ -203,7 +203,9 @@ impl GameEngine {
                                         == expected as i32
                                 })
                             })
-                            && matches_card_filter(&permanent.definition, &rule["event"]["where"])
+                            && rule["event"].get("where").is_none_or(|filter| {
+                                matches_card_filter(&permanent.definition, filter)
+                            })
                     })
                     .cloned()
                     .map(|rule| (source.clone(), rule))

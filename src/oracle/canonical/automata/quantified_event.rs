@@ -46,6 +46,8 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     /// An attacking creature becomes blocked (CR 509.1h).
     BecomeBlocked,
     DealCombatDamageToPlayer,
+    /// Any other damage complement; `ObjectEventNode::damage` carries it.
+    DealDamage,
     Enter,
     Die,
     /// Leaves the battlefield for any zone (CR 603.6c, 603.10a).
@@ -60,6 +62,8 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
 pub(in crate::oracle::canonical) struct ObjectEventNode {
     pub subject: QuantifiedEventSubjectNode,
     pub verb: ObjectEventVerb,
+    /// The shared damage complement of `DealDamage`.
+    pub damage: Option<super::DamageDealtComplement>,
 }
 
 /// `N or more` at the cursor, as a lexical probe that commits nothing.
@@ -166,6 +170,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
     cursor.consume(&expected)?;
     cursor.enter("event.object.complement");
     let mut verb = verb;
+    let mut damage = None;
     match verb {
         ObjectEventVerb::BeDealtDamage(_) => {
             cursor.consume("dealt")?;
@@ -186,15 +191,24 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             "battlefield",
         ])?,
         ObjectEventVerb::DealCombatDamageToPlayer => {
-            cursor.consume_phrase(&["combat", "damage", "to", "a", "player"])?
+            let complement = super::recognize_damage_dealt_complement(cursor)?;
+            if !complement.is_combat_damage_to_any_player() {
+                verb = ObjectEventVerb::DealDamage;
+                damage = Some(complement);
+            }
         }
+        ObjectEventVerb::DealDamage => unreachable!("read from the deal verb"),
         ObjectEventVerb::Attack
         | ObjectEventVerb::Block
         | ObjectEventVerb::Enter
         | ObjectEventVerb::Die => {}
     }
     cursor.enter("event.object.complete");
-    Ok(ObjectEventNode { subject, verb })
+    Ok(ObjectEventNode {
+        subject,
+        verb,
+        damage,
+    })
 }
 
 #[cfg(test)]

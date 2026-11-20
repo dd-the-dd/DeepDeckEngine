@@ -87,6 +87,7 @@ impl GameEngine {
                                     source.controller != r.player_id
                                         && (!combat
                                             || event["noncombatOnly"].as_bool() != Some(true))
+                                        && (combat || event["combatOnly"].as_bool() != Some(true))
                                 }
                                 _ => false,
                             })
