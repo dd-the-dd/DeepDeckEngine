@@ -1,8 +1,8 @@
 use serde_json::Value;
 
 use super::super::{
-    card_filter_supported, numeric_expression_supported, object_expression_supported,
-    player_reference_supported, target_reference_supported, value_kind,
+    numeric_expression_supported, object_expression_supported, player_reference_supported,
+    target_reference_supported, value_kind,
 };
 
 /// Validates direct-damage IR nodes.
@@ -16,10 +16,11 @@ pub(in super::super) fn damage_effect_supported(effect: &Value) -> Option<bool> 
                 && (target_reference_supported(&effect["recipient"])
                     || player_reference_supported(&effect["recipient"])
                     || (value_kind(&effect["recipient"]) == Some("eachPermanent")
-                        && card_filter_supported(&effect["recipient"]["where"])
-                        && effect["recipient"]
-                            .get("player")
-                            .is_none_or(player_reference_supported)))
+                        && object_expression_supported(&effect["recipient"])))
+                && effect.get("source").is_none_or(|source| {
+                    matches!(value_kind(source), Some("self" | "abilitySource"))
+                        || target_reference_supported(source)
+                })
                 && effect.get("bindExcessAs").is_none_or(Value::is_string)
                 && effect.get("bindRecipientAs").is_none_or(Value::is_string)
         }

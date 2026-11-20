@@ -3,7 +3,9 @@ use super::*;
 #[test]
 fn targeted_damage_lowering_keeps_declaration_and_recipient_id_together() {
     let damage = DamageEffectNode {
-        source: LocalObjectReference::SourceSelf,
+        source: crate::oracle::canonical::automata::PermanentOperandNode::Reference(
+            LocalObjectReference::SourceSelf,
+        ),
         amount: NumericExpression::Atom(NumericAtom::Integer(1)),
         recipient: DamageRecipientNode::Targets(TargetListNode {
             slots: vec![TargetSlot {

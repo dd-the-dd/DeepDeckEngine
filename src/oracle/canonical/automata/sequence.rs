@@ -581,6 +581,7 @@ fn recognize_effect_sequence_attempt_internal(
                 );
                 let mut action_context = context.clone();
                 action_context.permanent_subject_scope = memory.permanent_subject_scope;
+                action_context.current_effect_index = Some(effect_index);
                 action_context.verb_chain_subject = match (
                     memory.connectors.last(),
                     memory.effects.last(),
@@ -623,6 +624,49 @@ fn recognize_effect_sequence_attempt_internal(
                         // `sacrifice A, B, and C`: one verb, independent
                         // headed objects, each its own sacrifice action. Any
                         // other `and a ...` clause stays with the other readers.
+                        // `deals 1 damage to A and 2 damage to B`: the second
+                        // predicate shares the previous action's damage source.
+                        if memory.connectors.last() == Some(&EffectConnector::And)
+                            && let Some(LocalEffectNode::DealDamage(previous)) =
+                                memory.effects.last()
+                        {
+                            let previous_index = effect_index - 1;
+                            let (source, antecedent) = match &previous.source {
+                                super::PermanentOperandNode::Reference(reference) => (
+                                    previous.source.clone(),
+                                    super::DamageSourceAntecedent::Reference(*reference),
+                                ),
+                                super::PermanentOperandNode::BoundReference(
+                                    super::PermanentEffectReference::Target(binding),
+                                ) => (
+                                    previous.source.clone(),
+                                    super::DamageSourceAntecedent::Target(*binding),
+                                ),
+                                super::PermanentOperandNode::Targets(targets)
+                                    if targets.slots.len() == 1 =>
+                                {
+                                    let binding = TargetBinding {
+                                        effect_index: previous_index,
+                                        slot_index: 0,
+                                    };
+                                    (
+                                        super::PermanentOperandNode::BoundReference(
+                                            super::PermanentEffectReference::Target(binding),
+                                        ),
+                                        super::DamageSourceAntecedent::Target(binding),
+                                    )
+                                }
+                                _ => (
+                                    previous.source.clone(),
+                                    super::DamageSourceAntecedent::Unavailable,
+                                ),
+                            };
+                            if let Ok(node) = attempt.attempt(|child| {
+                                super::recognize_gapped_damage_predicate(child, source, antecedent)
+                            }) {
+                                return Ok(LocalEffectNode::DealDamage(node));
+                            }
+                        }
                         if memory.connectors.last() == Some(&EffectConnector::And)
                             && super::elided_sacrifice_operand_starts(
                                 attempt,

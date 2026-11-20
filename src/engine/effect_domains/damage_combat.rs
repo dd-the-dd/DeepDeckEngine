@@ -101,7 +101,7 @@ impl GameEngine {
                         decisions,
                     )
                     .unwrap_or(0);
-                let damage_source_id = effect
+                let resolved_source = effect
                     .get("source")
                     .and_then(|source| self.resolve_target(source, stack_object, bindings))
                     .and_then(|source| match source {
@@ -109,8 +109,19 @@ impl GameEngine {
                             Some(instance_id)
                         }
                         TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
-                    })
-                    .unwrap_or_else(|| stack_object.card.instance_id.clone());
+                    });
+                // A declared object source that became illegal deals no damage
+                // (CR 608.2b); only the ability's own source keeps its LKI.
+                if resolved_source.is_none()
+                    && matches!(
+                        value_kind(&effect["source"]),
+                        Some("chosenTarget" | "chosenTargets")
+                    )
+                {
+                    return Ok(());
+                }
+                let damage_source_id =
+                    resolved_source.unwrap_or_else(|| stack_object.card.instance_id.clone());
                 if value_kind(&effect["recipient"]) == Some("eachPlayer") {
                     let player_ids = self
                         .state
@@ -128,36 +139,21 @@ impl GameEngine {
                         )?;
                     }
                 } else if value_kind(&effect["recipient"]) == Some("eachPermanent") {
-                    let controller_reference = effect["recipient"].get("player");
-                    let targets = self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|card| {
-                            let controller_matches = controller_reference.is_none_or(|reference| {
-                                match value_kind(reference) {
-                                    Some("opponentsOf") => {
-                                        card.controller != stack_object.controller
-                                    }
-                                    Some("abilityController") => {
-                                        card.controller == stack_object.controller
-                                    }
-                                    _ => true,
-                                }
-                            });
-                            controller_matches
-                                && matches_card_filter(
-                                    &card.definition,
-                                    &effect["recipient"]["where"],
-                                )
-                        })
-                        .map(|card| TargetRef::Permanent {
-                            instance_id: card.instance_id.clone(),
-                        })
-                        .collect::<Vec<_>>();
-                    for target in targets {
-                        self.deal_damage_from_effect(target, amount, &damage_source_id, provider)?;
+                    // The shared object query identifies the recipients once,
+                    // before any of them is dealt damage.
+                    let instance_ids = self.resolve_runtime_object_ids_checked(
+                        &effect["recipient"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?;
+                    for instance_id in instance_ids {
+                        self.deal_damage_from_effect(
+                            TargetRef::Permanent { instance_id },
+                            amount,
+                            &damage_source_id,
+                            provider,
+                        )?;
                     }
                 } else if let Some(target) =
                     self.resolve_target(&effect["recipient"], stack_object, bindings)

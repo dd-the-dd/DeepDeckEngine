@@ -43,7 +43,9 @@ fn linked_source_damage_and_life_are_independent_typed_effects() {
         sequence.effects,
         [
             LocalEffectNode::DealDamage(DamageEffectNode {
-                source: LocalObjectReference::SourceSelf,
+                source: crate::oracle::canonical::automata::PermanentOperandNode::Reference(
+                    LocalObjectReference::SourceSelf
+                ),
                 amount: NumericExpression::Atom(NumericAtom::Integer(3)),
                 recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Any)),
             }),
@@ -78,7 +80,9 @@ fn any_and_typed_damage_targets_share_target_list_and_selector_children() {
     assert_eq!(
         sequence.effects,
         [LocalEffectNode::DealDamage(DamageEffectNode {
-            source: LocalObjectReference::SourceSelf,
+            source: crate::oracle::canonical::automata::PermanentOperandNode::Reference(
+                LocalObjectReference::SourceSelf
+            ),
             amount: NumericExpression::Atom(NumericAtom::Integer(3)),
             recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Object(
                 SelectorPredicate::Intersection(vec![
@@ -111,7 +115,9 @@ fn this_spell_variable_damage_and_word_life_use_the_same_submachines() {
     assert_eq!(
         sequence.effects[0],
         LocalEffectNode::DealDamage(DamageEffectNode {
-            source: LocalObjectReference::SourceSelf,
+            source: crate::oracle::canonical::automata::PermanentOperandNode::Reference(
+                LocalObjectReference::SourceSelf
+            ),
             amount: NumericExpression::Atom(NumericAtom::VariableX),
             recipient: DamageRecipientNode::Targets(one_target(TargetSelector::Player(
                 PlayerPredicate::Any,

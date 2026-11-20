@@ -122,7 +122,10 @@ fn damage_anaphor_requires_the_typed_source_binding_from_its_parent() {
             let super::super::LocalEffectNode::DealDamage(node) = result.unwrap() else {
                 panic!("damage child must return typed damage");
             };
-            assert_eq!(node.source, source);
+            assert_eq!(
+                node.source,
+                crate::oracle::canonical::automata::PermanentOperandNode::Reference(source)
+            );
             assert_eq!(cursor.peek(), Some("."));
         } else {
             assert_eq!(
@@ -167,6 +170,7 @@ fn owner_event_and_local_scopes_are_distinct_damage_source_proofs() {
         ("owner-only initial memory", owner, false),
         ("proved event source", event, true),
         ("proved lexical source", local_source, true),
+        // The local target is the referent: it, not the owner, deals damage.
         ("local target supersedes event", target, false),
         ("unaliased local observed object", observed, false),
         ("locally exhausted", exhausted, false),
@@ -184,13 +188,28 @@ fn owner_event_and_local_scopes_are_distinct_damage_source_proofs() {
         if valid {
             let node = result.unwrap_or_else(|error| panic!("{label}: {error:?}"));
             assert!(
-                matches!(&node.effects[0], super::super::LocalEffectNode::DealDamage(damage) if damage.source == source)
+                matches!(&node.effects[0], super::super::LocalEffectNode::DealDamage(damage) if damage.source == crate::oracle::canonical::automata::PermanentOperandNode::Reference(source))
             );
         } else {
+            let owner_source =
+                crate::oracle::canonical::automata::PermanentOperandNode::Reference(source);
             assert!(
-                result.is_err(),
+                result.as_ref().map_or(true, |node| !matches!(
+                    &node.effects[0],
+                    super::super::LocalEffectNode::DealDamage(damage) if damage.source == owner_source
+                )),
                 "unproved source must not become owner: {label}"
             );
+            if label == "local target supersedes event" {
+                let node = result.unwrap_or_else(|error| panic!("{label}: {error:?}"));
+                assert!(matches!(
+                    &node.effects[0],
+                    super::super::LocalEffectNode::DealDamage(damage)
+                        if damage.source == crate::oracle::canonical::automata::PermanentOperandNode::BoundReference(
+                            R::Target(TargetBinding { effect_index: 0, slot_index: 0 })
+                        )
+                ));
+            }
         }
     }
 }
@@ -215,11 +234,12 @@ fn lexical_results_rebind_or_exhaust_the_proved_event_subject() {
             "Each opponent discards a card. It deals 1 damage to you.",
             false,
         ),
+        // A target referent is an object damage source, never the owner.
         (
             "Target creature gets +1/+1 until end of turn. It deals 1 damage to you.",
-            false,
+            true,
         ),
-        ("Untap target creature. It deals 1 damage to you.", false),
+        ("Untap target creature. It deals 1 damage to you.", true),
         (
             "Creatures you control get +1/+1 until end of turn. It deals 1 damage to you.",
             false,
@@ -233,5 +253,20 @@ fn lexical_results_rebind_or_exhaust_the_proved_event_subject() {
         let result =
             super::super::recognize_effect_sequence_with_context(&mut cursor, &[], None, &context);
         assert_eq!(result.is_ok(), valid, "{text}: {result:?}");
+        if let Ok(node) = &result
+            && text.contains("target")
+        {
+            assert!(
+                matches!(
+                    node.effects.last(),
+                    Some(super::super::LocalEffectNode::DealDamage(damage))
+                        if matches!(
+                            damage.source,
+                            crate::oracle::canonical::automata::PermanentOperandNode::BoundReference(_)
+                        )
+                ),
+                "{text}: the target referent is the damage source"
+            );
+        }
     }
 }

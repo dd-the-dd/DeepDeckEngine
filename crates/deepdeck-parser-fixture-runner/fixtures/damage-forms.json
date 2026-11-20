@@ -1,0 +1,866 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-damage-forms",
+  "cases": [
+    {
+      "id": "rocky-rebuke-target-source-bite",
+      "request": {
+        "cardName": "Rocky Rebuke",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control deals damage equal to its power to target creature an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "id": "targetPermanent1",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "epic-confrontation-bound-subject-fight",
+      "request": {
+        "cardName": "Epic Confrontation",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control gets +1/+2 until end of turn. It fights target creature you don't control. (Each deals damage equal to its power to the other.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "playersExcept",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "first": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "kind": "fightPermanents",
+                  "second": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "pheres-band-brawler-source-fights-optional-target",
+      "request": {
+        "cardName": "Pheres-Band Brawler",
+        "typeLine": "Creature — Centaur Warrior",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, it fights up to one target creature you don't control. (Each deals damage equal to its power to the other.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "playersExcept",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "first": {
+                    "kind": "self"
+                  },
+                  "kind": "fightPermanents",
+                  "second": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "earthquake-collection-without-keyword-and-player-set",
+      "request": {
+        "cardName": "Earthquake",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "Earthquake deals X damage to each creature without flying and each player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "amount": {
+                    "decisionId": "xValue",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "not",
+                          "operand": {
+                            "kind": "hasKeyword",
+                            "value": "flying"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "decisionId": "xValue",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "eachPlayer"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "volcanic-coordinated-heads-share-controller",
+      "request": {
+        "cardName": "Coordinated Heat",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Coordinated Heat deals 3 damage to each creature and planeswalker your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "eachPermanent",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Planeswalker"
+                        }
+                      ]
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "forge-devil-gapped-second-amount",
+      "request": {
+        "cardName": "Forge Devil",
+        "typeLine": "Creature — Devil",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, it deals 1 damage to target creature and 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gapped-bite-reuses-target-source",
+      "request": {
+        "cardName": "Sibling Gap Bite",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control deals 1 damage to target creature you don't control and 1 damage to each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "playersExcept",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "source": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-source-other-excludes-the-subject",
+      "request": {
+        "cardName": "Sibling Rampage",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control deals damage equal to its power to each other creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "powerOf",
+                    "object": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "exclude": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTargets"
+                    },
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "source": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-player-set-and-opponent-collection",
+      "request": {
+        "cardName": "Ember Sweep",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Ember Sweep deals 2 damage to each creature your opponents control and each opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "eachPermanent",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fight-collection",
+      "request": {
+        "cardName": "Near Fight Collection",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control fights each creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "permanent.operand.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fight-another-after-target",
+      "request": {
+        "cardName": "Near Another Fight",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature you control fights another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "lower.fight.second"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-divided-damage-unsupported",
+      "request": {
+        "cardName": "Near Divided",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Near Divided deals 3 damage divided as you choose among one, two, or three targets.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.damage.destination"
+          }
+        ]
+      }
+    }
+  ]
+}
