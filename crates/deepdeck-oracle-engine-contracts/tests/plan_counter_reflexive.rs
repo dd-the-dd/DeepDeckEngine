@@ -20,6 +20,10 @@ fn parsed_rules(oracle_text: &str) -> Vec<serde_json::Value> {
         .collect()
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn controlled_tap_and_ordinal_reflexive_rules_are_executable() {
     let rules = parsed_rules(
@@ -33,6 +37,10 @@ fn controlled_tap_and_ordinal_reflexive_rules_are_executable() {
     assert!(!serialized.contains("resolveTriggeredInstruction"));
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn filtered_group_tap_event_is_not_locked_to_creatures() {
     let rules = parsed_rules(

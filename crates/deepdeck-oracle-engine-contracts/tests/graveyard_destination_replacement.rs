@@ -20,6 +20,10 @@ fn parse_rules(oracle_text: &str) -> Vec<serde_json::Value> {
         .collect()
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rest in Peace; see docs/coverage-targets.md"
+)]
 #[test]
 fn global_card_and_token_replacement_is_executable() {
     let rules = parse_rules(

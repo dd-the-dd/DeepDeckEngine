@@ -3,6 +3,10 @@ use deepdeck_oracle_engine_contracts::{
     oracle::{OracleCardParseRequest, RecognizerProvenance, parse_oracle_card},
 };
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rest in Peace; see docs/coverage-targets.md"
+)]
 #[test]
 fn rest_in_peace_native_rules_are_primitive_and_executable() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

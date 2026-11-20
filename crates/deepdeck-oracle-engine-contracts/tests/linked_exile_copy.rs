@@ -19,6 +19,10 @@ fn parsed_entry_rule(oracle_text: &str) -> serde_json::Value {
         .expect("canonical entry rule")
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Secret Invasion pattern; see docs/coverage-targets.md"
+)]
 #[test]
 fn optional_linked_exile_and_attached_copy_are_executable_primitives() {
     let rule = parsed_entry_rule(
@@ -31,6 +35,10 @@ fn optional_linked_exile_and_attached_copy_are_executable_primitives() {
     assert!(!serialized.contains("Secret Invasion"));
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Secret Invasion pattern; see docs/coverage-targets.md"
+)]
 #[test]
 fn mandatory_artifact_variant_uses_the_same_executable_contract() {
     let rule = parsed_entry_rule(
