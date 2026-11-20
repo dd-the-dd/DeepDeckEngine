@@ -56,11 +56,28 @@ fn burst_lightning_is_entirely_native_after_kicker_promotion() {
 
 #[test]
 fn one_native_ability_does_not_hide_an_unimplemented_keyword() {
-    let parsed = parse_oracle_card(request(
+    // Buyback (CR 702.27) now expands through the parameterized keyword
+    // reader, so the same card shape is complete with it.
+    let buyback = parse_oracle_card(request(
         "Mixed Proof",
         "Instant",
         "{R}",
         "Buyback {3}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+    ));
+    assert_eq!(buyback.status, "canonical");
+    assert!(
+        buyback
+            .abilities
+            .iter()
+            .all(|ability| ability.recognizer == RecognizerProvenance::Native)
+    );
+
+    // Spectacle (CR 702.137) has no expansion yet and must stay visible.
+    let parsed = parse_oracle_card(request(
+        "Mixed Proof",
+        "Instant",
+        "{R}",
+        "Spectacle {R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
     ));
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 2);
