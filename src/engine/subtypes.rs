@@ -11,10 +11,7 @@ const MARKER_KIND: &str = "subtypeSetModification";
 
 pub(super) fn effect_supported(effect: &Value) -> Option<bool> {
     (value_kind(effect) == Some("modifySubtypeSet")).then(|| {
-        (matches!(
-            value_kind(&effect["object"]),
-            Some("self" | "abilitySource")
-        ) || target_reference_supported(&effect["object"]))
+        effect_domains::characteristic_object_supported(&effect["object"])
             && effect["subtypeClass"].as_str() == Some("creature")
             && subtype_set_mode_supported(effect)
             && matches!(
@@ -92,19 +89,22 @@ impl GameEngine {
         effect: &Value,
         stack_object: &StackObject,
         bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
     ) {
-        let instance_id = match value_kind(&effect["object"]) {
-            Some("self" | "abilitySource") => Some(stack_object.card.instance_id.clone()),
-            _ => self
-                .resolve_target(&effect["object"], stack_object, bindings)
-                .and_then(|target| match target {
-                    TargetRef::Permanent { instance_id } => Some(instance_id),
-                    _ => None,
-                }),
-        };
-        let Some(instance_id) = instance_id else {
-            return;
-        };
+        // CR 611.2c: the affected set is locked in when the effect begins.
+        for instance_id in
+            self.characteristic_object_ids(&effect["object"], stack_object, bindings, decisions)
+        {
+            self.modify_subtype_set_of(effect, stack_object, instance_id);
+        }
+    }
+
+    fn modify_subtype_set_of(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        instance_id: String,
+    ) {
         let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
             return;
         };
@@ -113,17 +113,19 @@ impl GameEngine {
         let mode = effect["mode"].as_str().unwrap_or_default();
         let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
         let turn_number = self.state.turn_number;
-        let definition = &mut self.state.players[player_index].battlefield[card_index].definition;
         if mode != "all" {
             // CR 205.3d: an object cannot gain a creature subtype unless it
-            // has a type that can carry one.
-            let can_carry = is_creature(definition)
-                || has_card_type(definition, "kindred")
-                || has_card_type(definition, "tribal");
+            // has a type that can carry one, read after earlier layer-4
+            // effects of the same resolution.
+            let permanent = &self.state.players[player_index].battlefield[card_index];
+            let can_carry = self.permanent_is_creature(permanent)
+                || has_card_type(&permanent.definition, "kindred")
+                || has_card_type(&permanent.definition, "tribal");
             if !can_carry {
                 return;
             }
         }
+        let definition = &mut self.state.players[player_index].battlefield[card_index].definition;
         let rules = &mut definition.rules;
         rules.retain(|rule| {
             !(value_kind(rule) == Some(MARKER_KIND)

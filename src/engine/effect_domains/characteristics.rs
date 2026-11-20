@@ -33,15 +33,6 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && (value_kind(&effect["duration"]) != Some("untilNextTurn")
                     || player_reference_supported(&effect["duration"]["player"]))
         }
-        Some("setBasePowerToughness") => {
-            (matches!(
-                value_kind(&effect["object"]),
-                Some("self" | "abilitySource")
-            ) || target_reference_supported(&effect["object"]))
-                && numeric_expression_supported(&effect["power"])
-                && numeric_expression_supported(&effect["toughness"])
-                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
-        }
         Some("setPower") => {
             (matches!(
                 value_kind(&effect["object"]),
@@ -207,49 +198,6 @@ impl GameEngine {
                             }),
                         );
                     }
-                }
-            }
-            Some("setBasePowerToughness") => {
-                let instance_id = match value_kind(&effect["object"]) {
-                    Some("self" | "abilitySource") => Some(stack_object.card.instance_id.clone()),
-                    _ => self
-                        .resolve_target(&effect["object"], stack_object, bindings)
-                        .and_then(|target| match target {
-                            TargetRef::Permanent { instance_id } => Some(instance_id),
-                            _ => None,
-                        }),
-                };
-                let power = self
-                    .runtime_numeric_expression(&effect["power"], stack_object, bindings, decisions)
-                    .unwrap_or(0);
-                let toughness = self
-                    .runtime_numeric_expression(
-                        &effect["toughness"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                    )
-                    .unwrap_or(0);
-                if let Some(instance_id) = instance_id
-                    && self.permanent_position(&instance_id).is_some()
-                {
-                    self.state.rule_modifiers.push(json!({
-                        "kind": "temporaryBasePowerToughness",
-                        "objectId": instance_id.clone(),
-                        "power": power,
-                        "toughness": toughness,
-                        "expiresAfterTurn": self.state.turn_number,
-                    }));
-                    self.record_event(
-                        "basePowerToughnessChanged",
-                        Some(stack_object.controller.clone()),
-                        Some(instance_id),
-                        json!({
-                            "power": power,
-                            "toughness": toughness,
-                            "untilTurn": self.state.turn_number,
-                        }),
-                    );
                 }
             }
             Some("setPower") => {

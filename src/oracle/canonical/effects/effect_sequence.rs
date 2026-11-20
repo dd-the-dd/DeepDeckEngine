@@ -686,8 +686,12 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 for object in objects {
                     effects.extend(
-                        lower_become_types_to_object(change, &object)
-                            .map_err(|expected| cursor.fail(expected))?,
+                        lower_become_types_to_object(
+                            change,
+                            &object,
+                            &format!("characteristicObjects{effect_index}"),
+                        )
+                        .map_err(|expected| cursor.fail(expected))?,
                     );
                 }
             }
@@ -1289,6 +1293,12 @@ fn lower_local_effect_sequence_with_collections(
         &decisions,
         &mut effects,
     )?;
+    cursor.enter("lower.ability-loss.later-grant");
+    if !super::become_types::no_grant_after_ability_loss(&effects) {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("a layer-6 timestamp order between losing all abilities and a later grant"),
+        ));
+    }
 
     Ok(LoweredEffectSequence { decisions, effects })
 }

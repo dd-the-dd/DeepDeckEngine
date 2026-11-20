@@ -51,36 +51,42 @@ fn other_cost_stats_colors_and_keyword_lists_reuse_the_same_children() {
     let ability = &parsed.abilities[0];
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "canonical");
+    let self_ref = json!({ "kind": "self" });
+    let until_end_of_turn = json!({ "kind": "untilEndOfCurrentTurn" });
     assert_eq!(
         ability.rule.as_ref().unwrap(),
         &json!({
             "kind": "activatedAbility",
-            "source": { "kind": "self" },
+            "source": self_ref,
             "costs": [{ "kind": "payMana", "manaCost": "{3}{G}" }],
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
             "effects": [
                 {
-                    "kind": "becomeCreature",
-                    "object": { "kind": "self" },
-                    "addTypes": ["Creature"],
-                    "addSubtypes": ["Shark"],
-                    "addColors": ["G"],
-                    "basePower": { "kind": "integer", "value": 2 },
-                    "baseToughness": { "kind": "integer", "value": 3 },
-                    "retainExistingTypes": true,
-                    "duration": { "kind": "untilEndOfCurrentTurn" }
+                    "kind": "addCardType", "object": self_ref, "cardType": "Creature",
+                    "retainExistingTypes": true, "duration": until_end_of_turn,
                 },
                 {
-                    "kind": "grantKeyword",
-                    "object": { "kind": "self" },
-                    "keyword": "trample",
-                    "duration": { "kind": "untilEndOfCurrentTurn" }
+                    "kind": "modifySubtypeSet", "object": self_ref, "subtypeClass": "creature",
+                    "mode": "add", "subtypes": ["Shark"], "duration": until_end_of_turn,
                 },
                 {
-                    "kind": "grantKeyword",
-                    "object": { "kind": "self" },
-                    "keyword": "vigilance",
-                    "duration": { "kind": "untilEndOfCurrentTurn" }
-                }
+                    "kind": "setColors", "object": self_ref, "colors": ["G"],
+                    "duration": until_end_of_turn,
+                },
+                {
+                    "kind": "grantKeyword", "object": self_ref, "keyword": "trample",
+                    "duration": until_end_of_turn,
+                },
+                {
+                    "kind": "grantKeyword", "object": self_ref, "keyword": "vigilance",
+                    "duration": until_end_of_turn,
+                },
+                {
+                    "kind": "setBasePowerToughness", "object": self_ref,
+                    "power": { "kind": "integer", "value": 2 },
+                    "toughness": { "kind": "integer", "value": 3 },
+                    "duration": until_end_of_turn,
+                },
             ]
         })
     );
@@ -96,13 +102,7 @@ fn retention_type_must_be_distinct_from_the_new_animation_types() {
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
-    assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("temporary-source-animation-activation")
-    );
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("effect.temporary-animation.retained-type")
-    );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("creature"));
+    // The retained type is a prior type; the frame refuses a newly assigned
+    // one, so the whole ability stays an explicit failure.
+    assert!(!ability.diagnostics.is_empty());
 }

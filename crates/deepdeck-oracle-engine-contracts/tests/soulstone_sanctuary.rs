@@ -29,6 +29,11 @@ fn soulstone_sanctuary_is_native_primitive_and_executable() {
             .iter()
             .map(|effect| effect["kind"].as_str().unwrap())
             .collect::<Vec<_>>(),
-        ["becomeCreature", "grantKeyword", "modifySubtypeSet"]
+        [
+            "addCardType",
+            "modifySubtypeSet",
+            "grantKeyword",
+            "setBasePowerToughness"
+        ]
     );
 }
