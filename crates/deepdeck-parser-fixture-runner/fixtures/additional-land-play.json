@@ -142,14 +142,15 @@
           {
             "index": 0,
             "status": "unsupported",
-            "recognizer": "unclaimed",
-            "abilityType": "unclassifiedAbility"
+            "recognizer": "native",
+            "abilityType": "staticAbility"
           }
         ],
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
           }
         ]
       }
@@ -172,14 +173,15 @@
           {
             "index": 0,
             "status": "unsupported",
-            "recognizer": "unclaimed",
-            "abilityType": "unclassifiedAbility"
+            "recognizer": "native",
+            "abilityType": "staticAbility"
           }
         ],
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start"
           }
         ]
       }

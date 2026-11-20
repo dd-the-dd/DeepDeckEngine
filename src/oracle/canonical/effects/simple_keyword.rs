@@ -62,6 +62,11 @@ pub(in crate::oracle::canonical) fn parse_promoted_simple_keyword(
                 "kind": "ward",
                 "cost": lower_resource_payment(&cost, ResourcePaymentPayer::WardTargetingPlayer),
             }),
+            KeywordAtomNode::Protection { qualities } => json!({
+                "kind": "protection",
+                "from": lower_protection_qualities(&qualities),
+            }),
+            KeywordAtomNode::ManaCost(node) => lower_mana_cost_keyword(&node),
             KeywordAtomNode::Quoted(_) => {
                 unreachable!("this parent never enables quoted keyword atoms")
             }

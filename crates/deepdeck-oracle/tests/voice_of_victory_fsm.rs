@@ -166,14 +166,38 @@ fn claimed_near_misses_report_the_responsible_native_state() {
 
 #[test]
 fn adjacent_keyword_and_player_restriction_families_are_not_stolen() {
-    for oracle in [
-        "Firebending 2",
-        "Your opponents can't activate abilities during your turn.",
+    // Structural frames now claim every ability explicitly: the near-miss is
+    // a committed ability-frame failure, never stolen by the adjacent family.
+    for (oracle, state, found) in [
+        (
+            "Firebending 2",
+            "ability-frame.keyword.expansion",
+            "Firebending",
+        ),
+        (
+            "Your opponents can't activate abilities during your turn.",
+            "ability-frame.static.subject",
+            "Your",
+        ),
     ] {
         let parsed = parse(oracle);
-        assert_ne!(
-            parsed.abilities[0].recognizer,
-            RecognizerProvenance::Native,
+        let ability = &parsed.abilities[0];
+        assert_eq!(ability.status, "unsupported", "{oracle}");
+        assert!(ability.rule.is_none(), "{oracle}");
+        assert_eq!(ability.recognizer, RecognizerProvenance::Native, "{oracle}");
+        assert_eq!(
+            ability.diagnostics[0].automaton.as_deref(),
+            Some("ability-frame"),
+            "{oracle}"
+        );
+        assert_eq!(
+            ability.diagnostics[0].state.as_deref(),
+            Some(state),
+            "{oracle}"
+        );
+        assert_eq!(
+            ability.diagnostics[0].found.as_deref(),
+            Some(found),
             "{oracle}"
         );
     }

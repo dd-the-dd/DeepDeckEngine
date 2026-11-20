@@ -120,17 +120,32 @@ fn near_miss_quantity_equal_to_fails_at_the_counter_name() {
     );
 }
 
+/// Rigging Runner: the trailing condition is kept on the replacement and
+/// checked as the permanent enters (CR 614.1c), never dropped.
 #[test]
-fn near_miss_trailing_condition_is_not_dropped() {
-    let failure = parse(
+fn trailing_condition_gates_the_entry_replacement() {
+    let draft = parse(
         "Creature - Human",
         "This creature enters with a +1/+1 counter on it if you attacked this turn.",
     )
-    .expect_err("a trailing condition has no entry-counter representation");
-    assert!(
-        failure.to_string().contains("replacement.entry-counters"),
-        "{failure}"
+    .expect("conditional entry counter");
+    assert_eq!(replacement(&draft)["kind"], "putEnteringCounters");
+    assert_eq!(draft.rule["condition"]["kind"], "compare");
+    assert_eq!(
+        draft.rule["condition"]["left"]["event"], "attackerDeclared",
+        "{}",
+        draft.rule
     );
+}
+
+#[test]
+fn near_miss_unsupported_trailing_condition_is_not_dropped() {
+    let failure = parse(
+        "Creature - Human",
+        "This creature enters with a +1/+1 counter on it if you cast it from your hand.",
+    )
+    .expect_err("an unread condition has no entry-counter representation");
+    assert!(failure.to_string().contains("condition"), "{failure}");
 }
 
 #[test]

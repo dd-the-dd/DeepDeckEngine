@@ -86,14 +86,22 @@ fn parameterized_keyword_inside_a_list_is_a_committed_native_failure() {
     assert_eq!(diagnostic.state.as_deref(), Some("keyword.ward.cost"));
     assert_eq!(diagnostic.found.as_deref(), Some("2"));
 
-    // A parameter after a parameterless keyword leaves the list envelope
-    // unclaimed by the atomic list family; it is never approximated.
+    // A parameter after a parameterless keyword leaves the list envelope of
+    // the atomic list family; the keyword frame rejects it explicitly and it
+    // is never approximated.
     let trailing = parse_keyword_group("Test Malformed Bird", "Flying, vigilance 2");
     assert_eq!(trailing.status, "unsupported");
     assert_eq!(trailing.abilities.len(), 1);
     assert!(trailing.abilities[0].rule.is_none());
+    let trailing = &trailing.abilities[0];
+    assert_eq!(trailing.diagnostics[0].code, "oracle_machine_failure");
     assert_eq!(
-        trailing.abilities[0].diagnostics[0].code,
-        "unsupported_oracle_ability"
+        trailing.diagnostics[0].automaton.as_deref(),
+        Some("ability-frame")
     );
+    assert_eq!(
+        trailing.diagnostics[0].state.as_deref(),
+        Some("ability-frame.keyword.expansion")
+    );
+    assert_eq!(trailing.diagnostics[0].found.as_deref(), Some("Flying"));
 }

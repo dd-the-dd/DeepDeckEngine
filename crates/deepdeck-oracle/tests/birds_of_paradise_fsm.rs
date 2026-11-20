@@ -84,5 +84,18 @@ fn parameterized_flying_near_miss_is_not_claimed_as_a_simple_keyword() {
 
     assert_eq!(parsed.status, "unsupported");
     assert!(parsed.abilities[0].rule.is_none());
-    assert_ne!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
+    // Structural frames now claim every ability explicitly: the near-miss is
+    // a committed ability-frame failure, never stolen by the adjacent family.
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
+    assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("ability-frame")
+    );
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("ability-frame.keyword.expansion")
+    );
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("Flying"));
 }

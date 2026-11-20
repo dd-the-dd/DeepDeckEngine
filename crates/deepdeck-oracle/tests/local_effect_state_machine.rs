@@ -109,10 +109,16 @@ fn a_connector_inside_a_trigger_envelope_is_not_claimed_as_a_spell_effect_sequen
         "Whenever Example Source deals damage and you gain 3 life, draw a card.",
     );
 
+    // The trigger frame owns it (CR 603.1); it is never a spell sequence.
     assert_eq!(parsed.status, "unsupported");
-    assert_eq!(
-        parsed.abilities[0].diagnostics[0].code,
-        "unsupported_oracle_ability"
+    let diagnostic = &parsed.abilities[0].diagnostics[0];
+    assert_eq!(diagnostic.code, "oracle_machine_failure");
+    assert!(
+        diagnostic
+            .state
+            .as_deref()
+            .is_some_and(|state| state.contains("trigger")),
+        "{diagnostic:?}"
     );
 }
 

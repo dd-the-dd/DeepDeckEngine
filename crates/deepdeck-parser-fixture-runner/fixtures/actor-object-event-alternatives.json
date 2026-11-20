@@ -448,7 +448,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.trigger.event"
           }
         ]
       }
@@ -469,7 +470,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.trigger.event"
           }
         ]
       }
@@ -490,7 +492,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.trigger.event"
           }
         ]
       }
@@ -511,7 +514,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.trigger.event"
           }
         ]
       }

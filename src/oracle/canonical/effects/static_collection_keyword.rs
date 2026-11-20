@@ -49,6 +49,15 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
     if grant.exclude_source {
         objects["excludeSource"] = json!(true);
     }
+    if grant
+        .keywords
+        .iter()
+        .any(|keyword| matches!(keyword, KeywordAtomNode::ManaCost(_)))
+    {
+        return StaticCollectionKeywordParseAttempt::Failed(cursor.fail(
+            "a granted keyword the engine reads from a static grant (a mana-cost keyword is read from the card itself)",
+        ));
+    }
     let modifiers = grant
         .keywords
         .into_iter()
@@ -60,8 +69,15 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
                 "kind":"grantWard","objects":objects.clone(),
                 "cost":lower_resource_payment(&cost, ResourcePaymentPayer::WardTargetingPlayer),
             }),
+            KeywordAtomNode::Protection { qualities } => json!({
+                "kind":"grantProtection","objects":objects.clone(),
+                "from":lower_protection_qualities(&qualities),
+            }),
             KeywordAtomNode::Quoted(_) => {
                 unreachable!("this parent never enables quoted keyword atoms")
+            }
+            KeywordAtomNode::ManaCost(_) => {
+                unreachable!("mana-cost keyword grants are rejected before lowering")
             }
         })
         .collect::<Vec<_>>();
