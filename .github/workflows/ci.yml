@@ -33,10 +33,18 @@ jobs:
       - name: Verify unit-test partitions
         shell: pwsh
         run: ./scripts/check-unit-test-partitions.ps1
+      - name: Verify coverage-target quarantine list
+        shell: pwsh
+        run: ./scripts/check-coverage-targets.ps1
       - name: Run partitioned unit tests
         shell: pwsh
         run: |
           cargo test --locked -p deepdeck-oracle --tests
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+          # The runtime boundary must still build without Oracle compilation.
+          cargo check --locked -p deepdeck-engine-runtime --lib --no-default-features
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
           }
@@ -45,7 +53,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
-            cargo test --locked -p deepdeck-engine-runtime --lib --no-default-features --features "ci-unit-tests-$partition"
+            # Oracle-compiled card scenarios are part of each runtime partition.
+            cargo test --locked -p deepdeck-engine-runtime --lib --no-default-features --features "oracle-compilation,ci-unit-tests-$partition"
             if ($LASTEXITCODE -ne 0) {
               exit $LASTEXITCODE
             }
@@ -79,6 +88,20 @@ jobs:
           --test hob_parser_batch
           --test hoc_parser_batch
           --test oracle_ground_truth
+      - name: Run coverage-target quarantine (docs/coverage-targets.md)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $failed = $false
+          cargo test --locked -p deepdeck-oracle --tests -- --ignored
+          if ($LASTEXITCODE -ne 0) { $failed = $true }
+          cargo test --locked -p deepdeck-oracle-engine-contracts --tests -- --ignored
+          if ($LASTEXITCODE -ne 0) { $failed = $true }
+          foreach ($partition in 1..4) {
+            cargo test --locked -p deepdeck-engine-runtime --lib --no-default-features --features "oracle-compilation,ci-unit-tests-$partition" -- --ignored
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
       - name: Audit public tree
         shell: pwsh
         run: ./scripts/check-public-tree.ps1
