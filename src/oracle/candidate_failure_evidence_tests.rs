@@ -26,7 +26,7 @@ fn generic_primary_and_specialized_candidate_are_both_exposed_with_distinct_role
                 "../../crates/deepdeck-parser-fixture-runner/fixtures/phelia-exuberant-shepherd.json"
             ),
             "unsupported-delayed-step-near-miss",
-            "effect.start",
+            "delayed-step.timing.step",
             "duration.next-step.step",
             "combat",
         ),

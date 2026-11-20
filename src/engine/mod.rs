@@ -176,6 +176,7 @@ mod player_query;
 mod previous_turn_events;
 mod quantity_preflight;
 mod quantity_replacement;
+mod rebound;
 mod resolution_casting;
 mod resolution_checkpoint;
 mod resolution_costs;
@@ -3930,6 +3931,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || prototype_ability_supported(&rule["ability"])
                 || dredge_ability_supported(&rule["ability"])
                 || flashback_ability_supported(&rule["ability"])
+                || rebound::rebound_ability_supported(&rule["ability"])
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
@@ -21518,7 +21520,11 @@ impl GameEngine {
             .filter(|modifier| {
                 matches!(
                     value_kind(modifier),
-                    Some("controlWhileSourceTapped" | "controlWhileSourceAttached")
+                    Some(
+                        "controlWhileSourceTapped"
+                            | "controlWhileSourceAttached"
+                            | "controlWhileSourceControlled"
+                    )
                 )
             })
             .filter(|modifier| {
@@ -21533,6 +21539,11 @@ impl GameEngine {
                     modifier["sourceController"].as_str() != Some(source.controller.as_str());
                 if value_kind(modifier) == Some("controlWhileSourceTapped") {
                     !source.tapped || source_changed
+                } else if value_kind(modifier) == Some("controlWhileSourceControlled") {
+                    // CR 611.2b, 400.7: a new incarnation is a new object.
+                    source_changed
+                        || modifier["sourceIdentity"].as_str()
+                            != Self::tracked_zone_identity(source)
                 } else {
                     source_changed
                         || source.attached_to.as_deref()
@@ -21568,7 +21579,11 @@ impl GameEngine {
         self.state.rule_modifiers.retain(|modifier| {
             !matches!(
                 value_kind(modifier),
-                Some("controlWhileSourceTapped" | "controlWhileSourceAttached")
+                Some(
+                    "controlWhileSourceTapped"
+                        | "controlWhileSourceAttached"
+                        | "controlWhileSourceControlled"
+                )
             ) || !expired.contains(modifier)
         });
 
@@ -25778,6 +25793,12 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("delayedStepTrigger")
                     && modifier["step"].as_str() == Some(step)
+                    && modifier["turnPlayerId"].as_str().is_none_or(|player_id| {
+                        self.state
+                            .players
+                            .get(self.state.active_player)
+                            .is_some_and(|active| active.id == player_id)
+                    })
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -30417,7 +30438,9 @@ impl GameEngine {
             let mut card = stack_object.card;
             let card_id = card.instance_id.clone();
             let spell_copy = is_spell_copy(&card);
-            let rebound = card.flags.remove("reboundEligible").unwrap_or(false) && !spell_copy;
+            // CR 608.2b: this spell doesn't resolve, so Rebound's resolution
+            // replacement (CR 702.88a) never applies.
+            card.flags.remove("reboundEligible");
             if let Some(source) = &movement_source {
                 card_zone_transition::reset_movement_card(&mut card, source)?;
             } else {
@@ -30425,19 +30448,6 @@ impl GameEngine {
             }
             let destination = if spell_copy {
                 "ceasesToExist"
-            } else if rebound {
-                card.flags.insert("reboundPending".to_string(), true);
-                let destination_zone = card_zone_transition::ObjectZone::Exile;
-                if let Some(source) = &movement_source {
-                    self.commit_card_zone_transition(
-                        &mut card,
-                        source,
-                        &destination_zone,
-                        card_zone_transition::ObjectTransitionReason::Move,
-                    )?;
-                }
-                self.state.players[owner_index].exile.push(card);
-                "exile"
             } else if exile_on_leave_stack {
                 let destination_zone = card_zone_transition::ObjectZone::Exile;
                 if let Some(source) = &movement_source {
@@ -30949,7 +30959,17 @@ impl GameEngine {
                     || modifier["cardInstanceId"].as_str()
                         != Some(stack_object.card.instance_id.as_str())
             });
+            // CR 702.88a: a hand-cast spell with rebound is exiled instead of
+            // being put into its owner's graveyard as it resolves.
+            let rebound = stack_object
+                .card
+                .flags
+                .get("reboundEligible")
+                .copied()
+                .unwrap_or(false)
+                && !is_spell_copy(&stack_object.card);
             let exile_on_leave_stack = stack_object.exile_on_leave_stack
+                || rebound
                 || effect_exiles_resolving_spell
                 || paradigm_name.is_some()
                 || spell_exiles_after_resolution(&stack_object.card.definition)
@@ -30987,6 +31007,7 @@ impl GameEngine {
                 card.flags.insert("suspended".to_string(), true);
                 card.counters.insert("time".to_string(), time_counters);
             }
+            card.flags.remove("reboundEligible");
             let destination = if spell_copy {
                 "ceasesToExist"
             } else if exile_on_leave_stack {
@@ -31001,6 +31022,9 @@ impl GameEngine {
                         &destination_zone,
                         card_zone_transition::ObjectTransitionReason::Move,
                     )?;
+                }
+                if rebound {
+                    self.install_rebound_upkeep_trigger(&card, &controller);
                 }
                 self.state.players[owner_index].exile.push(card);
                 if adventure_after_resolution {

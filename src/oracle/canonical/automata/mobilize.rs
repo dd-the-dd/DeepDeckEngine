@@ -96,13 +96,17 @@ fn recognize_combat_token_batch(
     })
 }
 
+/// The object pronoun agrees with the batch it denotes: `it` for one created
+/// token, `them` for several. The batch quantity is supplied by the parent.
 fn recognize_delayed_batch_cleanup(
     cursor: &mut OracleTokenCursor<'_>,
+    batch_quantity: i64,
 ) -> MachineResult<DelayedBatchCleanupNode> {
     cursor.enter("effect.delayed-batch.action");
     cursor.consume("sacrifice")?;
     cursor.enter("effect.delayed-batch.objects");
-    cursor.consume("them")?;
+    let pronoun = if batch_quantity == 1 { "it" } else { "them" };
+    cursor.consume(pronoun)?;
     cursor.enter("effect.delayed-batch.timing-relation");
     cursor.consume("at")?;
     cursor.enter("effect.delayed-batch.timing");
@@ -140,7 +144,11 @@ fn recognize_mobilize_reminder(
     cursor.enter("keyword.mobilize.reminder.creation-terminator");
     cursor.consume(".")?;
     cursor.enter("keyword.mobilize.reminder.cleanup");
-    let cleanup = recognize_delayed_batch_cleanup(cursor)?;
+    let batch_quantity = match tokens.creation.quantity {
+        NumericAtom::Integer(value) => value,
+        NumericAtom::VariableX => return Err(cursor.fail("a literal token batch quantity")),
+    };
+    let cleanup = recognize_delayed_batch_cleanup(cursor, batch_quantity)?;
     cursor.enter("keyword.mobilize.reminder.cleanup-terminator");
     cursor.consume(".")?;
     cursor.enter("keyword.mobilize.reminder.close");

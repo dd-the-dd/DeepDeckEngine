@@ -33,6 +33,7 @@ fn with_effects(effects: Vec<LocalEffectNode>) -> EffectSequenceNode {
         where_x: Vec::new(),
         conditionals: Vec::new(),
         unless: Vec::new(),
+        delayed: Vec::new(),
     }
 }
 

@@ -12,6 +12,7 @@ fn effect(selector: TargetSelector) -> ZoneChangeEffectNode {
             }],
         },
         regeneration: ZoneChangeRegenerationPolicy::Allowed,
+        until: None,
     }
 }
 
@@ -82,6 +83,7 @@ fn permanent_only_candidates_stay_exact_and_invalid_sequence_nodes_fail_safely()
         where_x: vec![],
         conditionals: vec![],
         unless: vec![],
+        delayed: vec![],
     };
     let mut cursor = OracleTokenCursor::new("return-invalid-node", &[]);
     assert!(lower_local_effect_sequence(&mut cursor, &invalid).is_err());
