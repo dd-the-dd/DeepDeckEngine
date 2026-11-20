@@ -426,6 +426,10 @@ fn creature_deck(player_id: &str) -> PlayerDeck {
     }
 }
 
+/// Mirrors the canonical IR the Oracle compiler emits for
+/// "{T}: Add {C}." and "{T}, Pay 1 life: Add one mana of any color. Spend this
+/// mana only to cast an instant or sorcery spell." (explicit recipient, and the
+/// spend restriction on the addMana instruction).
 fn restricted_mana_land() -> CardDefinition {
     let mut land = card("restricted-mana-land", "Restricted Mana Land", "Land", "");
     land.rules = vec![
@@ -435,6 +439,7 @@ fn restricted_mana_land() -> CardDefinition {
             "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
             "effects": [{
                 "kind": "addMana",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
                 "mana": "{C}"
             }]
         }),
@@ -451,18 +456,16 @@ fn restricted_mana_land() -> CardDefinition {
             ],
             "effects": [{
                 "kind": "addMana",
-                "mana": {
-                    "kind": "chooseColor",
-                    "amount": 1,
-                    "spendRestriction": {
-                        "kind": "castSpell",
-                        "where": {
-                            "kind": "or",
-                            "operands": [
-                                { "kind": "cardTypeContains", "value": "Instant" },
-                                { "kind": "cardTypeContains", "value": "Sorcery" }
-                            ]
-                        }
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "mana": { "kind": "chooseColor", "amount": 1 },
+                "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                        "kind": "or",
+                        "operands": [
+                            { "kind": "cardTypeContains", "value": "Instant" },
+                            { "kind": "cardTypeContains", "value": "Sorcery" }
+                        ]
                     }
                 }
             }]
@@ -479,7 +482,11 @@ fn mana_druid() -> CardDefinition {
         "kind": "manaAbility",
         "source": { "kind": "self" },
         "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
-        "effects": [{ "kind": "addMana", "mana": "{R}" }]
+        "effects": [{
+            "kind": "addMana",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "mana": "{R}"
+        }]
     })];
     creature
 }

@@ -97,6 +97,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { $failed = $true }
           cargo test --locked -p deepdeck-oracle-engine-contracts --tests -- --ignored
           if ($LASTEXITCODE -ne 0) { $failed = $true }
+          cargo test --locked --test backend_contract --test playable_model -- --ignored
+          if ($LASTEXITCODE -ne 0) { $failed = $true }
           foreach ($partition in 1..4) {
             cargo test --locked -p deepdeck-engine-runtime --lib --no-default-features --features "oracle-compilation,ci-unit-tests-$partition" -- --ignored
             if ($LASTEXITCODE -ne 0) { $failed = $true }

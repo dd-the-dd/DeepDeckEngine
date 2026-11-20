@@ -14,8 +14,9 @@ quarantined explicitly instead of being deleted:
 ```
 
 - Default `cargo test` reports them as `ignored` with that reason.
-- `--features coverage-targets` (on `deepdeck-oracle`, `deepdeck-engine-runtime`
-  or `deepdeck-oracle-engine-contracts`) runs them as ordinary tests.
+- `--features coverage-targets` (on `mtg-engine`, `deepdeck-oracle`,
+  `deepdeck-engine-runtime` or `deepdeck-oracle-engine-contracts`) runs them
+  as ordinary tests.
 - CI runs them with `-- --ignored` in its `continue-on-error` quarantine step,
   so newly passing targets are visible without blocking the build.
 - `scripts/check-coverage-targets.ps1` (run by CI) fails when the attributes
@@ -206,3 +207,17 @@ branch `oracle/generalized-compiler` (PR #26).
 | `crates/deepdeck-oracle-engine-contracts/tests/plan_counter_reflexive.rs::controlled_tap_and_ordinal_reflexive_rules_are_executable` | Rewrite History | Whenever one or more creatures you control become tapped, draw a card, then discard a card and put a plan counter on this enchantment. | generic-trigger-program / event.object.verb | leave, attack, deal combat damage, enter, die or be dealt damage / become | Same grammar gap as the deepdeck-oracle coverage target for this text. |
 | `crates/deepdeck-oracle-engine-contracts/tests/plan_counter_reflexive.rs::filtered_group_tap_event_is_not_locked_to_creatures` | Rewrite History | Whenever one or more creatures you control become tapped, draw a card, then discard a card and put a plan counter on this enchantment. | generic-trigger-program / event.object.verb | leave, attack, deal combat damage, enter, die or be dealt damage / become | Same grammar gap as the deepdeck-oracle coverage target for this text. |
 | `crates/deepdeck-oracle-engine-contracts/tests/rest_in_peace.rs::rest_in_peace_native_rules_are_primitive_and_executable` | Rest in Peace | When this enchantment enters, exile all graveyards. | generic-trigger-program / lower.sentence-conditional.ranges (candidate entry-zone-batch.generic-movement-unavailable) | a supported atomic targetless effect / end of input | Same grammar gap as the deepdeck-oracle coverage target for this text. |
+
+## mtg-engine (tests/) (9)
+
+| Test | Card | Failing ability text | Automaton / state | Expected / found | Note |
+|---|---|---|---|---|---|
+| `tests/backend_contract.rs::backend_parses_taigam_as_copy_then_suspend_original_spell` | Taigam, Master Opportunist | Flurry — Whenever you cast your second spell each turn, copy it, then exile the spell you cast with four time counters on it. If it doesn't have suspend, it gains suspend. | generic-trigger-program / effect.start | a supported effect subject / copy |  |
+| `tests/backend_contract.rs::backend_parses_yenna_without_card_specific_copy_flags` | Yenna, Redtooth Regent | {2}, {T}: Choose target enchantment you control that doesn't have the same name as another permanent you control. Create a token that's a copy of it, except it isn't legendary. If the token is an Aura, untap Yenna, Redtooth Regent, then scry 2. Activate only as a sorcery. | contextual-effect-program / sequence.connector-or-end | `and`, `then`, or sentence terminator / that | Same gap as the src/engine/tests.rs Yenna row. |
+| `tests/backend_contract.rs::backend_routes_compact_oracle_rules_json` | Consult the Star Charts | Look at the top X cards of your library, where X is the number of lands you control. Put one of those cards into your hand. If this spell was kicked, put two of those cards into your hand instead. Put the rest on the bottom of your library in a random order. | conditional-top-cards-partition / numeric.atom.complete | a fixed positive card count / cards |  |
+| `tests/backend_contract.rs::oracle_backend_preserves_during_combat_on_enter_triggers` | The Blue Spirit | Whenever a nontoken creature you control enters during combat, draw a card. | generic-trigger-program / trigger.envelope.separator | , / during |  |
+| `tests/backend_contract.rs::oracle_backend_recognizes_a_spell_self_exile_instruction` | Spirit Water Revival | Exile Spirit Water Revival. | contextual-effect-program / lower.sentence-conditional.ranges | a supported atomic targetless effect / end of input |  |
+| `tests/playable_model.rs::playable_card_compilation_preserves_both_room_doors` | Defiled Crypt // Cadaver Lab | When you unlock this door, return target creature card from your graveyard to your hand. | unclaimed (unsupported_oracle_ability) | No token-driven native automaton claimed this ability. |  |
+| `tests/playable_model.rs::playable_card_compilation_preserves_both_split_spells` | Expansion // Explosion | Copy target instant or sorcery spell with mana value 4 or less. You may choose new targets for the copy. | contextual-effect-program / effect.start | a supported effect subject / Copy | The Explosion half parses; assertions use the shared primitives. |
+| `tests/playable_model.rs::playable_card_compilation_preserves_transform_face_locality` | Sephiroth, Fabled SOLDIER | Whenever Sephiroth enters or attacks, you may sacrifice another creature. If you do, draw a card. | source-trigger-program / trigger.source-program.event-union | the other battlefield transition of the source (enters or dies) / , | Other face abilities also fail. |
+| `tests/playable_model.rs::playable_card_compilation_reports_offspring_as_executable` | Agate Instigator | Offspring {1}{R} (You may pay an additional {1}{R} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.) | unclaimed (unsupported_oracle_ability) | No token-driven native automaton claimed this ability. |  |

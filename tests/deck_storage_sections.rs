@@ -5,10 +5,27 @@ use serde_json::json;
 #[test]
 fn container_build_includes_the_embedded_public_game_piece_catalog() {
     let dockerfile = include_str!("../Dockerfile");
-    let copy = dockerfile
-        .find("COPY data/builtin-game-pieces.json ./data/builtin-game-pieces.json")
-        .expect("The container must supply the embedded catalog before compiling");
+    // Either the catalog itself or the whole tracked data tree may be copied.
+    let copy = [
+        "COPY data/builtin-game-pieces.json ./data/builtin-game-pieces.json",
+        "COPY data ./data",
+    ]
+    .into_iter()
+    .filter_map(|instruction| dockerfile.find(instruction))
+    .min()
+    .expect("The container must supply the embedded catalog before compiling");
     assert!(copy < dockerfile.find("RUN cargo build").unwrap());
+    // A build-context exclusion would silently drop the copied catalog.
+    let dockerignore = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(".dockerignore");
+    if let Ok(ignored) = std::fs::read_to_string(dockerignore) {
+        assert!(
+            ignored.lines().map(str::trim).all(|line| !matches!(
+                line,
+                "data" | "data/" | "/data" | "data/*" | "data/*.json"
+            ) && !line.contains("builtin-game-pieces")),
+            "The container build context must include the embedded catalog"
+        );
+    }
     let _: serde_json::Value =
         serde_json::from_str(include_str!("../data/builtin-game-pieces.json")).unwrap();
 }

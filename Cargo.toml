@@ -25,6 +25,8 @@ ci-unit-tests-1 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-1
 ci-unit-tests-2 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-2"]
 ci-unit-tests-3 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-3"]
 ci-unit-tests-4 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-4"]
+# Runs integration tests quarantined in docs/coverage-targets.md as ordinary tests.
+coverage-targets = []
 
 [dependencies]
 dotenvy = "0.15"
