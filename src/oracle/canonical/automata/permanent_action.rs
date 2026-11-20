@@ -41,9 +41,9 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
     if let Some(reference) = context.verb_chain_subject
-        && cursor.peek().is_some_and(|raw| {
+        && (cursor.peek().is_some_and(|raw| {
             raw.eq_ignore_ascii_case("gains") || raw.eq_ignore_ascii_case("becomes")
-        })
+        }) || super::combat_clause_starts(cursor))
     {
         return recognize_verb_chain_action(cursor, reference, context);
     }
@@ -69,8 +69,34 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let stats = action_offset == 0
         && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));
     let becomes = action_offset == 0 && action.eq_ignore_ascii_case("becomes");
-    if !keyword && !stats && !becomes {
+    let combat = action_offset == 0 && super::combat_clause_starts(&subject_end);
+    if !keyword && !stats && !becomes && !combat {
         return PermanentActionAttempt::NotClaimed;
+    }
+    if combat {
+        // The shared combat clause owns everything after the subject; its
+        // markers are granted to the subject for the clause's duration.
+        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
+            return PermanentActionAttempt::FailedCommitted(failure);
+        }
+        let mut trial = subject_end.clone();
+        return match super::recognize_temporary_combat_clause(
+            &mut trial,
+            context.preposed_duration.as_ref(),
+        ) {
+            Ok((keywords, duration)) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(LocalEffectNode::TemporaryKeywordGrant(
+                    TemporaryKeywordGrantNode {
+                        objects: subject,
+                        keywords,
+                        abilities: Vec::new(),
+                        duration,
+                    },
+                ))
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
     }
     if becomes {
         // A type-change frame is only a candidate: other readers own the
@@ -183,7 +209,17 @@ fn recognize_verb_chain_action(
         other => PermanentOperandNode::BoundReference(other),
     };
     let mut trial = cursor.clone();
-    let node = if cursor
+    let node = if super::combat_clause_starts(cursor) {
+        super::recognize_temporary_combat_clause(&mut trial, context.preposed_duration.as_ref())
+            .map(|(keywords, duration)| {
+                LocalEffectNode::TemporaryKeywordGrant(TemporaryKeywordGrantNode {
+                    objects: subject.clone(),
+                    keywords,
+                    abilities: Vec::new(),
+                    duration,
+                })
+            })
+    } else if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("becomes"))
     {

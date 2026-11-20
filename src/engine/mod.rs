@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod attack_defender_restriction;
 mod attack_tax;
 mod battlefield_departure;
 mod battlefield_entry_batch;
@@ -3272,6 +3273,8 @@ fn keyword_kind_supported(value: &Value) -> bool {
             "cantBlock"
                 | "cantAttack"
                 | "cantBeBlocked"
+                | "attackEachCombatIfAble"
+                | "blockEachCombatIfAble"
                 | "changeling"
                 | "deathtouch"
                 | "devoid"
@@ -5358,6 +5361,10 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         }
         Some("cantAttackSourceController") => {
             static_object_selector_supported(&modifier["objects"])
+                && matches!(
+                    modifier["defenders"].as_str(),
+                    Some("player" | "playerAndPlaneswalkers")
+                )
         }
         Some("attackTax") => {
             attack_tax::protected_player_reference_supported(&modifier["protectedPlayer"])
@@ -10747,11 +10754,23 @@ impl GameEngine {
                 .any(|(source, modifier)| {
                     value_kind(modifier) == Some("grantKeyword")
                         && modifier["keyword"].as_str() == Some(keyword)
-                        && self.static_keyword_selector_matches(
-                            source,
-                            &modifier["objects"],
-                            permanent,
-                        )
+                        && if attack_defender_restriction::is_combat_restriction_marker(keyword) {
+                            // A combat marker is read at declaration against
+                            // effective characteristics (`creatures without
+                            // flying`); no selector queries a marker, so this
+                            // cannot recurse into itself.
+                            self.combat_restriction_selector_matches(
+                                source,
+                                &modifier["objects"],
+                                permanent,
+                            )
+                        } else {
+                            self.static_keyword_selector_matches(
+                                source,
+                                &modifier["objects"],
+                                permanent,
+                            )
+                        }
                         && modifier.get("condition").is_none_or(|condition| {
                             self.condition_value_with_source(
                                 condition,
@@ -37230,9 +37249,13 @@ impl GameEngine {
                         .battlefield_static_modifiers()
                         .iter()
                         .any(|(source, modifier)| {
-                            source.controller == defending_player_id
-                                && value_kind(modifier) == Some("cantAttackSourceController")
-                                && Self::static_selector_matches(source, &modifier["objects"], card)
+                            value_kind(modifier) == Some("cantAttackSourceController")
+                                && self.attack_defender_protected_by(source, modifier, defender)
+                                && self.combat_restriction_selector_matches(
+                                    source,
+                                    &modifier["objects"],
+                                    card,
+                                )
                         })
                     || self.goad_source_for(card).is_some_and(|goading_player| {
                         defending_player_id == goading_player
@@ -37303,7 +37326,9 @@ impl GameEngine {
                         .find(|card| card.instance_id == attacker_id)
                 })
                 .is_some_and(|card| {
-                    self.permanent_has_self_static_modifier(card, "attackEachCombatIfAble")
+                    // The self requirement modifier and the granted marker
+                    // are the same effective requirement (CR 508.1d).
+                    self.permanent_has_keyword(card, "attackEachCombatIfAble")
                         || self.most_life_attack_requirement(card).is_some()
                         || self.goad_source_for(card).is_some()
                 })
@@ -37713,7 +37738,21 @@ impl GameEngine {
                         })
                 })
         });
-        if incomplete_menace_attackers.is_empty() && !must_block_available {
+        // CR 509.1c: a creature that blocks each combat if able must block
+        // while any declaration this step still offers it a legal block.
+        let required_blocker_available = actions.iter().any(|action| {
+            action.blocker_id.as_deref().is_some_and(|blocker_id| {
+                defender
+                    .battlefield
+                    .iter()
+                    .find(|card| card.instance_id == blocker_id)
+                    .is_some_and(|card| self.permanent_has_keyword(card, "blockEachCombatIfAble"))
+            })
+        });
+        if incomplete_menace_attackers.is_empty()
+            && !must_block_available
+            && !required_blocker_available
+        {
             actions.push(LegalAction {
                 id: format!("finishBlockers:{}:{}", self.state.turn_number, defender.id),
                 kind: ActionKind::FinishBlockers,
