@@ -27,6 +27,10 @@ fn test_token(instance_id: &str, owner: &str) -> CardInstance {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rest in Peace; see docs/coverage-targets.md"
+)]
 #[test]
 fn global_replacement_exiles_cards_for_every_player_and_tokens_before_they_cease() {
     let mut engine = test_engine(2);

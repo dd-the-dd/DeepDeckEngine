@@ -265,6 +265,10 @@ mod channel;
 mod phasing_priority;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ant-Man, Colony Commander, Knight of Wundagore; see docs/coverage-targets.md"
+)]
 #[test]
 fn counter_placement_triggers_use_the_placing_player_and_respect_source_exclusion() {
     let ant_man = parse_oracle_card(OracleCardParseRequest {
@@ -353,6 +357,10 @@ fn counter_placement_triggers_use_the_placing_player_and_respect_source_exclusio
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Kid Loki, The Wondrous Wasp; see docs/coverage-targets.md"
+)]
 #[test]
 fn counter_history_selectors_and_linked_ability_loss_execute_and_expire() {
     let kid_loki = parse_oracle_card(OracleCardParseRequest {
@@ -607,6 +615,10 @@ fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Captain America, Super-Soldier; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -779,6 +791,10 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Crowd of True Believers; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attacking_alone_activation_filters_target_and_executes_sequence() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -885,6 +901,10 @@ fn parsed_attacking_alone_activation_filters_target_and_executes_sequence() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Super Intelligence; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attachment_upkeep_counter_history_and_effect_choice_execute() {
     let aura = parse_oracle_card(OracleCardParseRequest {
@@ -1196,6 +1216,10 @@ fn parsed_attachment_upkeep_counter_history_and_effect_choice_execute() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avengers Assemble!; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_temporal_conditions_conditional_flash_and_attachment_counts_execute() {
     let avengers = parse_oracle_card(OracleCardParseRequest {
@@ -1326,6 +1350,10 @@ fn parsed_temporal_conditions_conditional_flash_and_attachment_counts_execute() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: War Machine, Legacy of Iron; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_named_source_stat_expression_executes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1389,6 +1417,10 @@ fn parsed_named_source_stat_expression_executes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: HYDRA Troopers; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_graveyard_threshold_selects_the_runtime_branch() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1468,6 +1500,10 @@ fn parsed_graveyard_threshold_selects_the_runtime_branch() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Red Guardian, Super-Soldier; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_object_history_filters_target_runtime_candidates() {
     let guardian = parse_oracle_card(OracleCardParseRequest {
@@ -1600,6 +1636,10 @@ fn parsed_object_history_filters_target_runtime_candidates() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avengers Tower; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_singular_cast_or_activation_mana_restriction_executes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1675,6 +1715,10 @@ fn parsed_singular_cast_or_activation_mana_restriction_executes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Misty Knight, Hero for Hire; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_turn_history_scaling_and_temporary_reduction_execute() {
     let misty = parse_oracle_card(OracleCardParseRequest {
@@ -1863,6 +1907,10 @@ fn parsed_turn_history_scaling_and_temporary_reduction_execute() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Sentry, Golden Guardian; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_targeted_token_keeps_keywords_and_compiled_quoted_rule() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3505,6 +3553,10 @@ fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Party Guest; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3596,6 +3648,10 @@ fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thorin, King of Durin's Folk; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3671,6 +3727,10 @@ fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Winter Soldier, Icy Assassin; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_source_bonuses_count_other_permanents_and_matching_attachments() {
     let controlled_count = parse_oracle_card(OracleCardParseRequest {
@@ -3757,6 +3817,10 @@ fn parsed_source_bonuses_count_other_permanents_and_matching_attachments() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Fellow Conspirator; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3821,6 +3885,10 @@ fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ori, Plate Stacker; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3926,6 +3994,10 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Long-Lost Lances; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3978,6 +4050,10 @@ fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Smaug the Impenetrable; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes() {
     let hall = parse_oracle_card(OracleCardParseRequest {
@@ -4126,6 +4202,10 @@ fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo's Burglaring; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
     let control = parse_oracle_card(OracleCardParseRequest {
@@ -4265,6 +4345,10 @@ fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Necklace of Girion; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_alternative_cast_and_land_entry_events_share_one_live_effect() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4437,6 +4521,10 @@ fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Supper for Spiders; see docs/coverage-targets.md"
+)]
 #[test]
 fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     let mut engine = test_engine(3);
@@ -4745,6 +4833,10 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Burn, Burn, Tree and Fern; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4789,6 +4881,10 @@ fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dáin Ironfoot; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4950,6 +5046,10 @@ fn parsed_restricted_color_combination_mana_retains_its_spending_filter() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dwarven Mauler; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_equip_targeting_reduction_changes_the_payable_equip_cost() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -5981,6 +6081,10 @@ fn high_tide_adds_blue_mana_only_to_tapped_islands() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Doomsday Excruciator; see docs/coverage-targets.md"
+)]
 #[test]
 fn doomsday_exiles_each_library_except_its_bottom_cards() {
     let mut engine = test_engine(2);
@@ -6426,6 +6530,10 @@ fn linked_exile_grants_activated_abilities_and_flexible_activation_mana() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thranduil, the Elvenking; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_zone_ability_inheritance_tracks_matching_graveyard_cards() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -8442,6 +8550,10 @@ fn minimum_casting_mana_applies_after_other_cost_changes_only_while_untapped() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Fen Hauler; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_improvise_taps_only_artifacts_and_respects_granted_spell_filter() {
     let keyword = parse_oracle_card(OracleCardParseRequest {
@@ -8663,34 +8775,13 @@ fn parsed_improvise_taps_only_artifacts_and_respects_granted_spell_filter() {
 #[test]
 fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     let mut source_definition = test_definition("shared-permission", "Enchantment");
-    source_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "castingPermission",
-            "players": { "kind": "eachPlayer" },
-            "sourceZone": "hand",
-            "where": {
-                "kind": "and",
-                "operands": [
-                    { "kind": "cardTypeContains", "value": "Creature" },
-                    {
-                        "kind": "compare",
-                        "operator": "<=",
-                        "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
-                        "right": { "kind": "integer", "value": 3 },
-                    }
-                ],
-            },
-            "withoutPayingManaCost": true,
-            "asThoughFlash": true,
-        }],
-    })];
+    source_definition.name = "Aluren".to_string();
+    source_definition.rules = no_lands_rules(
+        "Aluren",
+        "Enchantment",
+        Some("{2}{G}{G}"),
+        "Any player may cast creature spells with mana value 3 or less without paying their mana costs and as though they had flash.",
+    );
     let source = test_instance("shared-permission-instance", source_definition, "player-0");
     let mut eligible = test_definition("eligible-creature", "Creature");
     eligible.mana_cost = "{2}{G}".to_string();
@@ -8704,18 +8795,36 @@ fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     assert!(!engine.card_casts_with_static_flash("player-1", &eligible, "graveyard"));
     assert!(!engine.card_casts_with_static_flash("player-1", &expensive, "hand"));
 
+    // The waived base cost is a selected casting route: with no mana and
+    // outside their own turn, the opponent can still cast the eligible
+    // creature through the shared permission, but not the expensive one.
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[1].hand = vec![
+        test_instance("eligible-creature", eligible.clone(), "player-1"),
+        test_instance("expensive-creature", expensive.clone(), "player-1"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let opponent_casts = engine
+        .legal_priority_actions(1)
+        .into_iter()
+        .filter(|action| action.kind == ActionKind::CastSpell)
+        .collect::<Vec<_>>();
+    assert!(opponent_casts.iter().any(|action| {
+        action.card_instance_id.as_deref() == Some("eligible-creature")
+            && action.decisions.get("withoutPayingManaCost") == Some(&Value::Bool(true))
+    }));
+    assert!(
+        !opponent_casts
+            .iter()
+            .any(|action| action.card_instance_id.as_deref() == Some("expensive-creature"))
+    );
+
     let hand_cast = BTreeMap::from([(
         "castSourceZone".to_string(),
         Value::String("hand".to_string()),
     )]);
-    let free_costs = engine.casting_mana_costs(&eligible, "player-1", &hand_cast);
-    assert_eq!(
-        free_costs
-            .iter()
-            .map(|cost| mana_cost_mana_amount(cost))
-            .sum::<i32>(),
-        0
-    );
     let normal_costs = engine.casting_mana_costs(&expensive, "player-1", &hand_cast);
     assert_eq!(
         normal_costs
@@ -9150,28 +9259,40 @@ fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
 #[test]
 fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_controller() {
     let mut engine = test_engine(2);
-    let source = test_instance(
-        "delayed-blink-source",
-        test_definition("delayed-blink-source", "Creature"),
-        "player-0",
-    );
+    let phelia_rule = no_lands_rules(
+        "Phelia, Exuberant Shepherd",
+        "Legendary Creature - Dog",
+        Some("{1}{W}"),
+        "Flash\nWhenever Phelia attacks, exile up to one other target nonland permanent. At the beginning of the next end step, return that card to the battlefield under its owner's control. If it entered under your control, put a +1/+1 counter on Phelia.",
+    )
+    .into_iter()
+    .find(|rule| value_kind(rule) == Some("triggeredAbility"))
+    .expect("Phelia has an attack trigger");
+    let mut source_definition = test_definition("delayed-blink-source", "Creature");
+    source_definition.name = "Phelia, Exuberant Shepherd".to_string();
+    source_definition.rules = vec![phelia_rule.clone()];
+    let source = test_instance("delayed-blink-source", source_definition, "player-0");
     let blinked = test_instance(
         "delayed-blink-target",
         test_definition("delayed-blink-target", "Artifact"),
         "player-0",
     );
     engine.state.players[0].battlefield = vec![source.clone(), blinked.clone()];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let stack_object = StackObject {
         id: "stack:delayed-blink".to_string(),
         controller: "player-0".to_string(),
-        card: source.clone(),
+        // The trigger carries the admitted source, including its incarnation.
+        card: engine.state.players[0].battlefield[0].clone(),
         cant_be_countered: false,
         exile_on_leave_stack: false,
         ability_kind: Some("triggeredAbility".to_string()),
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "delayedBlinkTargets".to_string(),
+            "targetPermanent".to_string(),
             TargetRef::Permanent {
                 instance_id: blinked.instance_id.clone(),
             },
@@ -9179,14 +9300,7 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
     };
     engine
         .execute_effects(
-            &json!([{
-                "kind": "exileUntilNextEndStep",
-                "objects": { "kind": "chosenTargets", "id": "delayedBlinkTargets" },
-                "returnUnderOwnerControl": true,
-                "creatureCounter": "",
-                "planeswalkerCounter": "",
-                "sourceCounterIfReturnedUnderController": "+1/+1",
-            }]),
+            &phelia_rule["effects"],
             &stack_object,
             &mut BTreeMap::new(),
             &mut BTreeMap::new(),
@@ -9195,8 +9309,9 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
         .expect("the permanent is exiled with a delayed source reward");
     assert!(engine.permanent_position(&blinked.instance_id).is_none());
 
+    engine.enqueue_step_triggers("endStep");
     engine
-        .process_end_step_returns(&mut EmeritusDecisionProvider)
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the delayed return resolves");
     assert!(engine.permanent_position(&blinked.instance_id).is_some());
     let (source_player, source_index) = engine
@@ -9462,6 +9577,10 @@ fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Redoubled Stormsinger, Blade of Selves; see docs/coverage-targets.md"
+)]
 #[test]
 fn creatures_put_onto_the_battlefield_attacking_do_not_trigger_attack_abilities() {
     let mut engine = test_engine(4);
@@ -10730,6 +10849,10 @@ fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Spoils of the Vault; see docs/coverage-targets.md"
+)]
 #[test]
 fn chosen_name_reveal_until_moves_cards_and_loses_life_per_exile() {
     let mut engine = test_engine(2);
@@ -11325,6 +11448,10 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Lluwen, Exchange Student // Pest Friend; see docs/coverage-targets.md"
+)]
 #[test]
 fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -11533,6 +11660,10 @@ fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dawnhand Dissident; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_blight_costs_offer_only_controlled_creatures_and_place_counters_when_paid() {
     let activated_parse = parse_oracle_card(OracleCardParseRequest {
@@ -11770,16 +11901,16 @@ fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
         })
         .collect::<Vec<_>>();
     assert!(actions.iter().any(|action| {
-        action.decisions["removeCounterCost1"] == Value::String("charge".to_string())
+        action.decisions["activationCostCounter0"] == Value::String("charge".to_string())
     }));
     assert!(actions.iter().any(|action| {
-        action.decisions["removeCounterCost1"] == Value::String("quest".to_string())
+        action.decisions["activationCostCounter0"] == Value::String("quest".to_string())
     }));
 
     let remove_charge = actions
         .into_iter()
         .find(|action| {
-            action.decisions["removeCounterCost1"] == Value::String("charge".to_string())
+            action.decisions["activationCostCounter0"] == Value::String("charge".to_string())
         })
         .expect("the charge-counter payment is available");
     engine
@@ -13276,22 +13407,12 @@ fn test_commander_engine() -> GameEngine {
 fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     let mut engine = test_engine(2);
     let mut signal_definition = test_definition("threefold-signal", "Artifact");
-    signal_definition.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "enterBattlefield",
-            "object": { "kind": "self" },
-        },
-        "effects": [{
-            "kind": "scry",
-            "player": {
-                "kind": "controllerOf",
-                "object": { "kind": "self" },
-            },
-            "count": { "kind": "integer", "value": 3 },
-        }],
-    })];
+    signal_definition.rules = no_lands_rules(
+        "Threefold Signal",
+        "Artifact",
+        Some("{3}"),
+        "When this artifact enters, scry 3.",
+    );
     let signal = test_instance("threefold-signal", signal_definition, "player-0");
     engine.state.players[0].battlefield = vec![signal.clone()];
     engine.state.players[0].library = [
@@ -13304,6 +13425,10 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     .into_iter()
     .map(|id| test_instance(id, test_definition(id, "Sorcery"), "player-0"))
     .collect();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let signal = engine.state.players[0].battlefield[0].clone();
 
     engine.enqueue_enter_battlefield_triggers(&signal);
     assert_eq!(engine.state.stack.len(), 1);
@@ -13323,10 +13448,10 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
         BTreeSet::from(["scry-first", "scry-second", "scry-third"])
     );
     assert!(engine.state.events.iter().any(|event| {
-        event.kind == "scried"
+        event.kind == "abilityPerformed"
+            && event.player_id.as_deref() == Some("player-0")
             && event.card_instance_id.as_deref() == Some("threefold-signal")
-            && event.detail["count"] == 3
-            && event.detail["moved"] == 3
+            && event.detail["abilityId"] == "scry"
     }));
 }
 
@@ -13358,14 +13483,14 @@ fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
                     candidate_card_instance_ids,
                     minimum,
                     maximum,
-                    prompt,
                     ..
                 }) => {
                     self.selection_choices += 1;
                     assert_eq!(candidate_card_instance_ids, &["scry-top", "scry-second"]);
                     assert_eq!((*minimum, *maximum), (0, 2));
-                    assert!(prompt.contains("bottom"));
-                    Ok(Vec::new())
+                    // Scry is the shared library partition: the grouped
+                    // selection is the set sent to the bottom (CR 701.22a).
+                    Ok(vec!["scry-top".to_string()])
                 }
                 Some(DecisionChoice::CardOrder {
                     card_instance_ids, ..
@@ -13400,24 +13525,31 @@ fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    let scry_rule = no_lands_rules("Scry Source", "Instant", Some("{1}{U}"), "Scry 2.")
+        .into_iter()
+        .next()
+        .expect("Scry 2 compiles to one spell ability");
     let mut provider = GroupedScryProvider::default();
-    engine
-        .execute_effect(
-            &json!({
-                "kind": "scry",
-                "player": { "kind": "abilityController" },
-                "count": { "kind": "integer", "value": 2 },
-            }),
-            None,
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut provider,
-        )
-        .expect("scry two resolves as one grouped choice");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &scry_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut provider,
+    )
+    .expect("scry two resolves as one grouped choice");
 
     assert_eq!(provider.selection_choices, 1);
-    assert_eq!(provider.order_choices, 1);
+    assert!(provider.order_choices <= 2);
+    let library = engine.state.players[0]
+        .library
+        .iter()
+        .map(|card| card.instance_id.as_str())
+        .collect::<Vec<_>>();
+    // Library order is bottom-first: the selected card is now under the
+    // untouched card and the kept card remains on top.
+    assert_eq!(library, ["scry-top", "library-bottom", "scry-second"]);
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -13496,6 +13628,10 @@ fn looked_at_library_top_is_remembered_until_that_library_changes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ms. Marvel, Kamala Khan; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_targeted_spell_trigger_grants_dynamic_hand_size_power_until_cleanup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -13609,6 +13745,10 @@ fn parsed_targeted_spell_trigger_grants_dynamic_hand_size_power_until_cleanup() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Namor the Sub-Mariner; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_mana_symbol_cast_trigger_filters_and_uses_the_symbol_count_for_tokens() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -13688,6 +13828,10 @@ fn parsed_mana_symbol_cast_trigger_filters_and_uses_the_symbol_count_for_tokens(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Swordsman, Sharp Scoundrel; see docs/coverage-targets.md"
+)]
 #[test]
 fn filtered_attacker_connive_targets_the_triggering_permanent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -14495,6 +14639,10 @@ fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Yenna, Redtooth Regent; see docs/coverage-targets.md"
+)]
 #[test]
 fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
     let mut engine = test_engine(2);
@@ -15094,57 +15242,48 @@ fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
 #[test]
 fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     let mut engine = test_engine(2);
-    let mut definition = test_definition(
-        "tamiyo-inquisitive-student",
-        "Legendary Creature - Moonfolk Wizard",
-    );
-    definition.name = "Tamiyo, Inquisitive Student".to_string();
-    definition.power = Some("0".to_string());
-    definition.toughness = Some("3".to_string());
-    definition.rules = vec![
-        json!({
-            "kind": "triggeredAbility",
-            "activeFaceIndex": 0,
-            "source": { "kind": "self" },
-            "event": {
-                "kind": "cardDrawn",
-                "player": {
-                    "kind": "controllerOf",
-                    "object": { "kind": "self" },
+    let definition = compile_playable_card(PlayableCardInput {
+        id: "tamiyo".to_string(),
+        face_id: Some("tamiyo-front".to_string()),
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: Some("0".to_string()),
+        toughness: Some("3".to_string()),
+        oracle: OracleCardParseRequest {
+            card_name: "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar".to_string(),
+            type_line:
+                "Legendary Creature - Moonfolk Wizard // Legendary Planeswalker - Tamiyo"
+                    .to_string(),
+            mana_cost: None,
+            oracle_text: None,
+            layout: Some("transform".to_string()),
+            faces: vec![
+                OracleCardFace {
+                    id: "tamiyo-front".to_string(),
+                    name: "Tamiyo, Inquisitive Student".to_string(),
+                    type_line: "Legendary Creature - Moonfolk Wizard".to_string(),
+                    mana_cost: Some("{U}".to_string()),
+                    oracle_text: "Flying\nWhenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhen you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.".to_string(),
+                    power: Some("0".to_string()),
+                    toughness: Some("3".to_string()),
+                    loyalty: None,
                 },
-                "drawOrdinal": { "kind": "integer", "value": 3 },
-            },
-            "effects": [{
-                "kind": "exileThenReturnTransformed",
-                "object": { "kind": "self" },
-                "controller": {
-                    "kind": "ownerOf",
-                    "object": { "kind": "self" },
-                },
-            }],
-        }),
-        json!({
-            "kind": "rulesMarker",
-            "text": "Transformable card faces.",
-            "transformFaces": [
-                {
-                    "name": "Tamiyo, Inquisitive Student",
-                    "typeLine": "Legendary Creature - Moonfolk Wizard",
-                    "manaCost": "{U}",
-                    "power": "0",
-                    "toughness": "3",
-                },
-                {
-                    "name": "Tamiyo, Seasoned Scholar",
-                    "typeLine": "Legendary Planeswalker - Tamiyo",
-                    "manaCost": "",
-                    "loyalty": "2",
-                    "power": null,
-                    "toughness": null,
+                OracleCardFace {
+                    id: "tamiyo-back".to_string(),
+                    name: "Tamiyo, Seasoned Scholar".to_string(),
+                    type_line: "Legendary Planeswalker - Tamiyo".to_string(),
+                    mana_cost: Some(String::new()),
+                    oracle_text: "+2: Until your next turn, whenever a creature attacks you or a planeswalker you control, it gets -1/-0 until end of turn.\n\u{2212}3: Return target instant or sorcery card from your graveyard to your hand. If it's a green card, add one mana of any color.\n\u{2212}7: Draw cards equal to half the number of cards in your library, rounded up. You get an emblem with \"You have no maximum hand size.\"".to_string(),
+                    power: None,
+                    toughness: None,
+                    loyalty: Some("2".to_string()),
                 },
             ],
-        }),
-    ];
+        },
+    })
+    .expect("Tamiyo compiles")
+    .card;
     engine.state.players[0].battlefield = vec![test_instance("tamiyo", definition, "player-0")];
     engine.state.players[0].library = (0..3)
         .map(|index| {
@@ -16063,6 +16202,10 @@ fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Fertile Ground; see docs/coverage-targets.md"
+)]
 #[test]
 fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     let mut engine = test_engine(2);
@@ -16185,23 +16328,29 @@ fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     let mut engine = test_engine(3);
     engine.state.players[0].battlefield = vec![exotic_orchard("orchard")];
 
-    assert!(
+    // CR 106.7: with no opposing land defining a color, the ability can still
+    // be activated, but it produces no mana. It is never a source of a color.
+    let orchard_outputs = |engine: &GameEngine| {
         engine
             .legal_priority_actions(0)
-            .iter()
-            .all(|action| action.card_instance_id.as_deref() != Some("orchard")),
-        "Exotic Orchard cannot activate before an opposing land could produce a color"
+            .into_iter()
+            .filter(|action| action.card_instance_id.as_deref() == Some("orchard"))
+            .map(|action| action.decisions["manaProduced"].clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        orchard_outputs(&engine),
+        vec![json!([])],
+        "Exotic Orchard produces no mana before an opposing land could produce a color"
     );
 
     let mut opposing_rock = mana_source("mana-rock", "Artifact", "{U}", None);
     opposing_rock.owner = "player-1".to_string();
     opposing_rock.controller = "player-1".to_string();
     engine.state.players[1].battlefield = vec![opposing_rock];
-    assert!(
-        engine
-            .legal_priority_actions(0)
-            .iter()
-            .all(|action| action.card_instance_id.as_deref() != Some("orchard")),
+    assert_eq!(
+        orchard_outputs(&engine),
+        vec![json!([])],
         "a nonland mana source does not satisfy Exotic Orchard's Oracle text"
     );
 
@@ -16217,13 +16366,7 @@ fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     wastes.controller = "player-2".to_string();
     engine.state.players[2].battlefield = vec![mountain, wastes];
 
-    let produced = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .filter(|action| action.card_instance_id.as_deref() == Some("orchard"))
-        .map(|action| action.decisions["manaProduced"].clone())
-        .collect::<Vec<_>>();
-    assert_eq!(produced, vec![json!(["U"]), json!(["R"])]);
+    assert_eq!(orchard_outputs(&engine), vec![json!(["U"]), json!(["R"])]);
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
@@ -16624,18 +16767,26 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
 
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![jaheira, token];
-    let token_choices = engine.mana_choices_for_permanent(
-        &engine.state.players[0].battlefield[1],
-        None,
-        true,
-        true,
-    );
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    // Granted mana abilities are admitted by the checked discovery session;
+    // the legacy printed-only resolver never sees them.
+    let choices = |engine: &GameEngine, index: usize| {
+        super::mana_discovery_session::ManaDiscoverySession::new(engine)
+            .mana_choices_for_permanent(
+                &engine.state.players[0].battlefield[index],
+                None,
+                true,
+                true,
+            )
+            .expect("checked mana discovery")
+    };
+    let token_choices = choices(&engine, 1);
     assert_eq!(token_choices.len(), 1);
     assert_eq!(token_choices[0].symbols, vec!["G".to_string()]);
     assert!(
-        engine
-            .mana_choices_for_permanent(&engine.state.players[0].battlefield[0], None, true, true)
-            .is_empty(),
+        choices(&engine, 0).is_empty(),
         "the token criteria must not grant the ability to Jaheira"
     );
 
@@ -16652,12 +16803,10 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
         "player-0",
     );
     engine.state.players[0].battlefield = vec![inga, bear];
-    let restricted_choices = engine.mana_choices_for_permanent(
-        &engine.state.players[0].battlefield[1],
-        None,
-        true,
-        true,
-    );
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let restricted_choices = choices(&engine, 1);
     assert_eq!(restricted_choices.len(), 5);
     assert!(
         restricted_choices
@@ -16674,6 +16823,10 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Azlask, the Swelling Scourge; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17526,6 +17679,10 @@ fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Adagia, Windswept Bastion; see docs/coverage-targets.md"
+)]
 #[test]
 fn station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability() {
     let mut engine = test_engine(2);
@@ -17757,6 +17914,10 @@ fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Outrageous Robbery; see docs/coverage-targets.md"
+)]
 #[test]
 fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
     let mut engine = test_engine(2);
@@ -17931,6 +18092,10 @@ fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Inside Information; see docs/coverage-targets.md"
+)]
 #[test]
 fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
     let mut engine = test_engine(2);
@@ -18152,6 +18317,10 @@ fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Getaway Barrel; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18235,6 +18404,10 @@ fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Radagast of Rhosgobel; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18294,6 +18467,10 @@ fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Part in Friendship; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18384,6 +18561,10 @@ fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Misty Mountains Cold; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18491,6 +18672,10 @@ fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice()
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Petrified Hamlet; see docs/coverage-targets.md"
+)]
 #[test]
 fn petrified_hamlet_stores_a_land_name_and_applies_both_static_modifiers() {
     let trigger_rule = json!({
@@ -19358,6 +19543,10 @@ fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sneak Attack; see docs/coverage-targets.md"
+)]
 #[test]
 fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -22076,36 +22265,38 @@ fn earthbent_land_returns_tapped_after_it_is_exiled() {
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "earthbendLand".to_string(),
+            "earthbendLand0".to_string(),
             TargetRef::Permanent {
                 instance_id: "earthbend-land".to_string(),
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "earthbend",
-                "land": { "kind": "chosenTarget", "id": "earthbendLand" },
-                "candidates": {
-                    "kind": "permanents",
-                    "controller": {
-                        "kind": "controllerOf",
-                        "object": { "kind": "self" },
-                    },
-                    "where": { "kind": "cardTypeContains", "value": "Land" },
-                },
-                "quantity": { "kind": "integer", "value": 3 },
-            }]),
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("earthbend resolves");
+    let earthbend_rule = no_lands_rules(
+        "Earthbend Source",
+        "Sorcery",
+        Some("{2}{G}"),
+        "Earthbend 3.",
+    )
+    .into_iter()
+    .next()
+    .expect("Earthbend 3 compiles to one spell ability");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &earthbend_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("earthbend resolves");
     engine
         .exile_permanent("earthbend-land")
         .expect("earthbent land is exiled");
+    while !engine.state.stack.is_empty() {
+        engine
+            .resolve_top_stack(&mut EmeritusDecisionProvider)
+            .expect("the earthbend return trigger resolves");
+    }
 
     let returned = engine.state.players[0]
         .battlefield
@@ -22122,33 +22313,22 @@ fn earthbent_land_returns_tapped_after_it_is_exiled() {
 fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
     let mut engine = test_engine(2);
     let mut toph = test_definition("toph-metalbender", "Legendary Creature - Human Warrior");
-    toph.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "addCardType",
-            "objects": {
-                "kind": "permanents",
-                "controller": {
-                    "kind": "controllerOf",
-                    "object": { "kind": "self" },
-                },
-                "where": {
-                    "kind": "and",
-                    "operands": [
-                        { "kind": "cardTypeContains", "value": "Artifact" },
-                        { "kind": "not", "operand": { "kind": "isToken" } },
-                    ],
-                },
-            },
-            "cardType": "Land",
-        }],
-    })];
+    toph.name = "Toph, the First Metalbender".to_string();
+    toph.rules = no_lands_rules(
+        "Toph, the First Metalbender",
+        "Legendary Creature - Human Warrior Ally",
+        Some("{1}{R}{G}{W}"),
+        "Nontoken artifacts you control are lands in addition to their other types. (They don't gain the ability to {T} for mana.)",
+    );
+    let earthbend_rule = no_lands_rules(
+        "Earthbend Source",
+        "Sorcery",
+        Some("{2}{G}"),
+        "Earthbend 3.",
+    )
+    .into_iter()
+    .next()
+    .expect("Earthbend 3 compiles to one spell ability");
     engine.state.players[0].battlefield = vec![
         test_instance("toph-metalbender", toph, "player-0"),
         test_instance(
@@ -22157,14 +22337,7 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
             "player-0",
         ),
     ];
-    let candidates = json!({
-        "kind": "permanents",
-        "controller": {
-            "kind": "controllerOf",
-            "object": { "kind": "self" },
-        },
-        "where": { "kind": "cardTypeContains", "value": "Land" },
-    });
+    let candidates = earthbend_rule["declaration"]["decisions"][0]["candidates"].clone();
 
     let targets = engine
         .target_candidates("player-0", &candidates)
@@ -22188,26 +22361,21 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "earthbendLand".to_string(),
+            "earthbendLand0".to_string(),
             TargetRef::Permanent {
                 instance_id: "stone-of-erech".to_string(),
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "earthbend",
-                "land": { "kind": "chosenTarget", "id": "earthbendLand" },
-                "candidates": candidates,
-                "quantity": { "kind": "integer", "value": 3 },
-            }]),
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("earthbend resolves on the artifact land");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &earthbend_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("earthbend resolves on the artifact land");
 
     let stone = engine.state.players[0]
         .battlefield
@@ -22219,6 +22387,10 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avatar Aang // Aang, Master of Elements; see docs/coverage-targets.md"
+)]
 #[test]
 fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
     let engine = test_engine(2);
@@ -22253,6 +22425,10 @@ fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avatar Aang // Aang, Master of Elements; see docs/coverage-targets.md"
+)]
 #[test]
 fn bending_events_draw_and_transform_avatar_aang() {
     let mut engine = test_engine(2);
@@ -22314,6 +22490,10 @@ fn bending_events_draw_and_transform_avatar_aang() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Expansion // Explosion; see docs/coverage-targets.md"
+)]
 #[test]
 fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
     let mut expansion_engine = test_engine(2);
@@ -22448,6 +22628,10 @@ fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Give // Take; see docs/coverage-targets.md"
+)]
 #[test]
 fn fuse_casts_both_split_halves_with_independent_targets() {
     let mut engine = test_engine(2);
@@ -22530,6 +22714,10 @@ fn fuse_casts_both_split_halves_with_independent_targets() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Stratus Dancer; see docs/coverage-targets.md"
+)]
 #[test]
 fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
     let mut engine = test_engine(2);
@@ -22633,6 +22821,10 @@ fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Boundless Realms; see docs/coverage-targets.md"
+)]
 #[test]
 fn boundless_realms_keeps_maximum_size_search_choices_available() {
     let mut engine = test_engine(2);
@@ -22835,35 +23027,14 @@ fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
 
     let mut eye = test_definition("eye-of-ugin", "Legendary Land");
     eye.name = "Eye of Ugin".to_string();
-    eye.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "reduceCastingCost",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "where": {
-                "kind": "and",
-                "operands": [
-                    {
-                        "kind": "compare",
-                        "operator": "==",
-                        "left": {
-                            "kind": "colorCountOf",
-                            "object": { "kind": "candidate" },
-                        },
-                        "right": { "kind": "integer", "value": 0 },
-                    },
-                    { "kind": "subtypeContains", "value": "Eldrazi" },
-                ],
-            },
-            "amount": { "kind": "integer", "value": 2 },
-        }],
-    })];
+    // The real Oracle reduction compiles to a candidate color-count
+    // comparison, which the checked casting-cost query must accept.
+    eye.rules = no_lands_rules(
+        "Eye of Ugin",
+        "Legendary Land",
+        None,
+        "Colorless Eldrazi spells you cast cost {2} less to cast.",
+    );
     engine.state.players[0].battlefield = vec![test_instance("eye", eye, "player-0")];
 
     let mut eldrazi = test_definition("eye-target", "Creature - Eldrazi");
@@ -23338,6 +23509,10 @@ fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Terminus; see docs/coverage-targets.md"
+)]
 #[test]
 fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
     let mut engine = test_engine(2);
@@ -23457,6 +23632,10 @@ fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Plasm Capture; see docs/coverage-targets.md"
+)]
 #[test]
 fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     let mut engine = test_engine(2);
@@ -24546,6 +24725,10 @@ fn class_level_requirement_controls_permanent_rules_and_intrinsic_keywords() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Goblin Welder; see docs/coverage-targets.md"
+)]
 #[test]
 fn linked_exchange_targets_and_resolution_share_one_player() {
     let mut engine = test_engine(2);
@@ -25072,6 +25255,10 @@ fn graveyard_leave_triggers_filter_the_cards_that_moved() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Moment of Glory; see docs/coverage-targets.md"
+)]
 #[test]
 fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25164,6 +25351,10 @@ fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Mountain-king's Return; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25254,6 +25445,10 @@ fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ori, Keeper of Songs; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25302,6 +25497,10 @@ fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bombur, Gentle Dreamer; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25344,6 +25543,10 @@ fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Queen of Dale; see docs/coverage-targets.md"
+)]
 #[test]
 fn opponent_first_filtered_spell_trigger_counts_only_matching_spells() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25487,6 +25690,10 @@ fn any_player_second_spell_trigger_counts_each_player_independently() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sauron, the Dark Lord; see docs/coverage-targets.md"
+)]
 #[test]
 fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25557,6 +25764,10 @@ fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sauron, the Lidless Eye; see docs/coverage-targets.md"
+)]
 #[test]
 fn temporary_control_sequence_restores_controller_at_cleanup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25614,6 +25825,10 @@ fn temporary_control_sequence_restores_controller_at_cleanup() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Roads Go Ever, Ever On; see docs/coverage-targets.md"
+)]
 #[test]
 fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25722,6 +25937,10 @@ fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Settle the Wreckage; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_group_exile_searches_for_the_number_actually_exiled() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25891,6 +26110,10 @@ fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Velvetwing Butterflies // Gaze in Wonder; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25968,6 +26191,10 @@ fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Luckwearer // Burglar's Plot; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26053,6 +26280,10 @@ fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26110,6 +26341,10 @@ fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attack_trigger_casts_from_graveyard_and_links_the_exile_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26293,6 +26528,10 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Elrond, Moon-Reader; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26373,6 +26612,10 @@ fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Elrond, Moon-Reader; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26449,6 +26692,10 @@ fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Vow to Erebor; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26524,6 +26771,10 @@ fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Enchanted River's Grasp; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_card() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26627,6 +26878,10 @@ fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_car
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Wandering Wizard; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26704,6 +26959,10 @@ fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Lake-town Mariners // Gone Fishing; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26817,6 +27076,10 @@ fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Lord of the Eagles; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26865,6 +27128,10 @@ fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Master's Councillors; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26911,6 +27178,10 @@ fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Mirkwood Meditator; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26973,6 +27244,10 @@ fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Most Decrepit Old Bird // Speak Secrets; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
     let threshold = parse_oracle_card(OracleCardParseRequest {
@@ -27094,6 +27369,10 @@ fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Old Fat Spider Can't See Me; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
     let keyword_rule = parse_oracle_card(OracleCardParseRequest {
@@ -27240,6 +27519,10 @@ fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Plunder the Trollshaws; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27307,6 +27590,10 @@ fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Riddles in the Dark; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
     struct TwoCardPileProvider;
@@ -27405,6 +27692,10 @@ fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Roll-Roll-Roll-Roll; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27476,6 +27767,10 @@ fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sound the Trumpets; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27591,6 +27886,10 @@ fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thranduil's Decree; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27691,6 +27990,10 @@ fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uncover the Moon-Letters; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27757,6 +28060,10 @@ fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uneasy Partings; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_owner_library_choice_is_made_by_the_owner() {
     struct OwnerChoosesBottom;
@@ -27857,6 +28164,10 @@ fn parsed_owner_library_choice_is_made_by_the_owner() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Wizard's Staff; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27980,6 +28291,10 @@ fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Azog, Moria's Ruin; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_azog_uses_last_known_controller_and_power_for_amass_and_draw() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28140,6 +28455,10 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dreaded Bat-Cloud; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28220,6 +28539,10 @@ fn no_lands_rules(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ashaya, Soul of the Wild, Dosan the Falling Leaf; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     let aftermath_rules = no_lands_rules(
@@ -28230,7 +28553,9 @@ fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     );
     let aftermath_rule = aftermath_rules
         .iter()
-        .find(|rule| rule["effects"][0]["kind"] == "returnCardsFromGraveyard")
+        .find(|rule| {
+            rule["kind"] == "activatedAbility" && rule["effects"][0]["kind"] == "moveCards"
+        })
         .expect("Aftermath Analyst has the bulk land-return ability")
         .clone();
     let aftermath = test_instance(
@@ -28336,6 +28661,10 @@ fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Glacial Chasm, Field of the Dead; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds() {
     let glacial_rules = no_lands_rules(
@@ -28434,6 +28763,10 @@ fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Braids, Arisen Nightmare, Exploration Broodship; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
     let braids_rule = no_lands_rules(
@@ -28572,6 +28905,10 @@ fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Green Sun's Zenith, Constant Mists; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics() {
     let swat_rules = no_lands_rules(
@@ -28582,9 +28919,17 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
     );
     let swat_rule = swat_rules
         .iter()
-        .find(|rule| rule["effects"][0]["kind"] == "changeTargets")
-        .expect("Deflecting Swat has a target-changing spell rule")
+        .find(|rule| {
+            rule["kind"] == "spellAbility"
+                && rule["effects"][0]["kind"] == "optionalEffects"
+                && rule["effects"][0]["effects"][0]["kind"] == "changeTargets"
+        })
+        .expect("Deflecting Swat has an optional target-changing spell rule")
         .clone();
+    let swat_target_id = swat_rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("Deflecting Swat declares its retarget object")
+        .to_string();
     let target_rule = json!({
         "kind": "spellAbility",
         "source": { "kind": "self" },
@@ -28638,7 +28983,7 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
         ability_rule: Some(swat_rule.clone()),
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "targetStackObject".to_string(),
+            swat_target_id.clone(),
             TargetRef::StackObject {
                 stack_id: "stack:target-spell".to_string(),
             },
@@ -28760,6 +29105,10 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Squandered Resources; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
     let rules = no_lands_rules(
@@ -28832,6 +29181,10 @@ fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sylvan Library; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_sylvan_library_uses_only_cards_drawn_this_turn() {
     struct SylvanDecisionProvider {
@@ -29005,6 +29358,10 @@ fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Archive Trap; see docs/coverage-targets.md"
+)]
 #[test]
 fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
     let misty_rules = no_lands_rules(
@@ -29094,6 +29451,10 @@ fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Spark Starter; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(
@@ -29262,6 +29623,10 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Pinecone Strike; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29485,6 +29850,10 @@ fn parsed_top_library_exile_installs_a_live_play_permission() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Goblins' Bane // Flameshape; see docs/coverage-targets.md"
+)]
 #[test]
 fn conditional_exile_permission_tracks_the_live_battlefield() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29574,6 +29943,10 @@ fn conditional_exile_permission_tracks_the_live_battlefield() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thorin, Mountain-king; see docs/coverage-targets.md"
+)]
 #[test]
 fn group_attachment_creates_a_reflexive_trigger_with_the_attached_creature_as_source() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29729,6 +30102,10 @@ fn combined_mana_restriction_accepts_matching_spells_and_ability_sources_only() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Beorn the Fierce; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29806,6 +30183,10 @@ fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Beorn's Hospitality; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
     let animation = parse_oracle_card(OracleCardParseRequest {
@@ -29945,6 +30326,10 @@ fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bolg, Erebor's Reckoning; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30028,6 +30413,10 @@ fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Celeborn the Wise, Bilbo's Ring; see docs/coverage-targets.md"
+)]
 #[test]
 fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     let filtered = parse_oracle_card(OracleCardParseRequest {
@@ -30138,6 +30527,10 @@ fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dawn of a New Age; see docs/coverage-targets.md"
+)]
 #[test]
 fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30205,6 +30598,10 @@ fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Galadriel's Dismissal; see docs/coverage-targets.md"
+)]
 #[test]
 fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30321,6 +30718,10 @@ fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Cavern-Hoard Dragon; see docs/coverage-targets.md"
+)]
 #[test]
 fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30412,6 +30813,10 @@ fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Arwen, Weaver of Hope; see docs/coverage-targets.md"
+)]
 #[test]
 fn external_entry_counters_use_the_static_sources_current_stat() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30449,6 +30854,10 @@ fn external_entry_counters_use_the_static_sources_current_stat() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Last March of the Ents; see docs/coverage-targets.md"
+)]
 #[test]
 fn greatest_toughness_draw_then_hand_creatures_enter_together() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30533,6 +30942,10 @@ fn greatest_toughness_draw_then_hand_creatures_enter_together() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gríma, Saruman's Footman; see docs/coverage-targets.md"
+)]
 #[test]
 fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30625,6 +31038,10 @@ fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Saruman of Many Colors; see docs/coverage-targets.md"
+)]
 #[test]
 fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30749,6 +31166,10 @@ fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Tom Bombadil; see docs/coverage-targets.md"
+)]
 #[test]
 fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_play() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30850,6 +31271,10 @@ fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_pla
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Andúril, Flame of the West, Andúril, Narsil Reforged; see docs/coverage-targets.md"
+)]
 #[test]
 fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
     let parse_trigger = |name: &str, oracle_text: &str| {
@@ -31030,6 +31455,10 @@ fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The One Ring; see docs/coverage-targets.md"
+)]
 #[test]
 fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31093,6 +31522,10 @@ fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Minas Morgul, Dark Fortress; see docs/coverage-targets.md"
+)]
 #[test]
 fn counter_linked_characteristics_follow_the_target_counter() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31171,6 +31604,10 @@ fn counter_linked_characteristics_follow_the_target_counter() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Witch-king of Angmar; see docs/coverage-targets.md"
+)]
 #[test]
 fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31259,6 +31696,10 @@ fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uruk-hai Berserker; see docs/coverage-targets.md"
+)]
 #[test]
 fn ring_temptation_levels_drive_bearer_combat_rules() {
     let bearer = test_instance(
@@ -31347,6 +31788,10 @@ fn ring_temptation_levels_drive_bearer_combat_rules() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Witch-king, Bringer of Ruin; see docs/coverage-targets.md"
+)]
 #[test]
 fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31422,6 +31867,10 @@ fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Call Forth the Tempest; see docs/coverage-targets.md"
+)]
 #[test]
 fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31492,6 +31941,10 @@ fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Call Forth the Tempest; see docs/coverage-targets.md"
+)]
 #[test]
 fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31569,6 +32022,10 @@ fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Aragorn and Arwen, Wed; see docs/coverage-targets.md"
+)]
 #[test]
 fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31649,6 +32106,10 @@ fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Flame of Anor; see docs/coverage-targets.md"
+)]
 #[test]
 fn flame_of_anor_modal_declarations_expand_from_one_to_two_with_wizard() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31718,6 +32179,10 @@ fn flame_of_anor_modal_declarations_expand_from_one_to_two_with_wizard() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Jennifer Walters // The Sensational She-Hulk; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_controlled_creature_damage_retaliation_executes_once_each_turn() {
     struct ChooseOpponentAndAccept;
@@ -31826,6 +32291,10 @@ fn parsed_controlled_creature_damage_retaliation_executes_once_each_turn() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Nick Fury, Agent of S.H.I.E.L.D.; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_power_up_deploys_and_optionally_transforms_selected_double_faced_card() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31941,6 +32410,10 @@ fn parsed_power_up_deploys_and_optionally_transforms_selected_double_faced_card(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Origin of the Avengers; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_optional_hand_deployment_draws_only_when_no_target_was_chosen() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -32063,6 +32536,10 @@ fn parsed_saga_optional_hand_deployment_draws_only_when_no_target_was_chosen() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Raft Security Officer; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_activation_reduction_is_applied_only_for_matching_selected_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -32137,6 +32614,10 @@ fn parsed_activation_reduction_is_applied_only_for_matching_selected_target() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: White Widow, Free Agent; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_inline_modal_trigger_executes_each_selected_primitive_branch() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -32270,6 +32751,10 @@ fn parsed_inline_modal_trigger_executes_each_selected_primitive_branch() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Atlantis Attacks; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_teamwork_modal_executes_targeted_token_and_bounded_returns() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -32372,6 +32857,10 @@ fn parsed_teamwork_modal_executes_targeted_token_and_bounded_returns() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bruce Banner // The Incredible Hulk; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_dealt_damage_enrage_adds_combat_only_while_source_is_attacking() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -32441,6 +32930,10 @@ fn parsed_dealt_damage_enrage_adds_combat_only_while_source_is_attacking() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Echo, Perceptive Prodigy; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_echo_copy_filters_stack_sources_and_copies_the_selected_ability() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

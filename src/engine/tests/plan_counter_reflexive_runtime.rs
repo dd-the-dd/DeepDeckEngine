@@ -23,6 +23,10 @@ fn plan_definition() -> CardDefinition {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn controlled_creature_tap_resolves_draw_discard_then_plan_counter() {
     let mut engine = test_engine(2);
@@ -153,6 +157,10 @@ fn grouped_tap_memory_contains_only_permanents_matching_the_event_filter() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn fourth_plan_counter_sacrifices_source_then_returns_two_spells_reflexively() {
     let mut plan = test_instance("test-plan", plan_definition(), "player-0");

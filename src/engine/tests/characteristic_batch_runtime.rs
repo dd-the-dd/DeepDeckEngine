@@ -122,18 +122,41 @@ fn negated_subtype_batch_filters_targets_and_executes_atomic_destruction() {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn subtype_filter_does_not_confuse_a_card_type_with_a_subtype() {
-    let parsed = parse_oracle_card(OracleCardParseRequest {
-        card_name: "Subtype Boundary".to_string(),
-        type_line: "Instant".to_string(),
-        mana_cost: Some("{0}".to_string()),
-        oracle_text: Some("Destroy target non-Creature creature.".to_string()),
-        layout: Some("normal".to_string()),
-        faces: Vec::new(),
+    // Runtime boundary: a negated *subtype* atom naming a card-type word must
+    // not exclude objects that merely have that card type. The compiler
+    // normalizes the synthetic text "non-Creature" to the card-type atom, so
+    // the subtype atom is supplied directly in the shared target IR shape.
+    let rule = json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": [{
+                "kind": "chooseTargets",
+                "id": "targetPermanent",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                        "kind": "and",
+                        "operands": [
+                            {
+                                "kind": "not",
+                                "operand": { "kind": "subtypeContains", "value": "Creature" },
+                            },
+                            { "kind": "cardTypeContains", "value": "Creature" },
+                        ],
+                    },
+                },
+            }],
+        },
+        "effects": [{
+            "kind": "destroyPermanent",
+            "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+        }],
     });
-    let rule = parsed.abilities[0]
-        .rule
-        .clone()
-        .expect("the subtype boundary emits a rule");
+    assert!(rule_is_executable(&rule));
     let mut spell = test_definition("subtype-boundary", "Instant");
     spell.rules = vec![rule];
 
@@ -146,6 +169,9 @@ fn subtype_filter_does_not_confuse_a_card_type_with_a_subtype() {
         test_definition("human-creature", "Creature - Human"),
         "player-1",
     )];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     assert!(engine.legal_priority_actions(0).iter().any(|action| {
         action.kind == ActionKind::CastSpell

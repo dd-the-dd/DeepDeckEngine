@@ -177,7 +177,15 @@ fn combat_damage_hits_the_selected_permanent_instead_of_its_controller() {
         .expect("combat damage resolves");
 
     assert_eq!(engine.state.players[1].life, 20);
-    assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 2);
+    // CR 120.3c: damage dealt to a planeswalker removes that many loyalty
+    // counters instead of being marked on it.
+    assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 0);
+    assert_eq!(
+        engine.state.players[1].battlefield[0]
+            .counters
+            .get("loyalty"),
+        Some(&1)
+    );
     assert!(engine.state.events.iter().any(|event| {
         event.kind == "combatDamage"
             && event.card_instance_id.as_deref() == Some("planeswalker")

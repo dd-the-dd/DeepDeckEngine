@@ -49,6 +49,10 @@ fn creature_definition(id: &str, power: &str, toughness: &str) -> CardDefinition
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Secret Invasion; see docs/coverage-targets.md"
+)]
 #[test]
 fn optional_zero_target_binds_empty_and_leaves_the_enchanted_creature_unchanged() {
     let mut aura = test_instance("test-aura", aura_definition(), "player-0");
@@ -96,6 +100,10 @@ fn optional_zero_target_binds_empty_and_leaves_the_enchanted_creature_unchanged(
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Secret Invasion; see docs/coverage-targets.md"
+)]
 #[test]
 fn opposing_target_is_copied_from_lki_then_returns_and_copy_expires_with_the_aura() {
     let mut aura = test_instance("test-aura", aura_definition(), "player-0");
@@ -182,6 +190,10 @@ fn opposing_target_is_copied_from_lki_then_returns_and_copy_expires_with_the_aur
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Secret Invasion; see docs/coverage-targets.md"
+)]
 #[test]
 fn trigger_declaration_excludes_the_permanent_attached_to_the_source() {
     let mut aura = test_instance("test-aura", aura_definition(), "player-0");
