@@ -86,12 +86,15 @@ fn read_reduction(
             Err(zone_failure) => {
                 // `for each artifact you control` counts battlefield permanents
                 // through the shared `for each` child; a card-zone query keeps
-                // its own diagnostic when neither reading applies.
+                // its own diagnostic when neither reading applies. The child
+                // owns the amount only when it consumes the whole counted
+                // operand: a battlefield prefix such as `creature` must not
+                // drop a trailing `in your graveyard` scope.
                 let zone_cursor = cursor.clone();
                 cursor.rollback(checkpoint);
                 match cursor.attempt(recognize_for_each_count) {
-                    Ok(count) => count,
-                    Err(_) => {
+                    Ok(count) if reduction_amount_complete(cursor) => count,
+                    _ => {
                         *cursor = zone_cursor;
                         return Err(zone_failure);
                     }
@@ -170,6 +173,13 @@ fn read_reduction(
         condition,
         target_query,
     })
+}
+
+/// The counted amount ends at the reduction terminator or its condition.
+fn reduction_amount_complete(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw == "." || raw.eq_ignore_ascii_case("if"))
 }
 
 /// `for each|every QUERY` over a card zone or the battlefield (`on the`).
