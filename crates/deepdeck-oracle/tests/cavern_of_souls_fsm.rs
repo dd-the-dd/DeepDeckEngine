@@ -108,10 +108,19 @@ fn claimed_near_misses_fail_at_the_responsible_typed_state() {
             "instant",
         ),
         (
-            "{T}: Add one mana of any color. Spend this mana only to cast an artifact spell of the chosen type, and that spell can't be countered.",
+            "{T}: Add one mana of any color. Spend this mana only to cast the creature spell of the chosen type, and that spell can't be countered.",
             "restricted-mana-ability",
             "mana.spend-restriction.article",
-            "an",
+            "the",
+        ),
+        // The shared spell predicate now admits `an artifact spell`; a chosen
+        // creature type read by a non-creature spell domain has no executable
+        // consumer, so the card-context binding rejects it.
+        (
+            "{T}: Add one mana of any color. Spend this mana only to cast an artifact spell of the chosen type, and that spell can't be countered.",
+            "card-context-binding",
+            "binding.chosen-creature-type.source",
+            "a chosen creature type reference",
         ),
         (
             "{T}: Add one mana of any color. Spend this mana only to cast a creature spell of the chosen name, and that spell can't be countered.",

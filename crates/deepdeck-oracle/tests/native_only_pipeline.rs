@@ -131,10 +131,14 @@ fn native_only_keeps_class_level_context_for_following_native_rules() {
 
 #[test]
 fn native_only_preserves_overload_keyword_when_spell_sibling_is_unsupported() {
+    // Mind Rake's real body (`Target player discards two cards.`) is now
+    // canonical; a trailing `for each` counted over the target's (`they`)
+    // permanents keeps the spell sibling unsupported while the overload
+    // keyword stays independent.
     let request = request(
-        "Mind Rake",
+        "Test Mind Rake",
         "Sorcery",
-        "Target player discards two cards.\nOverload {1}{B} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+        "Target player discards two cards for each creature they control.\nOverload {1}{B} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
     );
     let native = parse_oracle_card_native(request);
 

@@ -81,8 +81,13 @@ fn committed_plain_damage_with_missing_amount_fails_in_numeric_atom() {
     let diagnostic = &parsed.abilities[0].diagnostics[0];
     assert_eq!(diagnostic.code, "oracle_machine_failure");
     assert_eq!(diagnostic.automaton.as_deref(), Some("plain-damage-effect"));
-    assert_eq!(diagnostic.state.as_deref(), Some("numeric.atom.start"));
-    assert_eq!(diagnostic.found.as_deref(), Some("damage"));
+    // The amount may follow the target (`... equal to <amount>`), so the
+    // missing amount is reported at the postposed-amount slot.
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("effect.damage.postposed-amount")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("."));
 }
 
 #[test]

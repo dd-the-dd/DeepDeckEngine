@@ -87,9 +87,8 @@ fn unsupported_suffix_is_a_committed_direct_mana_spell_failure() {
         diagnostic.automaton.as_deref(),
         Some("contextual-effect-program")
     );
-    assert_eq!(
-        diagnostic.state.as_deref(),
-        Some("sequence.connector-or-end")
-    );
-    assert_eq!(diagnostic.found.as_deref(), Some("unless"));
+    // The shared sequence now owns an `unless` frame; an unbound
+    // `an opponent` payer is rejected by its payer child.
+    assert_eq!(diagnostic.state.as_deref(), Some("sequence.unless.payer"));
+    assert_eq!(diagnostic.found.as_deref(), Some("an"));
 }

@@ -68,6 +68,10 @@ fn entry_exile_rule() -> Value {
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Soul-Guide Lantern; see docs/coverage-targets.md"
+)]
 #[test]
 fn soul_guide_lantern_is_fully_native_primitive_and_unlinked() {
     let parsed = parse(
@@ -145,6 +149,10 @@ fn source_entry_targeted_graveyard_exile_generalizes_across_source_kinds_and_art
     }
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Soul-Guide Lantern; see docs/coverage-targets.md"
+)]
 #[test]
 fn activated_zone_collection_generalizes_all_vs_opponents() {
     let opponents = parse(

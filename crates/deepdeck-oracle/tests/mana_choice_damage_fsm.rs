@@ -172,9 +172,10 @@ fn claimed_mana_choice_near_misses_fail_at_the_responsible_child() {
             "mana",
         ),
         (
+            // The amount may follow the recipient (`... equal to <amount>`).
             "{T}: Add {U} or {B}. Broken Source deals damage to you.",
-            "numeric.atom.start",
-            "damage",
+            "effect.damage.postposed-amount",
+            ".",
         ),
     ] {
         let parsed = parse_artifact("Broken Source", oracle_text);

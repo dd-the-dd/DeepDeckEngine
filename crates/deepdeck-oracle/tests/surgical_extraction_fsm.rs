@@ -46,6 +46,10 @@ fn same_name_rule(excluded: Value, all: bool) -> Value {
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Surgical Extraction; see docs/coverage-targets.md"
+)]
 #[test]
 fn surgical_extraction_is_two_native_primitive_rules() {
     let parsed = parse(SURGICAL_ORACLE);
@@ -81,6 +85,10 @@ fn surgical_extraction_is_two_native_primitive_rules() {
     assert!(unknown.is_empty(), "unknown Surgical tokens: {unknown:?}");
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Surgical Extraction; see docs/coverage-targets.md"
+)]
 #[test]
 fn phyrexian_colors_and_excluded_card_predicates_generalize_independently() {
     let parsed = parse(
@@ -104,20 +112,20 @@ fn phyrexian_colors_and_excluded_card_predicates_generalize_independently() {
 
 #[test]
 fn malformed_family_members_fail_in_the_committed_child() {
+    // A matching glossary is retained as a validated rules marker.
+    let valid = parse("({B/P} can be paid with either {B} or 2 life.)");
+    assert_eq!(valid.status, "canonical");
+    assert_eq!(valid.abilities.len(), 1);
+    assert_eq!(valid.abilities[0].recognizer, RecognizerProvenance::Native);
+    assert_eq!(
+        valid.abilities[0].rule.as_ref().unwrap()["kind"],
+        "rulesMarker"
+    );
+    // CR 207.2: a reminder-only line has no rules meaning. When the committed
+    // child rejects the color mismatch, the line is dropped as reminder text
+    // instead of being retained as a validated marker.
     let mismatch = parse("({B/P} can be paid with either {U} or 2 life.)");
-    assert_eq!(mismatch.status, "unsupported");
-    assert_eq!(
-        mismatch.abilities[0].recognizer,
-        RecognizerProvenance::Native
-    );
-    assert_eq!(
-        mismatch.abilities[0].diagnostics[0].automaton.as_deref(),
-        Some("phyrexian-mana-reminder")
-    );
-    assert_eq!(
-        mismatch.abilities[0].diagnostics[0].state.as_deref(),
-        Some("reminder.phyrexian-mana.mana-alternative")
-    );
+    assert!(mismatch.abilities.is_empty(), "{:#?}", mismatch.abilities);
 
     let bad_reference = parse(
         "Choose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for any number of cards with the same name as this card and exile them. Then that player shuffles.",

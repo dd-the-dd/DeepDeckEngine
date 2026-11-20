@@ -83,7 +83,7 @@ fn promoted_family_reports_precise_near_miss_states() {
         ),
         (
             "{T}, Sacrifice this spell: Destroy target nonbasic land.",
-            "cost.sacrifice-self.source-type",
+            "cost.payment.source.noun",
             "spell",
         ),
     ] {

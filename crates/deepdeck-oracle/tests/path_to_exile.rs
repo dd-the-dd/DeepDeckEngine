@@ -114,7 +114,7 @@ fn path_to_exile_compiles_to_an_exact_primitive_sequence() {
 #[test]
 fn zone_change_search_pattern_supports_destroy_optional_targets_and_other_filters() {
     let parsed = parse_spell(
-        "Destroy up to one target artifact. That player may search their library for an Equipment card, put it onto the battlefield, then shuffle.",
+        "Destroy up to one target artifact. Its controller may search their library for an Equipment card, put it onto the battlefield, then shuffle.",
     );
 
     assert_eq!(parsed.status, "canonical");
@@ -124,6 +124,13 @@ fn zone_change_search_pattern_supports_destroy_optional_targets_and_other_filter
         .expect("the generic sibling should produce primitive IR");
     assert_eq!(rule["declaration"]["decisions"][0]["minimum"], 0);
     assert_eq!(rule["effects"][0]["kind"], "bind");
+    assert_eq!(
+        rule["effects"][0]["value"],
+        json!({
+            "kind": "controllerOf",
+            "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+        })
+    );
     assert_eq!(rule["effects"][1]["kind"], "destroyPermanent");
     assert_eq!(rule["effects"][2]["kind"], "optionalEffects");
     assert_eq!(
@@ -131,6 +138,18 @@ fn zone_change_search_pattern_supports_destroy_optional_targets_and_other_filter
         json!({ "kind": "subtypeContains", "value": "Equipment" })
     );
     assert_eq!(rule["effects"][2]["effects"][1]["to"]["tapped"], false);
+
+    // `That player` has no player antecedent after a permanent target; the
+    // searcher is not silently rebound to the target's controller.
+    let unbound = parse_spell(
+        "Destroy up to one target artifact. That player may search their library for an Equipment card, put it onto the battlefield, then shuffle.",
+    );
+    assert_eq!(unbound.status, "unsupported");
+    assert!(unbound.abilities[0].rule.is_none());
+    assert_eq!(
+        unbound.abilities[0].diagnostics[0].state.as_deref(),
+        Some("lower.optional-library-search.player")
+    );
 }
 
 #[test]

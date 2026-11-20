@@ -1,7 +1,7 @@
 use deepdeck_oracle::oracle::{
     OracleCardParseRequest, OracleCardParseResult, RecognizerProvenance, parse_oracle_card,
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 fn parse_instant(oracle_text: &str) -> OracleCardParseResult {
     parse_oracle_card(OracleCardParseRequest {
@@ -12,6 +12,47 @@ fn parse_instant(oracle_text: &str) -> OracleCardParseResult {
         layout: Some("normal".to_string()),
         faces: Vec::new(),
     })
+}
+
+fn controller() -> Value {
+    json!({ "kind": "controllerOf", "object": { "kind": "self" } })
+}
+
+fn own_zone(kind: &str) -> Value {
+    json!({
+        "kind": "cardsInZone",
+        "where": null,
+        "zone": { "kind": kind, "player": controller() },
+    })
+}
+
+/// CR 609.3: a fixed `put N cards` instruction moves as many as possible,
+/// so the selection count is clamped by the cards actually in that zone.
+fn clamped_count(value: i64, zone: &str) -> Value {
+    json!({
+        "kind": "minimum",
+        "operands": [
+            { "kind": "integer", "value": value },
+            { "kind": "countObjects", "objects": own_zone(zone) },
+        ],
+    })
+}
+
+fn ordered_top_of_library_move(selection: &str, order: &str) -> [Value; 2] {
+    [
+        json!({
+            "kind": "chooseOrder",
+            "id": order,
+            "player": controller(),
+            "objects": { "kind": "decisionResult", "decisionId": selection },
+        }),
+        json!({
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": order },
+            "to": { "kind": "library", "player": controller(), "position": "top" },
+            "order": { "kind": "decisionOrder", "decisionId": order },
+        }),
+    ]
 }
 
 #[test]
@@ -27,36 +68,25 @@ fn brainstorm_is_native_and_lowers_to_independent_primitives() {
         .rule
         .as_ref()
         .expect("the native sequence emits a rule");
-    let effects = rule["effects"]
-        .as_array()
-        .expect("ordered primitive effects");
-
-    assert_eq!(effects.len(), 4);
-    assert_eq!(effects[0]["kind"], "drawCards");
+    let [order, mv] = ordered_top_of_library_move("chosenZoneCards", "remainderOrder");
     assert_eq!(
-        effects[0]["count"],
-        json!({ "kind": "integer", "value": 3 })
-    );
-    assert_eq!(effects[1]["kind"], "chooseCards");
-    assert_eq!(
-        effects[1]["minimum"],
-        json!({ "kind": "integer", "value": 2 })
-    );
-    assert_eq!(
-        effects[1]["maximum"],
-        json!({ "kind": "integer", "value": 2 })
-    );
-    assert_eq!(effects[1]["candidates"]["zone"]["kind"], "hand");
-    assert_eq!(effects[2]["kind"], "chooseOrder");
-    assert_eq!(effects[3]["kind"], "moveCards");
-    assert_eq!(effects[3]["to"]["kind"], "library");
-    assert_eq!(effects[3]["to"]["position"], "top");
-    assert_eq!(
-        effects[3]["order"],
-        json!({
-            "kind": "decisionOrder",
-            "decisionId": "cardsForLibraryOrder",
-        })
+        rule["effects"],
+        json!([
+            {
+                "kind": "drawCards",
+                "player": controller(),
+                "count": { "kind": "integer", "value": 3 },
+            },
+            {
+                "kind": "chooseCards",
+                "id": "chosenZoneCards",
+                "player": controller(),
+                "from": own_zone("hand"),
+                "count": clamped_count(2, "hand"),
+            },
+            order,
+            mv,
+        ])
     );
     assert!(!rule.to_string().contains("drawThen"));
 }
@@ -67,7 +97,7 @@ fn fixed_and_variable_counts_reuse_numeric_and_collection_automata() {
         (
             "Draw two cards, then put one card from your hand on top of your library in any order.",
             json!({ "kind": "integer", "value": 2 }),
-            json!({ "kind": "integer", "value": 1 }),
+            clamped_count(1, "hand"),
         ),
         (
             "Draw X cards, then put X cards from your hand on top of your library in any order.",
@@ -84,10 +114,22 @@ fn fixed_and_variable_counts_reuse_numeric_and_collection_automata() {
         );
         let rule = parsed.abilities[0].rule.as_ref().unwrap();
         assert_eq!(rule["effects"][0]["count"], draw_count, "{oracle_text}");
-        assert_eq!(rule["effects"][1]["minimum"], move_count, "{oracle_text}");
+        let selection = &rule["effects"][1];
+        assert_eq!(selection["kind"], "chooseCards", "{oracle_text}");
         if oracle_text.contains(" X ") {
             assert_eq!(rule["declaration"]["decisions"][0]["kind"], "chooseNumber");
+            assert_eq!(selection["minimum"], move_count, "{oracle_text}");
+            assert_eq!(selection["maximum"], move_count, "{oracle_text}");
+            assert_eq!(
+                selection["candidates"]["zone"]["kind"], "hand",
+                "{oracle_text}"
+            );
+        } else {
+            assert_eq!(selection["count"], move_count, "{oracle_text}");
+            assert_eq!(selection["from"], own_zone("hand"), "{oracle_text}");
         }
+        assert_eq!(rule["effects"][3]["kind"], "moveCards", "{oracle_text}");
+        assert_eq!(rule["effects"][3]["to"]["position"], "top", "{oracle_text}");
     }
 }
 
@@ -95,9 +137,9 @@ fn fixed_and_variable_counts_reuse_numeric_and_collection_automata() {
 fn promoted_near_misses_fail_in_the_responsible_child_automaton() {
     for (oracle_text, state, found) in [
         (
-            "Draw three cards, then put two cards from your graveyard on top of your library in any order.",
+            "Draw three cards, then put two cards from your sideboard on top of your library in any order.",
             "zone.possessive.kind",
-            "graveyard",
+            "sideboard",
         ),
         (
             "Draw one cards, then put one card from your hand on top of your library in any order.",
@@ -119,6 +161,20 @@ fn promoted_near_misses_fail_in_the_responsible_child_automaton() {
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.found.as_deref(), Some(found));
     }
+
+    // The graveyard is a legitimate source zone for the shared card-move
+    // composition, so the former near-miss is now canonical.
+    let graveyard = parse_instant(
+        "Draw three cards, then put two cards from your graveyard on top of your library in any order.",
+    );
+    assert_eq!(graveyard.status, "canonical");
+    let rule = graveyard.abilities[0].rule.as_ref().unwrap();
+    assert_eq!(rule["effects"][1]["from"], own_zone("graveyard"));
+    assert_eq!(rule["effects"][1]["count"], clamped_count(2, "graveyard"));
+    assert_eq!(
+        rule["effects"].as_array().unwrap()[2..4],
+        ordered_top_of_library_move("chosenZoneCards", "remainderOrder")[..]
+    );
 }
 
 #[test]

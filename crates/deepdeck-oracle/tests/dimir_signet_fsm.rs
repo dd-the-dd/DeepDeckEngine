@@ -84,8 +84,12 @@ fn dangling_compound_cost_is_a_committed_native_failure() {
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
     assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("activated-mana-ability")
+    );
+    assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("activation.compound.cost")
+        Some("cost.payment.verb")
     );
     assert_eq!(ability.diagnostics[0].found.as_deref(), Some(":"));
 }

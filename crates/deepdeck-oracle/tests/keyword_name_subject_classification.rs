@@ -18,8 +18,9 @@ fn current_card_name_at_token_zero_outweighs_its_keyword_homonym() {
         "Awaken the Inferno deals 6 damage to target creature or planeswalker an opponent controls. Put a +1/+1 counter on up to one target creature you control.\nBasic landcycling {2} ({2}, Discard this card: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.)",
     );
 
-    // The card stays unsupported only because of Basic landcycling.
-    assert_eq!(parsed.status, "unsupported");
+    // Basic landcycling is now a native typecycling keyword, so the whole
+    // card is canonical.
+    assert_eq!(parsed.status, "canonical");
     assert_eq!(parsed.abilities.len(), 2);
     let ability = &parsed.abilities[0];
     assert_eq!(ability.ability_type, "spellAbility");
@@ -35,7 +36,27 @@ fn current_card_name_at_token_zero_outweighs_its_keyword_homonym() {
     assert_eq!(rule["effects"][0]["amount"]["value"], 6);
     assert_eq!(rule["effects"][1]["kind"], "putCounters");
     assert!(!rule.to_string().to_ascii_lowercase().contains("awaken"));
-    assert_eq!(parsed.abilities[1].status, "unsupported");
+
+    let landcycling = &parsed.abilities[1];
+    assert_eq!(landcycling.status, "canonical");
+    assert_eq!(landcycling.recognizer, RecognizerProvenance::Native);
+    let keyword = &landcycling.rule.as_ref().expect("landcycling rule")["ability"];
+    assert_eq!(keyword["kind"], "typecycling");
+    assert_eq!(keyword["activationZone"], "hand");
+    assert_eq!(
+        keyword["cost"],
+        serde_json::json!({ "kind": "payMana", "manaCost": "{2}" })
+    );
+    assert_eq!(
+        keyword["where"],
+        serde_json::json!({
+            "kind": "and",
+            "operands": [
+                { "kind": "typeLineContains", "value": "Basic" },
+                { "kind": "cardTypeContains", "value": "Land" },
+            ],
+        })
+    );
 }
 
 #[test]

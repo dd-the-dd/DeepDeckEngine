@@ -19,15 +19,20 @@ fn a_committed_local_family_serializes_its_precise_machine_failure() {
 
     assert_eq!(diagnostic.code, "oracle_machine_failure");
     assert_eq!(diagnostic.automaton.as_deref(), Some("effect-sequence"));
-    assert_eq!(diagnostic.state.as_deref(), Some("numeric.atom.start"));
-    assert_eq!(diagnostic.found.as_deref(), Some("damage"));
+    // The amount may follow the target (`... equal to <amount>`), so the
+    // missing amount is reported at the postposed-amount slot.
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("effect.damage.postposed-amount")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("and"));
     assert_eq!(
         diagnostic.expected.as_deref(),
-        Some("integer, number word, or X")
+        Some("`equal to` and the amount of damage")
     );
     let start = diagnostic.span_start.expect("failure span start");
     let end = diagnostic.span_end.expect("failure span end");
-    assert_eq!(&oracle[start..end], "damage");
+    assert_eq!(&oracle[start..end], "and");
     assert!(diagnostic.token_index.is_some());
     assert!(!diagnostic.trace.is_empty());
     assert!(diagnostic.trace.len() <= 32);

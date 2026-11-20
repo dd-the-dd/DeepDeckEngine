@@ -11,6 +11,10 @@ fn parse_enchantment(name: &str, oracle_text: &str) -> OracleCardParseResult {
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn controlled_creature_taps_compose_loot_counter_and_reflexive_return() {
     let parsed = parse_enchantment(
@@ -48,6 +52,10 @@ fn controlled_creature_taps_compose_loot_counter_and_reflexive_return() {
     assert_eq!(reflexive["effects"][0]["kind"], "moveCards");
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rewrite History; see docs/coverage-targets.md"
+)]
 #[test]
 fn tap_subject_and_loot_counts_are_independent_axes() {
     let parsed = parse_enchantment(

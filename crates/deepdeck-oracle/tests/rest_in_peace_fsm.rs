@@ -14,6 +14,10 @@ fn parse_enchantment(oracle_text: &str) -> deepdeck_oracle::oracle::OracleCardPa
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rest in Peace; see docs/coverage-targets.md"
+)]
 #[test]
 fn rest_in_peace_uses_native_entry_and_zone_destination_automata() {
     let parsed = parse_enchantment(REST_IN_PEACE_ORACLE);

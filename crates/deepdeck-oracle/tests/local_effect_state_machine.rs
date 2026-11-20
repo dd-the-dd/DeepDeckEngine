@@ -69,8 +69,13 @@ fn claimed_family_with_missing_amount_cannot_fall_back_to_a_legacy_leaf() {
     assert!(parsed.abilities[0].rule.is_none());
     let diagnostic = &parsed.abilities[0].diagnostics[0];
     assert_eq!(diagnostic.code, "oracle_machine_failure");
-    assert_eq!(diagnostic.state.as_deref(), Some("numeric.atom.start"));
-    assert_eq!(diagnostic.found.as_deref(), Some("damage"));
+    // `deals damage to <target> equal to <amount>` is a supported postposed
+    // amount, so the missing amount is detected after the target list.
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("effect.damage.postposed-amount")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("and"));
 }
 
 #[test]
@@ -118,12 +123,16 @@ fn a_connector_inside_a_condition_is_not_claimed_as_top_level_effect_sequencing(
         "If this spell deals damage and you gain 3 life, draw a card.",
     );
 
-    // The shared program rejects the conditional head before any connector
-    // inside it could be read as top-level sequencing.
+    // The shared program enters the conditional head and rejects its
+    // unsupported verb before any connector inside it could be read as
+    // top-level sequencing.
     assert_eq!(parsed.status, "unsupported");
     let diagnostic = &parsed.abilities[0].diagnostics[0];
     assert_eq!(diagnostic.code, "oracle_machine_failure");
-    assert_eq!(diagnostic.state.as_deref(), Some("effect.start"));
-    assert_eq!(diagnostic.found.as_deref(), Some("If"));
-    assert_eq!(diagnostic.token_index, Some(0));
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("condition.sentence.object.verb")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("deals"));
+    assert_eq!(diagnostic.token_index, Some(3));
 }

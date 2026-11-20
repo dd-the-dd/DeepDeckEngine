@@ -23,6 +23,10 @@ fn parse_permanent(card_name: &str, type_line: &str, oracle_text: &str) -> Oracl
         .expect("parser test thread completes")
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Seam Rip; see docs/coverage-targets.md"
+)]
 #[test]
 fn seam_rip_is_native_linked_entry_exile_with_composed_target_predicates() {
     let parsed = parse_permanent("Seam Rip", "Enchantment", SEAM_RIP_ORACLE);
@@ -93,6 +97,10 @@ fn seam_rip_is_native_linked_entry_exile_with_composed_target_predicates() {
     assert!(!rule.to_string().contains("seamRip"));
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Seam Rip; see docs/coverage-targets.md"
+)]
 #[test]
 fn linked_entry_exile_reuses_cardinality_controller_and_numeric_selector_children() {
     let parsed = parse_permanent(

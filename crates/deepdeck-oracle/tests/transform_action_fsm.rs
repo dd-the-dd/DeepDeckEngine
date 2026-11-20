@@ -1,18 +1,38 @@
-use deepdeck_oracle::oracle::{OracleCardParseRequest, RecognizerProvenance, parse_oracle_card};
+use deepdeck_oracle::oracle::{
+    OracleCardFace, OracleCardParseRequest, RecognizerProvenance, parse_oracle_card,
+};
 use serde_json::json;
 
+const BACK_NAME: &str = "Test Transformed Face";
+const BACK_TYPE: &str = "Artifact Creature — Phyrexian";
+
+/// A transform layout has exactly two printed parts; the action under test is
+/// on the front face and the back face has no rules text.
 fn parse(
     card_name: &str,
     type_line: &str,
     oracle_text: &str,
 ) -> deepdeck_oracle::oracle::OracleCardParseResult {
-    parse_oracle_card(OracleCardParseRequest {
-        card_name: card_name.to_string(),
+    let face = |id: &str, name: &str, type_line: &str, oracle_text: &str| OracleCardFace {
+        id: id.to_string(),
+        name: name.to_string(),
         type_line: type_line.to_string(),
         mana_cost: None,
-        oracle_text: Some(oracle_text.to_string()),
+        oracle_text: oracle_text.to_string(),
+        power: None,
+        toughness: None,
+        loyalty: None,
+    };
+    parse_oracle_card(OracleCardParseRequest {
+        card_name: format!("{card_name} // {BACK_NAME}"),
+        type_line: format!("{type_line} // {BACK_TYPE}"),
+        mana_cost: None,
+        oracle_text: None,
         layout: Some("transform".to_string()),
-        faces: Vec::new(),
+        faces: vec![
+            face("front", card_name, type_line, oracle_text),
+            face("back", BACK_NAME, BACK_TYPE, ""),
+        ],
     })
 }
 
@@ -72,7 +92,7 @@ fn target_transform_remains_a_committed_unknown_at_the_source_boundary() {
     assert!(ability.rule.is_none());
     assert_eq!(
         ability.diagnostics[0].automaton.as_deref(),
-        Some("activated-targetless-effects")
+        Some("contextual-effect-program")
     );
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),

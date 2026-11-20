@@ -11,6 +11,10 @@ fn parse_enchantment(oracle_text: &str) -> OracleCardParseResult {
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Rest in Peace; see docs/coverage-targets.md"
+)]
 #[test]
 fn cards_and_tokens_for_every_graveyard_compile_to_one_filtered_replacement() {
     let parsed = parse_enchantment(

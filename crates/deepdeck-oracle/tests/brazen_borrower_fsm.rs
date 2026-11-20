@@ -84,11 +84,30 @@ fn expected_restriction() -> serde_json::Value {
 fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
     let parsed = parse_adventure(FRONT_ORACLE);
 
-    assert_eq!(parsed.status, "canonical", "{parsed:#?}");
+    // CR 715: the engine has no Adventure casting runtime yet, so the card
+    // is not executable coverage even though every ability is recognized.
+    assert_eq!(parsed.status, "unsupported", "{parsed:#?}");
     assert_eq!(parsed.abilities.len(), 4);
-    assert!(parsed.abilities.iter().all(|ability| {
-        ability.status == "canonical" && ability.recognizer == RecognizerProvenance::Native
-    }));
+    assert!(
+        parsed
+            .abilities
+            .iter()
+            .all(|ability| ability.recognizer == RecognizerProvenance::Native)
+    );
+    assert!(
+        parsed.abilities[..3]
+            .iter()
+            .all(|ability| ability.status == "canonical")
+    );
+    let adventure = &parsed.abilities[3];
+    assert_eq!(adventure.status, "unsupported");
+    assert_eq!(adventure.rule, None);
+    assert_eq!(adventure.diagnostics.len(), 1);
+    assert_eq!(adventure.diagnostics[0].code, "card_layout_runtime_missing");
+    assert_eq!(
+        adventure.diagnostics[0].state.as_deref(),
+        Some("card-structure.layout-runtime")
+    );
     assert_eq!(
         parsed.abilities[0].rule.as_ref().unwrap()["ability"]["kind"],
         "flash"
@@ -98,17 +117,36 @@ fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
         "flying"
     );
     assert_eq!(parsed.abilities[2].rule, Some(expected_restriction()));
+
+    // The Adventure part's grammar itself is native and primitive.
+    let petty_theft = parse_single("Petty Theft", "Instant", ADVENTURE_ORACLE);
+    assert_eq!(petty_theft.status, "canonical", "{petty_theft:#?}");
     assert_eq!(
-        parsed.abilities[3].rule.as_ref().unwrap()["kind"],
-        "spellAbility"
+        petty_theft.abilities[0].recognizer,
+        RecognizerProvenance::Native
     );
-    assert!(
-        parsed.abilities[3]
-            .rule
-            .as_ref()
-            .unwrap()
-            .to_string()
-            .contains("returnToOwnersHand")
+    let spell = petty_theft.abilities[0].rule.as_ref().unwrap();
+    assert_eq!(spell["kind"], "spellAbility");
+    assert_eq!(
+        spell["declaration"]["decisions"][0]["candidates"],
+        json!({
+            "kind": "permanents",
+            "controller": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "where": {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Land" },
+            },
+        })
+    );
+    assert_eq!(
+        spell["effects"],
+        json!([{
+            "kind": "returnToOwnersHand",
+            "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+        }])
     );
     assert!(
         !serde_json::to_string(&parsed)

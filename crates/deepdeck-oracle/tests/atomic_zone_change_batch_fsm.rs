@@ -111,33 +111,81 @@ fn unknown_lowercase_batch_is_a_committed_local_failure() {
 
 #[test]
 fn batch_reminder_members_and_trailing_text_are_fully_validated() {
+    // CR 207.2: a balanced reminder has no rules meaning. The shared sequence
+    // skips it, so it can never redefine the registry's batch members.
     let incomplete = parse_instant(
         "Destroy target non-outlaw creature. (Assassins, Mercenaries, Pirates, and Rogues are outlaws.)",
     );
     assert_eq!(
-        incomplete.abilities[0].recognizer,
+        only_rule(&incomplete)["declaration"]["decisions"][0]["candidates"]["where"],
+        json!({
+            "kind": "and",
+            "operands": [
+                { "kind": "not", "operand": outlaw_union() },
+                { "kind": "cardTypeContains", "value": "Creature" },
+            ],
+        })
+    );
+
+    // An unclosed batch reminder is not skippable reminder text; the atomic
+    // family validates its members against the registry and rejects it.
+    let unclosed = parse_instant(
+        "Destroy target non-outlaw creature. (Assassins, Mercenaries, Pirates, and Rogues are outlaws.",
+    );
+    assert_eq!(
+        unclosed.abilities[0].recognizer,
         RecognizerProvenance::Native
     );
-    assert_eq!(incomplete.abilities[0].status, "unsupported");
+    assert_eq!(unclosed.abilities[0].status, "unsupported");
     assert_eq!(
-        incomplete.abilities[0].diagnostics[0].state.as_deref(),
+        unclosed.abilities[0].diagnostics[0].state.as_deref(),
         Some("reminder.characteristic-batch.members-validation")
     );
 
+    // A supported sentence after the reminder is the next effect of the
+    // same spell, in printed order.
     let trailing = parse_instant(&format!(
         "Destroy target non-outlaw creature. {OUTLAW_REMINDER} Draw a card."
     ));
+    let rule = only_rule(&trailing);
     assert_eq!(
-        trailing.abilities[0].recognizer,
+        rule["declaration"]["decisions"][0]["candidates"]["where"]["operands"][0],
+        json!({ "kind": "not", "operand": outlaw_union() })
+    );
+    assert_eq!(
+        rule["effects"],
+        json!([
+            {
+                "kind": "destroyPermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+            },
+            {
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 },
+            },
+        ])
+    );
+
+    // Unsupported trailing text still fails full consumption.
+    let malformed_trailing = parse_instant(&format!(
+        "Destroy target non-outlaw creature. {OUTLAW_REMINDER} Draw."
+    ));
+    assert_eq!(
+        malformed_trailing.abilities[0].recognizer,
         RecognizerProvenance::Native
     );
-    assert_eq!(trailing.abilities[0].status, "unsupported");
+    assert_eq!(malformed_trailing.abilities[0].status, "unsupported");
     assert_eq!(
-        trailing.abilities[0].diagnostics[0].state.as_deref(),
+        malformed_trailing.abilities[0].diagnostics[0]
+            .state
+            .as_deref(),
         Some("effect.zone-change.full-consumption")
     );
     assert_eq!(
-        trailing.abilities[0].diagnostics[0].found.as_deref(),
+        malformed_trailing.abilities[0].diagnostics[0]
+            .found
+            .as_deref(),
         Some("Draw")
     );
 }

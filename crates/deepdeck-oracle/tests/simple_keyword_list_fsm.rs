@@ -72,14 +72,28 @@ fn singular_keyword_keeps_the_existing_primitive_shape() {
 
 #[test]
 fn parameterized_keyword_inside_a_list_is_a_committed_native_failure() {
-    let parsed = parse_keyword_group("Test Malformed Bird", "Flying, vigilance 2");
+    // Ward is the parameterized keyword the list grammar admits; a malformed
+    // Ward parameter inside the list is committed to the list automaton.
+    let parsed = parse_keyword_group("Test Malformed Bird", "Flying, ward 2");
 
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 1);
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
     assert!(parsed.abilities[0].rule.is_none());
+    let diagnostic = &parsed.abilities[0].diagnostics[0];
+    assert_eq!(diagnostic.code, "oracle_machine_failure");
+    assert_eq!(diagnostic.automaton.as_deref(), Some("simple-keyword-list"));
+    assert_eq!(diagnostic.state.as_deref(), Some("keyword.ward.cost"));
+    assert_eq!(diagnostic.found.as_deref(), Some("2"));
+
+    // A parameter after a parameterless keyword leaves the list envelope
+    // unclaimed by the atomic list family; it is never approximated.
+    let trailing = parse_keyword_group("Test Malformed Bird", "Flying, vigilance 2");
+    assert_eq!(trailing.status, "unsupported");
+    assert_eq!(trailing.abilities.len(), 1);
+    assert!(trailing.abilities[0].rule.is_none());
     assert_eq!(
-        parsed.abilities[0].diagnostics[0].code,
-        "oracle_machine_failure"
+        trailing.abilities[0].diagnostics[0].code,
+        "unsupported_oracle_ability"
     );
 }

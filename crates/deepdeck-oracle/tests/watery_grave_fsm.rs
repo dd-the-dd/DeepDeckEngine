@@ -154,7 +154,13 @@ fn committed_parenthetical_family_reports_a_missing_closing_boundary() {
 
 #[test]
 fn malformed_two_option_comma_list_is_not_accepted() {
-    let parsed = parse_land("Test Typed Land", "Land", "({T}: Add {U}, or {B}.)");
+    // CR 207.2: a reminder-only line that the committed mana family rejects
+    // is dropped as reminder text; it never becomes a canonical mana ability.
+    let reminder = parse_land("Test Typed Land", "Land", "({T}: Add {U}, or {B}.)");
+    assert!(reminder.abilities.is_empty(), "{:#?}", reminder.abilities);
+
+    // As rules text, the same list fails in the committed mana-list child.
+    let parsed = parse_land("Test Typed Land", "Land", "{T}: Add {U}, or {B}.");
 
     let ability = &parsed.abilities[0];
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);

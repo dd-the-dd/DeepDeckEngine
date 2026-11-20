@@ -221,7 +221,7 @@ fn claimed_near_misses_fail_at_the_responsible_local_state() {
         ),
         (
             "{T}, Pay 1 life, Sacrifice this spell: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
-            "cost.sacrifice-self.source-type",
+            "cost.payment.source.noun",
             "spell",
         ),
         (

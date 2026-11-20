@@ -165,7 +165,7 @@ fn claimed_near_misses_fail_in_the_responsible_local_machine() {
         ),
         (
             "Activated abilities of sources with the chosen name can't be activated unless they're triggered abilities.",
-            "chosen-name-activation-prohibition",
+            "activation-prohibition",
             "static.activation-prohibition.exception-ability-kind",
             "triggered",
         ),

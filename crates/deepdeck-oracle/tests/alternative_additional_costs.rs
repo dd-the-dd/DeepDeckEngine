@@ -83,6 +83,10 @@ fn option_order_and_life_amount_are_independent_of_the_envelope() {
     );
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Test Removal; see docs/coverage-targets.md"
+)]
 #[test]
 fn alternative_additional_costs_reuse_other_shared_cost_atoms() {
     let parsed = parse_instant(

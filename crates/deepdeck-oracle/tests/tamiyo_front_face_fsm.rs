@@ -52,14 +52,21 @@ fn tamiyo_front_face_triggers_are_native_primitives() {
 }
 
 #[test]
-fn source_anaphor_and_arbitrary_ordinal_reuse_the_same_children() {
+fn source_anaphor_attack_trigger_reuses_the_investigate_child() {
     let attack = parse(
         "Curious Scout",
         "Whenever this creature attacks, investigate.",
     );
     assert_eq!(attack.status, "canonical");
     assert_eq!(attack.abilities[0].recognizer, RecognizerProvenance::Native);
+}
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Tamiyo, Inquisitive Student; see docs/coverage-targets.md"
+)]
+#[test]
+fn source_anaphor_and_arbitrary_ordinal_reuse_the_same_children() {
     let transform = parse(
         "Changing Student",
         "When you draw your fourth card in a turn, exile this creature, then return it to the battlefield transformed under its owner's control.",

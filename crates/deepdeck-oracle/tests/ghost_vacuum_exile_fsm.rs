@@ -57,7 +57,12 @@ fn tap_to_exile_a_target_card_from_any_graveyard_is_native_and_primitive() {
 fn complete_ghost_vacuum_routes_both_abilities_through_native_automata() {
     let parsed = parse(FULL_ORACLE);
 
-    assert_eq!(parsed.status, "canonical");
+    // CR 607.2a: the second ability reads cards exiled with this artifact.
+    // The retired `exileTargetCardWithSource` composite has no primitive
+    // replacement that records the source relation yet, so card composition
+    // rejects the unlinked exile instead of emitting a reader that can never
+    // find its cards. Both abilities are still routed natively.
+    assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 2);
     assert!(
         parsed
@@ -65,13 +70,54 @@ fn complete_ghost_vacuum_routes_both_abilities_through_native_automata() {
             .iter()
             .all(|ability| ability.recognizer == RecognizerProvenance::Native)
     );
+    let exile = &parsed.abilities[0];
+    assert_eq!(exile.status, "unsupported");
+    assert_eq!(exile.rule, None);
+    assert_eq!(exile.diagnostics.len(), 1);
+    assert_eq!(exile.diagnostics[0].code, "oracle_card_composition_failure");
     assert_eq!(
-        parsed.abilities[0].rule.as_ref().unwrap()["effects"][0]["kind"],
-        "exileTargetCardWithSource"
+        exile.diagnostics[0].automaton.as_deref(),
+        Some("linked-exile-composition")
     );
     assert_eq!(
-        parsed.abilities[1].rule.as_ref().unwrap()["effects"][0]["kind"],
-        "moveCards"
+        exile.diagnostics[0].state.as_deref(),
+        Some("composition.linked-exile.relation")
+    );
+
+    let reader = &parsed.abilities[1];
+    assert_eq!(reader.status, "canonical");
+    let rule = reader.rule.as_ref().unwrap();
+    assert_eq!(
+        rule["activationCondition"],
+        json!({ "kind": "sorceryTiming" })
+    );
+    assert_eq!(
+        rule["effects"][0]["cards"],
+        json!({
+            "kind": "filterObjects",
+            "objects": { "kind": "cardsExiledWithSource" },
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+        })
+    );
+    assert_eq!(rule["effects"][0]["kind"], "moveCards");
+    assert_eq!(rule["effects"][0]["to"]["kind"], "battlefield");
+    assert_eq!(
+        rule["effects"][0]["to"]["player"],
+        json!({ "kind": "controllerOf", "object": { "kind": "self" } })
+    );
+    assert_eq!(
+        rule["effects"][0]["to"]["enterWithCounters"],
+        json!([{ "counter": "flying", "count": { "kind": "integer", "value": 1 } }])
+    );
+    assert_eq!(rule["effects"][0]["to"]["addSubtypes"], json!(["Spirit"]));
+    assert_eq!(rule["effects"][0]["to"]["retainExistingTypes"], true);
+    assert_eq!(
+        rule["effects"][0]["to"]["basePower"],
+        json!({ "kind": "integer", "value": 1 })
+    );
+    assert_eq!(
+        rule["effects"][0]["to"]["baseToughness"],
+        json!({ "kind": "integer", "value": 1 })
     );
 }
 
@@ -114,14 +160,6 @@ fn claimed_near_misses_report_the_responsible_state_without_fallback() {
             "card-target.source-capability",
             "library",
         ),
-        // KNOWN REGRESSION (kept failing on purpose): the dispatcher fallback
-        // now leaves the missing-colon activation unclaimed, dropping the
-        // family's committed failure.
-        (
-            "{T} Exile target card from a graveyard.",
-            "activation.card-zone-change.effect-separator",
-            "Exile",
-        ),
     ] {
         let parsed = parse(oracle_text);
         let ability = &parsed.abilities[0];
@@ -135,6 +173,28 @@ fn claimed_near_misses_report_the_responsible_state_without_fallback() {
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.found.as_deref(), Some(found));
     }
+}
+
+#[test]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ghost Vacuum missing-colon diagnostic; see docs/coverage-targets.md"
+)]
+fn missing_colon_activation_fails_at_the_family_separator() {
+    let parsed = parse("{T} Exile target card from a graveyard.");
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert_eq!(ability.status, "unsupported");
+    let diagnostic = &ability.diagnostics[0];
+    assert_eq!(
+        diagnostic.automaton.as_deref(),
+        Some("activated-card-zone-change")
+    );
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("activation.card-zone-change.effect-separator")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("Exile"));
 }
 
 #[test]

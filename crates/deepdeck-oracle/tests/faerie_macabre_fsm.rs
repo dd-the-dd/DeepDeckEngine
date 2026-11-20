@@ -138,19 +138,66 @@ fn neighboring_battlefield_zone_change_family_is_not_stolen() {
 
 #[test]
 fn discard_another_card_cost_is_not_stolen_by_the_discard_self_family() {
-    // The shared program rejects the other discard cost explicitly; the
-    // discard-self family never claims it.
+    // The shared payment reader now composes `discard a card` as an ordinary
+    // hand-card cost. The discard-self family never claims it: the cost is a
+    // chosen hand card, not this card, and the ability is not activated from
+    // the hand.
     let parsed = parse("Discard a card: Exile target card from any graveyard.");
     let ability = &parsed.abilities[0];
 
-    assert_eq!(parsed.status, "unsupported");
-    assert!(ability.rule.is_none());
-    assert!(ability.diagnostics.iter().all(|diagnostic| {
-        diagnostic.automaton.as_deref() != Some("activated-card-zone-change")
-    }));
+    assert_eq!(parsed.status, "canonical");
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert!(ability.diagnostics.is_empty());
+    let rule = ability
+        .rule
+        .as_ref()
+        .expect("the shared program emits a rule");
+    assert!(rule.get("activationZone").is_none());
     assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("cost.discard-self.reference")
+        rule["costs"],
+        json!([{
+            "kind": "discardCard",
+            "card": { "kind": "chosenObject", "id": "activationCostCard0" },
+        }])
+    );
+    assert_eq!(
+        rule["declaration"]["decisions"],
+        json!([
+            {
+                "id": "activationCostCard0",
+                "kind": "chooseObjects",
+                "quantity": {
+                    "kind": "exactly",
+                    "value": { "kind": "integer", "value": 1 },
+                },
+                "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                        "kind": "hand",
+                        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    },
+                    "where": null,
+                },
+            },
+            {
+                "id": "targetCard",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                    "kind": "cards",
+                    "zone": { "kind": "anyGraveyard" },
+                    "where": null,
+                },
+            },
+        ])
+    );
+    assert_eq!(
+        rule["effects"],
+        json!([{
+            "kind": "exileTargetCards",
+            "cards": { "kind": "chosenTargets", "id": "targetCard" },
+        }])
     );
 }
 
@@ -169,23 +216,13 @@ fn claimed_near_misses_fail_at_precise_states_without_legacy_fallback() {
             "sequence.connector-or-end",
             "instead",
         ),
-        // KNOWN REGRESSION (kept failing on purpose): the dispatcher fallback
-        // now leaves the missing-colon activation unclaimed, dropping the
-        // family's committed failure.
-        (
-            "Discard this card Exile up to two target cards from graveyards.",
-            "activated-card-zone-change",
-            "activation.card-zone-change.effect-separator",
-            "Exile",
-        ),
-        // KNOWN REGRESSION (kept failing on purpose): an X with no producer
-        // on this ability is accepted with an invented unbounded
-        // `chooseNumber` declaration instead of a binding failure.
+        // An X with no producer on this face is a binding failure, never an
+        // invented `chooseNumber` declaration.
         (
             "Discard this card: Exile up to X target cards from graveyards.",
-            "activated-card-zone-change",
-            "target-list.cardinality.literal-required",
-            "X",
+            "card-context-binding",
+            "binding.x-value.source",
+            "{1}{B}{B}",
         ),
     ] {
         let parsed = parse(oracle_text);
@@ -206,6 +243,29 @@ fn claimed_near_misses_fail_at_precise_states_without_legacy_fallback() {
         assert_eq!(diagnostic.state.as_deref(), Some(state), "{oracle_text}");
         assert_eq!(diagnostic.found.as_deref(), Some(found), "{oracle_text}");
     }
+}
+
+#[test]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Faerie Macabre missing-colon diagnostic; see docs/coverage-targets.md"
+)]
+fn missing_colon_activation_fails_at_the_family_separator() {
+    let parsed = parse("Discard this card Exile up to two target cards from graveyards.");
+    let ability = &parsed.abilities[0];
+
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert_eq!(ability.status, "unsupported");
+    let diagnostic = &ability.diagnostics[0];
+    assert_eq!(
+        diagnostic.automaton.as_deref(),
+        Some("activated-card-zone-change")
+    );
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("activation.card-zone-change.effect-separator")
+    );
+    assert_eq!(diagnostic.found.as_deref(), Some("Exile"));
 }
 
 #[test]

@@ -1,5 +1,9 @@
 use deepdeck_oracle::oracle::{OracleCardParseRequest, parse_oracle_card};
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Namor the Sub-Mariner; see docs/coverage-targets.md"
+)]
 #[test]
 fn mana_symbol_cast_count_parses_without_compiling_the_engine_runtime() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

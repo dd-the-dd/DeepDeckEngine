@@ -122,10 +122,33 @@ fn assert_native_failure(text: &str, expected_state: &str, expected_found: &str)
 }
 
 #[test]
-fn promoted_family_rejects_missing_other_unknown_comparator_and_trailing_tokens() {
+fn promoted_family_rejects_missing_predicate_unknown_comparator_and_trailing_tokens() {
+    // `other` is an optional source exclusion of the shared count condition.
+    // The entering land is not yet on the battlefield (CR 614.12), so both
+    // wordings count the same lands and lower to the same rule.
+    let without_other = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Fast Land".to_string(),
+        type_line: "Land".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "This land enters tapped unless you control two or fewer lands.".to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(without_other.status, "canonical");
+    assert_eq!(
+        without_other.abilities[0].recognizer,
+        RecognizerProvenance::Native
+    );
+    assert_eq!(
+        without_other.abilities[0].rule.as_ref(),
+        Some(&expected_entry_rule())
+    );
+
     assert_native_failure(
-        "This land enters tapped unless you control two or fewer lands.",
-        "condition.controlled-permanent-count.complete",
+        "This land enters tapped unless you control two or fewer.",
+        "selector.predicate.start",
         ".",
     );
     assert_native_failure(

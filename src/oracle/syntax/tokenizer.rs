@@ -186,9 +186,16 @@ fn classify_ability_catalog_lexemes(tokens: &mut [RecognizedEntity]) {
             AbilityCategory::KeywordAbility => keyword_ability_position(tokens, matched),
             AbilityCategory::Marker | AbilityCategory::StaticOrCostMechanic => false,
         };
-        let contains_specialized_token = tokens[matched.start_token..matched.end_token]
-            .iter()
-            .any(|token| token.category != "unknown");
+        // An ordinal inside an exact keyword-ability name (`first strike`) is
+        // part of that name, not an independent ordinal reference.
+        let contains_specialized_token =
+            tokens[matched.start_token..matched.end_token]
+                .iter()
+                .any(|token| {
+                    token.category != "unknown"
+                        && !(matched.entry.category == AbilityCategory::KeywordAbility
+                            && token.token_type == "ordinalWord")
+                });
         // An exact ability-word span at ability start followed by an em dash is
         // a stronger contextual marker than the individual token classes. This
         // matters for official labels such as `descend 4`, `join forces`, and

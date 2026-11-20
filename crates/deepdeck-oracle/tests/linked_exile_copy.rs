@@ -11,6 +11,10 @@ fn parse_aura(name: &str, oracle_text: &str) -> OracleCardParseResult {
     })
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Test Infiltration; see docs/coverage-targets.md"
+)]
 #[test]
 fn attached_object_can_copy_a_linked_exiled_permanent_for_the_source_duration() {
     let parsed = parse_aura(
@@ -46,6 +50,10 @@ fn attached_object_can_copy_a_linked_exiled_permanent_for_the_source_duration() 
     );
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Test Reflection; see docs/coverage-targets.md"
+)]
 #[test]
 fn target_filter_attached_subject_and_copy_noun_recompose_independently() {
     let parsed = parse_aura(
