@@ -1100,6 +1100,12 @@ mod tests {
             thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(delivered.lock().unwrap()[0][0].event_id, "writer:game:1");
+        // The sink records the batch inside `deliver`; the worker acknowledges
+        // (removes) it from the spool only after `deliver` returns.
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while queue.status().unwrap().pending_events > 0 && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(5));
+        }
         assert_eq!(queue.status().unwrap().pending_events, 0);
     }
 
