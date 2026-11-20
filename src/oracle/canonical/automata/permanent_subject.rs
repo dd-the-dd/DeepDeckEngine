@@ -130,12 +130,16 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             }
             ChoiceDomainNode::PlayerTarget(_) => Local(None),
         },
-        LocalEffectNode::DealDamage(node) => Local(match &node.recipient {
-            DamageRecipientNode::Targets(targets) => {
+        // A targeted source occupies the action's first slots; the recipient
+        // is then no longer the action's sole singular referent.
+        LocalEffectNode::DealDamage(node) => Local(match (&node.source, &node.recipient) {
+            (PermanentOperandNode::Targets(_), _) => None,
+            (_, DamageRecipientNode::Targets(targets)) => {
                 singular_permanent_target(targets, effect_index)
             }
             _ => None,
         }),
+        LocalEffectNode::Fight(_) => Local(None),
         LocalEffectNode::ZoneChange(node) => {
             Local(singular_permanent_target(&node.target, effect_index))
         }

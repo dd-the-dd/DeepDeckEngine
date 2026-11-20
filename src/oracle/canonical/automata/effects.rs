@@ -133,20 +133,28 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DamageState {
-    Source,
     Action,
     Amount,
     Resource,
     Destination,
     Selector,
+    Conjunction,
     Complete,
 }
 
 #[derive(Default)]
 struct DamageMemory {
-    source: Option<super::LocalObjectReference>,
     amount: Option<NumericExpression>,
-    recipient: Option<DamageRecipientNode>,
+    recipients: Vec<DamageRecipientNode>,
+}
+
+/// The antecedent a possessive `its` may name inside one damage frame: the
+/// damage source, either the ability source or the subject's target slot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DamageSourceAntecedent {
+    Reference(super::LocalObjectReference),
+    Target(TargetBinding),
+    Unavailable,
 }
 
 /// `equal to EXPR` after `damage`, either before or after the recipient
@@ -155,11 +163,24 @@ struct DamageMemory {
 /// antecedent a possessive `its` may name inside this frame.
 fn recognize_damage_equal_amount(
     cursor: &mut OracleTokenCursor<'_>,
-    source: Option<super::LocalObjectReference>,
+    source: DamageSourceAntecedent,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("effect.damage.equal-amount");
-    cursor.consume_phrase(&["equal", "to"])?;
-    recognize_equal_to_amount_expression(cursor, source)
+    match source {
+        DamageSourceAntecedent::Reference(reference) => {
+            cursor.consume_phrase(&["equal", "to"])?;
+            recognize_equal_to_amount_expression(cursor, Some(reference))
+        }
+        // The shared primary expression owns `equal to` and resolves `its`
+        // through the subject's declared target slot.
+        DamageSourceAntecedent::Target(binding) => {
+            super::recognize_numeric_primary_expression(cursor, Some(binding))
+        }
+        DamageSourceAntecedent::Unavailable => {
+            cursor.consume_phrase(&["equal", "to"])?;
+            recognize_equal_to_amount_expression(cursor, None)
+        }
+    }
 }
 
 pub(in crate::oracle::canonical) fn recognize_damage_effect(
@@ -177,20 +198,65 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
     name_failure: Option<&NameResolutionFailure>,
     source_antecedent: Option<super::PermanentEffectReference>,
 ) -> MachineResult<LocalEffectNode> {
-    let mut state = DamageState::Source;
+    cursor.enter("effect.damage.source");
+    let source = recognize_source_reference_with_typed_antecedent(
+        cursor,
+        name_links,
+        name_failure,
+        source_antecedent,
+    )?;
+    recognize_damage_predicate(
+        cursor,
+        super::PermanentOperandNode::Reference(source),
+        DamageSourceAntecedent::Reference(source),
+    )
+    .map(LocalEffectNode::DealDamage)
+}
+
+/// `deals AMOUNT damage to RECIPIENTS` after an already recognized source.
+/// The subject reader (ability source or permanent subject) owns the source;
+/// this frame owns the amount, the resource and the recipient queries.
+pub(in crate::oracle::canonical) fn recognize_damage_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: super::PermanentOperandNode,
+    antecedent: DamageSourceAntecedent,
+) -> MachineResult<DamageEffectNode> {
+    recognize_damage_frame(cursor, source, antecedent, DamageState::Action)
+}
+
+/// `... and AMOUNT damage to RECIPIENT`: a gapped damage predicate whose
+/// subject and verb are the previous damage action's (coordination ellipsis).
+/// The parent supplies that source; this child never invents one.
+pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: super::PermanentOperandNode,
+    antecedent: DamageSourceAntecedent,
+) -> MachineResult<DamageEffectNode> {
+    cursor.enter("effect.damage.gapped");
+    cursor.require(
+        cursor
+            .peek()
+            .is_some_and(|raw| !raw.eq_ignore_ascii_case("damage"))
+            && (1..4).any(|offset| {
+                cursor
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"))
+            }),
+        "an amount followed by `damage`",
+    )?;
+    recognize_damage_frame(cursor, source, antecedent, DamageState::Amount)
+}
+
+fn recognize_damage_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: super::PermanentOperandNode,
+    antecedent: DamageSourceAntecedent,
+    initial: DamageState,
+) -> MachineResult<DamageEffectNode> {
+    let mut state = initial;
     let mut memory = DamageMemory::default();
     loop {
         state = match state {
-            DamageState::Source => {
-                cursor.enter("effect.damage.source");
-                memory.source = Some(recognize_source_reference_with_typed_antecedent(
-                    cursor,
-                    name_links,
-                    name_failure,
-                    source_antecedent,
-                )?);
-                DamageState::Action
-            }
             DamageState::Action => {
                 cursor.enter("effect.damage.action");
                 cursor.consume("deals")?;
@@ -218,7 +284,7 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
                         .peek()
                         .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
                 {
-                    memory.amount = Some(recognize_damage_equal_amount(cursor, memory.source)?);
+                    memory.amount = Some(recognize_damage_equal_amount(cursor, antecedent)?);
                 }
                 DamageState::Destination
             }
@@ -229,56 +295,30 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
             }
             DamageState::Selector => {
                 cursor.enter("effect.damage.selector");
-                if cursor
+                memory
+                    .recipients
+                    .push(recognize_damage_recipient_group(cursor)?);
+                DamageState::Conjunction
+            }
+            DamageState::Conjunction => {
+                // `and each player`: another recipient group of the same
+                // damage, read transactionally. A group must end at a frame
+                // boundary; otherwise `and` belongs to the enclosing sequence.
+                let mut trial = cursor.clone();
+                trial.enter("effect.damage.recipient-conjunction");
+                if trial
                     .peek()
-                    .is_some_and(|token| token.eq_ignore_ascii_case("you"))
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && trial.consume("and").is_ok()
+                    && let Ok(group) = recognize_damage_recipient_group(&mut trial)
+                    && damage_recipient_boundary(&trial)
                 {
-                    memory.recipient = Some(DamageRecipientNode::Player(
-                        recognize_player_reference(cursor, None)?,
-                    ));
-                } else if cursor.peek().is_some_and(|token| {
-                    token.eq_ignore_ascii_case("each")
-                        && cursor.peek_ahead(1).is_some_and(|role| {
-                            role.eq_ignore_ascii_case("player")
-                                || role.eq_ignore_ascii_case("opponent")
-                        })
-                        || token.eq_ignore_ascii_case("your")
-                }) {
-                    memory.recipient = Some(DamageRecipientNode::PlayerSet(
-                        super::recognize_player_set_reference(cursor)?,
-                    ));
-                } else if cursor
-                    .peek()
-                    .is_some_and(|token| token.eq_ignore_ascii_case("each"))
-                {
-                    cursor.consume("each")?;
-                    let selector = recognize_target_slot_selector(cursor)?;
-                    let TargetSelector::Object(predicate) = selector else {
-                        return Err(cursor.fail("a permanent collection after `each`"));
-                    };
-                    cursor.enter("effect.damage.collection.validation");
-                    cursor.require(
-                        damageable_object_predicate(&predicate),
-                        "a damageable permanent collection",
-                    )?;
-                    memory.recipient = Some(DamageRecipientNode::EachPermanent(predicate));
+                    *cursor = trial;
+                    memory.recipients.push(group);
+                    DamageState::Conjunction
                 } else {
-                    let targets = recognize_target_list(cursor)?;
-                    cursor.enter("effect.damage.selector.validation");
-                    cursor.require(
-                        targets.slots.len() == 1,
-                        "exactly one target slot for a single-recipient damage effect",
-                    )?;
-                    cursor.require(
-                        targets
-                            .slots
-                            .first()
-                            .is_some_and(|slot| damage_target_supported(&slot.selector)),
-                        "a player, any target, or a damageable permanent selector",
-                    )?;
-                    memory.recipient = Some(DamageRecipientNode::Targets(targets));
+                    DamageState::Complete
                 }
-                DamageState::Complete
             }
             DamageState::Complete => {
                 if memory.amount.is_none() {
@@ -289,18 +329,108 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
                             .is_some_and(|raw| raw.eq_ignore_ascii_case("equal")),
                         "`equal to` and the amount of damage",
                     )?;
-                    memory.amount = Some(recognize_damage_equal_amount(cursor, memory.source)?);
+                    memory.amount = Some(recognize_damage_equal_amount(cursor, antecedent)?);
                 }
                 cursor.enter("effect.damage.complete");
-                return Ok(LocalEffectNode::DealDamage(DamageEffectNode {
-                    source: cursor.require_value(memory.source, "a populated damage source")?,
+                let recipient = match memory.recipients.len() {
+                    0 => return Err(cursor.fail("a populated damage recipient")),
+                    1 => memory.recipients.remove(0),
+                    _ => {
+                        cursor.require(
+                            !memory
+                                .recipients
+                                .iter()
+                                .any(|group| matches!(group, DamageRecipientNode::Targets(_))),
+                            "target-free recipient groups in a damage recipient conjunction",
+                        )?;
+                        DamageRecipientNode::All(memory.recipients)
+                    }
+                };
+                return Ok(DamageEffectNode {
+                    source,
                     amount: cursor.require_value(memory.amount, "a populated damage amount")?,
-                    recipient: cursor
-                        .require_value(memory.recipient, "a populated damage recipient")?,
-                }));
+                    recipient,
+                });
             }
         };
     }
+}
+
+/// Tokens that may follow a complete recipient group inside a damage frame.
+fn damage_recipient_boundary(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_none_or(|raw| {
+        matches!(raw, "." | "," | ";")
+            || raw.eq_ignore_ascii_case("and")
+            || raw.eq_ignore_ascii_case("equal")
+            || raw.eq_ignore_ascii_case("where")
+    })
+}
+
+/// One recipient group: `you`, a player set (`each opponent`), a permanent
+/// collection (`each [other] creature [you don't control]`) or targets.
+fn recognize_damage_recipient_group(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DamageRecipientNode> {
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("you"))
+    {
+        return Ok(DamageRecipientNode::Player(recognize_player_reference(
+            cursor, None,
+        )?));
+    }
+    if cursor.peek().is_some_and(|token| {
+        token.eq_ignore_ascii_case("each")
+            && cursor.peek_ahead(1).is_some_and(|role| {
+                role.eq_ignore_ascii_case("player") || role.eq_ignore_ascii_case("opponent")
+            })
+            || token.eq_ignore_ascii_case("your")
+    }) {
+        return Ok(DamageRecipientNode::PlayerSet(
+            super::recognize_player_set_reference(cursor)?,
+        ));
+    }
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("each"))
+    {
+        cursor.consume("each")?;
+        let exclude_source = super::recognize_optional_source_exclusion(cursor)?;
+        // The shared collection grammar owns head coordination and a shared
+        // trailing controller (`each creature and planeswalker your
+        // opponents control`).
+        let objects = super::recognize_object_collection(cursor)?;
+        cursor.enter("effect.damage.collection.validation");
+        cursor.require(
+            objects.predicate.supports_domain(ObjectKind::Permanent)
+                && objects.predicate.has_domain(ObjectKind::Permanent),
+            "a collection explicitly anchored in the battlefield-permanent domain",
+        )?;
+        cursor.require(
+            damageable_object_predicate(&objects.predicate),
+            "a damageable permanent collection",
+        )?;
+        return Ok(DamageRecipientNode::EachPermanent(
+            super::DamageCollectionNode {
+                objects,
+                exclude_source,
+            },
+        ));
+    }
+    let targets = recognize_target_list(cursor)?;
+    cursor.enter("effect.damage.selector.validation");
+    cursor.require(
+        targets.slots.len() == 1,
+        "exactly one target slot for a single-recipient damage effect",
+    )?;
+    cursor.require(
+        targets
+            .slots
+            .first()
+            .is_some_and(|slot| damage_target_supported(&slot.selector)),
+        "a player, any target, or a damageable permanent selector",
+    )?;
+    Ok(DamageRecipientNode::Targets(targets))
 }
 
 pub(in crate::oracle::canonical) fn damage_target_supported(selector: &TargetSelector) -> bool {

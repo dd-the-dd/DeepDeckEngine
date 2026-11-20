@@ -13,12 +13,19 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/1/kind", "equals": "dealDamage" },
+              { "pointer": "/effects/1/source/kind", "equals": "chosenTarget" },
+              { "pointer": "/effects/1/source/id", "equals": "targetPermanent" }
+            ]
           }
         ]
       }

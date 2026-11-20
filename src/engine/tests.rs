@@ -68,6 +68,9 @@ mod local_damage_life_fsm_runtime;
 #[path = "tests/plain_damage_fsm_runtime.rs"]
 mod plain_damage_fsm_runtime;
 
+#[path = "tests/damage_forms_runtime.rs"]
+mod damage_forms_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/dismember_runtime.rs"]
 mod dismember_runtime;

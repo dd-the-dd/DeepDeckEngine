@@ -159,7 +159,7 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
         return None;
     };
     let (_, candidates, minimum, maximum) = lower_single_target(targets);
-    let source = match &effect.source {
+    let source = match effect.fixed_source()? {
         LocalObjectReference::SourceSelf => self_ref(),
     };
     Some(LoweredTargetedDamageEffect {
@@ -281,7 +281,8 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
-        | LocalEffectNode::UntapTarget(_) => false,
+        | LocalEffectNode::UntapTarget(_)
+        | LocalEffectNode::Fight(_) => false,
     });
     let mut decisions = uses_x.then(x_value).into_iter().collect::<Vec<_>>();
     let mut effects = Vec::with_capacity(sequence.effects.len());
@@ -324,10 +325,13 @@ fn lower_local_effect_sequence(
             LocalEffectNode::CounterSpell(_) | LocalEffectNode::AddMana(_) => {
                 unreachable!("damage-family lowering does not claim counter effects")
             }
+            LocalEffectNode::Fight(_) => {
+                return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
+            }
             LocalEffectNode::DealDamage(effect) => {
-                let source = match &effect.source {
-                    LocalObjectReference::SourceSelf => self_ref(),
-                };
+                if effect.fixed_source().is_none() {
+                    return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
+                }
                 match &effect.recipient {
                     DamageRecipientNode::Targets(_) => {
                         let base_id = default_damage_target_id(&effect)
@@ -353,17 +357,11 @@ fn lower_local_effect_sequence(
                             shared_error,
                         ));
                     }
-                    DamageRecipientNode::EachPermanent(predicate) => {
-                        effects.push(json!({
-                            "kind": "dealDamage",
-                            "source": source,
-                            "amount": lower_numeric_expression(&effect.amount)
-                                .ok_or(DamageFamilySequenceLoweringError::ExistingUnsupported)?,
-                            "recipient": {
-                                "kind": "eachPermanent",
-                                "where": lower_permanent_object_predicate(predicate),
-                            },
-                        }));
+                    // Collections and recipient conjunctions are lowered by
+                    // the shared targetless lowerer above; reaching this arm
+                    // means that lowerer rejected them.
+                    DamageRecipientNode::EachPermanent(_) | DamageRecipientNode::All(_) => {
+                        return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
                     }
                 }
             }
@@ -503,12 +501,17 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
             return true;
         }
 
+        if matches!(effect, LocalEffectNode::DealDamage(damage) if damage.fixed_source().is_none())
+        {
+            return true;
+        }
         matches!(
             effect,
             LocalEffectNode::DealDamage(DamageEffectNode {
                 recipient: DamageRecipientNode::PlayerSet(_),
                 ..
             }) | LocalEffectNode::PlayerAction(_)
+                | LocalEffectNode::Fight(_)
                 | LocalEffectNode::SelectedPermanents(_)
                 | LocalEffectNode::TapPermanents(_)
                 | LocalEffectNode::PermanentKeywordAction(_)
@@ -591,7 +594,8 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)
-            | LocalEffectNode::UntapTarget(_) => None,
+            | LocalEffectNode::UntapTarget(_)
+            | LocalEffectNode::Fight(_) => None,
         })
         .expect("the conditional damage automaton always emits its antecedent branch");
     let DamageRecipientNode::Targets(antecedent_target) = &antecedent.recipient else {
@@ -610,6 +614,7 @@ fn lower_conditional_damage_effect(
                 | LocalEffectNode::PermanentKeywordAction(_)
                 | LocalEffectNode::PreventDamage(_)
                 | LocalEffectNode::Attach(_)
+                | LocalEffectNode::Fight(_)
                 | LocalEffectNode::Choose(_) => None,
                 LocalEffectNode::DealDamage(effect) => Some({
                     let DamageRecipientNode::Targets(_) = effect.recipient else {
@@ -617,7 +622,7 @@ fn lower_conditional_damage_effect(
                     };
                     json!({
                         "kind": "dealDamage",
-                        "source": match effect.source {
+                        "source": match effect.fixed_source()? {
                             LocalObjectReference::SourceSelf => self_ref(),
                         },
                         "amount": lower_numeric_expression(&effect.amount)?,

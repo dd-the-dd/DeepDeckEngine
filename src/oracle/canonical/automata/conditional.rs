@@ -1,8 +1,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamageEffectNode, DamageRecipientNode, LocalConditionNode, LocalEffectNode,
-    LocalObjectReference, NumericExpression, PlayerPredicate, SelectorPredicate, TargetListNode,
-    TargetSelector, recognize_kicked_condition, recognize_numeric_atom,
+    DamageEffectNode, DamageRecipientNode, LocalConditionNode, LocalEffectNode, NumericExpression,
+    PlayerPredicate, SelectorPredicate, TargetListNode, TargetSelector, recognize_kicked_condition,
+    recognize_numeric_atom,
 };
 use crate::oracle::{
     characteristic_vocabulary::PlayerRole,
@@ -32,7 +32,7 @@ enum ReplacementState {
 #[derive(Default)]
 struct ReplacementMemory {
     condition: Option<LocalConditionNode>,
-    source: Option<LocalObjectReference>,
+    source: Option<super::PermanentOperandNode>,
     amount: Option<NumericExpression>,
     target: Option<TargetListNode>,
 }

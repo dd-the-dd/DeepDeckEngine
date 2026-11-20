@@ -476,6 +476,7 @@ fn recognize_object_query_with_cardinality_policy(
                 if cursor
                     .peek()
                     .is_some_and(|token| token.eq_ignore_ascii_case("with"))
+                    || keyword_absence_qualifier_starts(cursor)
                 {
                     let (predicate, scope) = if cursor.peek_ahead(1).is_some_and(|token| {
                         token.eq_ignore_ascii_case("mana")
@@ -768,11 +769,28 @@ fn compose_postnominal_scopes(
     Ok(shared.into_iter().map(|node| node.predicate).collect())
 }
 
+/// `without KEYWORD`: the negation of the same keyword qualifier.
+fn keyword_absence_qualifier_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("without"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            parameterless_keyword_from_oracle_word(raw).is_some()
+                || raw.eq_ignore_ascii_case("double")
+                || raw.eq_ignore_ascii_case("first")
+        })
+}
+
 fn recognize_keyword_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SelectorPredicate> {
     cursor.enter("selector.keyword-qualifier.relation");
-    cursor.consume("with")?;
+    let absence = keyword_absence_qualifier_starts(cursor);
+    if absence {
+        cursor.consume("without")?;
+    } else {
+        cursor.consume("with")?;
+    }
     cursor.enter("selector.keyword-qualifier.keyword");
     let raw = cursor
         .peek()
@@ -802,9 +820,14 @@ fn recognize_keyword_qualifier(
         alternatives
             .push(recognize_parameterless_keyword(cursor).map(SelectorPredicate::HasKeyword)?);
     }
-    Ok(match alternatives.len() {
+    let keywords = match alternatives.len() {
         1 => alternatives.remove(0),
         _ => SelectorPredicate::Union(alternatives),
+    };
+    Ok(if absence {
+        SelectorPredicate::Not(Box::new(keywords))
+    } else {
+        keywords
     })
 }
 
