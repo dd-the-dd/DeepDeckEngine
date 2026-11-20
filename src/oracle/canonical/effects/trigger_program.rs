@@ -64,6 +64,7 @@ fn compile_recognized_trigger_program(
         },
         input.name_links,
         input.name_resolution_failure,
+        source_attachment_role(input.face_type_line),
     )?;
     // `other` needs an explicit exclusion identity and incarnation. The
     // current count contract cannot prove the observed-object binding or

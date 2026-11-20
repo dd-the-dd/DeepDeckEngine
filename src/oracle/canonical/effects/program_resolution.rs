@@ -306,7 +306,9 @@ fn resolve_sequence(
         match effect {
             LocalEffectNode::PlayerAction(action) => {
                 match &action.player {
-                    PlayerEffectSubject::Controller | PlayerEffectSubject::EventPlayer => {}
+                    PlayerEffectSubject::Controller
+                    | PlayerEffectSubject::EventPlayer
+                    | PlayerEffectSubject::ObjectRelation { .. } => {}
                     PlayerEffectSubject::DeclaredTarget { binding, target } => {
                         let [slot] = target.slots.as_slice() else {
                             return Err(error(

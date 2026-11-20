@@ -1,13 +1,13 @@
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, lookup_card_type, lookup_noncreature_subtype, lookup_object_characteristic,
-    lookup_object_domain,
+    lookup_object_domain, lookup_permanent_card_type,
 };
 use crate::oracle::syntax::{
     NameLinkKind, NameResolutionFailure, ResolvedNameLink, UnresolvedName,
 };
 
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{LocalObjectReference, LocalPlayerReference, TargetBinding};
+use super::{AttachedObjectRole, LocalObjectReference, LocalPlayerReference, TargetBinding};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SourceReferenceState {
@@ -146,6 +146,81 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_typed_antece
     recognize_source_reference_with_antecedent(cursor, name_links, name_failure, source.as_ref())
 }
 
+/// The attachment relation a source face has by its subtype: an Aura
+/// enchants, an Equipment equips (CR 301.5, 303.4). Other faces have none.
+pub(in crate::oracle::canonical) fn source_attachment_role(
+    face_type_line: &str,
+) -> Option<AttachedObjectRole> {
+    let subtypes = face_type_line.split('\u{2014}').nth(1)?;
+    let has = |subtype: &str| {
+        subtypes
+            .split(|character: char| !character.is_alphanumeric())
+            .any(|word| word == subtype)
+    };
+    if has("Aura") {
+        Some(AttachedObjectRole::Enchanted)
+    } else if has("Equipment") {
+        Some(AttachedObjectRole::Equipped)
+    } else {
+        None
+    }
+}
+
+pub(in crate::oracle::canonical) fn attached_object_reference_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("enchanted") || raw.eq_ignore_ascii_case("equipped")
+    })
+}
+
+/// `enchanted PERMANENT` / `equipped creature`: a reference to the permanent
+/// the ability source is attached to (CR 301.5a, 303.4a). The role must match
+/// the source face supplied by the parent; an Aura may enchant any permanent
+/// kind, Equipment only a creature. The runtime binds the object.
+pub(in crate::oracle::canonical) fn recognize_attached_object_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    source_attachment: Option<AttachedObjectRole>,
+) -> MachineResult<AttachedObjectRole> {
+    cursor.enter("reference.attached-object.role");
+    let role = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("enchanted") => AttachedObjectRole::Enchanted,
+        Some("equipped") => AttachedObjectRole::Equipped,
+        _ => return Err(cursor.fail("`enchanted` or `equipped`")),
+    };
+    cursor.require(
+        source_attachment == Some(role),
+        match role {
+            AttachedObjectRole::Enchanted => "an Aura source for `enchanted`",
+            AttachedObjectRole::Equipped => "an Equipment source for `equipped`",
+        },
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("reference.attached-object.nominal");
+    let noun = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("an attached permanent nominal"))?
+        .to_string();
+    let accepted = match role {
+        AttachedObjectRole::Equipped => noun.eq_ignore_ascii_case("creature"),
+        AttachedObjectRole::Enchanted => {
+            noun.eq_ignore_ascii_case("permanent")
+                || lookup_permanent_card_type(&noun, AcceptedForms::SingularOnly).is_some()
+        }
+    };
+    cursor.require(
+        accepted,
+        match role {
+            AttachedObjectRole::Equipped => "`creature` after `equipped`",
+            AttachedObjectRole::Enchanted => {
+                "`permanent` or a permanent card type after `enchanted`"
+            }
+        },
+    )?;
+    cursor.consume(&noun)?;
+    cursor.enter("reference.attached-object.complete");
+    Ok(role)
+}
 pub(in crate::oracle::canonical) fn recognize_player_reference(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
@@ -241,11 +316,19 @@ pub(in crate::oracle::canonical) fn source_or_anaphor_reference_starts_at(
         || source_reference_starts_at(position, next, name_links, name_failure)
 }
 
+/// Object pronouns, including the gendered subject and object forms Oracle
+/// uses for a named legendary character (`he deals`, `put a counter on her`).
 pub(in crate::oracle::canonical) fn is_source_anaphor(raw: &str) -> bool {
     raw.eq_ignore_ascii_case("her")
         || raw.eq_ignore_ascii_case("him")
+        || raw.eq_ignore_ascii_case("he")
+        || raw.eq_ignore_ascii_case("she")
         || raw.eq_ignore_ascii_case("it")
 }
+
+#[cfg(test)]
+#[path = "reference_anaphora_tests.rs"]
+mod anaphora_tests;
 
 fn unresolved_name_at<'a>(
     position: usize,

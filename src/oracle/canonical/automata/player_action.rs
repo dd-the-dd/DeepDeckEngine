@@ -6,7 +6,11 @@ use super::source_sacrifice::atomic_action::counted_card::recognize_card_count_n
 use super::source_sacrifice::atomic_action::player_discard::{
     PlayerDiscardEffectNode, recognize_player_discard_action_fragment,
 };
-use super::source_sacrifice::atomic_action::player_subject::recognize_player_effect_subject;
+use super::source_sacrifice::atomic_action::player_subject::{
+    ObjectSubjectAntecedent, defending_player_starts, object_related_player_head_length,
+    recognize_defending_player_subject, recognize_object_related_player_subject,
+    recognize_player_effect_subject,
+};
 use super::{
     EffectRecognitionContext, LifeActionNode, LifeVerbForm, NumericExpression, PlayerBinding,
     PlayerEffectSubject, PlayerSacrificeActionNode, recognize_draw_action_fragment,
@@ -46,6 +50,21 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     inherited: Option<&PlayerEffectSubject>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<Option<PlayerActionNode>> {
+    try_recognize_player_action_with_object_antecedent(
+        cursor, binding, antecedent, inherited, None, context,
+    )
+}
+
+/// The same child with the singular object antecedent the sequence proved,
+/// so `its controller` / `that NOUN's owner` can act as the player subject.
+pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_antecedent(
+    cursor: &mut OracleTokenCursor<'_>,
+    binding: PlayerBinding,
+    antecedent: Option<PlayerBinding>,
+    inherited: Option<&PlayerEffectSubject>,
+    object_antecedent: Option<ObjectSubjectAntecedent>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<PlayerActionNode>> {
     let checkpoint = cursor.checkpoint();
     let head = cursor.peek().unwrap_or("");
     let explicit_target = head.eq_ignore_ascii_case("target")
@@ -63,10 +82,30 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
     let explicit_you = inherited.is_some() && head.eq_ignore_ascii_case("you");
+    let object_relation = object_related_player_head_length(cursor).is_some();
+    let defending = defending_player_starts(cursor);
     let player = if explicit_target || explicit_bound || explicit_you {
         // Binding validation is tentative until this child owns the action.
         // Another parent may supply a different typed player relationship.
         recognize_player_effect_subject(cursor, binding, antecedent, context.event_player)
+    } else if defending {
+        match recognize_defending_player_subject(cursor, context.defending_player) {
+            Ok(player) => Ok(player),
+            Err(_) => {
+                cursor.rollback(checkpoint);
+                return Ok(None);
+            }
+        }
+    } else if object_relation {
+        // Tentative like the explicit subjects above: without a proven object
+        // antecedent the established readers keep their own diagnostics.
+        match recognize_object_related_player_subject(cursor, object_antecedent) {
+            Ok(player) => Ok(player),
+            Err(_) => {
+                cursor.rollback(checkpoint);
+                return Ok(None);
+            }
+        }
     } else if let Some(player) = inherited {
         Ok(player.clone())
     } else if head.eq_ignore_ascii_case("mill") || head.eq_ignore_ascii_case("venture") {
@@ -95,6 +134,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         && !explicit_target
         && !explicit_bound
         && !explicit_you
+        && !object_relation
+        && !defending
         && matches!(inherited, Some(PlayerEffectSubject::Bound(_)))
         && cursor
             .peek_token()
@@ -124,7 +165,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         PlayerEffectSubject::Controller => LifeVerbForm::Base,
         PlayerEffectSubject::DeclaredTarget { .. }
         | PlayerEffectSubject::Bound(_)
-        | PlayerEffectSubject::EventPlayer => LifeVerbForm::ThirdPersonSingular,
+        | PlayerEffectSubject::EventPlayer
+        | PlayerEffectSubject::ObjectRelation { .. } => LifeVerbForm::ThirdPersonSingular,
     };
     let action = if is_draw {
         SingularPlayerAction::Draw(recognize_draw_action_fragment(cursor, form, context)?)
@@ -141,7 +183,16 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     } else if verb == "sacrifices" {
         SingularPlayerAction::Sacrifice(recognize_player_sacrifice_action(cursor)?)
     } else {
-        SingularPlayerAction::Life(recognize_life_action(cursor, form, None)?)
+        // `its controller gains life equal to its power`: the possessive
+        // subject's target is also the antecedent of the amount's `its`.
+        let amount_antecedent = match &player {
+            PlayerEffectSubject::ObjectRelation {
+                object: super::PermanentEffectReference::Target(binding),
+                ..
+            } => Some(*binding),
+            _ => None,
+        };
+        SingularPlayerAction::Life(recognize_life_action(cursor, form, amount_antecedent)?)
     };
     Ok(Some(PlayerActionNode { player, action }))
 }

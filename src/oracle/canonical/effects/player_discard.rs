@@ -62,6 +62,10 @@ pub(in crate::oracle::canonical) fn lower_player_effect_subject(
     let player = match subject {
         PlayerEffectSubject::Controller => controller(),
         PlayerEffectSubject::EventPlayer => json!({ "kind": "triggeringPlayer" }),
+        // Lowered by the sequence, which owns the object's target bindings.
+        PlayerEffectSubject::ObjectRelation { .. } => {
+            return Err(PlayerDiscardLoweringError::MissingBoundPlayer);
+        }
         PlayerEffectSubject::DeclaredTarget { target, binding } => {
             let [slot] = target.slots.as_slice() else {
                 return Err(PlayerDiscardLoweringError::InvalidDeclaredPlayerTarget);

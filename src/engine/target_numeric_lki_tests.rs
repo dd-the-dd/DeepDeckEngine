@@ -11,6 +11,8 @@ fn values(mana: i32, power: i32, toughness: i32) -> TargetNumericValues {
         mana_value: mana,
         power: Some(power),
         toughness: Some(toughness),
+        controller: None,
+        owner: None,
     }
 }
 fn context() -> TargetNumericContext {

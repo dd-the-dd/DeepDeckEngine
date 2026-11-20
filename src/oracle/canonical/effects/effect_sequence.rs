@@ -351,9 +351,9 @@ fn lower_local_effect_sequence_with_collections(
                         .ok_or_else(|| {
                             cursor.fail("an earlier declared player subject target slot")
                         })?,
-                    PlayerEffectSubject::Controller | PlayerEffectSubject::EventPlayer => {
-                        String::new()
-                    }
+                    PlayerEffectSubject::Controller
+                    | PlayerEffectSubject::EventPlayer
+                    | PlayerEffectSubject::ObjectRelation { .. } => String::new(),
                 };
                 let antecedent = match &action.player {
                     PlayerEffectSubject::Bound(binding) => Some(BoundPlayerLowering {
@@ -362,10 +362,34 @@ fn lower_local_effect_sequence_with_collections(
                     }),
                     _ => None,
                 };
-                let lowered = lower_player_effect_subject(&action.player, &target_id, antecedent)
-                    .map_err(|_| {
-                    cursor.fail("a valid declared or previously bound singular player subject")
-                })?;
+                let lowered = if let PlayerEffectSubject::ObjectRelation { relation, object } =
+                    &action.player
+                {
+                    // CR 108.3, 109.4: the related player of an object bound
+                    // earlier in this program; never a new declaration.
+                    cursor.enter("lower.player-action.object-relation");
+                    let object =
+                        lower_bound_permanent_reference(cursor, *object, &target_bindings)?;
+                    LoweredPlayerSubject {
+                        player: json!({
+                            "kind": match relation {
+                                ObjectPlayerRelation::Controller => "controllerOf",
+                                ObjectPlayerRelation::Owner => "ownerOf",
+                            },
+                            "object": object,
+                        }),
+                        decisions: Vec::new(),
+                        declared_player: None,
+                    }
+                } else {
+                    lower_player_effect_subject(&action.player, &target_id, antecedent).map_err(
+                        |_| {
+                            cursor.fail(
+                                "a valid declared or previously bound singular player subject",
+                            )
+                        },
+                    )?
+                };
                 decisions.extend(lowered.decisions);
                 if let Some((binding, id)) = lowered.declared_player {
                     declared_player_targets.push((
@@ -994,6 +1018,20 @@ fn lower_local_effect_sequence_with_collections(
                     .ok_or_else(|| cursor.fail("a targeted damage effect"))?;
                 decisions.push(lowered.decision);
                 effects.push(lowered.effect);
+                // A singular damage target is the antecedent a later reference
+                // (`that creature`, `its controller`) resolves to.
+                if let DamageRecipientNode::Targets(targets) = &damage.recipient
+                    && let [slot] = targets.slots.as_slice()
+                    && slot.cardinality == TargetCardinality::EXACTLY_ONE
+                {
+                    target_bindings.push((
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        target_id.clone(),
+                    ));
+                }
             }
             LocalEffectNode::ZoneChange(zone_change) => {
                 cursor.enter("lower.zone-change.target-candidates");

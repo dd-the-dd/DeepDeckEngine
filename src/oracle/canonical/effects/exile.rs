@@ -142,27 +142,16 @@ pub(in crate::oracle::canonical) fn claims_promoted_exile_anaphora_family(
 }
 
 fn lower_exile_anaphora_sequence(
-    zone_change: ZoneChangeEffectNode,
-    gain: GainLifeEffectNode,
-    binding: TargetBinding,
+    zone_change: &ZoneChangeEffectNode,
     transitions: &[MachineTransition],
 ) -> CanonicalRuleDraft {
     let (target_id, candidates, minimum, maximum) = lower_single_target(&zone_change.target);
     let target = chosen_target(target_id);
     let controller_binding_id = "exiledPermanentController";
     let power_binding_id = "exiledPermanentPower";
-    let player = match gain.player {
-        LocalPlayerReference::ControllerOf(reference) if reference == binding => {
-            json!({ "kind": "boundValue", "id": controller_binding_id })
-        }
-        _ => unreachable!("validated linked controller reference"),
-    };
-    let amount = match gain.amount {
-        expression if expression.is_target_property(binding, SelectorNumericProperty::Power) => {
-            json!({ "kind": "boundValue", "id": power_binding_id })
-        }
-        _ => unreachable!("validated linked power expression"),
-    };
+    // The caller validated the controller and power of the prior target.
+    let player = json!({ "kind": "boundValue", "id": controller_binding_id });
+    let amount = json!({ "kind": "boundValue", "id": power_binding_id });
     let trace = transitions
         .iter()
         .map(|transition| transition.state)
@@ -227,16 +216,44 @@ pub(in crate::oracle::canonical) fn parse_promoted_exile_anaphora(
     let sequence =
         recognize_effect_sequence(&mut cursor, input.name_links, input.name_resolution_failure)?;
     cursor.enter("sequence.exile-anaphora.validation");
-    let [
-        LocalEffectNode::ZoneChange(zone_change),
-        LocalEffectNode::GainLife(gain),
-    ] = sequence.effects.as_slice()
-    else {
-        return Err(cursor.fail("an exile effect followed by one linked life-gain effect"));
-    };
     let binding = TargetBinding {
         effect_index: 0,
         slot_index: 0,
+    };
+    // `its controller gains life` is read by the shared player-action child
+    // as an object-related subject; the established life reader keeps the
+    // equivalent local controller reference.
+    let (zone_change, controller_of_target, amount) = match sequence.effects.as_slice() {
+        [
+            LocalEffectNode::ZoneChange(zone_change),
+            LocalEffectNode::GainLife(gain),
+        ] => (
+            zone_change,
+            gain.player == LocalPlayerReference::ControllerOf(binding),
+            &gain.amount,
+        ),
+        [
+            LocalEffectNode::ZoneChange(zone_change),
+            LocalEffectNode::PlayerAction(PlayerActionNode {
+                player,
+                action:
+                    SingularPlayerAction::Life(LifeActionNode {
+                        action: TargetPlayerLifeAction::Gain,
+                        amount,
+                    }),
+            }),
+        ] => (
+            zone_change,
+            *player
+                == PlayerEffectSubject::ObjectRelation {
+                    relation: ObjectPlayerRelation::Controller,
+                    object: PermanentEffectReference::Target(binding),
+                },
+            amount,
+        ),
+        _ => {
+            return Err(cursor.fail("an exile effect followed by one linked life-gain effect"));
+        }
     };
     cursor.require(
         sequence.connectors == [EffectConnector::Then],
@@ -246,19 +263,13 @@ pub(in crate::oracle::canonical) fn parse_promoted_exile_anaphora(
         zone_change.action == ZoneChangeAction::Exile,
         "an exile zone change",
     )?;
+    cursor.require(controller_of_target, "the controller of the prior target")?;
     cursor.require(
-        gain.player == LocalPlayerReference::ControllerOf(binding),
-        "the controller of the prior target",
-    )?;
-    cursor.require(
-        gain.amount
-            .is_target_property(binding, SelectorNumericProperty::Power),
+        amount.is_target_property(binding, SelectorNumericProperty::Power),
         "the power of the prior target",
     )?;
     Ok(lower_exile_anaphora_sequence(
-        zone_change.clone(),
-        gain.clone(),
-        binding,
+        zone_change,
         cursor.transitions(),
     ))
 }

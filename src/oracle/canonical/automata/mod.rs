@@ -414,6 +414,9 @@ pub(super) use source_entry::*;
 pub(super) use source_entry_card_zone_change::*;
 pub(super) use source_entry_effect_sequence::*;
 pub(super) use source_exclusion::*;
+pub(super) use source_sacrifice::atomic_action::player_subject::{
+    ObjectPlayerRelation, ObjectSubjectAntecedent, defending_player_starts,
+};
 pub(super) use source_sacrifice::*;
 pub(super) use source_state::*;
 pub(super) use source_trigger_envelope::*;
@@ -514,6 +517,9 @@ pub(in crate::oracle::canonical) enum PermanentEffectReference {
     Source(LocalObjectReference),
     Target(TargetBinding),
     Observed(TypedObservedEventObject),
+    /// `enchanted creature` / `equipped creature`: the permanent the ability
+    /// source is attached to (CR 301.5a, 303.4a), resolved at execution.
+    Attached(AttachedObjectRole),
 }
 
 /// The parent that owns ability-restriction sentences (`Activate only ...`,
@@ -564,6 +570,15 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// damage), so `that player` without a local antecedent denotes it.
     /// Set only by the trigger parent from its typed event.
     pub event_player: bool,
+    /// How the ability's source face is attached to another permanent: an
+    /// Aura enchants it, an Equipment equips it (CR 301.5a, 303.4a). Set only
+    /// by parents that read the face type line; `enchanted`/`equipped`
+    /// references are rejected without it.
+    pub source_attachment: Option<AttachedObjectRole>,
+    /// The triggering event is an attack by the source or the creature it is
+    /// attached to; `defending player` names the player that creature attacks
+    /// (CR 506.2), which the runtime records as the triggering player.
+    pub defending_player: bool,
 }
 
 /// Only a parent whose actions are lowered by the shared sequence lowering,
@@ -624,6 +639,16 @@ impl EffectRecognitionContext {
         source: LocalObjectReference,
     ) -> Self {
         self.source_anaphor_binding = SourceAnaphorBinding::EventSubject(source);
+        self
+    }
+
+    /// The parent read the source face type line: an Aura or Equipment source
+    /// can name the permanent it is attached to.
+    pub(in crate::oracle::canonical) fn with_source_attachment(
+        mut self,
+        role: Option<AttachedObjectRole>,
+    ) -> Self {
+        self.source_attachment = role;
         self
     }
 

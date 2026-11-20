@@ -17,6 +17,9 @@ pub(in crate::oracle::canonical) fn lower_bound_permanent_reference(
         PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield) => {
             Ok(json!({"kind":"singleBoundObject","binding":MOVED_ONTO_BATTLEFIELD_BINDING}))
         }
+        PermanentEffectReference::Attached(_) => {
+            Ok(json!({"kind":"attachedPermanent","attachment":self_ref()}))
+        }
         PermanentEffectReference::Target(target) => bindings
             .iter()
             .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id)))
