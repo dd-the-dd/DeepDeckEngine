@@ -116,7 +116,6 @@ fn unsupported_boundaries_remain_unclaimed() {
         "At the beginning of the next end step, draw a card.",
         "At the end of turn, draw a card.",
         "At the beginning of your opponent's upkeep, draw a card.",
-        "At the beginning of your second main phase, draw a card.",
         "At the beginning of your third main phase, draw a card.",
         "At the beginning of each of your main phases, draw a card.",
         "At the beginning of your upkeep and whenever a creature enters, draw a card.",

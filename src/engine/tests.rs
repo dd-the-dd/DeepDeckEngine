@@ -140,6 +140,9 @@ mod requiting_hex_runtime;
 #[path = "tests/fatal_push_runtime.rs"]
 mod fatal_push_runtime;
 
+#[path = "tests/trigger_frame_runtime.rs"]
+mod trigger_frame_runtime;
+
 #[path = "tests/ability_loss_then_destroy_runtime.rs"]
 mod ability_loss_then_destroy_runtime;
 

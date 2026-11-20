@@ -1,3 +1,20 @@
+//! Turn-step events after `At the beginning of` (CR 503.1, 504, 505, 507,
+//! 513). The event composes two independent concepts:
+//!
+//! ```text
+//! StepEvent  := TurnOwner StepName
+//!             | "each" StepName                        -- any player's step
+//!             | "each" "of" TurnOwner PluralStepName
+//!             | "the" StepName ["of" AttachedController]
+//!             | "each" "combat" | "combat" "on" TurnOwner "turn"
+//! TurnOwner  := "your" | "your opponents'" | "each player's" | "each opponent's"
+//! StepName   := "upkeep" | "draw step" | "end step"
+//!             | ("first" | "precombat") "main phase"
+//!             | ("second" | "postcombat") "main phase"
+//! ```
+//!
+//! The owner names whose turn the step belongs to; the step name is shared by
+//! every owner. The temporal prefix and following comma remain parent-owned.
 use super::super::{MachineResult, OracleTokenCursor};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,6 +32,9 @@ pub(in crate::oracle::canonical) enum StepPlayerScope {
     AbilityController,
     EachPlayer,
     OpponentsOfAbilityController,
+    /// The controller of the permanent the source is attached to
+    /// (`the upkeep of enchanted creature's controller`, CR 303.4).
+    AttachedPermanentController,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,104 +43,189 @@ pub(in crate::oracle::canonical) struct StepEventNode {
     pub player: StepPlayerScope,
 }
 
-fn consume_step_suffix(
+fn is_possessive(raw: &str, noun: &str) -> bool {
+    raw.eq_ignore_ascii_case(&format!("{noun}'s")) || raw.eq_ignore_ascii_case(&format!("{noun}’s"))
+}
+
+fn is_plural_possessive(raw: &str, noun: &str) -> bool {
+    raw.eq_ignore_ascii_case(&format!("{noun}'")) || raw.eq_ignore_ascii_case(&format!("{noun}’"))
+}
+
+fn consume_current(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.advance_to(cursor.position() + 1)
+}
+
+/// Whose turn: `your`, `your opponents'`, `each player's`, `each opponent's`.
+fn recognize_turn_owner(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<StepPlayerScope> {
+    cursor.enter("event.step.turn-owner");
+    let head = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| cursor.fail("a turn owner"))?;
+    match head.as_str() {
+        "your" => {
+            cursor.consume("your")?;
+            if cursor
+                .peek()
+                .is_some_and(|raw| is_plural_possessive(raw, "opponents"))
+            {
+                consume_current(cursor)?;
+                return Ok(StepPlayerScope::OpponentsOfAbilityController);
+            }
+            Ok(StepPlayerScope::AbilityController)
+        }
+        "each" => {
+            cursor.consume("each")?;
+            cursor.enter("event.step.turn-owner.player");
+            let owner = match cursor.peek() {
+                Some(raw) if is_possessive(raw, "player") => StepPlayerScope::EachPlayer,
+                Some(raw) if is_possessive(raw, "opponent") => {
+                    StepPlayerScope::OpponentsOfAbilityController
+                }
+                _ => return Err(cursor.fail("`player's` or `opponent's`")),
+            };
+            consume_current(cursor)?;
+            Ok(owner)
+        }
+        _ => Err(cursor.fail("`your`, `your opponents'`, `each player's` or `each opponent's`")),
+    }
+}
+
+/// One step name; `plural` reads the form after `each of`.
+fn recognize_step_name(
     cursor: &mut OracleTokenCursor<'_>,
-    player: StepPlayerScope,
-) -> MachineResult<StepEventNode> {
+    plural: bool,
+) -> MachineResult<TurnStep> {
     cursor.enter("event.step.step");
-    let Some(head) = cursor.peek().map(str::to_ascii_lowercase) else {
-        return Err(cursor.fail("a supported turn step"));
-    };
-    let step = match head.as_str() {
-        "upkeep" => {
-            cursor.consume("upkeep")?;
-            TurnStep::Upkeep
-        }
-        "draw" => {
-            cursor.consume_phrase(&["draw", "step"])?;
-            TurnStep::Draw
-        }
-        "end" => {
-            cursor.consume_phrase(&["end", "step"])?;
-            TurnStep::EndStep
-        }
-        "first" if player == StepPlayerScope::AbilityController => {
-            cursor.consume_phrase(&["first", "main", "phase"])?;
-            TurnStep::PrecombatMain
-        }
-        "postcombat" if player == StepPlayerScope::AbilityController => {
-            cursor.consume_phrase(&["postcombat", "main", "phase"])?;
-            TurnStep::PostcombatMain
-        }
+    let head = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| cursor.fail("a turn step name"))?;
+    let (step, words): (TurnStep, &[&str]) = match (head.as_str(), plural) {
+        ("upkeep", false) => (TurnStep::Upkeep, &["upkeep"]),
+        ("upkeeps", true) => (TurnStep::Upkeep, &["upkeeps"]),
+        ("draw", false) => (TurnStep::Draw, &["draw", "step"]),
+        ("draw", true) => (TurnStep::Draw, &["draw", "steps"]),
+        ("end", false) => (TurnStep::EndStep, &["end", "step"]),
+        ("end", true) => (TurnStep::EndStep, &["end", "steps"]),
+        ("first" | "precombat", false) => (TurnStep::PrecombatMain, &["main", "phase"]),
+        ("first" | "precombat", true) => (TurnStep::PrecombatMain, &["main", "phases"]),
+        ("second" | "postcombat", false) => (TurnStep::PostcombatMain, &["main", "phase"]),
+        ("second" | "postcombat", true) => (TurnStep::PostcombatMain, &["main", "phases"]),
         _ => {
-            return Err(cursor
-                .fail("upkeep, draw step, end step, first main phase, or postcombat main phase"));
+            return Err(cursor.fail(
+                "upkeep, draw step, end step, first/precombat or second/postcombat main phase",
+            ));
         }
     };
-    cursor.enter("event.step.complete");
-    Ok(StepEventNode { step, player })
+    if matches!(step, TurnStep::PrecombatMain | TurnStep::PostcombatMain) {
+        consume_current(cursor)?;
+    }
+    cursor.consume_phrase(words)?;
+    Ok(step)
+}
+
+/// `of enchanted PERMANENT's controller` after `the STEP`: the turn owner is
+/// the controller of the object the source enchants.
+fn recognize_attached_controller(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StepPlayerScope> {
+    cursor.enter("event.step.attached-controller");
+    cursor.consume_phrase(&["of", "enchanted"])?;
+    cursor.enter("event.step.attached-controller.object");
+    cursor.require(
+        cursor.peek().is_some_and(|raw| {
+            ["creature", "artifact", "enchantment", "land", "permanent"]
+                .iter()
+                .any(|noun| is_possessive(raw, noun))
+        }),
+        "an enchanted permanent's possessive",
+    )?;
+    consume_current(cursor)?;
+    cursor.enter("event.step.attached-controller.relation");
+    cursor.consume("controller")?;
+    Ok(StepPlayerScope::AttachedPermanentController)
 }
 
 /// Recognizes the player-owned turn-step phrase after `At the beginning of`.
-/// The temporal prefix and following comma remain parent-owned.
 pub(in crate::oracle::canonical) fn recognize_step_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<StepEventNode> {
     cursor.enter("event.step.scope");
-    let Some(scope) = cursor.peek().map(str::to_ascii_lowercase) else {
-        return Err(cursor.fail("`your`, `each`, `the`, or `combat on your turn`"));
-    };
-    match scope.as_str() {
+    let head = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| cursor.fail("a turn-step owner"))?;
+    let node = match head.as_str() {
         "your" => {
-            cursor.consume("your")?;
-            consume_step_suffix(cursor, StepPlayerScope::AbilityController)
+            let player = recognize_turn_owner(cursor)?;
+            StepEventNode {
+                step: recognize_step_name(cursor, false)?,
+                player,
+            }
         }
         "each" => {
-            cursor.consume("each")?;
-            if cursor.peek().is_some_and(|raw| {
-                raw.eq_ignore_ascii_case("opponent's") || raw.eq_ignore_ascii_case("opponent’s")
-            }) {
-                cursor.enter("event.step.opponent-scope");
-                cursor.advance_to(cursor.position() + 1)?;
-                cursor.enter("event.step.opponent-draw");
-                cursor.consume_phrase(&["draw", "step"])?;
-                cursor.enter("event.step.complete");
-                return Ok(StepEventNode {
-                    step: TurnStep::Draw,
-                    player: StepPlayerScope::OpponentsOfAbilityController,
-                });
+            let next = cursor.peek_ahead(1).map(str::to_ascii_lowercase);
+            match next.as_deref() {
+                Some("of") => {
+                    cursor.consume_phrase(&["each", "of"])?;
+                    let player = recognize_turn_owner(cursor)?;
+                    StepEventNode {
+                        step: recognize_step_name(cursor, true)?,
+                        player,
+                    }
+                }
+                Some("combat") => {
+                    cursor.consume_phrase(&["each", "combat"])?;
+                    StepEventNode {
+                        step: TurnStep::BeginCombat,
+                        player: StepPlayerScope::EachPlayer,
+                    }
+                }
+                Some(raw) if is_possessive(raw, "player") || is_possessive(raw, "opponent") => {
+                    let player = recognize_turn_owner(cursor)?;
+                    StepEventNode {
+                        step: recognize_step_name(cursor, false)?,
+                        player,
+                    }
+                }
+                _ => {
+                    cursor.consume("each")?;
+                    StepEventNode {
+                        step: recognize_step_name(cursor, false)?,
+                        player: StepPlayerScope::EachPlayer,
+                    }
+                }
             }
-            if cursor
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("combat"))
-            {
-                cursor.consume("combat")?;
-                cursor.enter("event.step.complete");
-                return Ok(StepEventNode {
-                    step: TurnStep::BeginCombat,
-                    player: StepPlayerScope::EachPlayer,
-                });
-            }
-            consume_step_suffix(cursor, StepPlayerScope::EachPlayer)
         }
         "the" => {
             cursor.consume("the")?;
-            cursor.enter("event.step.unscoped-end-step");
-            cursor.consume_phrase(&["end", "step"])?;
-            cursor.enter("event.step.complete");
-            Ok(StepEventNode {
-                step: TurnStep::EndStep,
-                player: StepPlayerScope::EachPlayer,
-            })
+            let step = recognize_step_name(cursor, false)?;
+            let player = if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+            {
+                recognize_attached_controller(cursor)?
+            } else {
+                StepPlayerScope::EachPlayer
+            };
+            StepEventNode { step, player }
         }
         "combat" => {
-            cursor.consume_phrase(&["combat", "on", "your", "turn"])?;
-            cursor.enter("event.step.complete");
-            Ok(StepEventNode {
+            cursor.enter("event.step.combat-turn");
+            cursor.consume_phrase(&["combat", "on"])?;
+            let player = recognize_turn_owner(cursor)?;
+            cursor.enter("event.step.combat-turn.noun");
+            cursor.consume("turn")?;
+            StepEventNode {
                 step: TurnStep::BeginCombat,
-                player: StepPlayerScope::AbilityController,
-            })
+                player,
+            }
         }
-        _ => Err(cursor.fail("`your`, `each`, `the`, or `combat on your turn`")),
-    }
+        _ => {
+            return Err(cursor.fail("`your`, `each`, `the`, or `combat on TURN-OWNER turn`"));
+        }
+    };
+    cursor.enter("event.step.complete");
+    Ok(node)
 }

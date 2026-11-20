@@ -19,12 +19,16 @@ fn lower_step(step: TurnStep) -> &'static str {
     }
 }
 
-fn lower_event(event: StepEventNode) -> Value {
+/// The one step-event lowering shared by every triggered-ability parent.
+pub(in crate::oracle::canonical) fn lower_step_event(event: StepEventNode) -> Value {
     let player = match event.player {
         StepPlayerScope::AbilityController => controller(),
         StepPlayerScope::EachPlayer => json!({ "kind": "eachPlayer" }),
         StepPlayerScope::OpponentsOfAbilityController => {
             json!({ "kind": "opponentsOf", "player": controller() })
+        }
+        StepPlayerScope::AttachedPermanentController => {
+            json!({ "kind": "controllerOfAttachedPermanent", "attachment": self_ref() })
         }
     };
     json!({
@@ -81,7 +85,7 @@ fn lower_node(
     let mut rule = json!({
         "kind": "triggeredAbility",
         "source": self_ref(),
-        "event": lower_event(node.envelope.event),
+        "event": lower_step_event(node.envelope.event),
         "effects": effects,
     });
     if !lowered.decisions.is_empty() {
