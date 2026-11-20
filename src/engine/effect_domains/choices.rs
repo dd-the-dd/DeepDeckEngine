@@ -49,6 +49,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["candidates"]
                     .get("excludeSource")
                     .is_none_or(Value::is_boolean)
+                && effect["candidates"]
+                    .get("extremum")
+                    .is_none_or(candidate_extremum_supported)
                 && card_filter_supported(&effect["candidates"]["where"])
                 && numeric_expression_supported(&effect["minimum"])
                 && numeric_expression_supported(&effect["maximum"])
@@ -333,6 +336,10 @@ impl GameEngine {
                     })
                     .map(|card| card.instance_id.clone())
                     .collect::<Vec<_>>();
+                let objects = match effect["candidates"].get("extremum") {
+                    Some(extremum) => self.retain_candidate_extremum(objects, extremum),
+                    None => objects,
+                };
                 let minimum = self
                     .checked_runtime_numeric_expression(
                         &effect["minimum"],
@@ -652,5 +659,42 @@ impl GameEngine {
             }
         }
         Ok(())
+    }
+}
+
+/// A choice restricted to the candidates with the least or greatest current
+/// power or toughness among the qualifying permanents, ties included (for
+/// example bolster, CR 701.39a). It filters the candidate set; the player
+/// still chooses among the tied candidates.
+fn candidate_extremum_supported(extremum: &Value) -> bool {
+    matches!(extremum["property"].as_str(), Some("power" | "toughness"))
+        && matches!(extremum["direction"].as_str(), Some("least" | "greatest"))
+}
+
+impl GameEngine {
+    fn retain_candidate_extremum(&self, objects: Vec<String>, extremum: &Value) -> Vec<String> {
+        let value_of = |instance_id: &String| {
+            self.permanent_position(instance_id).map(|(player, index)| {
+                let card = &self.state.players[player].battlefield[index];
+                if extremum["property"].as_str() == Some("power") {
+                    self.current_power(card)
+                } else {
+                    self.current_toughness(card)
+                }
+            })
+        };
+        let values = objects.iter().filter_map(value_of).collect::<Vec<_>>();
+        let target = if extremum["direction"].as_str() == Some("greatest") {
+            values.iter().max()
+        } else {
+            values.iter().min()
+        };
+        let Some(target) = target.copied() else {
+            return objects;
+        };
+        objects
+            .into_iter()
+            .filter(|instance_id| value_of(instance_id) == Some(target))
+            .collect()
     }
 }

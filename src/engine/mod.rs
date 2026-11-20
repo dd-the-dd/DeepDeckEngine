@@ -12728,7 +12728,12 @@ impl GameEngine {
     }
 
     fn activation_prohibited(&self, permanent: &CardInstance, is_mana_ability: bool) -> bool {
-        (!is_mana_ability
+        // CR 701.35a: a detained permanent's activated abilities, mana
+        // abilities included, can't be activated.
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some("temporaryActivationProhibition")
+                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+        }) || (!is_mana_ability
             && matches!(
                 self.state.step,
                 GameStep::BeginningOfCombat
@@ -36766,6 +36771,7 @@ impl GameEngine {
                     Some(
                         "protectionFromEverything"
                             | "temporaryProtection"
+                            | "temporaryActivationProhibition"
                             | "lifeTotalCannotChange"
                             | "preventPlayerDamage"
                     )

@@ -71,7 +71,7 @@ fn targeted_child_preserves_its_declaration() {
 #[test]
 fn unsupported_first_child_is_unpromoted_but_committed_near_miss_fails() {
     assert!(matches!(
-        parse("Whenever a land you control enters, manifest dread."),
+        parse("Whenever a land you control enters, incubate 2."),
         PermanentEnteredParseAttempt::Unpromoted(_)
     ));
     assert!(matches!(

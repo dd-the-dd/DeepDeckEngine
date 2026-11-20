@@ -179,6 +179,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::Amass(_)
         | LocalEffectNode::EmpowerJace(_)
         | LocalEffectNode::Investigate(_)
+        | LocalEffectNode::ControllerKeywordAction(_)
         | LocalEffectNode::Scry(_)
         | LocalEffectNode::Surveil(_)
         | LocalEffectNode::Earthbend(_)

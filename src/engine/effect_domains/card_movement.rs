@@ -46,6 +46,11 @@ fn supports_known_effect(effect: &Value) -> bool {
                             && effect["to"].get("faceChange").is_none_or(|face_change| {
                                 value_kind(face_change) == Some("transformFace")
                             })
+                            // CR 701.40a: manifest puts the card onto the
+                            // battlefield face down as a 2/2 creature.
+                            && effect["to"].get("faceDown").is_none_or(Value::is_boolean)
+                            && !(effect["to"]["faceDown"].as_bool() == Some(true)
+                                && effect["to"].get("faceChange").is_some())
                             && effect["to"]
                                 .get("enterWithCounters")
                                 .is_none_or(|counters| {
@@ -343,6 +348,12 @@ impl GameEngine {
                                 {
                                     apply_card_face(&mut entering_card, 1);
                                 }
+                                // CR 701.40f: a prohibition applies to the
+                                // face-down object that would enter.
+                                if effect["to"]["faceDown"].as_bool() == Some(true) {
+                                    entering_card.definition =
+                                        face_down_creature_definition(&entering_card.definition);
+                                }
                                 policy.destination_replacement(&entering_card.definition)
                             });
                         if let Some(replacement) = replacement {
@@ -491,6 +502,16 @@ impl GameEngine {
                                 && !apply_card_face(&mut card, 1)
                             {
                                 card.flags.insert("transformed".to_string(), true);
+                            }
+                            // CR 701.40a: the face-down 2/2 characteristics
+                            // replace the printed ones until it is turned face
+                            // up; the printed card is kept for that special action.
+                            if effect["to"]["faceDown"].as_bool() == Some(true) {
+                                if card.printed_definition.is_none() {
+                                    card.printed_definition = Some(card.definition.clone());
+                                }
+                                card.definition = face_down_creature_definition(&card.definition);
+                                card.flags.insert("faceDown".to_string(), true);
                             }
                             let added_types = effect["to"]["addTypes"]
                                 .as_array()

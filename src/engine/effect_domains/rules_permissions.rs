@@ -112,6 +112,13 @@ fn supports_known_effect(effect: &Value) -> bool {
             object_expression_supported(&effect["objects"])
                 || target_reference_supported(&effect["objects"])
         }
+        // CR 701.35a (detain): one object's activated abilities, including
+        // mana abilities, can't be activated until the named player's next turn.
+        Some("prohibitPermanentActivations") => {
+            target_reference_supported(&effect["object"])
+                && value_kind(&effect["duration"]) == Some("untilNextTurn")
+                && player_reference_supported(&effect["duration"]["player"])
+        }
         _ => false,
     }
 }
@@ -560,6 +567,25 @@ impl GameEngine {
                     if is_creature && goaded.insert(instance_id.clone()) {
                         self.goad_permanent(&instance_id, &stack_object.controller);
                     }
+                }
+            }
+            Some("prohibitPermanentActivations") => {
+                let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let Some(expiry_player_id) =
+                    self.resolve_player(&effect["duration"]["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                if self.permanent_position(&instance_id).is_some() {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "temporaryActivationProhibition",
+                        "cardInstanceId": instance_id,
+                        "expiresAtTurnStart": expiry_player_id,
+                    }));
                 }
             }
             Some("goadAllCreaturesUntilNextTurn") => {

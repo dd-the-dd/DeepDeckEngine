@@ -40,7 +40,14 @@ pub(in crate::oracle::canonical) fn lower_explore_program(
     let subject_id = format!("{scope}:subject");
     let player_id = format!("{scope}:controller");
     let top_id = format!("{scope}:top");
-    let subject = json!({ "kind": "boundValue", "id": subject_id });
+    // The ability's own source keeps its engine-captured last known
+    // information; only another object reference is bound.
+    let bind_subject = !source_reference(&object);
+    let subject = if bind_subject {
+        json!({ "kind": "boundValue", "id": subject_id })
+    } else {
+        object.clone()
+    };
     let player = json!({ "kind": "boundValue", "id": player_id });
     let top = json!({ "kind": "boundObjects", "binding": top_id });
     let library = json!({ "kind": "library", "player": player });
@@ -55,8 +62,11 @@ pub(in crate::oracle::canonical) fn lower_explore_program(
     let mut signal = lower_registered_ability_signal("explore", player.clone())
         .ok_or_else(|| failure("an afterActionCompletes signal for Explore"))?;
     signal["object"] = subject.clone();
-    Ok(vec![
-        json!({ "kind": "bind", "id": subject_id, "value": object }),
+    let mut program = Vec::new();
+    if bind_subject {
+        program.push(json!({ "kind": "bind", "id": subject_id, "value": object }));
+    }
+    program.extend([
         json!({
             "kind": "bind", "id": player_id,
             "value": { "kind": "controllerOfObject", "object": subject },
@@ -97,7 +107,8 @@ pub(in crate::oracle::canonical) fn lower_explore_program(
             }],
         }),
         signal,
-    ])
+    ]);
+    Ok(program)
 }
 
 #[cfg(test)]

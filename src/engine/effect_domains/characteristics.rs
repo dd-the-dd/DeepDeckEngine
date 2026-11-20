@@ -65,7 +65,13 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["flag"].is_string()
                 && effect["value"].is_boolean()
         }
-        Some("suspectPermanent") => target_reference_supported(&effect["object"]),
+        Some("suspectPermanent") => {
+            target_reference_supported(&effect["object"])
+                || matches!(
+                    value_kind(&effect["object"]),
+                    Some("self" | "abilitySource")
+                )
+        }
         _ => false,
     }
 }
@@ -361,14 +367,30 @@ impl GameEngine {
                 }
             }
             Some("suspectPermanent") => {
-                let Some(TargetRef::Permanent { instance_id }) =
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                else {
-                    return Ok(());
+                let instance_id = if matches!(
+                    value_kind(&effect["object"]),
+                    Some("self" | "abilitySource")
+                ) {
+                    stack_object.card.instance_id.clone()
+                } else {
+                    let Some(TargetRef::Permanent { instance_id }) =
+                        self.resolve_target(&effect["object"], stack_object, bindings)
+                    else {
+                        return Ok(());
+                    };
+                    instance_id
                 };
                 let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
                     return Ok(());
                 };
+                // CR 701.60d: a suspected permanent can't become suspected again.
+                if self.state.players[player_index].battlefield[card_index]
+                    .flags
+                    .get("suspected")
+                    == Some(&true)
+                {
+                    return Ok(());
+                }
                 for keyword in ["menace", "cantBlock"] {
                     self.state.players[player_index].battlefield[card_index]
                         .definition

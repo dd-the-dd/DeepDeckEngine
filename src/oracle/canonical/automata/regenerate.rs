@@ -27,6 +27,7 @@ pub(in crate::oracle::canonical) fn recognize_regenerate_effect(
     Ok(PermanentKeywordActionNode {
         action: PermanentKeywordAction::Regenerate,
         targets,
+        quantity: None,
     })
 }
 
@@ -48,6 +49,7 @@ pub(in crate::oracle::canonical) fn recognize_goad_effect(
     Ok(PermanentKeywordActionNode {
         action: PermanentKeywordAction::Goad,
         targets,
+        quantity: None,
     })
 }
 

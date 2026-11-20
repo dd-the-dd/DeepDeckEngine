@@ -106,6 +106,10 @@ mod earthbend_primitives_runtime;
 #[path = "tests/empower_jace_runtime.rs"]
 mod empower_jace_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/keyword_actions_runtime.rs"]
+mod keyword_actions_runtime;
+
 #[path = "tests/library_top_runtime.rs"]
 mod library_top_runtime;
 

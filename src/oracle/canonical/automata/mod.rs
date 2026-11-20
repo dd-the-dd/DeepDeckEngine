@@ -101,6 +101,7 @@ mod graveyard_destination;
 mod hand_disruption;
 mod investigate;
 mod keyword;
+mod keyword_action;
 mod keyword_grant;
 mod labeled_activated_effect_sequence;
 mod landfall_reflexive_counter;
@@ -329,6 +330,7 @@ pub(super) use graveyard_destination::*;
 pub(super) use hand_disruption::*;
 pub(super) use investigate::*;
 pub(super) use keyword::*;
+pub(super) use keyword_action::*;
 pub(super) use keyword_grant::*;
 pub(super) use labeled_activated_effect_sequence::*;
 pub(super) use landfall_reflexive_counter::*;
@@ -1637,6 +1639,7 @@ pub(super) enum LocalEffectNode {
     Amass(AmassEffectNode),
     EmpowerJace(EmpowerJaceEffectNode),
     Investigate(InvestigateEffectNode),
+    ControllerKeywordAction(ControllerKeywordActionNode),
     Scry(ScryEffectNode),
     Surveil(SurveilEffectNode),
     Earthbend(EarthbendActionNode),
@@ -1683,19 +1686,143 @@ pub(super) struct TapPermanentsEffectNode {
     pub untap: bool,
 }
 
-/// Keyword actions whose only operand is a permanent: `regenerate OBJECT`
-/// (CR 701.15) and `goad OBJECT` (CR 701.38). The object slot is the shared
-/// permanent operand; the shield or goad designation is an engine primitive.
+/// Keyword actions whose operand is a permanent (CR 2026-11-06 numbering):
+/// `regenerate OBJECT` (701.19), `goad OBJECT` (701.15), `suspect OBJECT`
+/// (701.60), `detain OBJECT` (701.35), `SUBJECT explores` (701.44),
+/// `SUBJECT connives [N]` (701.50), `SUBJECT endures N` (701.63) and the
+/// self-referential `adapt N` (701.46) and `monstrosity N` (701.37). The
+/// object slot is the shared permanent operand; each action lowers to
+/// ordinary primitives or one engine designation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum PermanentKeywordAction {
     Regenerate,
     Goad,
+    Suspect,
+    Detain,
+    Explore,
+    Connive,
+    Endure,
+    Adapt,
+    Monstrosity,
+}
+
+impl PermanentKeywordAction {
+    /// Third-person intransitive verb forms whose grammatical subject is the
+    /// acting permanent (`it explores`, `target creature connives`).
+    pub(super) fn from_subject_verb(raw: &str) -> Option<Self> {
+        match raw.to_ascii_lowercase().as_str() {
+            "explores" => Some(Self::Explore),
+            "connives" => Some(Self::Connive),
+            "endures" => Some(Self::Endure),
+            _ => None,
+        }
+    }
+
+    /// Imperative verbs whose object is an explicit permanent operand.
+    pub(super) fn from_imperative_object_verb(raw: &str) -> Option<Self> {
+        match raw.to_ascii_lowercase().as_str() {
+            "suspect" => Some(Self::Suspect),
+            "detain" => Some(Self::Detain),
+            _ => None,
+        }
+    }
+
+    /// Imperative verbs defined over `this permanent` (CR 701.46a, 701.37a).
+    pub(super) fn from_self_quantity_verb(raw: &str) -> Option<Self> {
+        match raw.to_ascii_lowercase().as_str() {
+            "adapt" => Some(Self::Adapt),
+            "monstrosity" => Some(Self::Monstrosity),
+            _ => None,
+        }
+    }
+
+    /// Whether the action carries a numeric argument, and whether it may be omitted.
+    pub(super) fn quantity_policy(self) -> KeywordQuantityPolicy {
+        match self {
+            Self::Regenerate | Self::Goad | Self::Suspect | Self::Detain | Self::Explore => {
+                KeywordQuantityPolicy::None
+            }
+            Self::Connive => KeywordQuantityPolicy::Optional,
+            Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
+        }
+    }
+
+    /// Procedures that act on exactly one object at a time and have an
+    /// ordering rule for simultaneous instructions (CR 701.44d, 701.50c).
+    pub(super) fn requires_singular_object(self) -> bool {
+        matches!(
+            self,
+            Self::Explore | Self::Connive | Self::Endure | Self::Adapt | Self::Monstrosity
+        )
+    }
+
+    pub(super) fn name(self) -> &'static str {
+        match self {
+            Self::Regenerate => "regenerate",
+            Self::Goad => "goad",
+            Self::Suspect => "suspect",
+            Self::Detain => "detain",
+            Self::Explore => "explore",
+            Self::Connive => "connive",
+            Self::Endure => "endure",
+            Self::Adapt => "adapt",
+            Self::Monstrosity => "monstrosity",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum KeywordQuantityPolicy {
+    None,
+    Optional,
+    Required,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct PermanentKeywordActionNode {
     pub action: PermanentKeywordAction,
     pub targets: PermanentOperandNode,
+    /// `connive N`, `endure N`, `adapt N`, `monstrosity N`; `None` is the
+    /// unparameterized form (connive = connive 1, CR 701.50a/d).
+    pub quantity: Option<NumericExpression>,
+}
+
+/// Keyword actions performed by the ability controller without an object
+/// operand: `populate` (CR 701.36a), `bolster N` (CR 701.39a), `discover N`
+/// (CR 701.57a), `learn` (CR 701.48a), `manifest` over the shared
+/// library-top operand (CR 701.40a, the count is the quantity) and
+/// `manifest dread` (CR 701.62a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ControllerKeywordAction {
+    Populate,
+    Bolster,
+    Discover,
+    Learn,
+    Manifest,
+    ManifestDread,
+}
+
+impl ControllerKeywordAction {
+    pub(super) fn from_imperative_verb(raw: &str) -> Option<Self> {
+        match raw.to_ascii_lowercase().as_str() {
+            "populate" => Some(Self::Populate),
+            "bolster" => Some(Self::Bolster),
+            "discover" => Some(Self::Discover),
+            "learn" => Some(Self::Learn),
+            "manifest" => Some(Self::Manifest),
+            _ => None,
+        }
+    }
+
+    pub(super) fn takes_quantity(self) -> bool {
+        matches!(self, Self::Bolster | Self::Discover)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ControllerKeywordActionNode {
+    pub action: ControllerKeywordAction,
+    pub quantity: Option<NumericExpression>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
