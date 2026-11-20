@@ -340,6 +340,32 @@ fn lower_object_event(
             recipient: Some(DamageRecipient::Player(EventActorScope::AnyPlayer)),
         };
         let complement = event.damage.as_ref().unwrap_or(&established);
+        // `one or more SOURCES deal combat damage to you`: the received-combat
+        // observer groups one combat damage step per damaged player.
+        if per_event
+            && complement.kind == DamageEventKind::Combat
+            && complement.recipient == Some(DamageRecipient::Player(EventActorScope::Controller))
+            && subject.query.controller.is_none()
+            && !subject.exclude_source
+        {
+            cursor.enter("trigger.dealt-damage.source-support");
+            cursor.require(
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent)
+                    && !subject.query.predicate.contains_numeric_comparison()
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "a representable damage-source predicate",
+            )?;
+            let mut lowered = json!({"kind": "combatDamageReceived", "player": controller()});
+            if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+                let filter = lower_permanent_object_predicate(&subject.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered damage-source predicate")?;
+                lowered["where"] = filter;
+            }
+            return Ok(lowered);
+        }
         let source = lower_damage_subject_query(cursor, subject)?;
         return lower_damage_dealt_event(cursor, source, complement);
     }

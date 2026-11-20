@@ -117,6 +117,14 @@ fn attached_and_queried_subjects_share_the_damage_complement() {
             "source": {"kind": "attachedPermanent", "attachment": self_ref()},
             "noncombatOnly": true, "recipient": {"kind": "player", "player": controller()}})
     );
+    // Witch-king of Angmar: combat damage received from one or more creatures.
+    assert_eq!(
+        event(
+            "Whenever one or more creatures deal combat damage to you, draw a card.",
+            "Creature"
+        ),
+        json!({"kind": "combatDamageReceived", "player": controller(), "where": creature()})
+    );
     // The plural established form keeps its grouped matcher.
     assert_eq!(
         event(
