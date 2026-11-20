@@ -111,10 +111,12 @@ fn exact_card_is_native_and_lowers_mobilize_to_atomic_effects() {
 
 #[test]
 fn quantities_and_cannot_spelling_reuse_the_same_machines() {
-    for (quantity, word) in [(1, "one"), (3, "three")] {
+    // The cleanup pronoun agrees with the token batch (`it` for one token,
+    // `them` for several), as printed on Mobilize cards.
+    for (quantity, word, noun, pronoun) in [(1, "a", "token", "it"), (3, "three", "tokens", "them")]
+    {
         let oracle = format!(
-            "Mobilize {quantity} (Whenever this creature attacks, create {word} tapped and attacking 1/1 red Warrior creature {}. Sacrifice them at the beginning of the next end step.)\nYour opponents cannot cast spells during your turn.",
-            if quantity == 1 { "token" } else { "tokens" }
+            "Mobilize {quantity} (Whenever this creature attacks, create {word} tapped and attacking 1/1 red Warrior creature {noun}. Sacrifice {pronoun} at the beginning of the next end step.)\nYour opponents cannot cast spells during your turn."
         );
         let parsed = parse(&oracle);
         assert_eq!(parsed.status, "canonical", "{oracle}");
