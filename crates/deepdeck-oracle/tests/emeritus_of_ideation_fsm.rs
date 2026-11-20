@@ -58,16 +58,14 @@ fn emeritus_and_linked_spell_are_fully_native_and_match_ground_truth() {
     .expect("Emeritus ground truth is valid JSON");
     let parsed = parse_prepare_card(FRONT_ORACLE, SPELL_ORACLE);
 
-    // CR 715: the engine has no prepare-layout casting runtime yet, so the
-    // card is not executable coverage although every ability is recognized.
     assert_eq!(
         parsed.status,
-        "unsupported",
+        "canonical",
         "{}",
         serde_json::to_string_pretty(&parsed).expect("serialize parser diagnostics")
     );
     assert_eq!(parsed.abilities.len(), 4);
-    for (index, ability) in parsed.abilities[..3].iter().enumerate() {
+    for (index, ability) in parsed.abilities.iter().enumerate() {
         assert_eq!(ability.status, "canonical");
         assert_eq!(ability.recognizer, RecognizerProvenance::Native);
         assert_eq!(
@@ -75,28 +73,6 @@ fn emeritus_and_linked_spell_are_fully_native_and_match_ground_truth() {
             Some(truth["abilities"][index]["expectedRule"].clone())
         );
     }
-    let prepared_spell = &parsed.abilities[3];
-    assert_eq!(prepared_spell.recognizer, RecognizerProvenance::Native);
-    assert_eq!(prepared_spell.status, "unsupported");
-    assert_eq!(prepared_spell.rule, None);
-    assert_eq!(prepared_spell.diagnostics.len(), 1);
-    assert_eq!(
-        prepared_spell.diagnostics[0].code,
-        "card_layout_runtime_missing"
-    );
-    assert_eq!(
-        prepared_spell.diagnostics[0].state.as_deref(),
-        Some("card-structure.layout-runtime")
-    );
-
-    // The linked spell's grammar still lowers to its ground-truth IR.
-    let spell = parse_single("Ancestral Recall", "Instant", SPELL_ORACLE);
-    assert_eq!(spell.status, "canonical");
-    assert_eq!(spell.abilities[0].recognizer, RecognizerProvenance::Native);
-    assert_eq!(
-        spell.abilities[0].rule,
-        Some(truth["abilities"][3]["expectedRule"].clone())
-    );
     let unknowns = parsed
         .abilities
         .iter()

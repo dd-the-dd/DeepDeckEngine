@@ -95,10 +95,12 @@ fn apply_room_door_index(
     rule["roomDoorIndex"] = Value::from(door_index as u64);
 }
 
-/// An Adventure, Omen or prepared spell part is cast through its layout's
-/// own rules (CR 715): exile on resolution, later casting permission, or a
-/// prepared copy. The engine does not implement those layouts yet, so a
-/// recognized part is not executable coverage and fails explicitly.
+/// An Adventure or Omen spell part is cast through its layout's own rules
+/// (CR 715): exile on resolution and a later casting permission, or a shuffle
+/// into the library. The playable-card adapter does not link those parts to
+/// a runtime yet, so a recognized part is not executable coverage and fails
+/// explicitly. A prepared spell part is linked by the playable-card adapter
+/// (`prepareSpell`) and cast as a copy by the engine, so it stays canonical.
 fn reject_parts_without_layout_runtime(
     structure: &CardStructurePlan,
     abilities: &mut [ParsedOracleAbility],
@@ -117,11 +119,7 @@ fn reject_parts_without_layout_runtime(
             .map(|part| part.role);
         if !matches!(
             role,
-            Some(
-                CardPartRole::AdventureSpell
-                    | CardPartRole::OmenSpell
-                    | CardPartRole::PreparedSpell
-            )
+            Some(CardPartRole::AdventureSpell | CardPartRole::OmenSpell)
         ) {
             continue;
         }
@@ -129,7 +127,7 @@ fn reject_parts_without_layout_runtime(
         ability.rule = None;
         ability.diagnostics.push(ParserDiagnostic {
             code: "card_layout_runtime_missing".to_string(),
-            message: "This spell part is cast through Adventure, Omen or prepare layout rules                       (CR 715) that the engine does not implement yet."
+            message: "This spell part is cast through Adventure or Omen layout rules (CR 715) that the engine does not implement yet."
                 .to_string(),
             severity: "unsupported".to_string(),
             automaton: Some("card-face-factory".to_string()),
