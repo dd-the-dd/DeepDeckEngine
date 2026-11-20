@@ -131,7 +131,76 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
         GenericTriggerEventNode::Local(event) => lower_local_event(cursor, event),
         GenericTriggerEventNode::Object(event) => lower_object_event(cursor, event),
         GenericTriggerEventNode::SourceEvent(event) => lower_source_event_union(cursor, event),
+        GenericTriggerEventNode::CounterPlacement(event) => {
+            lower_counter_placement_event(cursor, event)
+        }
     }
+}
+
+/// One placement of one counter kind on one permanent is one runtime event
+/// (`countersPlaced`); a `one or more` trigger observes it once per permanent
+/// (CR 122.6, 603.2c). Unproved scopes fail instead of widening the matcher.
+fn lower_counter_placement_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &CounterPlacementEventNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.counters.kind-support");
+    // The runtime publishes each counter kind separately, so an any-kind
+    // batch could trigger once per kind of one simultaneous placement.
+    let counter = event.counter.as_ref().ok_or_else(|| {
+        cursor.fail("a named counter kind (no any-kind placement batch is proved)")
+    })?;
+    let mut lowered = json!({
+        "kind": "countersPlaced",
+        "player": controller(),
+        "counter": counter.as_str(),
+    });
+    cursor.enter("trigger.counters.placer-support");
+    match event.placed_by {
+        None => {}
+        Some(EventActorScope::Controller) => lowered["placedBy"] = controller(),
+        Some(_) => {
+            return Err(cursor.fail(
+                "the ability controller as placing player (the runtime matches only that placer)",
+            ));
+        }
+    }
+    cursor.enter("trigger.counters.recipient-support");
+    match &event.recipient {
+        CounterRecipient::Source(source) => {
+            cursor.require(
+                *source == LocalObjectReference::SourceSelf,
+                "the current source as counter recipient",
+            )?;
+            lowered["object"] = self_ref();
+        }
+        CounterRecipient::Query {
+            query,
+            exclude_source,
+        } => {
+            cursor.require(
+                !query.predicate.contains_numeric_comparison()
+                    && domain_filter_is_representable(&query.predicate),
+                "a representable recipient predicate without numeric characteristics",
+            )?;
+            let filter = lower_permanent_object_predicate(&query.predicate);
+            cursor.require(!filter.is_null(), "a lowered recipient predicate")?;
+            lowered["where"] = filter;
+            match query.controller {
+                Some(ObjectControllerScope::AbilityController) => {}
+                None => lowered["anyController"] = json!(true),
+                Some(_) => {
+                    return Err(cursor.fail(
+                        "a recipient you control or any recipient (no other controller matcher)",
+                    ));
+                }
+            }
+            if *exclude_source {
+                lowered["excludeSource"] = json!(true);
+            }
+        }
+    }
+    Ok(lowered)
 }
 
 /// Each source verb maps to the runtime matcher that observes the source
@@ -263,6 +332,17 @@ fn lower_object_event(
         }
         return Ok(lowered);
     }
+    if event.verb == ObjectEventVerb::DealDamage
+        || (event.verb == ObjectEventVerb::DealCombatDamageToPlayer && !per_event)
+    {
+        let established = DamageDealtComplement {
+            kind: DamageEventKind::Combat,
+            recipient: Some(DamageRecipient::Player(EventActorScope::AnyPlayer)),
+        };
+        let complement = event.damage.as_ref().unwrap_or(&established);
+        let source = lower_damage_subject_query(cursor, subject)?;
+        return lower_damage_dealt_event(cursor, source, complement);
+    }
     cursor.enter("trigger.object-event.source-exclusion-support");
     cursor.require(
         !subject.exclude_source,
@@ -366,11 +446,101 @@ fn lower_object_event(
         ObjectEventVerb::Enter | ObjectEventVerb::Die => {
             unreachable!("entry and death are lowered by the shared transition branch")
         }
+        ObjectEventVerb::DealDamage => {
+            unreachable!("dealt damage is lowered by the shared damage-event branch")
+        }
     }
 }
 
-/// The runtime distinguishes only `noncombatOnly`; a combat-only observer has
-/// no matcher, so it stays an explicit failure rather than widening to any damage.
+/// One permanent per event (`a creature you control deals ...`): the damage
+/// source is a battlefield permanent matching the query when it deals the
+/// damage. A one-or-more batch of damage sources has no matcher yet.
+fn lower_damage_subject_query(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: &QuantifiedEventSubjectNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.dealt-damage.source-support");
+    cursor.require(
+        subject.multiplicity == EventMultiplicity::PerObject,
+        "a singular damage source (no one-or-more damage-source batch is proved)",
+    )?;
+    let mut source = json!({"kind": "permanents"});
+    if let Some(filter) = lower_damage_permanent_query(cursor, &subject.query, &mut source)? {
+        source["where"] = filter;
+    }
+    if subject.exclude_source {
+        source["excludeSource"] = json!(true);
+    }
+    Ok(source)
+}
+
+/// A permanent query of a damage event: its effective-characteristics filter
+/// and its controller relation as a player reference.
+fn lower_damage_permanent_query(
+    cursor: &mut OracleTokenCursor<'_>,
+    query: &ObjectQueryNode,
+    target: &mut Value,
+) -> MachineResult<Option<Value>> {
+    cursor.require(
+        query.predicate.supports_domain(ObjectKind::Permanent)
+            && !query.predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(&query.predicate),
+        "a representable permanent predicate without numeric characteristics",
+    )?;
+    match query.controller {
+        None => {}
+        Some(ObjectControllerScope::AbilityController) => target["controller"] = controller(),
+        Some(ObjectControllerScope::OpponentOfAbilityController) => {
+            target["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+        Some(ObjectControllerScope::NotAbilityController) => {
+            return Err(cursor.fail("a positive controller relation for a damage event object"));
+        }
+    }
+    if query.predicate == ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        return Ok(None);
+    }
+    let filter = lower_permanent_object_predicate(&query.predicate);
+    cursor.require(!filter.is_null(), "a lowered permanent predicate")?;
+    Ok(Some(filter))
+}
+
+/// `damageDealtBySource`: one trigger per damage event and recipient (CR
+/// 120.1, 603.2c). The damage kind and the recipient are independent fields.
+fn lower_damage_dealt_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: Value,
+    complement: &DamageDealtComplement,
+) -> MachineResult<Value> {
+    let mut lowered = json!({"kind": "damageDealtBySource", "source": source});
+    match complement.kind {
+        DamageEventKind::Any => {}
+        DamageEventKind::Combat => lowered["combatOnly"] = json!(true),
+        DamageEventKind::Noncombat => lowered["noncombatOnly"] = json!(true),
+    }
+    cursor.enter("trigger.dealt-damage.recipient-support");
+    // Without a recipient one event can damage several objects and players
+    // at once and must trigger only once; that aggregation is not proved.
+    let recipient = complement.recipient.as_ref().ok_or_else(|| {
+        cursor.fail("a damage recipient (no aggregation over every recipient is proved)")
+    })?;
+    lowered["recipient"] = match recipient {
+        DamageRecipient::Player(actor) => {
+            json!({"kind": "player", "player": event_actor_player(*actor)})
+        }
+        DamageRecipient::Permanent(query) => {
+            let mut recipient = json!({"kind": "permanent"});
+            if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut recipient)? {
+                recipient["where"] = filter;
+            }
+            recipient
+        }
+    };
+    Ok(lowered)
+}
+
+/// Received-damage observers filter the damage kind with `combatOnly` or
+/// `noncombatOnly` (CR 120.2); any damage sets neither.
 fn apply_damage_event_kind(
     cursor: &mut OracleTokenCursor<'_>,
     lowered: &mut Value,
@@ -380,11 +550,7 @@ fn apply_damage_event_kind(
     match damage {
         DamageEventKind::Any => {}
         DamageEventKind::Noncombat => lowered["noncombatOnly"] = json!(true),
-        DamageEventKind::Combat => {
-            return Err(cursor.fail(
-                "any or noncombat damage (the runtime has no combat-only received-damage matcher)",
-            ));
-        }
+        DamageEventKind::Combat => lowered["combatOnly"] = json!(true),
     }
     Ok(())
 }
@@ -579,9 +745,10 @@ fn lower_local_event(
         }),
         LocalTriggerEventNode::PlayerEvent {
             actor,
-            action,
+            actions,
             one_or_more,
-        } => lower_player_event(cursor, *actor, *action, *one_or_more),
+            card,
+        } => lower_player_event(cursor, *actor, actions, *one_or_more, card.as_ref()),
         LocalTriggerEventNode::AttachedObjectEvent { role: _, action } => {
             // The runtime resolves the subject from the source's attachment;
             // Aura and Equipment attachments share the same matcher.
@@ -601,6 +768,26 @@ fn lower_local_event(
                 }
             })
         }
+        LocalTriggerEventNode::DamageDealt {
+            subject,
+            complement,
+        } => {
+            let source = match subject {
+                DamageDealer::Source(source) => {
+                    cursor.enter("trigger.dealt-damage.source-support");
+                    cursor.require(
+                        *source == LocalObjectReference::SourceSelf,
+                        "the current source as damage source",
+                    )?;
+                    json!({"kind": "self"})
+                }
+                // Aura and Equipment attachments share the attached matcher.
+                DamageDealer::Attached(_) => {
+                    json!({"kind": "attachedPermanent", "attachment": self_ref()})
+                }
+            };
+            lower_damage_dealt_event(cursor, source, complement)
+        }
         LocalTriggerEventNode::CardDrawn { .. }
         | LocalTriggerEventNode::OrdinalCardDrawn { .. } => {
             cursor.enter("trigger.program.local-event-support");
@@ -611,21 +798,133 @@ fn lower_local_event(
     }
 }
 
-/// Maps one player-event verb and actor to the runtime event that already
-/// implements it. Combinations without an inspected runtime matcher fail
-/// explicitly instead of widening the actor.
-fn lower_player_event(
-    cursor: &mut OracleTokenCursor<'_>,
-    actor: EventActorScope,
-    action: PlayerEventAction,
-    one_or_more: bool,
-) -> MachineResult<Value> {
-    let player = match actor {
+/// Keyword actions whose canonical producer emits the completed named-action
+/// signal (`emitAbilitySignal`) that the runtime observes. Another catalog
+/// action is recognized but has no inspected producer and fails explicitly.
+const SIGNALLED_NAMED_ACTIONS: [&str; 3] = ["scry", "surveil", "amass"];
+
+fn event_actor_player(actor: EventActorScope) -> Value {
+    match actor {
         EventActorScope::Controller => controller(),
         EventActorScope::Opponent => json!({"kind": "opponentsOf", "player": controller()}),
         EventActorScope::AnyPlayer => json!({"kind": "eachPlayer"}),
-    };
+    }
+}
+
+/// Maps player-event verbs and one actor to the runtime events that already
+/// implement them. A union lowers to `oneOf` in written order. Combinations
+/// without an inspected runtime matcher fail explicitly instead of widening.
+fn lower_player_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    actions: &[PlayerEventAction],
+    one_or_more: bool,
+    card: Option<&PlayerEventCardObject>,
+) -> MachineResult<Value> {
     cursor.enter("trigger.program.player-event-support");
+    let player = event_actor_player(actor);
+    match actions {
+        [] => Err(cursor.fail("at least one player-event verb")),
+        [action]
+            if !action.takes_card_object()
+                && !matches!(action, PlayerEventAction::NamedAction(_)) =>
+        {
+            lower_fixed_player_event(cursor, actor, player, *action, one_or_more)
+        }
+        _ => lower_player_action_union(cursor, &player, actions, one_or_more, card),
+    }
+}
+
+/// Discard, cycling and named keyword actions: one event per action
+/// occurrence and acting player (CR 701.9, 702.29, 701.22d).
+fn lower_player_action_union(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: &Value,
+    actions: &[PlayerEventAction],
+    one_or_more: bool,
+    card: Option<&PlayerEventCardObject>,
+) -> MachineResult<Value> {
+    cursor.require(
+        !one_or_more,
+        "a per-player action event (no one-or-more player batch for this action)",
+    )?;
+    // CR 702.29a: cycling's cost discards the card, so every cycled card is
+    // also discarded. `cycle or discard` is therefore the discard event alone;
+    // keeping both branches would trigger twice for one cycled card.
+    let normalized: Vec<PlayerEventAction> = if actions.contains(&PlayerEventAction::DiscardCard)
+        && actions.contains(&PlayerEventAction::CycleCard)
+    {
+        actions
+            .iter()
+            .copied()
+            .filter(|action| *action != PlayerEventAction::CycleCard)
+            .collect()
+    } else {
+        actions.to_vec()
+    };
+    let card_filter = match card {
+        Some(card) => {
+            cursor.enter("trigger.player-event.card-filter-support");
+            cursor.require(
+                !card.query.predicate.contains_numeric_comparison()
+                    && domain_filter_is_representable(&card.query.predicate),
+                "a representable card predicate without numeric characteristics",
+            )?;
+            // `a card` is the unfiltered card domain: no filter at all.
+            let filter = if card.query.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
+                None
+            } else {
+                let filter = lower_card_object_predicate(&card.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered card predicate")?;
+                Some(filter)
+            };
+            Some((filter, card.exclude_source))
+        }
+        None => None,
+    };
+    cursor.enter("trigger.player-event.action-support");
+    let mut events = Vec::with_capacity(normalized.len());
+    for action in &normalized {
+        let mut lowered = match action {
+            PlayerEventAction::DiscardCard => json!({"kind": "playerDiscardedCard"}),
+            PlayerEventAction::CycleCard => json!({"kind": "cardCycled"}),
+            PlayerEventAction::NamedAction(id) => {
+                cursor.require(
+                    SIGNALLED_NAMED_ACTIONS.contains(id),
+                    "a named action whose canonical producer emits its completion signal",
+                )?;
+                json!({"kind": "abilityPerformed", "abilityId": id})
+            }
+            _ => return Err(cursor.fail("an action verb without a fixed complement")),
+        };
+        lowered["player"] = player.clone();
+        if action.takes_card_object() {
+            let (filter, exclude_source) = card_filter
+                .clone()
+                .ok_or_else(|| cursor.fail("the shared card object"))?;
+            if let Some(filter) = filter {
+                lowered["where"] = filter;
+            }
+            if exclude_source {
+                lowered["excludeSource"] = json!(true);
+            }
+        }
+        events.push(lowered);
+    }
+    Ok(if events.len() == 1 {
+        events.into_iter().next().expect("one player action")
+    } else {
+        json!({"kind": "oneOf", "events": events})
+    })
+}
+
+fn lower_fixed_player_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    player: Value,
+    action: PlayerEventAction,
+    one_or_more: bool,
+) -> MachineResult<Value> {
     if let PlayerEventAction::BeDealtDamage(damage) = action {
         // The runtime observes damage dealt to the controller's opponents,
         // per recipient or as one event for the whole batch.
@@ -666,9 +965,13 @@ fn lower_player_event(
         (PlayerEventAction::Attack | PlayerEventAction::FaceDilemma, _) => Err(cursor.fail(
             "a controller actor for this player event (the runtime matches only the source controller)",
         )),
-        (PlayerEventAction::BeDealtDamage(_), _) => {
-            unreachable!("received damage is lowered before the per-player verbs")
-        }
+        (
+            PlayerEventAction::BeDealtDamage(_)
+            | PlayerEventAction::DiscardCard
+            | PlayerEventAction::CycleCard
+            | PlayerEventAction::NamedAction(_),
+            _,
+        ) => unreachable!("lowered by the received-damage or action-union branches"),
     }
 }
 

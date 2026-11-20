@@ -46,6 +46,8 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     Object(super::ObjectEventNode),
     /// The ability source with one or more event verbs (`attacks or blocks`).
     SourceEvent(super::SourceEventUnionNode),
+    /// Counters put on a permanent (CR 122.6).
+    CounterPlacement(super::CounterPlacementEventNode),
 }
 
 impl GenericTriggerEventNode {
@@ -83,13 +85,23 @@ impl GenericTriggerEventNode {
                 LocalTriggerEventNode::CombatDamageToPlayer { amount, .. }
                 | LocalTriggerEventNode::SourceDealtDamage { amount, .. },
             ) => Some(*amount),
+            // The runtime exports the dealt amount of every dealt-damage observer.
+            Self::Local(LocalTriggerEventNode::DamageDealt { .. })
+            | Self::Object(super::ObjectEventNode {
+                verb: super::ObjectEventVerb::DealDamage,
+                ..
+            }) => Some(EventNumericBinding::DamageAmount),
             // The runtime exports the dealt amount for every received-damage
             // observer: per object, per player, and the one-or-more total.
-            Self::Local(LocalTriggerEventNode::PlayerEvent {
-                action: super::PlayerEventAction::BeDealtDamage(_),
-                ..
-            })
-            | Self::Object(super::ObjectEventNode {
+            Self::Local(LocalTriggerEventNode::PlayerEvent { actions, .. })
+                if matches!(
+                    actions.as_slice(),
+                    [super::PlayerEventAction::BeDealtDamage(_)]
+                ) =>
+            {
+                Some(EventNumericBinding::DamageAmount)
+            }
+            Self::Object(super::ObjectEventNode {
                 verb: super::ObjectEventVerb::BeDealtDamage(_),
                 ..
             }) => Some(EventNumericBinding::DamageAmount),
@@ -419,6 +431,23 @@ fn recognize_event_alternatives(
     // `you cycle SOURCE`: the player actor with the source as object.
     match super::recognize_source_cycled_event(cursor, name_links, name_failure) {
         Ok(event) => return finish_local(cursor, event, has_ability_word),
+        Err(failure) => keep_furthest(&mut furthest, failure),
+    }
+    cursor.rollback(event_start);
+    // `one or more COUNTERS are put on ...` reads counters, not a plural
+    // object subject, so it is tried before the object-event frame.
+    match super::recognize_counter_placement_event(cursor, name_links, name_failure) {
+        Ok(event) => {
+            cursor.enter("trigger.envelope.separator");
+            return match cursor.consume(",") {
+                Ok(()) => recognized(
+                    cursor,
+                    GenericTriggerEventNode::CounterPlacement(event),
+                    has_ability_word,
+                ),
+                Err(failure) => GenericTriggerEnvelopeAttempt::FailedCommitted(failure),
+            };
+        }
         Err(failure) => keep_furthest(&mut furthest, failure),
     }
     cursor.rollback(event_start);
