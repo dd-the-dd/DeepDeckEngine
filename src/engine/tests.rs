@@ -33064,5 +33064,6 @@ mod intervening_if_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_combat_restriction_runtime.rs"]
 mod source_combat_restriction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/static_frame_runtime.rs"]
 mod static_frame_runtime;
