@@ -2,8 +2,8 @@
 //! incarnation allocation belongs to the actual destination commitment.
 
 use super::object_identity::{
-    IdentityAssignment, ObjectIdentity, install_object_identities, object_identity_of,
-    prepare_object_identities,
+    IdentityAssignment, ObjectIdentity, existing_object_identity_of, install_object_identities,
+    object_identity_of, prepare_object_identities,
 };
 use super::{CardInstance, EngineError, GameEngine};
 
@@ -58,12 +58,19 @@ pub(super) enum ObjectZone {
     Exile,
     Command,
     Stack,
+    /// A card its owner keeps outside the game (CR 400.11). It is physical
+    /// storage, not a game object: it has no incarnation until an effect
+    /// brings it into the game, where it is admitted as a new object.
+    OutsideGame(String),
 }
 
 impl ObjectZone {
     pub(super) fn owner(&self) -> Option<&str> {
         match self {
-            Self::Library(owner) | Self::Hand(owner) | Self::Graveyard(owner) => Some(owner),
+            Self::Library(owner)
+            | Self::Hand(owner)
+            | Self::Graveyard(owner)
+            | Self::OutsideGame(owner) => Some(owner),
             Self::Battlefield | Self::Exile | Self::Command | Self::Stack => None,
         }
     }
@@ -77,11 +84,13 @@ impl ObjectZone {
             Self::Exile => "exile",
             Self::Command => "commandZone",
             Self::Stack => "stack",
+            Self::OutsideGame(_) => "outsideGame",
         }
     }
 
     pub(super) fn is_card_target_zone(&self) -> bool {
-        !matches!(self, Self::Battlefield | Self::Stack)
+        // CR 400.11: cards outside the game are never targetable.
+        !matches!(self, Self::Battlefield | Self::Stack | Self::OutsideGame(_))
     }
 }
 
@@ -288,7 +297,10 @@ impl GameEngine {
                 (Some(ObjectZone::Battlefield), &player.battlefield),
                 (Some(ObjectZone::Exile), &player.exile),
                 (Some(ObjectZone::Command), &player.command_zone),
-                (None, &player.sideboard),
+                (
+                    Some(ObjectZone::OutsideGame(player.id.clone())),
+                    &player.sideboard,
+                ),
             ] {
                 for card in cards.iter().filter(|card| card.instance_id == id) {
                     if found.is_some() {
@@ -306,8 +318,7 @@ impl GameEngine {
         }) {
             return Ok(None);
         }
-        let zone =
-            zone.ok_or_else(|| EngineError::new("outside-game movement source is unsupported"))?;
+        let zone = zone.ok_or_else(|| EngineError::new("unknown card movement source zone"))?;
         if !self
             .state
             .players
@@ -317,10 +328,15 @@ impl GameEngine {
         {
             return Err(EngineError::new("invalid card movement zone ownership"));
         }
+        let identity = if matches!(zone, ObjectZone::OutsideGame(_)) {
+            outside_game_movement_identity(card)?
+        } else {
+            object_identity_of(card)?
+        };
         Ok(Some(CardMovementSource {
             zone,
             storage_player_id: self.state.players[index].id.clone(),
-            identity: object_identity_of(card)?,
+            identity,
         }))
     }
 
@@ -346,6 +362,7 @@ impl GameEngine {
             ObjectZone::Graveyard(_) => &mut self.state.players[player].graveyard,
             ObjectZone::Exile => &mut self.state.players[player].exile,
             ObjectZone::Command => &mut self.state.players[player].command_zone,
+            ObjectZone::OutsideGame(_) => &mut self.state.players[player].sideboard,
             ObjectZone::Battlefield | ObjectZone::Stack => {
                 return Err(EngineError::new(
                     "card extraction requires its zone-specific lifecycle",
@@ -380,6 +397,9 @@ impl GameEngine {
         destination: &ObjectZone,
         reason: ObjectTransitionReason,
     ) -> Result<(), EngineError> {
+        if matches!(source.zone, ObjectZone::OutsideGame(_)) {
+            return self.admit_card_entering_the_game(card, source, destination, reason);
+        }
         if object_identity_of(card)? != source.identity {
             return Err(EngineError::new(
                 "movement carrier lost its authenticated source identity",
@@ -437,6 +457,49 @@ impl GameEngine {
     }
 }
 
+impl GameEngine {
+    /// CR 400.11 and 400.7: a card brought into the game from outside it
+    /// becomes a new object in its destination zone. It had no incarnation
+    /// outside the game, so it is admitted rather than re-incarnated.
+    fn admit_card_entering_the_game(
+        &mut self,
+        card: &mut CardInstance,
+        source: &CardMovementSource,
+        destination: &ObjectZone,
+        reason: ObjectTransitionReason,
+    ) -> Result<(), EngineError> {
+        if outside_game_movement_identity(card)? != source.identity {
+            return Err(EngineError::new(
+                "outside-game carrier lost its authenticated source identity",
+            ));
+        }
+        if !matches!(reason, ObjectTransitionReason::Move)
+            || matches!(destination, ObjectZone::OutsideGame(_) | ObjectZone::Stack)
+            || destination.owner().is_some_and(|owner| owner != card.owner)
+            || source.zone.owner() != Some(card.owner.as_str())
+        {
+            return Err(EngineError::new(
+                "invalid destination for a card entering the game",
+            ));
+        }
+        self.admit_new_card_carrier(card)
+    }
+}
+
+/// A card outside the game is authenticated by its carrier ID and owner only;
+/// it must not already carry an incarnation (CR 400.11).
+fn outside_game_movement_identity(card: &CardInstance) -> Result<ObjectIdentity, EngineError> {
+    if existing_object_identity_of(card)?.is_some() {
+        return Err(EngineError::new(
+            "a card outside the game cannot carry a game-object incarnation",
+        ));
+    }
+    Ok(ObjectIdentity {
+        instance_id: card.instance_id.clone(),
+        zone_identity: format!("outsideGame:{}:{}", card.owner, card.instance_id),
+    })
+}
+
 /// Reset card characteristics while retaining the authenticated old incarnation
 /// until a real destination commit installs the new one. Never admits a card.
 pub(super) fn reset_owned_movement_card(moved: &mut OwnedMovementCard) -> Result<(), EngineError> {
@@ -447,6 +510,17 @@ pub(super) fn reset_movement_card(
     card: &mut CardInstance,
     source: &CardMovementSource,
 ) -> Result<(), EngineError> {
+    if matches!(source.zone, ObjectZone::OutsideGame(_)) {
+        // Nothing to reset: the card was never a game object, and its
+        // admission belongs to the destination commit.
+        return if outside_game_movement_identity(card)? == source.identity {
+            Ok(())
+        } else {
+            Err(EngineError::new(
+                "outside-game carrier lost its authenticated source identity",
+            ))
+        };
+    }
     if object_identity_of(card)? != source.identity {
         return Err(EngineError::new(
             "departure reset requires the authenticated old incarnation",
