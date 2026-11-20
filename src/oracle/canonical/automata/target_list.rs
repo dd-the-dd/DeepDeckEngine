@@ -262,6 +262,31 @@ pub(in crate::oracle::canonical) fn recognize_target_cardinality(
                 raw,
             )
         })?;
+    // `N or M target` (CR 601.2c: a variable number of targets announced on
+    // declaration) is a bounded range between two positive literals.
+    if kind == CardinalityKind::Exact
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && cursor.peek_ahead(1).is_some_and(|_| {
+            let mut probe = cursor.clone();
+            probe.consume("or").is_ok() && is_literal_quantity(&probe)
+        })
+    {
+        cursor.enter("target-list.cardinality.range");
+        cursor.consume("or")?;
+        let atom = recognize_numeric_atom(cursor)?;
+        let upper = match atom {
+            NumericAtom::Integer(value) => u32::try_from(value).ok(),
+            NumericAtom::VariableX => None,
+        }
+        .filter(|upper| *upper > maximum)
+        .ok_or_else(|| cursor.fail("a literal upper target bound greater than the lower bound"))?;
+        return Ok(TargetCardinality {
+            minimum: maximum,
+            maximum: upper,
+        });
+    }
     Ok(TargetCardinality {
         minimum: match kind {
             CardinalityKind::Exact => maximum,
@@ -371,3 +396,7 @@ fn is_literal_quantity(cursor: &OracleTokenCursor<'_>) -> bool {
         .peek_token()
         .is_some_and(|token| token.token_type == "quantity" && !token.raw.eq_ignore_ascii_case("x"))
 }
+
+#[cfg(test)]
+#[path = "target_list_scope_tests.rs"]
+mod scope_tests;

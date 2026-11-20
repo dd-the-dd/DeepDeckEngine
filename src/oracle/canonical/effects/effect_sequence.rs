@@ -214,11 +214,13 @@ fn lower_local_effect_sequence_with_collections(
                 .filter_map(|targets| lower_target_slot_candidates(&targets.slots[0]))
                 .map(|(id, _)| id)
                 .collect(),
-            LocalEffectNode::ZoneChange(zone_change) => {
-                lower_zone_change_target_candidates(zone_change)
-                    .map(|(id, _, _, _)| vec![id])
-                    .unwrap_or_default()
-            }
+            LocalEffectNode::ZoneChange(zone_change) => zone_change
+                .target
+                .slots
+                .iter()
+                .filter_map(|slot| lower_zone_change_slot_candidates(zone_change, slot))
+                .map(|(id, _, _, _)| id)
+                .collect(),
             _ => Vec::new(),
         })
         .collect::<Vec<_>>();
@@ -996,26 +998,12 @@ fn lower_local_effect_sequence_with_collections(
                 effects.push(lowered.effect);
             }
             LocalEffectNode::ZoneChange(zone_change) => {
-                cursor.enter("lower.zone-change.target-candidates");
-                let (base_id, candidates, minimum, maximum) = cursor.require_value(
-                    lower_zone_change_target_candidates(zone_change),
-                    "a supported zone-change target candidate policy",
-                )?;
-                let ordinal = used_target_base_ids
-                    .iter()
-                    .filter(|candidate| **candidate == base_id)
-                    .count();
-                let target_count = permanent_target_base_ids
-                    .iter()
-                    .filter(|candidate| **candidate == base_id)
-                    .count();
-                let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
-                used_target_base_ids.push(base_id);
                 // `other` after an earlier target can express a relation to
                 // that target. A new collection must not approximate it as
                 // source exclusion while distinct-target constraints are absent.
-                if maximum > 1
-                    && zone_change.target.slots[0].exclude_source
+                let first = &zone_change.target.slots[0];
+                if (first.cardinality.maximum > 1 || zone_change.target.slots.len() > 1)
+                    && first.exclude_source
                     && decisions
                         .iter()
                         .any(|decision| decision["kind"] == "chooseTargets")
@@ -1025,25 +1013,44 @@ fn lower_local_effect_sequence_with_collections(
                         "a represented distinct-target relation for the plural other-target operand",
                     )));
                 }
-                decisions.push(target_decision(&target_id, candidates, minimum, maximum));
-                let target = lower_zone_change_target_operand(
-                    cursor,
-                    zone_change,
-                    &target_id,
-                    ZoneChangeTargetSupport::DestroyCollection,
-                )?;
+                let (slot_decisions, target) =
+                    lower_zone_change_targets(cursor, zone_change, |base_id, _| {
+                        let ordinal = used_target_base_ids
+                            .iter()
+                            .filter(|candidate| **candidate == base_id)
+                            .count();
+                        let target_count = permanent_target_base_ids
+                            .iter()
+                            .filter(|candidate| **candidate == base_id)
+                            .count();
+                        used_target_base_ids.push(base_id);
+                        target_id_for_ordinal(base_id, ordinal, target_count)
+                    })?;
+                let scalar_id = match (
+                    slot_decisions.as_slice(),
+                    zone_change.target.slots.as_slice(),
+                ) {
+                    ([decision], [slot])
+                        if slot.cardinality.minimum == 1 && slot.cardinality.maximum == 1 =>
+                    {
+                        decision["id"].as_str().map(str::to_string)
+                    }
+                    _ => None,
+                };
+                let single_scalar = zone_change.target.slots.len() == 1
+                    && zone_change.target.slots[0].cardinality.maximum == 1;
+                decisions.extend(slot_decisions);
                 let mut operation = lower_targeted_zone_change_node(cursor, zone_change, target)?;
                 // A later card action reading `that card`/`it` names the object
                 // this exile produced; record that result only when it is read.
                 if zone_change.action == ZoneChangeAction::Exile
-                    && maximum == 1
-                    && zone_change.target.slots.len() == 1
+                    && single_scalar
                     && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
                 {
                     operation["bind"] = json!(collections.observe_exiled_object());
                 }
                 effects.push(operation);
-                if minimum == 1 && maximum == 1 && zone_change.target.slots.len() == 1 {
+                if let Some(target_id) = scalar_id {
                     target_bindings.push((
                         TargetBinding {
                             effect_index,

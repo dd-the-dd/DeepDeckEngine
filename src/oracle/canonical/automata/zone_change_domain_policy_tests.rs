@@ -20,7 +20,7 @@ fn historical_zone_change_wrappers_keep_battlefield_domain_caps() {
         assert!(
             recognize_zone_change_effect_with_support(
                 &mut cardinality,
-                ZoneChangeTargetSupport::DestroyCollection,
+                ZoneChangeTargetSupport::TargetCollection,
             )
             .is_err(),
             "{text}"
@@ -59,7 +59,7 @@ fn permanent_nodes_stay_identical_and_destroy_exile_never_expand_domains() {
         assert!(
             recognize_zone_change_effect_with_policy(
                 &mut cursor,
-                ZoneChangeTargetSupport::DestroyCollection,
+                ZoneChangeTargetSupport::TargetCollection,
                 ZoneChangeDomains::SpellOrBattlefield
             )
             .is_err()

@@ -994,6 +994,8 @@ pub(super) struct ObjectSetNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct DestroyPermanentCollectionEffectNode {
     pub objects: ObjectQueryNode,
+    /// `They can't be regenerated.` read by the sentence parent (CR 701.19c).
+    pub cannot_regenerate: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
