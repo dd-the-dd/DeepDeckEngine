@@ -356,9 +356,13 @@ fn recognize_optional_mana_for_each_count(
                 node.measure == PermanentCountMeasure::Objects
             }
             NumericExpression::CountCounters { .. } => true,
+            // Only zone counts with a holder every evaluator reads.
+            NumericExpression::CountQuery(query) => {
+                crate::oracle::canonical::effects::lower_scoped_object_query_amount(query).is_some()
+            }
             _ => false,
         },
-        "a permanent or source-counter count evaluable in a mana production",
+        "a permanent, zone-card or source-counter count evaluable in a mana production",
     )?;
     let amount = super::scale_by_for_each_count(
         &NumericExpression::from(i64::try_from(multiplicity).unwrap_or(i64::MAX)),

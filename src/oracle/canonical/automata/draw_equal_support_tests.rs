@@ -7,8 +7,8 @@ fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
     // reports its own numeric state, and the draw candidate stays tentative.
     for text in [
         "Draw cards equal to the greatest mana value among permanents you control.",
-        "Draw cards equal to the number of cards in your hand plus one.",
-        "Draw cards equal to the number of instant and sorcery cards in your graveyard.",
+        "Draw cards equal to the number of cards in target player's hand.",
+        "Draw cards equal to the number of cards named Rite of Flame in all graveyards.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);

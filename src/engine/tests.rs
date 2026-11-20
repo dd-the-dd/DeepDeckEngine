@@ -3885,10 +3885,6 @@ fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Ori, Plate Stacker; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -3959,6 +3955,9 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     };
     let mut bindings = BTreeMap::new();
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &trigger,
@@ -3969,8 +3968,9 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
         .expect("global destruction and linked life gain resolve");
 
     assert_eq!(engine.state.players[0].life, 22);
+    // The compiler-assigned result binding of the destroy action (CR 608.2c).
     assert!(matches!(
-        bindings.get("destroyedPermanents"),
+        bindings.get("actionResult:0"),
         Some(RuntimeBinding::Objects(objects)) if objects.len() == 2
     ));
     assert!(
@@ -33047,6 +33047,10 @@ mod granted_ability_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/quantified_player_sacrifice_runtime.rs"]
 mod quantified_player_sacrifice_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/quantity_result_reuse_runtime.rs"]
+mod quantity_result_reuse_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_action_sacrifice_runtime.rs"]

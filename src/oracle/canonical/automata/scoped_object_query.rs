@@ -79,9 +79,10 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
                     | CardZoneName::Graveyard
                     | CardZoneName::Hand
                     | CardZoneName::Exile
+                    | CardZoneName::Library
             )
         }),
-        "a proved battlefield, graveyard, hand or exile query role",
+        "a proved battlefield, graveyard, hand, exile or library query role",
     )?;
     // A controller is a live object relationship, not the player storing a
     // hand/graveyard. Do not reinterpret it as owner or holder.
@@ -111,13 +112,15 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
             !children.is_empty() && children.iter().all(card_count_predicate_supported)
         }
+        // Printed characteristics of a card in a public or hidden zone are
+        // its actual characteristics (CR 109.4 has no other source there).
+        ObjectPredicate::Subtype(_) | ObjectPredicate::Color(_) | ObjectPredicate::Supertype(_) => {
+            true
+        }
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken
-        | ObjectPredicate::Subtype(_)
         | ObjectPredicate::CharacteristicBatch(_)
-        | ObjectPredicate::Color(_)
         | ObjectPredicate::ColorQuantity(_)
-        | ObjectPredicate::Supertype(_)
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)

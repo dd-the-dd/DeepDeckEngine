@@ -126,6 +126,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
+        | NumericExpression::ActionResultCount { .. }
         | NumericExpression::Divide { .. } => {
             return Err(cursor.fail("a literal conditional life amount"));
         }

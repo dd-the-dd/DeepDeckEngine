@@ -114,22 +114,35 @@ fn read_static_continuous_effect(
             "get" | "gets" => {
                 cursor.consume(&verb)?;
                 *committed = true;
-                let delta = recognize_signed_power_toughness_delta(cursor)?;
-                let scale = read_optional_for_each_count(cursor)?;
-                let scaled = |amount: i64| match &scale {
-                    None => integer(amount),
-                    Some(_) if amount == 0 => integer(0),
-                    Some(count) if amount == 1 => count.clone(),
-                    Some(count) => json!({
-                        "kind": "multiply", "left": integer(amount), "right": count.clone(),
-                    }),
-                };
-                modifiers.push(json!({
-                    "kind": "modifyPowerToughness",
-                    "objects": objects.clone(),
-                    "power": scaled(delta.power),
-                    "toughness": scaled(delta.toughness),
-                }));
+                if !cursor
+                    .peek_token()
+                    .is_some_and(|token| token.token_type == "counterValue")
+                {
+                    let (power, toughness) = read_where_x_power_toughness_delta(cursor)?;
+                    modifiers.push(json!({
+                        "kind": "modifyPowerToughness",
+                        "objects": objects.clone(),
+                        "power": power,
+                        "toughness": toughness,
+                    }));
+                } else {
+                    let delta = recognize_signed_power_toughness_delta(cursor)?;
+                    let scale = read_optional_for_each_count(cursor)?;
+                    let scaled = |amount: i64| match &scale {
+                        None => integer(amount),
+                        Some(_) if amount == 0 => integer(0),
+                        Some(count) if amount == 1 => count.clone(),
+                        Some(count) => json!({
+                            "kind": "multiply", "left": integer(amount), "right": count.clone(),
+                        }),
+                    };
+                    modifiers.push(json!({
+                        "kind": "modifyPowerToughness",
+                        "objects": objects.clone(),
+                        "power": scaled(delta.power),
+                        "toughness": scaled(delta.toughness),
+                    }));
+                }
             }
             "have" | "has" => {
                 cursor.consume(&verb)?;
@@ -316,6 +329,37 @@ fn lower_static_quoted_ability(
         "objects": objects.clone(),
         "ability": ability.rule,
     }))
+}
+
+/// `+X/+Y, where X is EXPR`: the shared numeric stat pair and the shared
+/// postposed definition (CR 107.3). A static ability's value is continuously
+/// recomputed (CR 611.3a), so the definition replaces X in each component
+/// instead of being bound once; both components lower through the shared
+/// numeric projection, and a component it cannot represent fails.
+fn read_where_x_power_toughness_delta(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(Value, Value)> {
+    cursor.enter("static.continuous.numeric-delta");
+    let delta = recognize_signed_numeric_power_toughness_delta(cursor)?;
+    cursor.enter("static.continuous.where-x");
+    cursor.require(
+        (delta.power.uses_x() || delta.toughness.uses_x()) && where_x_definition_starts(cursor),
+        "a postposed `where X is` definition of the X in the stat delta",
+    )?;
+    let definition = recognize_where_x_definition(cursor)?;
+    cursor.enter("static.continuous.where-x.lowering");
+    let mut lowered = [&delta.power, &delta.toughness]
+        .into_iter()
+        .map(|component| {
+            component
+                .substitute_x(&definition)
+                .as_ref()
+                .and_then(lower_numeric_expression)
+        });
+    let (Some(Some(power)), Some(Some(toughness))) = (lowered.next(), lowered.next()) else {
+        return Err(cursor.fail("a definition of X the shared numeric projection represents"));
+    };
+    Ok((power, toughness))
 }
 
 /// `for each COUNTABLE`: the delta is multiplied by the shared count child
