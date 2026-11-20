@@ -200,6 +200,7 @@ mod subtypes;
 mod suspend_keyword;
 mod target_incarnation;
 
+mod echo_upkeep;
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
@@ -222,6 +223,7 @@ mod target_reassignment;
 mod targeting_triggers;
 mod token_creation;
 mod training;
+use echo_upkeep::{ECHO_DUE_FLAG, ECHO_UPKEEP_FLAG};
 mod turns;
 mod untap_attempt;
 mod validation;
@@ -3941,6 +3943,9 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || paid_hand_keyword_supported(&rule["ability"], "basicLandcycling")
                 || typecycling_ability_supported(&rule["ability"])
                 || equip_ability_supported(&rule["ability"])
+                || (value_kind(&rule["ability"]) == Some("annihilator")
+                    && integer_value(&rule["ability"]["quantity"])
+                        .is_some_and(|quantity| quantity > 0))
                 || (value_kind(&rule["ability"]) == Some("bestow")
                     && rule["ability"]["manaCost"]
                         .as_str()
@@ -4829,6 +4834,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some(
             "declaredAttacker"
             | "declaredBlocker"
+            | "becameBlocked"
             | "permanentTapped"
             | "manaAbilityActivated"
             | "attachedPermanentManaAbilityActivated"
@@ -9122,16 +9128,18 @@ impl GameEngine {
                 decisions.get("castSourceZone").and_then(Value::as_str)
                     == condition["zone"].as_str()
             }
+            // CR 702.30a: true during the upkeep that began after this
+            // permanent came under its controller's control.
             Some("sourceNeedsEcho") => source.is_some_and(|source| {
                 self.permanent_position(&source.instance_id)
                     .map(|(player_index, card_index)| {
                         self.state.players[player_index].battlefield[card_index]
                             .flags
-                            .get("echoDue")
+                            .get(ECHO_UPKEEP_FLAG)
                             .copied()
                             .unwrap_or(false)
                     })
-                    .unwrap_or_else(|| source.flags.get("echoDue").copied().unwrap_or(false))
+                    .unwrap_or_else(|| source.flags.get(ECHO_UPKEEP_FLAG).copied().unwrap_or(false))
             }),
             Some("sourceDidNotAddManaThisTurn") => source.is_some_and(|source| {
                 !self.state.events.iter().any(|event| {
@@ -25595,6 +25603,9 @@ impl GameEngine {
     }
 
     fn enqueue_step_triggers(&mut self, step: &str) {
+        if step == "upkeep" {
+            self.open_echo_upkeep_window();
+        }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let mut sources = self
             .state
@@ -30336,7 +30347,7 @@ impl GameEngine {
             value_kind(rule) == Some("triggeredAbility")
                 && value_kind(&rule["condition"]) == Some("sourceNeedsEcho")
         }) {
-            card.flags.insert("echoDue".to_string(), true);
+            card.flags.insert(ECHO_DUE_FLAG.to_string(), true);
         }
         if self
             .battlefield_static_modifiers()
@@ -35181,7 +35192,7 @@ impl GameEngine {
             value_kind(rule) == Some("triggeredAbility")
                 && value_kind(&rule["condition"]) == Some("sourceNeedsEcho")
         }) {
-            permanent.flags.insert("echoDue".to_string(), true);
+            permanent.flags.insert(ECHO_DUE_FLAG.to_string(), true);
         }
         permanent.controller = new_controller.to_string();
         permanent.summoning_sick = true;
@@ -38007,19 +38018,31 @@ impl GameEngine {
                                         |event| {
                                             value_kind(event)
                                                 == Some("controlledCreatureBecameBlocked")
+                                                // CR 509.3c: this creature becomes blocked.
+                                                || (value_kind(event) == Some("becameBlocked")
+                                                    && source.instance_id == attacker_id)
                                         },
                                     )
                             })
                             .cloned()
                             .collect::<Vec<_>>();
                         for rule in rules {
+                            let mut decisions = BTreeMap::from([(
+                                "triggeringPermanentId".to_string(),
+                                Value::String(attacker_id.clone()),
+                            )]);
+                            if triggered_event_variants(&rule["event"])
+                                .iter()
+                                .any(|event| value_kind(event) == Some("becameBlocked"))
+                            {
+                                // The defending player of the blocked attacker.
+                                decisions.insert(
+                                    "triggeringPlayerId".to_string(),
+                                    Value::String(defender_id.clone()),
+                                );
+                            }
                             self.put_triggered_ability_on_stack_with_decisions(
-                                &source,
-                                rule,
-                                BTreeMap::from([(
-                                    "triggeringPermanentId".to_string(),
-                                    Value::String(attacker_id.clone()),
-                                )]),
+                                &source, rule, decisions,
                             );
                             self.check_quantity_failure()?;
                         }

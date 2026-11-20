@@ -475,10 +475,6 @@ fn playable_card_compilation_keeps_canonical_rules_from_partial_talon_parse() {
     assert_eq!(compilation.card.rules[1]["costs"][0]["manaCost"], "{1}");
 }
 
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Agate Instigator; see docs/coverage-targets.md"
-)]
 #[test]
 fn playable_card_compilation_reports_offspring_as_executable() {
     let compilation = compile_playable_card(PlayableCardInput {
