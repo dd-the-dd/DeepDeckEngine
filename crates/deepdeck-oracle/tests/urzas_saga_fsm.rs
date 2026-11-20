@@ -172,5 +172,19 @@ fn malformed_saga_members_fail_in_the_responsible_native_state() {
 #[test]
 fn roman_header_on_a_non_saga_type_line_is_not_claimed() {
     let parsed = parse("Enchantment", "I, III — This Saga gains \"{T}: Add {G}.\"");
-    assert_ne!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
+    // Structural frames now claim every ability explicitly: the near-miss is
+    // a committed ability-frame failure, never stolen by the adjacent family.
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.status, "unsupported");
+    assert!(ability.rule.is_none());
+    assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
+    assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("ability-frame")
+    );
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("ability-frame.static.subject")
+    );
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("I"));
 }
