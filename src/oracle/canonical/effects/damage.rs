@@ -246,6 +246,17 @@ fn lower_local_effect_sequence(
             &effect.count,
             NumericExpression::Atom(NumericAtom::VariableX)
         ),
+        LocalEffectNode::PermanentKeywordAction(PermanentKeywordActionNode {
+            quantity, ..
+        })
+        | LocalEffectNode::ControllerKeywordAction(ControllerKeywordActionNode {
+            quantity, ..
+        }) => {
+            matches!(
+                quantity,
+                Some(NumericExpression::Atom(NumericAtom::VariableX))
+            )
+        }
         LocalEffectNode::PutCounters(_)
         | LocalEffectNode::Investigate(_)
         | LocalEffectNode::DiscardCards(_)
@@ -277,7 +288,6 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::TemporaryPlayerPermission(_)
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
-        | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -408,6 +418,7 @@ fn lower_local_effect_sequence(
             | LocalEffectNode::Amass(_)
             | LocalEffectNode::EmpowerJace(_)
             | LocalEffectNode::Investigate(_)
+            | LocalEffectNode::ControllerKeywordAction(_)
             | LocalEffectNode::DiscardCards(_)
             | LocalEffectNode::Scry(_)
             | LocalEffectNode::Surveil(_)
@@ -557,6 +568,7 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::Amass(_)
             | LocalEffectNode::EmpowerJace(_)
             | LocalEffectNode::Investigate(_)
+            | LocalEffectNode::ControllerKeywordAction(_)
             | LocalEffectNode::DiscardCards(_)
             | LocalEffectNode::Scry(_)
             | LocalEffectNode::Surveil(_)
@@ -658,6 +670,7 @@ fn lower_conditional_damage_effect(
                 | LocalEffectNode::Amass(_)
                 | LocalEffectNode::EmpowerJace(_)
                 | LocalEffectNode::Investigate(_)
+                | LocalEffectNode::ControllerKeywordAction(_)
                 | LocalEffectNode::DiscardCards(_)
                 | LocalEffectNode::Scry(_)
                 | LocalEffectNode::Surveil(_)

@@ -147,6 +147,35 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
     if let LocalEffectNode::EmpowerJace(empower) = effect {
         return lower_empower_jace_effects(empower, declarations, scope);
     }
+    if let LocalEffectNode::Investigate(investigate) = effect {
+        return lower_investigate(investigate)
+            .map(|effect| vec![effect])
+            .ok_or(TargetlessLoweringError::RequiresTarget);
+    }
+    if let LocalEffectNode::PermanentKeywordAction(keyword_action) = effect {
+        let quantity = keyword_action
+            .quantity
+            .as_ref()
+            .map(|quantity| lower_targetless_numeric_expression(quantity, declarations))
+            .transpose()?;
+        let object = lower_nontargeted_permanent_operand(&keyword_action.targets)?;
+        let scope = scope.map_or_else(
+            || keyword_action.action.name().to_string(),
+            |scope| format!("{scope}:{}", keyword_action.action.name()),
+        );
+        return lower_permanent_keyword_action(keyword_action.action, object, quantity, &scope)
+            .map_err(|_| TargetlessLoweringError::UnsupportedEffect);
+    }
+    if let LocalEffectNode::ControllerKeywordAction(keyword_action) = effect {
+        let quantity = keyword_action
+            .quantity
+            .as_ref()
+            .map(|quantity| lower_targetless_numeric_expression(quantity, declarations))
+            .transpose()?;
+        let scope = scope.unwrap_or("controllerKeywordAction");
+        return lower_controller_keyword_action(keyword_action.action, quantity, scope)
+            .map_err(|_| TargetlessLoweringError::UnsupportedEffect);
+    }
     let partition = match effect {
         LocalEffectNode::Scry(node) => {
             Some((LibraryPartitionAction::Scry, &node.player, &node.count))
@@ -279,10 +308,25 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::PreventDamage(effect) => {
             lower_targetless_prevent_damage(effect, declarations)
         }
-        LocalEffectNode::PermanentKeywordAction(effect) => Ok(lower_permanent_keyword_action(
-            effect.action,
-            lower_nontargeted_permanent_operand(&effect.targets)?,
-        )),
+        // A procedure is a vector of primitives; scalar callers use the
+        // plural adapter above. A single designation stays scalar.
+        LocalEffectNode::PermanentKeywordAction(effect) => {
+            match lower_permanent_keyword_action(
+                effect.action,
+                lower_nontargeted_permanent_operand(&effect.targets)?,
+                None,
+                effect.action.name(),
+            )
+            .map_err(|_| TargetlessLoweringError::UnsupportedEffect)?
+            .as_slice()
+            {
+                [single] if effect.quantity.is_none() => Ok(single.clone()),
+                _ => Err(TargetlessLoweringError::UnsupportedEffect),
+            }
+        }
+        LocalEffectNode::ControllerKeywordAction(_) => {
+            Err(TargetlessLoweringError::UnsupportedEffect)
+        }
         LocalEffectNode::PutCounters(effect) => Ok(json!({
             "kind": "putCounters",
             "permanent": lower_nontargeted_permanent_operand(&effect.permanent)?,
@@ -331,8 +375,11 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         {
             Ok(lower_source_move_effect(movement, self_ref(), None))
         }
+        // CR 701.16a: one ordinary named-token creation.
+        LocalEffectNode::Investigate(effect) => {
+            lower_investigate(effect).ok_or(TargetlessLoweringError::RequiresTarget)
+        }
         LocalEffectNode::AnimateSource(_)
-        | LocalEffectNode::Investigate(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::LoseAbilities(_)
         | LocalEffectNode::DestroyReferencedSet(_) => {

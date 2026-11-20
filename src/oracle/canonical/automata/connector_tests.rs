@@ -94,7 +94,7 @@ fn comma_never_hides_missing_effect_alternatives_or_an_unproved_subject() {
             "{text}"
         );
     }
-    let tokens = recognize_entities("Draw a card, manifest dread.");
+    let tokens = recognize_entities("Draw a card, incubate 2.");
     let mut cursor = OracleTokenCursor::new("comma-transactional-child-unit", &tokens);
     let result = try_recognize_effect_sequence_with_context(
         &mut cursor,

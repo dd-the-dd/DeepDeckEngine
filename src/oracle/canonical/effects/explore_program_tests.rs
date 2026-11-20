@@ -23,17 +23,20 @@ fn kinds(value: &Value, result: &mut Vec<String>) {
 fn empty_library_still_reaches_counter_branch_and_one_completion() {
     let effects =
         lower_explore_program(json!({"kind":"self"}), "example").expect("registered program");
+    // The source reference is used directly (its last known information is
+    // engine-captured); only its controller is bound before the procedure.
+    assert_eq!(effects[0]["id"], "example:controller");
     assert_eq!(
-        effects[4]["condition"]["left"]["objects"]["where"]["value"],
+        effects[3]["condition"]["left"]["objects"]["where"]["value"],
         "Land"
     );
     assert_eq!(
-        effects[4]["else"][0]["condition"]["kind"],
+        effects[3]["else"][0]["condition"]["kind"],
         "objectOnBattlefield"
     );
-    assert_eq!(effects[4]["else"][0]["then"][0]["kind"], "putCounters");
+    assert_eq!(effects[3]["else"][0]["then"][0]["kind"], "putCounters");
     assert_eq!(
-        effects[4]["else"][1]["condition"]["left"]["objects"]["binding"],
+        effects[3]["else"][1]["condition"]["left"]["objects"]["binding"],
         "example:top"
     );
     let mut found = Vec::new();
@@ -53,7 +56,8 @@ fn scopes_are_independent_and_the_signal_names_the_exploring_object() {
     let first = lower_explore_program(json!({"kind":"self"}), "first").unwrap();
     let second =
         lower_explore_program(json!({"kind":"chosenTarget","id":"recipient"}), "second").unwrap();
-    assert_eq!(first[0]["id"], "first:subject");
+    assert_eq!(first[0]["id"], "first:controller");
+    assert_eq!(first.last().unwrap()["object"]["kind"], "self");
     assert_eq!(second[0]["id"], "second:subject");
     assert_eq!(second.last().unwrap()["object"]["id"], "second:subject");
     assert_eq!(second.last().unwrap()["abilityId"], "explore");

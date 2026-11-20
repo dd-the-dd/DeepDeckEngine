@@ -20,7 +20,7 @@ fn try_sequence<'a>(
 
 #[test]
 fn rejected_candidate_rolls_back_after_a_successful_first_effect() {
-    let text = "draw a card. manifest dread.";
+    let text = "draw a card. incubate 2.";
     let tokens = recognize_entities(text);
     let (outcome, cursor) = try_sequence(&tokens);
 
@@ -33,7 +33,7 @@ fn rejected_candidate_rolls_back_after_a_successful_first_effect() {
 
 #[test]
 fn successful_draw_cut_does_not_leak_to_an_unsupported_following_child() {
-    let text = "draw a card and manifest dread.";
+    let text = "draw a card and incubate 2.";
     let tokens = recognize_entities(text);
     let (outcome, cursor) = try_sequence(&tokens);
 
