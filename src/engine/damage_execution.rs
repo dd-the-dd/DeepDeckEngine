@@ -115,6 +115,12 @@ impl GameEngine {
                         "sourceControllerId": source_characteristics.as_ref().map(|value| &value.0),
                     }),
                 );
+                self.enqueue_source_damage_observers(
+                    source,
+                    source_damage_observation::DamageRecipientRef::Player(&player_id),
+                    amount,
+                    combat,
+                );
                 if let Some((source_controller, _, _, _)) = &source_characteristics {
                     self.enqueue_damage_to_opponent_triggers(
                         &source_controller.clone(),
@@ -220,6 +226,13 @@ impl GameEngine {
                     {
                         let damaged =
                             self.state.players[damaged_player].battlefield[damaged_index].clone();
+                        self.enqueue_source_damage_observers(
+                            source,
+                            source_damage_observation::DamageRecipientRef::Permanent(&damaged),
+                            amount,
+                            combat,
+                        );
+                        self.check_quantity_failure()?;
                         let trigger_sources = self
                             .state
                             .players
@@ -253,6 +266,9 @@ impl GameEngine {
                                                         == damaged.controller
                                                     && (!combat
                                                         || event["noncombatOnly"].as_bool()
+                                                            != Some(true))
+                                                    && (combat
+                                                        || event["combatOnly"].as_bool()
                                                             != Some(true))
                                                     && self.permanent_matches_effective_filter(
                                                         &damaged,
@@ -352,6 +368,8 @@ impl GameEngine {
                                                 && (!combat
                                                     || event["noncombatOnly"].as_bool()
                                                         != Some(true))
+                                                && (combat
+                                                    || event["combatOnly"].as_bool() != Some(true))
                                         },
                                     )
                             })

@@ -144,6 +144,18 @@ mod fatal_push_runtime;
 #[path = "tests/trigger_frame_runtime.rs"]
 mod trigger_frame_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_action_event_runtime.rs"]
+mod player_action_event_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/source_damage_event_runtime.rs"]
+mod source_damage_event_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/counter_event_runtime.rs"]
+mod counter_event_runtime;
+
 #[path = "tests/ability_loss_then_destroy_runtime.rs"]
 mod ability_loss_then_destroy_runtime;
 
