@@ -206,6 +206,9 @@ fn membership_filter_supported(filter: &Value) -> bool {
         Some("cardTypeContains" | "subtypeContains") => {
             filter.as_object().is_some_and(|m| m.len() == 2) && filter["value"].is_string()
         }
+        // Token status is not a characteristic (CR 111.1, 205): no
+        // characteristic-changing effect can alter this membership read.
+        Some("isToken") => filter.as_object().is_some_and(|m| m.len() == 1),
         Some("and" | "or") => {
             filter.as_object().is_some_and(|m| m.len() == 2)
                 && filter["operands"]
@@ -280,6 +283,8 @@ fn filter_reads(filter: &Value, out: &mut BTreeSet<String>) -> bool {
             ));
             true
         }
+        // Token status reads no characteristic that a modifier can write.
+        Some("isToken") => filter.as_object().is_some_and(|m| m.len() == 1),
         Some("and" | "or") => filter["operands"]
             .as_array()
             .is_some_and(|v| v.iter().all(|f| filter_reads(f, out))),

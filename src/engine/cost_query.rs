@@ -166,8 +166,12 @@ impl GameEngine {
                     "unsupported checked cost query predicate for this object domain",
                 ));
             }
+            // Candidate color count (e.g. "colorless spells", CR 105.2c) is a
+            // definition/effective characteristic read like mana value.
             if value_kind(&prepared) == Some("compare")
                 && value_kind(&prepared["left"]) != Some("manaValueOf")
+                && !(value_kind(&prepared["left"]) == Some("colorCountOf")
+                    && value_kind(&prepared["left"]["object"]) == Some("candidate"))
             {
                 return Err(EngineError::new(
                     "unsupported checked cost query numeric property",
