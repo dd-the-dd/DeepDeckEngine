@@ -135,6 +135,18 @@ pub(in crate::oracle::canonical) fn lower_targeted_zone_change_node(
         "a regeneration prohibition only on a destroy action",
     )?;
     let mut operation = lower_targeted_zone_change_effect(effect.action, target);
+    if let Some(until) = effect.until {
+        cursor.enter("lower.zone-change.until");
+        cursor.require(
+            effect.action == ZoneChangeAction::Exile,
+            "an `until` duration only on an exile action",
+        )?;
+        operation["until"] = match until {
+            ZoneChangeUntilNode::SourceLeavesBattlefield => {
+                json!({ "kind": "sourceLeavesBattlefield" })
+            }
+        };
+    }
     if matches!(
         effect.regeneration,
         ZoneChangeRegenerationPolicy::Prohibited { .. }

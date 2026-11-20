@@ -33,35 +33,6 @@
       }
     },
     {
-      "id": "linked-exile",
-      "request": {
-        "cardName": "Retired Native Probe",
-        "typeLine": "Enchantment",
-        "manaCost": "{1}",
-        "oracleText": "When this enchantment enters, exile target creature until this enchantment leaves the battlefield.",
-        "layout": "normal",
-        "faces": []
-      },
-      "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "abilities": [
-          {
-            "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
-          }
-        ]
-      }
-    },
-    {
       "id": "same-name-search",
       "request": {
         "cardName": "Retired Native Probe",

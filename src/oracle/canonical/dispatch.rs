@@ -479,6 +479,19 @@ fn parse_existing_native_rule(
         };
     }
 
+    if claims_promoted_rebound_keyword_family(input) {
+        return match parse_promoted_rebound_keyword(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_promoted_delve_keyword_family(input) {
         return match parse_promoted_delve_keyword(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
@@ -780,19 +793,6 @@ fn parse_existing_native_rule(
         && claims_promoted_source_entry_card_zone_change_family(input)
     {
         return match parse_promoted_source_entry_card_zone_change(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
-    if ability_kind == "triggeredAbility" && claims_promoted_linked_entry_exile_family(input) {
-        return match parse_promoted_linked_entry_exile(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

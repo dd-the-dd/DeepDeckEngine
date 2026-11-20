@@ -57,6 +57,7 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         } => return None,
         // No continuous-effect primitive reads the end-of-next-turn window.
         EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
+        EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
     })
 }
 
@@ -796,14 +797,15 @@ fn lower_local_effect_sequence_with_collections(
                         // the current turn; any other window stays explicit.
                         let duration = match duration {
                             None => None,
-                            Some(EffectDurationNode::UntilEndOfCurrentTurn) => {
-                                lower_duration(&EffectDurationNode::UntilEndOfCurrentTurn)
-                            }
+                            Some(
+                                duration @ (EffectDurationNode::UntilEndOfCurrentTurn
+                                | EffectDurationNode::WhileSourceControlled),
+                            ) => lower_duration(duration),
                             Some(_) => {
                                 return Err(
                                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                         cursor.fail(
-                                            "an indefinite or until-end-of-turn control duration",
+                                            "an indefinite, until-end-of-turn or while-source-controlled control duration",
                                         ),
                                     ),
                                 );
@@ -1362,6 +1364,7 @@ fn lower_local_effect_sequence_with_collections(
         &card_target_bindings,
     )?;
     action_starts.push((effects.len(), decisions.len()));
+    apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
         sequence,
@@ -1838,6 +1841,10 @@ mod tests;
 #[cfg(test)]
 #[path = "preposed_duration_tests.rs"]
 mod preposed_duration_tests;
+
+#[path = "delayed_frame_lowering.rs"]
+mod delayed_frame_lowering;
+use delayed_frame_lowering::apply_delayed_frames;
 
 #[cfg(test)]
 #[path = "where_x_tests.rs"]

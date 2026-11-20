@@ -266,6 +266,11 @@ struct SequenceMemory {
     /// Remaining per-player actions of one coordinated-subject sentence, in
     /// reverse order. Each is pushed as its own action joined by `and`.
     distributed: Vec<LocalEffectNode>,
+    /// Delayed action ranges (CR 603.7a) closed so far.
+    delayed: Vec<super::DelayedFrameNode>,
+    /// A preposed `At the beginning of ... ,` timing scoping the sentence
+    /// being read, with the index of its first action.
+    sentence_delay: Option<(usize, super::DelayedStepTimingNode)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -316,14 +321,27 @@ impl SequenceMemory {
         }
     }
 
+    /// Closes a preposed delayed timing at the end of its sentence.
+    fn close_sentence_delay(&mut self) {
+        if let Some((first_effect, timing)) = self.sentence_delay.take() {
+            self.delayed.push(super::DelayedFrameNode {
+                first_effect,
+                end_effect: self.effects.len(),
+                timing,
+            });
+        }
+    }
+
     fn into_sequence(mut self) -> EffectSequenceNode {
         self.close_conditional_branch();
+        self.close_sentence_delay();
         EffectSequenceNode {
             effects: self.effects,
             connectors: self.connectors,
             where_x: self.where_x,
             conditionals: self.conditionals,
             unless: self.unless,
+            delayed: self.delayed,
         }
     }
 
@@ -849,6 +867,26 @@ fn recognize_effect_sequence_attempt_internal(
                                     continue;
                                 }
                             }
+                            // `At the beginning of the next STEP, EFFECTS.`
+                            // (CR 603.7a): a structural introducer scoping
+                            // the actions of its sentence, read only after
+                            // the ordinary readers decline at its first action.
+                            if !attempt_frame.is_committed()
+                                && preposed_duration.is_none()
+                                && memory.sentence_delay.is_none()
+                                && memory.effects.len() == memory.sentence_start
+                                && super::delayed_step_timing_starts(cursor)
+                            {
+                                let mut trial = cursor.clone();
+                                let timing = super::recognize_delayed_step_timing(&mut trial)?;
+                                trial.enter("sequence.delayed.preposed-separator");
+                                trial.consume(",")?;
+                                *cursor = trial;
+                                memory.sentence_delay = Some((memory.effects.len(), timing));
+                                attempt_frame.clear();
+                                effect_start = cursor.position();
+                                continue;
+                            }
                             // `Until DURATION, EFFECTS.`: the introducer is read
                             // only after the ordinary effect readers decline, and
                             // never after a committed failure (diagnostics of
@@ -1161,6 +1199,7 @@ fn recognize_effect_sequence_attempt_internal(
                     Some(".") => {
                         memory.current_player_subject = None;
                         memory.sentence_duration = None;
+                        memory.close_sentence_delay();
                         if !sentence_closed_by_quote {
                             cursor.consume(".")?;
                         }
@@ -1341,6 +1380,46 @@ fn recognize_effect_sequence_attempt_internal(
                             scaled,
                             "an action with a literal quantity that a trailing `for each` can multiply",
                         )?;
+                        SequenceState::ConnectorOrEnd
+                    }
+                    Some("at") if super::delayed_step_timing_starts(cursor) => {
+                        // CR 603.7a: a trailing timing delays the action it
+                        // follows; the sentence must end with it.
+                        attempt_frame.commit();
+                        let timing = super::recognize_delayed_step_timing(cursor)?;
+                        cursor.enter("sequence.delayed.trailing-scope");
+                        cursor.require(
+                            memory.sentence_delay.is_none()
+                                && matches!(cursor.peek(), None | Some(".")),
+                            "one delayed timing ending its sentence",
+                        )?;
+                        let end_effect = memory.effects.len();
+                        memory.delayed.push(super::DelayedFrameNode {
+                            first_effect: end_effect - 1,
+                            end_effect,
+                            timing,
+                        });
+                        SequenceState::ConnectorOrEnd
+                    }
+                    Some("until")
+                        if super::zone_change_until_starts(cursor)
+                            && matches!(
+                                memory.effects.last(),
+                                Some(LocalEffectNode::ZoneChange(zone_change))
+                                    if zone_change.action == super::ZoneChangeAction::Exile
+                                        && zone_change.until.is_none()
+                            ) =>
+                    {
+                        // CR 610.3: `until EVENT` belongs to the exile it
+                        // follows; the child reads only the ending event.
+                        attempt_frame.commit();
+                        let until =
+                            super::recognize_zone_change_until(cursor, name_links, name_failure)?;
+                        if let Some(LocalEffectNode::ZoneChange(zone_change)) =
+                            memory.effects.last_mut()
+                        {
+                            zone_change.until = Some(until);
+                        }
                         SequenceState::ConnectorOrEnd
                     }
                     _ => return Err(cursor.fail("`and`, `then`, or sentence terminator")),

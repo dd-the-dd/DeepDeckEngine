@@ -273,10 +273,10 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "effect.start",
-            "expected": "a supported effect subject",
-            "found": "At",
-            "tokenIndex": 13
+            "state": "delayed-step.timing.step",
+            "expected": "`upkeep` or `end step`",
+            "found": "combat",
+            "tokenIndex": 19
           },
           {
             "abilityIndex": 0,

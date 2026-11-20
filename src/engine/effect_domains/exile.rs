@@ -26,6 +26,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                         .get("exclude")
                         .is_none_or(object_expression_supported)))
                 && effect.get("bind").is_none_or(Value::is_string)
+                && effect
+                    .get("until")
+                    .is_none_or(|until| value_kind(until) == Some("sourceLeavesBattlefield"))
                 && (value_kind(effect) != Some("destroyPermanent")
                     || effect.get("cannotRegenerate").is_none_or(Value::is_boolean))
         }
@@ -192,20 +195,48 @@ impl GameEngine {
                         })
                         .unwrap_or_default(),
                 };
+                // CR 610.3: `until SOURCE leaves the battlefield` links each
+                // exiled object to this source incarnation; the shared
+                // linked-return service returns it when that source leaves.
+                let until_source_leaves =
+                    value_kind(&effect["until"]) == Some("sourceLeavesBattlefield");
+                // CR 610.3a/b: if the source already left after the ability
+                // was put on the stack, the object doesn't move at all.
+                let instance_ids = if until_source_leaves
+                    && !self.linked_source_is_same_battlefield_object(&stack_object.card)
+                {
+                    Vec::new()
+                } else {
+                    instance_ids
+                };
                 let mut exiled_ids = Vec::new();
                 for instance_id in instance_ids {
-                    let affected_controller =
+                    let battlefield_object =
                         self.permanent_position(&instance_id)
                             .map(|(player_index, card_index)| {
-                                self.state.players[player_index].battlefield[card_index]
-                                    .controller
-                                    .clone()
+                                let permanent =
+                                    &self.state.players[player_index].battlefield[card_index];
+                                (permanent.controller.clone(), permanent.definition.clone())
                             });
+                    let affected_controller = battlefield_object
+                        .as_ref()
+                        .map(|(controller, _)| controller.clone());
                     self.exile_permanent(&instance_id)?;
                     let was_exiled = affected_controller.is_some()
                         && self.card_zone_owner_id(&instance_id, "exile").is_some();
                     if was_exiled {
                         exiled_ids.push(instance_id.clone());
+                    }
+                    if was_exiled
+                        && until_source_leaves
+                        && let Some((_, last_known_definition)) = &battlefield_object
+                    {
+                        self.register_linked_exiled_permanent(
+                            &stack_object.card,
+                            &instance_id,
+                            true,
+                            last_known_definition,
+                        )?;
                     }
                     if was_exiled
                         && let Some(affected_controller) = affected_controller

@@ -648,6 +648,7 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                     action: cursor.require_value(action, "a populated zone-change action")?,
                     target: cursor.require_value(target, "a populated zone-change target")?,
                     regeneration: ZoneChangeRegenerationPolicy::Allowed,
+                    until: None,
                 }));
             }
         };

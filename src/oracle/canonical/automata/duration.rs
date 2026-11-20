@@ -143,6 +143,41 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
     }
 }
 
+/// Whether the cursor stands on `for as long as`.
+pub(in crate::oracle::canonical) fn source_control_duration_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    ["for", "as", "long", "as"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// Reads `for as long as you control SOURCE` (CR 611.2b). The source is
+/// the shared current-object reference; other `for as long as` conditions
+/// remain unsupported with a structured failure.
+pub(in crate::oracle::canonical) fn recognize_source_control_duration(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+) -> MachineResult<EffectDurationNode> {
+    cursor.enter("duration.while-source-controlled.introducer");
+    cursor.consume_phrase(&["for", "as", "long", "as"])?;
+    cursor.enter("duration.while-source-controlled.condition");
+    cursor.consume_phrase(&["you", "control"])?;
+    cursor.enter("duration.while-source-controlled.source");
+    let source = super::recognize_source_reference(cursor, name_links, name_failure)?;
+    cursor.require(
+        source == super::LocalObjectReference::SourceSelf,
+        "the current source object",
+    )?;
+    Ok(EffectDurationNode::WhileSourceControlled)
+}
+
 #[cfg(test)]
 #[path = "duration_tests.rs"]
 mod tests;

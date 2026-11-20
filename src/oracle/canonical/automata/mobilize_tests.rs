@@ -46,11 +46,25 @@ fn bare_and_singular_mobilize_are_generalized() {
     assert_eq!(parse("Mobilize 3").quantity, 3);
     assert_eq!(
         parse(
-            "Mobilize 1 (Whenever this creature attacks, create one tapped and attacking 1/1 red Warrior creature token. Sacrifice them at the beginning of the next end step.)",
+            "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)",
         )
         .quantity,
         1
     );
+}
+
+#[test]
+fn cleanup_pronoun_must_agree_with_the_token_batch() {
+    for text in [
+        "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice them at the beginning of the next end step.)",
+        "Mobilize 2 (Whenever this creature attacks, create two tapped and attacking 1/1 red Warrior creature tokens. Sacrifice it at the beginning of the next end step.)",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("mobilize-test", &tokens);
+        let failure = recognize_mobilize_keyword(&mut cursor, &[], None)
+            .expect_err("a disagreeing cleanup pronoun must fail");
+        assert_eq!(failure.state, "effect.delayed-batch.objects", "{text}");
+    }
 }
 
 #[test]

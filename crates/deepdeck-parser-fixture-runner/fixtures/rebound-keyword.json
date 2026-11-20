@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/rebound-keyword",
+  "cases": [
+    {
+      "id": "exact-sight-beyond-sight",
+      "request": {
+        "cardName": "Sight Beyond Sight",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "rebound"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fantastic-elasticity",
+      "request": {
+        "cardName": "Fantastic Elasticity",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Choose one —\n• Return target nonland permanent to its owner's hand.\n• Return target instant or sorcery card from your graveyard to your hand.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "rebound"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-bare-rebound-life",
+      "request": {
+        "cardName": "Test Echo Gift",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain 2 life.\nRebound",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "rebound"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-rebound-with-rules-text",
+      "request": {
+        "cardName": "Test Misread",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Rebound target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
