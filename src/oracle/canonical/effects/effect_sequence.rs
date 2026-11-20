@@ -1271,6 +1271,7 @@ fn lower_local_effect_sequence_with_collections(
         &card_target_bindings,
     )?;
     action_starts.push((effects.len(), decisions.len()));
+    install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
         sequence,
@@ -1428,6 +1429,79 @@ impl ConditionalScopes {
         }
         Ok(())
     }
+}
+
+fn collect_action_result_references(value: &Value, found: &mut Vec<usize>) {
+    match value {
+        Value::Object(map) => {
+            if map.get("kind").and_then(Value::as_str) == Some("boundObjects")
+                && let Some(index) = map
+                    .get("binding")
+                    .and_then(Value::as_str)
+                    .and_then(|binding| binding.strip_prefix("actionResult:"))
+                    .and_then(|index| index.parse::<usize>().ok())
+                && !found.contains(&index)
+            {
+                found.push(index);
+            }
+            map.values()
+                .for_each(|child| collect_action_result_references(child, found));
+        }
+        Value::Array(items) => items
+            .iter()
+            .for_each(|child| collect_action_result_references(child, found)),
+        _ => {}
+    }
+}
+
+/// Installs the result binding each `OBJECTS VERBed this way` count reads
+/// (CR 608.2c). The producing action is the one the sequence parent
+/// resolved; its lowering must be exactly one top-level runtime action whose
+/// `bind` records the affected objects. Anything else fails explicitly.
+fn install_action_result_bindings(
+    cursor: &mut OracleTokenCursor<'_>,
+    sequence: &EffectSequenceNode,
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let mut referenced = Vec::new();
+    effects
+        .iter()
+        .for_each(|effect| collect_action_result_references(effect, &mut referenced));
+    for effect_index in referenced {
+        cursor.enter("lower.action-result.binding");
+        let verb = [ActionResultVerb::Destroyed, ActionResultVerb::Milled]
+            .into_iter()
+            .find(|verb| {
+                sequence
+                    .effects
+                    .get(effect_index)
+                    .is_some_and(|effect| action_result_verb_produced_by(*verb, effect))
+            })
+            .ok_or_else(|| cursor.fail("an earlier action that produces the restated objects"))?;
+        let (Some(&(from, _)), Some(&(to, _))) = (
+            action_starts.get(effect_index),
+            action_starts.get(effect_index + 1),
+        ) else {
+            return Err(cursor.fail("a lowered producing action").into());
+        };
+        let mut producers = effects[from..to].iter_mut().filter(|effect| {
+            effect["kind"]
+                .as_str()
+                .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
+        });
+        let (Some(producer), None) = (producers.next(), producers.next()) else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one top-level runtime action recording the restated objects"),
+            ));
+        };
+        cursor.require(
+            producer.get("bind").is_none(),
+            "a producing action without another result binding",
+        )?;
+        producer["bind"] = json!(action_result_binding(effect_index));
+    }
+    Ok(())
 }
 
 /// Binds each postposed `where X is EXPR` definition (CR 107.3). The value is

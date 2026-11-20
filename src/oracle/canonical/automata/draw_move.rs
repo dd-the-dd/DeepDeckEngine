@@ -216,7 +216,9 @@ fn recognize_draw_action_attempt(
                     | NumericExpression::Divide { .. } => {
                         cursor.consume("cards")?;
                     }
-                    NumericExpression::CountQuery(_) | NumericExpression::PermanentCount(_) => {
+                    NumericExpression::CountQuery(_)
+                    | NumericExpression::PermanentCount(_)
+                    | NumericExpression::ActionResultCount { .. } => {
                         return Err(cursor.fail("a proved query-count consumer for draw").into());
                     }
                     NumericExpression::CountCounters { .. } => {

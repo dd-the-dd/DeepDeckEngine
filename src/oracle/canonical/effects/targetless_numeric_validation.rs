@@ -46,7 +46,6 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
                 .map_err(|_| TargetlessLoweringError::RuntimeIntegerRange);
         }
         NumericExpression::Atom(NumericAtom::VariableX) => return Ok(None),
-        NumericExpression::CountQuery(_) => return Err(TargetlessLoweringError::UnsupportedEffect),
         NumericExpression::Add { left, right } => (Operation::Add, left, right),
         NumericExpression::Subtract { left, right } => (Operation::Subtract, left, right),
         NumericExpression::Multiply { left, right } => (Operation::Multiply, left, right),
@@ -56,6 +55,7 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
             rounding,
         } => (Operation::Divide(*rounding), left, right),
         NumericExpression::ObjectProperty { .. }
+        | NumericExpression::CountQuery(_)
         | NumericExpression::PowerOf(_)
         | NumericExpression::ManaValueOf(_)
         | NumericExpression::QualifiedTargetProperty { .. }
@@ -67,6 +67,7 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::GreatestPropertyAmong { .. }
+        | NumericExpression::ActionResultCount { .. }
         | NumericExpression::CardsInZone { .. } => return Ok(None),
     };
     // Visit both branches even when the first is symbolic: a bad literal or

@@ -79,13 +79,13 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
     validate_targetless_numeric_expression(expression, declarations)?;
     match expression {
         NumericExpression::Atom(atom) => lower_atom(atom, declarations),
-        NumericExpression::CountQuery(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         NumericExpression::PowerOf(_)
         | NumericExpression::ManaValueOf(_)
         | NumericExpression::QualifiedTargetProperty { .. } => {
             Err(TargetlessLoweringError::RequiresTarget)
         }
         NumericExpression::ObjectProperty { .. }
+        | NumericExpression::CountQuery(_)
         | NumericExpression::CountCounters { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
@@ -98,6 +98,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
+        | NumericExpression::ActionResultCount { .. }
         | NumericExpression::Divide { .. } => {
             lower_numeric_expression(expression).ok_or(TargetlessLoweringError::UnsupportedEffect)
         }

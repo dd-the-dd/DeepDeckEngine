@@ -6,6 +6,7 @@
 
 mod ability_loss;
 mod ability_word_envelope;
+mod action_result;
 mod activated;
 mod activated_effect_sequence;
 mod activated_library_search;
@@ -232,6 +233,7 @@ mod zone_prohibition;
 
 pub(super) use ability_loss::*;
 pub(super) use ability_word_envelope::*;
+pub(super) use action_result::*;
 pub(super) use activated::*;
 pub(super) use activated_effect_sequence::*;
 pub(super) use activated_library_search::*;
@@ -776,6 +778,14 @@ pub(super) enum NumericExpression {
         property: NumericObjectProperty,
         predicate: ObjectPredicate,
     },
+    /// The number of objects an earlier action of the same program affected
+    /// (`for each creature destroyed this way`, CR 608.2c). Only the program
+    /// parent that resolved `effect_index` creates it; lowering reads the
+    /// binding that parent installs on that action.
+    ActionResultCount {
+        effect_index: usize,
+        filter: ActionResultFilter,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -915,8 +925,42 @@ impl NumericExpression {
             | Self::CountDistinctCardTypes { .. }
             | Self::PlayerFact { .. }
             | Self::SacrificedCostObjectProperty(_)
+            | Self::ActionResultCount { .. }
             | Self::CardsInZone { .. } => false,
         }
+    }
+
+    /// Replaces every arithmetic occurrence of X by its definition (CR 107.3)
+    /// for a consumer that evaluates the expression continuously instead of
+    /// binding it once. X inside a query predicate has no proved substitution,
+    /// so it returns `None` rather than leaving an unbound variable.
+    pub(super) fn substitute_x(&self, value: &Self) -> Option<Self> {
+        Some(match self {
+            Self::Atom(NumericAtom::VariableX) => value.clone(),
+            Self::Add { left, right } => Self::Add {
+                left: Box::new(left.substitute_x(value)?),
+                right: Box::new(right.substitute_x(value)?),
+            },
+            Self::Subtract { left, right } => Self::Subtract {
+                left: Box::new(left.substitute_x(value)?),
+                right: Box::new(right.substitute_x(value)?),
+            },
+            Self::Multiply { left, right } => Self::Multiply {
+                left: Box::new(left.substitute_x(value)?),
+                right: Box::new(right.substitute_x(value)?),
+            },
+            Self::Divide {
+                left,
+                right,
+                rounding,
+            } => Self::Divide {
+                left: Box::new(left.substitute_x(value)?),
+                right: Box::new(right.substitute_x(value)?),
+                rounding: *rounding,
+            },
+            other if other.uses_x() => return None,
+            other => other.clone(),
+        })
     }
 }
 

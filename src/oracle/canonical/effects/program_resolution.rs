@@ -63,6 +63,7 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::GreatestPropertyAmong { .. }
+        | NumericExpression::ActionResultCount { .. }
         | NumericExpression::CardsInZone { .. } => false,
     }
 }
