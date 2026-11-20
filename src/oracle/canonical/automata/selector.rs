@@ -486,6 +486,12 @@ fn recognize_object_query_with_cardinality_policy(
                             recognize_numeric_comparison_qualifier(cursor, query_source_available)?,
                             PostnominalQualifierScope::WholeQuery,
                         )
+                    } else if counter_qualifier_starts(cursor, 1) {
+                        cursor.consume("with")?;
+                        (
+                            recognize_counter_qualifier(cursor)?,
+                            PostnominalQualifierScope::LastCoordinatedHead,
+                        )
                     } else {
                         (
                             recognize_keyword_qualifier(cursor)?,
@@ -495,6 +501,28 @@ fn recognize_object_query_with_cardinality_policy(
                     frame
                         .postnominal_qualifiers
                         .push(PostnominalQualifier { predicate, scope });
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if cursor
+                    .peek()
+                    .is_some_and(|token| token.eq_ignore_ascii_case("without"))
+                    && (counter_qualifier_starts(cursor, 1)
+                        || cursor.peek_ahead(1).is_some_and(keyword_qualifier_word))
+                {
+                    // Other `without` phrases (`without paying its mana cost`)
+                    // belong to the enclosing action, not to this query.
+                    // `without flying`, `without a counter on it`: the
+                    // negation of the same qualifier read after `with`.
+                    cursor.enter("selector.without-qualifier");
+                    let predicate = if counter_qualifier_starts(cursor, 1) {
+                        cursor.consume("without")?;
+                        recognize_counter_qualifier(cursor)?
+                    } else {
+                        recognize_keyword_qualifier_after(cursor, "without")?
+                    };
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Not(Box::new(predicate)),
+                        scope: PostnominalQualifierScope::LastCoordinatedHead,
+                    });
                     ObjectQueryState::ReadPostnominalQualifier
                 } else if cursor.peek().is_some_and(|token| {
                     token.eq_ignore_ascii_case("you")
@@ -771,16 +799,84 @@ fn compose_postnominal_scopes(
 fn recognize_keyword_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SelectorPredicate> {
+    recognize_keyword_qualifier_after(cursor, "with")
+}
+
+/// True when a counter qualifier (`a +1/+1 counter on it`, `one or more
+/// counters on them`) begins `offset` tokens ahead. Lookahead only: the
+/// counter-name child still owns the name and its diagnostics.
+fn counter_qualifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + at)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let after_determiner = if word(0, "a") || word(0, "an") {
+        1
+    } else if word(0, "one") && word(1, "or") && word(2, "more") {
+        3
+    } else {
+        return false;
+    };
+    (after_determiner..after_determiner + 4).any(|at| word(at, "counter") || word(at, "counters"))
+}
+
+/// `a [KIND] counter on it` / `one or more [KIND] counters on them`
+/// (CR 122.1): the object has at least one counter, of that kind when named.
+/// The relation word (`with`/`without`) belongs to the caller.
+fn recognize_counter_qualifier(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SelectorPredicate> {
+    cursor.enter("selector.counter-qualifier.determiner");
+    let plural = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("one"))
+    {
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        true
+    } else {
+        consume_optional_selector_article(cursor)?;
+        false
+    };
+    cursor.enter("selector.counter-qualifier.kind");
+    let counter = if cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters")
+    }) {
+        None
+    } else {
+        Some(super::recognize_counter_name(cursor)?)
+    };
+    cursor.enter("selector.counter-qualifier.noun");
+    cursor.consume(if plural { "counters" } else { "counter" })?;
+    cursor.enter("selector.counter-qualifier.location");
+    cursor.consume("on")?;
+    match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("it") => cursor.consume("it")?,
+        Some("them") => cursor.consume("them")?,
+        _ => return Err(cursor.fail("`it` or `them` after the counter location")),
+    }
+    Ok(SelectorPredicate::HasCounter(counter))
+}
+
+/// A word that can begin a keyword qualifier (`flying`, `first strike`).
+fn keyword_qualifier_word(raw: &str) -> bool {
+    parameterless_keyword_from_oracle_word(raw).is_some()
+        || raw.eq_ignore_ascii_case("double")
+        || raw.eq_ignore_ascii_case("first")
+}
+
+fn recognize_keyword_qualifier_after(
+    cursor: &mut OracleTokenCursor<'_>,
+    relation: &str,
+) -> MachineResult<SelectorPredicate> {
     cursor.enter("selector.keyword-qualifier.relation");
-    cursor.consume("with")?;
+    cursor.consume(relation)?;
     cursor.enter("selector.keyword-qualifier.keyword");
     let raw = cursor
         .peek()
         .ok_or_else(|| cursor.fail("a supported keyword after `with`"))?;
     cursor.require(
-        parameterless_keyword_from_oracle_word(raw).is_some()
-            || raw.eq_ignore_ascii_case("double")
-            || raw.eq_ignore_ascii_case("first"),
+        keyword_qualifier_word(raw),
         "a supported keyword after `with`",
     )?;
     let first = recognize_parameterless_keyword(cursor).map(SelectorPredicate::HasKeyword)?;
@@ -791,11 +887,7 @@ fn recognize_keyword_qualifier(
     while cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
-        && cursor.peek_ahead(1).is_some_and(|raw| {
-            parameterless_keyword_from_oracle_word(raw).is_some()
-                || raw.eq_ignore_ascii_case("double")
-                || raw.eq_ignore_ascii_case("first")
-        })
+        && cursor.peek_ahead(1).is_some_and(keyword_qualifier_word)
     {
         cursor.consume("or")?;
         cursor.enter("selector.keyword-qualifier.alternative");
@@ -1370,8 +1462,18 @@ fn recognize_stack_item_branch(
                 cursor.consume("triggered")?;
                 StackAbilityKind::Triggered
             };
-            cursor.enter("selector.stack-item.ability-noun");
-            cursor.consume("ability")?;
+            // `activated or triggered ability`: coordinated modifiers share
+            // the final branch's `ability` head noun.
+            let shares_following_head = cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+                && cursor.peek_ahead(1).is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("activated") || raw.eq_ignore_ascii_case("triggered")
+                });
+            if !shares_following_head {
+                cursor.enter("selector.stack-item.ability-noun");
+                cursor.consume("ability")?;
+            }
             Ok(StackItemPredicate::Ability(kind))
         }
         Some("colorless") => {
@@ -1567,6 +1669,10 @@ mod qualifier_scope_tests;
 #[path = "search_card_selector_tests.rs"]
 mod search_card_selector_tests;
 
+#[cfg(test)]
+#[path = "selector_state_qualifier_tests.rs"]
+mod state_qualifier_tests;
+
 fn player_predicate(raw: &str) -> Option<PlayerPredicate> {
     match lookup_player_role(raw)? {
         PlayerRole::Any => Some(PlayerPredicate::Any),
@@ -1594,7 +1700,18 @@ enum SearchCardSelectorState {
     QualifierOrComplete,
     BasicLandTypeQualifier,
     ExactManaCostQualifier,
+    NumericQualifier,
     Complete,
+}
+
+/// `permanent card(s)` at the cursor: the shared card-category atom.
+fn permanent_card_category_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("permanent"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("card") || raw.eq_ignore_ascii_case("cards")
+        })
 }
 
 fn search_subtype_starts(raw: Option<&str>) -> bool {
@@ -1753,6 +1870,8 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                 {
                     predicates.push(ObjectPredicate::ObjectKind(ObjectKind::Card));
                     SearchCardSelectorState::CardNoun
+                } else if predicates.is_empty() && permanent_card_category_starts(cursor) {
+                    SearchCardSelectorState::CardNoun
                 } else if cursor
                     .peek()
                     .and_then(|raw| lookup_supertype(raw, AcceptedForms::SingularOnly))
@@ -1785,6 +1904,13 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
             }
             SearchCardSelectorState::CardNoun => {
                 cursor.enter("selector.search-card.card-noun");
+                // CR 110.4b: `permanent card` is the shared card category atom.
+                if permanent_card_category_starts(cursor) {
+                    predicates.push(super::recognize_object_predicate_atom(
+                        cursor,
+                        AcceptedForms::SingularOnly,
+                    )?);
+                }
                 cursor.consume(if plural { "cards" } else { "card" })?;
                 SearchCardSelectorState::QualifierOrComplete
             }
@@ -1797,8 +1923,17 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                     if cursor
                         .peek_ahead(1)
                         .is_some_and(|raw| raw.eq_ignore_ascii_case("mana"))
+                        && cursor
+                            .peek_ahead(2)
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("cost"))
                     {
                         SearchCardSelectorState::ExactManaCostQualifier
+                    } else if cursor.peek_ahead(1).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("mana")
+                            || raw.eq_ignore_ascii_case("power")
+                            || raw.eq_ignore_ascii_case("toughness")
+                    }) {
+                        SearchCardSelectorState::NumericQualifier
                     } else {
                         SearchCardSelectorState::BasicLandTypeQualifier
                     }
@@ -1821,6 +1956,13 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                         .map(|subtype| ObjectPredicate::Subtype(subtype.to_string()))
                         .collect(),
                 ));
+                SearchCardSelectorState::Complete
+            }
+            SearchCardSelectorState::NumericQualifier => {
+                // The same numeric property comparison as every object query;
+                // its consumer-independent literal/declared-X policy applies.
+                cursor.enter("selector.search-card.numeric-qualifier");
+                predicates.push(recognize_numeric_comparison_qualifier(cursor, None)?);
                 SearchCardSelectorState::Complete
             }
             SearchCardSelectorState::ExactManaCostQualifier => {

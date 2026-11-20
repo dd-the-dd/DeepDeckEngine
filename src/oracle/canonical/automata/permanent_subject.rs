@@ -241,7 +241,7 @@ pub(in crate::oracle::canonical) fn subject_after_operand(
         PermanentOperandNode::Targets(targets) => singular_permanent_target(targets, effect_index),
         PermanentOperandNode::BoundReference(reference) => Some(*reference),
         PermanentOperandNode::Reference(source) => Some(PermanentEffectReference::Source(*source)),
-        PermanentOperandNode::Collection(_) => None,
+        PermanentOperandNode::Collection { .. } => None,
     }
 }
 
@@ -391,19 +391,27 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         )?;
         return Ok(PermanentOperandNode::Targets(targets));
     }
-    if cursor.peek_token().is_some_and(|token| {
+    // A bare plural collection (`other creatures you control`) shares the
+    // quantified operand's optional source exclusion.
+    let mut collection_start = cursor.clone();
+    let exclude_source = recognize_optional_source_exclusion(&mut collection_start)?;
+    if collection_start.peek_token().is_some_and(|token| {
         matches!(
             token.token_type.as_str(),
             "typeWord" | "negativeTypeWord" | "supertypeWord" | "colorWord"
         )
     }) {
+        *cursor = collection_start;
         let query = recognize_object_collection(cursor)?;
         cursor.require(
             query.predicate.has_domain(ObjectKind::Permanent)
                 && query.predicate.supports_domain(ObjectKind::Permanent),
             "a battlefield permanent collection",
         )?;
-        return Ok(PermanentOperandNode::Collection(query));
+        return Ok(PermanentOperandNode::Collection {
+            objects: query,
+            exclude_source,
+        });
     }
     recognize_permanent_operand(cursor, name_links, name_failure, context.source.as_ref())
 }

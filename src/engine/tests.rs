@@ -143,6 +143,9 @@ mod fatal_push_runtime;
 #[path = "tests/ability_loss_then_destroy_runtime.rs"]
 mod ability_loss_then_destroy_runtime;
 
+#[path = "tests/object_state_predicate_runtime.rs"]
+mod object_state_predicate_runtime;
+
 #[path = "tests/characteristic_batch_runtime.rs"]
 mod characteristic_batch_runtime;
 

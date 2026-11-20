@@ -28,7 +28,7 @@ fn require_individual_operand(
     operand: &PermanentOperandNode,
 ) -> MachineResult<()> {
     cursor.require(
-        !matches!(operand, PermanentOperandNode::Collection(_)),
+        !matches!(operand, PermanentOperandNode::Collection { .. }),
         "an individual attached object or destination, not a quantified collection",
     )
 }

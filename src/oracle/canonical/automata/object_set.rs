@@ -43,7 +43,9 @@ fn is_shared_numeric_collection_qualifier(predicate: &SelectorPredicate) -> bool
 
 fn has_branch_local_postnominal_qualifier(predicate: &SelectorPredicate) -> bool {
     match predicate {
-        SelectorPredicate::HasKeyword(_) | SelectorPredicate::NumericComparison { .. } => true,
+        SelectorPredicate::HasKeyword(_)
+        | SelectorPredicate::HasCounter(_)
+        | SelectorPredicate::NumericComparison { .. } => true,
         SelectorPredicate::Intersection(operands) | SelectorPredicate::Union(operands) => {
             operands.iter().any(has_branch_local_postnominal_qualifier)
         }

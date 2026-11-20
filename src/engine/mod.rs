@@ -2791,7 +2791,8 @@ fn object_expression_supported(expression: &Value) -> bool {
                 && expression
                     .get("player")
                     .is_none_or(player_query::population_supported)
-                && expression.get("where").is_none_or(card_filter_supported)
+                // The battlefield domain evaluates permanent state (counters).
+                && expression.get("where").is_none_or(permanent_filter_supported)
                 && expression
                     .get("excludeSource")
                     .is_none_or(Value::is_boolean)
@@ -11296,6 +11297,12 @@ impl GameEngine {
                     })
             }),
             Some("isTapped") => permanent.tapped,
+            // CR 122.1: counters are battlefield state, read from the
+            // permanent itself (any kind, or the named kind).
+            Some("hasCounter") => filter["counter"].as_str().map_or_else(
+                || permanent.counters.values().any(|count| *count > 0),
+                |counter| permanent.counters.get(counter).copied().unwrap_or(0) > 0,
+            ),
             Some("isAttacking") => permanent.flags.get("attacking").copied().unwrap_or(false),
             Some("isAttackingAlone") => self.permanent_is_attacking_alone(permanent),
             Some("isLegendary") => {
