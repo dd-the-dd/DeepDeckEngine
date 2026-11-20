@@ -94,6 +94,7 @@ mod conditional_static_runtime;
 #[path = "tests/static_characteristics_runtime.rs"]
 mod static_characteristics_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/animation_layers_runtime.rs"]
 mod animation_layers_runtime;
 
