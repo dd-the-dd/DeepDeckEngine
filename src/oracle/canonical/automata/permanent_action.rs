@@ -17,12 +17,13 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
         TemporaryKeywordGrantObjectsNode::Targets(targets) => {
             PermanentOperandNode::Targets(targets)
         }
-        TemporaryKeywordGrantObjectsNode::ControlledSet(set) => {
-            PermanentOperandNode::Collection(ObjectQueryNode {
+        TemporaryKeywordGrantObjectsNode::ControlledSet(set) => PermanentOperandNode::Collection {
+            objects: ObjectQueryNode {
                 predicate: set.predicate,
                 controller: Some(set.controller),
-            })
-        }
+            },
+            exclude_source: false,
+        },
     };
     TemporaryKeywordGrantNode {
         objects,

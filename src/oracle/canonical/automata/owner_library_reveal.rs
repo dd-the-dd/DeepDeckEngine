@@ -53,6 +53,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
     match predicate {
         ObjectPredicate::ObjectKind(ObjectKind::Permanent) => true,
         ObjectPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell)
+        | ObjectPredicate::PermanentCard
         | ObjectPredicate::ChosenCreatureType => false,
         ObjectPredicate::Not(operand) => predicate_is_valid_permanent_target(operand),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
@@ -69,6 +70,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
+        | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::NumericComparison { .. } => true,
     }
 }

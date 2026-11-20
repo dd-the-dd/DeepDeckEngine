@@ -53,6 +53,8 @@ pub(in crate::oracle::canonical) fn object_predicate_uses_x(predicate: &ObjectPr
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
+        | ObjectPredicate::PermanentCard
+        | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ObjectKind(_) => false,
     }

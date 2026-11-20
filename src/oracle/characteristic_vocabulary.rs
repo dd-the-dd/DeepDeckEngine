@@ -110,6 +110,8 @@ pub(in crate::oracle) fn type_line_has_permanent_card_type(type_line: &str) -> b
 pub(in crate::oracle) enum CardSupertype {
     Basic,
     Legendary,
+    /// CR 205.4a: snow is a supertype with no intrinsic rules of its own.
+    Snow,
 }
 
 impl CardSupertype {
@@ -117,6 +119,7 @@ impl CardSupertype {
         match self {
             Self::Basic => "basic",
             Self::Legendary => "legendary",
+            Self::Snow => "snow",
         }
     }
 
@@ -124,6 +127,7 @@ impl CardSupertype {
         match self {
             Self::Basic => "Basic",
             Self::Legendary => "Legendary",
+            Self::Snow => "Snow",
         }
     }
 }
@@ -648,6 +652,7 @@ const CHARACTERISTIC_LEXEMES: &[CharacteristicLexeme] = &[
     CharacteristicLexeme::CardType(CardType::Sorcery),
     CharacteristicLexeme::Supertype(CardSupertype::Basic),
     CharacteristicLexeme::Supertype(CardSupertype::Legendary),
+    CharacteristicLexeme::Supertype(CardSupertype::Snow),
     CharacteristicLexeme::BasicLandSubtype(BasicLandSubtype::Plains),
     CharacteristicLexeme::BasicLandSubtype(BasicLandSubtype::Island),
     CharacteristicLexeme::BasicLandSubtype(BasicLandSubtype::Swamp),

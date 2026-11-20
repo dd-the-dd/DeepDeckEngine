@@ -1,3 +1,5 @@
+use crate::oracle::counter_name::CounterName;
+
 use super::{
     CardColor, CardSupertype, CharacteristicBatch, ColorQuantity, GrantedKeyword, ManaCostNode,
     NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectKind,
@@ -7,10 +9,12 @@ use super::{
 #[cfg(test)]
 use super::NumericAtom;
 
-/// A battlefield status adjective (`tapped`, `attacking`, `blocking`).
+/// A battlefield status adjective (`tapped`, `untapped`, `attacking`,
+/// `blocking`). `untapped` is the negation of the tapped status (CR 110.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ObjectStatus {
     Tapped,
+    Untapped,
     Attacking,
     Blocking,
 }
@@ -19,17 +23,20 @@ impl ObjectStatus {
     pub(in crate::oracle::canonical) fn from_adjective(raw: &str) -> Option<Self> {
         match raw.to_ascii_lowercase().as_str() {
             "tapped" => Some(Self::Tapped),
+            "untapped" => Some(Self::Untapped),
             "attacking" => Some(Self::Attacking),
             "blocking" => Some(Self::Blocking),
             _ => None,
         }
     }
 
-    pub(in crate::oracle::canonical) const fn ir_kind(self) -> &'static str {
+    /// The runtime status atom and whether this adjective negates it.
+    pub(in crate::oracle::canonical) const fn ir_atom(self) -> (&'static str, bool) {
         match self {
-            Self::Tapped => "isTapped",
-            Self::Attacking => "isAttacking",
-            Self::Blocking => "isBlocking",
+            Self::Tapped => ("isTapped", false),
+            Self::Untapped => ("isTapped", true),
+            Self::Attacking => ("isAttacking", false),
+            Self::Blocking => ("isBlocking", false),
         }
     }
 }
@@ -55,6 +62,12 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     HasKeyword(GrantedKeyword),
     ObjectKind(ObjectKind),
     Status(ObjectStatus),
+    /// `permanent card`: a card with a permanent card type (CR 110.4b). The
+    /// following `card` noun still supplies the object domain.
+    PermanentCard,
+    /// `with a [KIND] counter on it`: the object has at least one counter,
+    /// of the named kind when present (CR 122.1).
+    HasCounter(Option<CounterName>),
     /// Has the creature type chosen by an earlier `choose a creature type`
     /// instruction of the same effect program (CR 608.2d). The binding is
     /// symbolic; the program lowering proves its producer.
@@ -128,6 +141,8 @@ impl ObjectPredicate {
             | Self::HasKeyword(_)
             | Self::ObjectKind(_)
             | Self::Status(_)
+            | Self::PermanentCard
+            | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
@@ -157,7 +172,8 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
-            Self::Status(_) => domain == ObjectKind::Permanent,
+            Self::Status(_) | Self::HasCounter(_) => domain == ObjectKind::Permanent,
+            Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
                 !operands.is_empty()
@@ -203,6 +219,8 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::PermanentCard
+            | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => false,
         }
@@ -237,6 +255,8 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::PermanentCard
+            | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => false,
         }

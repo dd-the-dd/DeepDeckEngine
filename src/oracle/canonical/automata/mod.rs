@@ -994,6 +994,8 @@ pub(super) struct ObjectSetNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct DestroyPermanentCollectionEffectNode {
     pub objects: ObjectQueryNode,
+    /// `destroy all other ...`: the bound ability source is not destroyed.
+    pub exclude_source: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

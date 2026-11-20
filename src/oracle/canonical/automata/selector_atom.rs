@@ -1,8 +1,8 @@
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, CharacteristicLexeme, ObjectCharacteristic, lookup_basic_land_subtype,
-    lookup_card_color, lookup_card_type, lookup_color_quantity, lookup_creature_subtype_tokens,
-    lookup_noncreature_subtype_forms, lookup_object_characteristic, lookup_object_domain,
-    lookup_object_selector_lexeme, lookup_supertype,
+    lookup_card_category, lookup_card_color, lookup_card_type, lookup_color_quantity,
+    lookup_creature_subtype_tokens, lookup_noncreature_subtype_forms, lookup_object_characteristic,
+    lookup_object_domain, lookup_object_selector_lexeme, lookup_supertype,
 };
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -130,6 +130,15 @@ fn recognize_positive_atom(
     }
     if let Some(supertype) = lookup_supertype(first, AcceptedForms::SingularOnly) {
         return Some((ObjectPredicate::Supertype(supertype), 1));
+    }
+    // CR 110.4b: `permanent card` names a card with a permanent card type.
+    // The following card noun is read as the object domain by the parent.
+    if lookup_card_category(first, AcceptedForms::SingularOnly).is_some()
+        && second.is_some_and(|noun| {
+            noun.eq_ignore_ascii_case("card") || noun.eq_ignore_ascii_case("cards")
+        })
+    {
+        return Some((ObjectPredicate::PermanentCard, 1));
     }
     if let Some(domain) = lookup_object_domain(first, forms) {
         return Some((ObjectPredicate::ObjectKind(domain), 1));

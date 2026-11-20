@@ -95,6 +95,8 @@ fn predicate_is_permanent_card_type(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::Subtype(_)
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Status(_)
+        | SelectorPredicate::PermanentCard
+        | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::NumericComparison { .. } => true,
