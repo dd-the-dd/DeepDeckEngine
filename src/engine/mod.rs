@@ -3319,6 +3319,14 @@ fn keyword_kind_supported(value: &Value) -> bool {
         && integer_value(&value["count"]).is_some_and(|count| count > 0))
 }
 
+/// CR 702.16a: protection from qualities the engine evaluates by name.
+fn protection_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("protection")
+        && value["from"].as_array().is_some_and(|qualities| {
+            !qualities.is_empty() && qualities.iter().all(Value::is_string)
+        })
+}
+
 fn ward_ability_supported(value: &Value) -> bool {
     value_kind(value) == Some("ward") && cost_supported(&value["cost"])
 }
@@ -3906,6 +3914,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
         Some("keywordAbility") => {
             keyword_kind_supported(&rule["ability"])
                 || ward_ability_supported(&rule["ability"])
+                || protection_ability_supported(&rule["ability"])
                 || conditional_flash_ability_supported(&rule["ability"])
                 || cycling_ability_supported(&rule["ability"])
                 || kicker_ability_supported(&rule["ability"])
@@ -3966,10 +3975,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                     keyword_kind_supported(ability)
                         || ward_ability_supported(ability)
                         || matches!(value_kind(ability), Some("cascade"))
-                        || (value_kind(ability) == Some("protection")
-                            && ability["from"].as_array().is_some_and(|qualities| {
-                                !qualities.is_empty() && qualities.iter().all(Value::is_string)
-                            }))
+                        || protection_ability_supported(ability)
                         || (value_kind(ability) == Some("annihilator")
                             && integer_value(&ability["quantity"])
                                 .is_some_and(|quantity| quantity > 0))
@@ -5593,8 +5599,12 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             card_filter_supported(&modifier["where"])
                 && modifier["destination"].as_str() == Some("exile")
         }
-        Some("ignoreHexproof" | "suppressWard" | "preventDamage") => {
+        Some("ignoreHexproof" | "suppressWard") => {
             static_object_selector_supported(&modifier["objects"])
+        }
+        Some("preventDamage") => {
+            static_object_selector_supported(&modifier["objects"])
+                && modifier.get("combatOnly").is_none_or(Value::is_boolean)
         }
 
         Some("multiplyMill") => {
@@ -11949,10 +11959,22 @@ impl GameEngine {
     }
 
     fn static_modifier_applies_to(&self, expected_kind: &str, permanent: &CardInstance) -> bool {
+        self.static_modifier_applies_to_where(expected_kind, permanent, |_| true)
+    }
+
+    /// Like [`Self::static_modifier_applies_to`], restricted to modifiers whose
+    /// own scope (for example a combat-only prevention) admits the event.
+    fn static_modifier_applies_to_where(
+        &self,
+        expected_kind: &str,
+        permanent: &CardInstance,
+        admits: impl Fn(&Value) -> bool,
+    ) -> bool {
         self.battlefield_static_modifiers()
             .iter()
             .any(|(source, modifier)| {
                 value_kind(modifier) == Some(expected_kind)
+                    && admits(modifier)
                     && Self::static_selector_matches(source, &modifier["objects"], permanent)
                     && modifier.get("condition").is_none_or(|condition| {
                         self.condition_value_with_source(

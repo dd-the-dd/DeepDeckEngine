@@ -1,3 +1,4 @@
+mod ability_frame_claim;
 mod ability_loss_destroy;
 mod ability_signal;
 mod activated_top_card_delayed_draw;
@@ -125,6 +126,7 @@ mod spell_cast_trigger_program;
 mod spell_cost_increase;
 mod static_collection_keyword;
 mod static_continuous;
+mod static_damage_prevention;
 mod static_granted_activation;
 mod static_keyword_grant;
 mod static_source_combat_restriction;
@@ -143,6 +145,7 @@ mod zone_change;
 mod zone_change_search;
 mod zone_change_token;
 
+pub(super) use ability_frame_claim::*;
 pub(super) use ability_loss_destroy::*;
 pub(super) use ability_signal::*;
 pub(super) use activated_top_card_delayed_draw::*;
@@ -265,6 +268,7 @@ pub(super) use spell_cast_trigger_program::*;
 pub(super) use spell_cost_increase::*;
 pub(super) use static_collection_keyword::*;
 pub(super) use static_continuous::*;
+pub(super) use static_damage_prevention::*;
 pub(super) use static_granted_activation::*;
 pub(super) use static_keyword_grant::*;
 pub(super) use static_source_combat_restriction::*;

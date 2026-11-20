@@ -242,7 +242,9 @@ pub(in crate::oracle::canonical) fn recognize_source_combat_restriction(
     Ok(SourceCombatRestrictionNode { clauses, condition })
 }
 
-fn recognize_source_combat_clause(
+/// One combat clause of a static subject, shared by the source restriction
+/// frame and the static continuous frame (any subject).
+pub(in crate::oracle::canonical) fn recognize_source_combat_clause(
     cursor: &mut OracleTokenCursor<'_>,
     committed: &mut bool,
     clauses: &mut Vec<SourceCombatClause>,
