@@ -14,6 +14,7 @@ mod landwalk_runtime;
 #[path = "tests/league_regression_runtime.rs"]
 mod league_regression_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/control_copy_players_runtime.rs"]
 mod control_copy_players_runtime;
 
