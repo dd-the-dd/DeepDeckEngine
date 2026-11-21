@@ -201,6 +201,24 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
     name_failure: Option<&NameResolutionFailure>,
     source_antecedent: Option<super::PermanentEffectReference>,
 ) -> MachineResult<LocalEffectNode> {
+    recognize_damage_effect_with_agreement(
+        cursor,
+        name_links,
+        name_failure,
+        source_antecedent,
+        super::SubjectVerbAgreement::Finite,
+    )
+}
+
+/// The same damage frame; the subject's frame chooses `deals` or, after a
+/// causative `have`, the bare `deal` (`have it deal 4 damage to any target`).
+pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    source_antecedent: Option<super::PermanentEffectReference>,
+    agreement: super::SubjectVerbAgreement,
+) -> MachineResult<LocalEffectNode> {
     cursor.enter("effect.damage.source");
     let source = recognize_source_reference_with_typed_antecedent(
         cursor,
@@ -208,23 +226,27 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
         name_failure,
         source_antecedent,
     )?;
-    recognize_damage_predicate(
+    recognize_damage_frame(
         cursor,
         super::PermanentOperandNode::Reference(source),
         DamageSourceAntecedent::Reference(source),
+        DamageState::Action,
+        agreement,
     )
     .map(LocalEffectNode::DealDamage)
 }
 
 /// `deals AMOUNT damage to RECIPIENTS` after an already recognized source.
-/// The subject reader (ability source or permanent subject) owns the source;
-/// this frame owns the amount, the resource and the recipient queries.
+/// The subject reader (ability source or permanent subject) owns the source
+/// and the verb agreement; this frame owns the amount, the resource and the
+/// recipient queries.
 pub(in crate::oracle::canonical) fn recognize_damage_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
+    agreement: super::SubjectVerbAgreement,
 ) -> MachineResult<DamageEffectNode> {
-    recognize_damage_frame(cursor, source, antecedent, DamageState::Action)
+    recognize_damage_frame(cursor, source, antecedent, DamageState::Action, agreement)
 }
 
 /// `... and AMOUNT damage to RECIPIENT`: a gapped damage predicate whose
@@ -247,7 +269,13 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
             }),
         "an amount followed by `damage`",
     )?;
-    recognize_damage_frame(cursor, source, antecedent, DamageState::Amount)
+    recognize_damage_frame(
+        cursor,
+        source,
+        antecedent,
+        DamageState::Amount,
+        super::SubjectVerbAgreement::Finite,
+    )
 }
 
 fn recognize_damage_frame(
@@ -255,6 +283,7 @@ fn recognize_damage_frame(
     source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
     initial: DamageState,
+    agreement: super::SubjectVerbAgreement,
 ) -> MachineResult<DamageEffectNode> {
     let mut state = initial;
     let mut memory = DamageMemory::default();
@@ -262,7 +291,10 @@ fn recognize_damage_frame(
         state = match state {
             DamageState::Action => {
                 cursor.enter("effect.damage.action");
-                cursor.consume("deals")?;
+                cursor.consume(match agreement {
+                    super::SubjectVerbAgreement::Finite => "deals",
+                    super::SubjectVerbAgreement::BareInfinitive => "deal",
+                })?;
                 DamageState::Amount
             }
             DamageState::Amount => {

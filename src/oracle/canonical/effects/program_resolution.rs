@@ -114,10 +114,13 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             }
             SingularPlayerAction::Life(life) => independent_number(&life.amount),
             // Choice-bearing player actions keep the native lowering boundary.
+            // A revealed hand and a referenced discard bind card collections.
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate => false,
+            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),
         LocalEffectNode::GainLife(node) => {
@@ -143,6 +146,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             // A permission window is lowered by the native collection lowerer.
             CardActionNode::Permit(_)
             | CardActionNode::RevealUntil { .. }
+            | CardActionNode::Choose(_)
             | CardActionNode::Shuffle { .. } => false,
             CardActionNode::Move { cards, destination } => {
                 simple_operand(cards)
@@ -263,7 +267,9 @@ impl CollectionScope {
             CardCollectionReferenceNode::Selected => self
                 .singular
                 .ok_or_else(|| error(STATE, "a singular card antecedent in the current scope")),
-            CardCollectionReferenceNode::Remainder | CardCollectionReferenceNode::Other => {
+            CardCollectionReferenceNode::Remainder
+            | CardCollectionReferenceNode::Other
+            | CardCollectionReferenceNode::Zone => {
                 unreachable!("structurally outside the checked scope slice")
             }
         }
@@ -371,6 +377,7 @@ fn resolve_sequence(
                 CardActionNode::Move { cards, .. } => collections.operand(cards)?,
                 CardActionNode::Permit(_)
                 | CardActionNode::RevealUntil { .. }
+                | CardActionNode::Choose(_)
                 | CardActionNode::Shuffle { .. } => {
                     unreachable!("a permission window is outside the checked scope slice")
                 }

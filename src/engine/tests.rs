@@ -33115,6 +33115,10 @@ mod quantity_result_reuse_runtime;
 #[path = "tests/player_action_sacrifice_runtime.rs"]
 mod player_action_sacrifice_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/subject_verb_actions_runtime.rs"]
+mod subject_verb_actions_runtime;
+
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
