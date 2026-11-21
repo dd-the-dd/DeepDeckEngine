@@ -929,6 +929,19 @@ fn parse_existing_native_rule(
         };
     }
 
+    if claims_parameterized_keyword_family(input) {
+        return match parse_parameterized_keyword(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_promoted_flashback_family(input) {
         return match parse_promoted_flashback(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

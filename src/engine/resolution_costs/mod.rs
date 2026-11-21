@@ -124,6 +124,12 @@ pub(super) enum ResolutionManaCost {
         requirement: ManaRequirement,
     },
     Generic(Value),
+    /// A fixed whole-mana cost paid `times` times, evaluated at resolution.
+    Repeated {
+        label: String,
+        requirement: ManaRequirement,
+        times: Value,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,17 +200,31 @@ impl CostProgram {
         }
         let fixed = cost.get("manaCost").filter(|value| !value.is_null());
         let dynamic = cost.get("genericAmount").filter(|value| !value.is_null());
+        let times = cost.get("times").filter(|value| !value.is_null());
         match (fixed, dynamic) {
             (Some(Value::String(value)), None) => {
                 let requirement = parse_fixed_mana_requirement_checked(value).ok_or_else(|| {
                     EngineError::new("unsupported fixed resolution mana cost: bounded whole-mana symbols required")
                 })?;
-                Ok(Self::Mana(ResolutionManaCost::Fixed {
-                    label: value.clone(),
-                    requirement,
-                }))
+                match times {
+                    None => Ok(Self::Mana(ResolutionManaCost::Fixed {
+                        label: value.clone(),
+                        requirement,
+                    })),
+                    // The fixed cost paid once per counted object (CR 702.24a).
+                    Some(times) if numeric_expression_supported(times) => {
+                        Ok(Self::Mana(ResolutionManaCost::Repeated {
+                            label: value.clone(),
+                            requirement,
+                            times: times.clone(),
+                        }))
+                    }
+                    Some(_) => Err(EngineError::new(
+                        "invalid resolution mana cost: unsupported repetition count",
+                    )),
+                }
             }
-            (None, Some(amount)) if numeric_expression_supported(amount) => {
+            (None, Some(amount)) if times.is_none() && numeric_expression_supported(amount) => {
                 Ok(Self::Mana(ResolutionManaCost::Generic(amount.clone())))
             }
             _ => Err(EngineError::new(
