@@ -582,6 +582,10 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// damage), so `that player` without a local antecedent denotes it.
     /// Set only by the trigger parent from its typed event.
     pub event_player: bool,
+    /// Index of the action being read in the enclosing sequence, set only by
+    /// the sequence machine. A subject target binds `its` to this action;
+    /// other parents leave it unset and that binding fails explicitly.
+    pub current_effect_index: Option<usize>,
 }
 
 /// Only a parent whose actions are lowered by the shared sequence lowering,
@@ -1227,14 +1231,47 @@ pub(super) enum DamageRecipientNode {
     Targets(TargetListNode),
     Player(LocalPlayerReference),
     PlayerSet(PlayerSetReferenceNode),
-    EachPermanent(SelectorPredicate),
+    EachPermanent(DamageCollectionNode),
+    /// `to each creature and each player`: every group receives the same
+    /// amount from the same source (CR 120.2). Members are never nested.
+    All(Vec<DamageRecipientNode>),
 }
 
+/// `each [other] OBJECTS [CONTROLLER]`: the shared object query of a damage
+/// recipient collection, with the optional source exclusion of `other`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct DamageCollectionNode {
+    pub objects: ObjectQueryNode,
+    pub exclude_source: bool,
+}
+
+/// One damage frame: a source object, a shared numeric amount, and a
+/// recipient query. The source is the ability source (`Reference`) or an
+/// object subject such as a target or a bound referent (CR 120.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct DamageEffectNode {
-    pub source: LocalObjectReference,
+    pub source: PermanentOperandNode,
     pub amount: NumericExpression,
     pub recipient: DamageRecipientNode,
+}
+
+impl DamageEffectNode {
+    /// The fixed ability-source reference, when the source is not an object
+    /// subject that requires a declaration or a lexical binding.
+    pub(in crate::oracle::canonical) fn fixed_source(&self) -> Option<LocalObjectReference> {
+        match self.source {
+            PermanentOperandNode::Reference(reference) => Some(reference),
+            _ => None,
+        }
+    }
+}
+
+/// `A fights B` (CR 701.14): each permanent deals damage equal to its power
+/// to the other. Both operands use the shared permanent operand grammar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct FightEffectNode {
+    pub first: PermanentOperandNode,
+    pub second: PermanentOperandNode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1672,6 +1709,7 @@ pub(super) enum LocalEffectNode {
     TemporaryKeywordGrant(TemporaryKeywordGrantNode<PermanentOperandNode>),
     AddMana(AddManaEffectNode),
     DealDamage(DamageEffectNode),
+    Fight(FightEffectNode),
     DrawCards(DrawCardsEffectNode),
     PlayerAction(PlayerActionNode),
     DiscardCards(PlayerDiscardEffectNode),

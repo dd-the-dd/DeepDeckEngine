@@ -362,7 +362,18 @@ fn starts_target_slot(cursor: &OracleTokenCursor<'_>) -> bool {
             || raw.eq_ignore_ascii_case("any")
             || raw.eq_ignore_ascii_case("a")
             || raw.eq_ignore_ascii_case("an")
-            || is_literal_quantity(cursor)
+            || (is_literal_quantity(cursor) && quantified_target_head_follows(cursor))
+    })
+}
+
+/// A cardinal continues a target list only as a target quantifier (`two
+/// target ...`, `one or two target ...`), never as the amount of a gapped
+/// verb phrase (`and 1 damage to you`).
+fn quantified_target_head_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek_ahead(1).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("target")
+            || raw.eq_ignore_ascii_case("other")
+            || raw.eq_ignore_ascii_case("or")
     })
 }
 

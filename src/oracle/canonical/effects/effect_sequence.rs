@@ -208,7 +208,22 @@ fn lower_local_effect_sequence_with_collections(
                 })
                 .collect::<Vec<_>>(),
             LocalEffectNode::DealDamage(damage) => {
-                default_damage_target_id(damage).into_iter().collect()
+                let mut ids = operand_target_base_ids(&damage.source);
+                ids.extend(match damage.fixed_source() {
+                    Some(_) => default_damage_target_id(damage),
+                    None => match &damage.recipient {
+                        DamageRecipientNode::Targets(targets) => {
+                            Some(lower_single_target(targets).0)
+                        }
+                        _ => None,
+                    },
+                });
+                ids
+            }
+            LocalEffectNode::Fight(fight) => {
+                let mut ids = operand_target_base_ids(&fight.first);
+                ids.extend(operand_target_base_ids(&fight.second));
+                ids
             }
             LocalEffectNode::PreventDamage(prevent) => [&prevent.recipient, &prevent.source]
                 .into_iter()
@@ -1097,6 +1112,128 @@ fn lower_local_effect_sequence_with_collections(
                     lower_bound_permanent_reference(cursor, untap.permanent, &target_bindings)?;
                 effects.push(json!({"kind":"untapPermanent", "permanent":reference}));
             }
+            LocalEffectNode::DealDamage(damage) if damage.fixed_source().is_none() => {
+                // An object subject deals the damage (CR 120.1): its slots are
+                // declared first, then the recipient's, in written order.
+                cursor.enter("lower.damage.object-source");
+                let sources = lower_ordinary_permanent_subject(
+                    cursor,
+                    &damage.source,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [source] = sources.as_slice() else {
+                    return Err(EffectSequenceLoweringFailure::FailedSupport(
+                        cursor.fail("exactly one object dealing the damage"),
+                    ));
+                };
+                cursor.require(
+                    source["kind"].as_str() == Some("chosenTarget"),
+                    "a damage source declared as a target or bound to a declared target",
+                )?;
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &damage.amount,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let recipients = match &damage.recipient {
+                    DamageRecipientNode::Targets(targets) => {
+                        cursor.enter("lower.damage.object-source.recipient");
+                        let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
+                        let ordinal = used_target_base_ids
+                            .iter()
+                            .filter(|candidate| **candidate == base_id)
+                            .count();
+                        let target_count = permanent_target_base_ids
+                            .iter()
+                            .filter(|candidate| **candidate == base_id)
+                            .count();
+                        let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
+                        used_target_base_ids.push(base_id);
+                        decisions.push(target_decision(&target_id, candidates, minimum, maximum));
+                        vec![chosen_target(&target_id)]
+                    }
+                    DamageRecipientNode::All(groups) => groups
+                        .iter()
+                        .map(|group| lower_fixed_damage_recipient(group, context))
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(error.expectation()),
+                            )
+                        })?,
+                    group => {
+                        vec![
+                            lower_fixed_damage_recipient(group, context).map_err(|error| {
+                                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                    cursor.fail(error.expectation()),
+                                )
+                            })?,
+                        ]
+                    }
+                };
+                for mut recipient in recipients {
+                    // `each other creature`: `other` is relative to the object
+                    // dealing the damage, never to the resolving spell.
+                    if recipient["excludeSource"] == json!(true) {
+                        recipient
+                            .as_object_mut()
+                            .expect("a collection recipient is an object")
+                            .remove("excludeSource");
+                        recipient["exclude"] = json!({"kind":"chosenTargets","id":source["id"]});
+                    }
+                    effects.push(json!({
+                        "kind": "dealDamage",
+                        "source": source.clone(),
+                        "amount": amount.clone(),
+                        "recipient": recipient,
+                    }));
+                }
+            }
+            LocalEffectNode::Fight(fight) => {
+                // CR 701.14a: each fighter deals damage equal to its power to
+                // the other. The second fighter's slots never become anaphors.
+                cursor.enter("lower.fight.first");
+                let first = lower_ordinary_permanent_subject(
+                    cursor,
+                    &fight.first,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let bound = target_bindings.len();
+                cursor.enter("lower.fight.second");
+                let second = lower_ordinary_permanent_subject(
+                    cursor,
+                    &fight.second,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                target_bindings.truncate(bound);
+                let ([first], [second]) = (first.as_slice(), second.as_slice()) else {
+                    return Err(EffectSequenceLoweringFailure::FailedSupport(
+                        cursor.fail("exactly one permanent on each side of a fight"),
+                    ));
+                };
+                effects.push(json!({
+                    "kind": "fightPermanents",
+                    "first": first,
+                    "second": second,
+                }));
+            }
             LocalEffectNode::DealDamage(damage)
                 if matches!(&damage.recipient, DamageRecipientNode::Targets(_)) =>
             {
@@ -1883,6 +2020,30 @@ mod where_x_tests;
 #[path = "unless_frame_tests.rs"]
 mod unless_frame_tests;
 
+fn operand_target_base_ids(operand: &PermanentOperandNode) -> Vec<&'static str> {
+    match operand {
+        PermanentOperandNode::Targets(targets) => targets
+            .slots
+            .iter()
+            .filter_map(|slot| lower_target_selector_candidates(&slot.selector).map(|(id, _)| id))
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn lower_fixed_damage_recipient(
+    recipient: &DamageRecipientNode,
+    context: EffectSequenceLoweringContext,
+) -> Result<Value, TargetlessLoweringError> {
+    let declarations = match context {
+        EffectSequenceLoweringContext::NoExternalX => TargetlessDeclarationSupport::None,
+        EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+            TargetlessDeclarationSupport::XValue
+        }
+    };
+    lower_targetless_damage_recipient(recipient, declarations)
+}
+
 /// Build numeric context from the very slot that produced the parent's ID.
 /// No selector is reconstructed from text, and absent/plural bindings stay
 /// rejected instead of borrowing another action's most recent target.
@@ -1905,6 +2066,10 @@ fn sequence_numeric_target_slots(
                     false,
                 ),
                 LocalEffectNode::ZoneChange(effect) => (&effect.target, true),
+                LocalEffectNode::DealDamage(DamageEffectNode {
+                    source: PermanentOperandNode::Targets(targets),
+                    ..
+                }) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;
