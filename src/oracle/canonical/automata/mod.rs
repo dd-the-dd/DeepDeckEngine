@@ -1106,6 +1106,12 @@ pub(super) struct DestroyPermanentCollectionEffectNode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum GrantedKeyword {
+    /// Restriction and requirement markers of the shared combat clause
+    /// (CR 508.1c-d, 509.1b-c). They are never read from a keyword list.
+    AttackEachCombatIfAble,
+    BlockEachCombatIfAble,
+    MaxOneBlocker,
+    MustBeBlockedIfAble,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1161,6 +1167,10 @@ pub(super) enum GrantedKeyword {
 impl GrantedKeyword {
     pub(super) fn canonical_name(self) -> &'static str {
         match self {
+            Self::AttackEachCombatIfAble => "attackEachCombatIfAble",
+            Self::BlockEachCombatIfAble => "blockEachCombatIfAble",
+            Self::MaxOneBlocker => "maxOneBlocker",
+            Self::MustBeBlockedIfAble => "mustBeBlockedIfAble",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",

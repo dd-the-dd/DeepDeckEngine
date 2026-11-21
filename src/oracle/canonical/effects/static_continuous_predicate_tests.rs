@@ -189,12 +189,6 @@ fn static_predicate_near_misses_fail_inside_the_frame() {
             "Enchanted creature enters tapped.",
             "static.continuous.entry-modification",
         ),
-        // The engine evaluates an attack requirement only on the source.
-        (
-            "Enchantment",
-            "Each creature you control attacks each combat if able.",
-            "static.combat-restriction.requirement",
-        ),
     ];
     for (type_line, text, state) in cases {
         let actual = single_rule("Generic Static", type_line, text).expect_err(text);

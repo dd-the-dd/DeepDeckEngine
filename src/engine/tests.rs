@@ -33115,6 +33115,9 @@ mod player_action_sacrifice_runtime;
 
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/combat_restriction_family_runtime.rs"]
+mod combat_restriction_family_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]
 mod damage_prevention_runtime;
 #[path = "tests/equal_amount_reflexive_runtime.rs"]
