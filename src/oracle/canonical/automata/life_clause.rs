@@ -41,7 +41,7 @@ pub(in crate::oracle::canonical) struct LifeActionNode {
 fn life_action(clause_action: ClauseAction) -> Option<(TargetPlayerLifeAction, ClauseAmount)> {
     match clause_action {
         ClauseAction::LifeTotalChange { direction, amount } => Some((direction, amount)),
-        ClauseAction::DealDamage(_) => None,
+        ClauseAction::DealDamage(_) | ClauseAction::Operand(_) => None,
     }
 }
 

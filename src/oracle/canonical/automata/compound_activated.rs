@@ -30,6 +30,38 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     RemoveSourceCounters(SourceCounterRemovalCostNode),
     RemoveControlledCounters(ControlledCounterRemovalCostNode),
     ExileCards(ChosenExileCostNode),
+    /// `return this PERMANENT to its owner's hand`.
+    ReturnSelf,
+    /// `return N PERMANENTS you control to their owner's hand`.
+    ReturnObjects(ChosenReturnCostNode),
+    /// `put N KIND counters on this PERMANENT`.
+    PutSourceCounters(SourceCounterPlacementCostNode),
+    /// `put N KIND counters on a PERMANENT you control`.
+    PutChosenCounters(ChosenCounterPlacementCostNode),
+}
+
+/// Permanents the payer controls returned to hand while paying.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ChosenReturnCostNode {
+    pub count: i64,
+    pub object: ObjectQueryNode,
+    pub exclude_source: bool,
+    pub cost_index: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SourceCounterPlacementCostNode {
+    pub counter: CounterName,
+    pub count: i64,
+}
+
+/// Counters put on one permanent the payer controls, chosen while paying.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ChosenCounterPlacementCostNode {
+    pub counter: CounterName,
+    pub count: i64,
+    pub object: ObjectQueryNode,
+    pub cost_index: usize,
 }
 
 /// Counters removed from the ability's source (on the battlefield). An
@@ -128,6 +160,8 @@ impl ActivationCostSequenceNode {
                 },
                 LocalActivationCostNode::TapSelf(_)
                 | LocalActivationCostNode::SacrificeSelf(_)
+                | LocalActivationCostNode::ReturnSelf
+                | LocalActivationCostNode::PutSourceCounters(_)
                 | LocalActivationCostNode::RemoveSourceCounters(_)
                 | LocalActivationCostNode::RemoveControlledCounters(
                     ControlledCounterRemovalCostNode {
@@ -140,6 +174,8 @@ impl ActivationCostSequenceNode {
                 | LocalActivationCostNode::DiscardCard(_)
                 | LocalActivationCostNode::TapObjects(_)
                 | LocalActivationCostNode::SacrificeObject(_)
+                | LocalActivationCostNode::ReturnObjects(_)
+                | LocalActivationCostNode::PutChosenCounters(_)
                 | LocalActivationCostNode::RemoveControlledCounters(_)
                 | LocalActivationCostNode::ExileCards(_) => {}
             }
@@ -381,6 +417,75 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             cursor.enter("activation.blight");
             Err(cursor.fail(
                 "an activation cost the engine can pay (blight has no activation cost schema)",
+            ))
+        }
+        PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(noun)) => {
+            cursor.enter("activation.return-self.source-type");
+            cursor.require(
+                matches!(
+                    noun,
+                    PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token
+                ),
+                "a permanent type or `token` after `return this`",
+            )?;
+            Ok(LocalActivationCostNode::ReturnSelf)
+        }
+        PaymentActionNode::ReturnToHand(PaymentObjectsNode::Chosen(chosen)) => {
+            let PaymentObjectFilter::Permanents(object) = chosen.filter else {
+                return Err(cursor.fail("a permanent operand"));
+            };
+            cursor.enter("activation.return-objects.numeric-context");
+            cursor.require(
+                !object_predicate_uses_x(&object.predicate),
+                "no {X} in the returned-permanent predicate",
+            )?;
+            Ok(LocalActivationCostNode::ReturnObjects(
+                ChosenReturnCostNode {
+                    count: chosen.count,
+                    object,
+                    exclude_source: chosen.exclude_source,
+                    cost_index,
+                },
+            ))
+        }
+        PaymentActionNode::PutCounters(placement) => match placement.holder {
+            CounterHolderNode::Source(
+                PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token,
+            ) => Ok(LocalActivationCostNode::PutSourceCounters(
+                SourceCounterPlacementCostNode {
+                    counter: placement.counter,
+                    count: placement.count,
+                },
+            )),
+            CounterHolderNode::One(object) => {
+                cursor.enter("activation.put-counters.numeric-context");
+                cursor.require(
+                    !object_predicate_uses_x(&object.predicate),
+                    "no {X} in the counter-holder predicate",
+                )?;
+                Ok(LocalActivationCostNode::PutChosenCounters(
+                    ChosenCounterPlacementCostNode {
+                        counter: placement.counter,
+                        count: placement.count,
+                        object,
+                        cost_index,
+                    },
+                ))
+            }
+            CounterHolderNode::Source(_) | CounterHolderNode::Among(_) => {
+                cursor.enter("activation.put-counters.holder");
+                Err(cursor.fail("the source permanent or one permanent you control"))
+            }
+        },
+        // The engine has no activation-cost program for these actions; the
+        // cost fails here, explicitly, instead of being approximated.
+        PaymentActionNode::Untap(_)
+        | PaymentActionNode::Reveal { .. }
+        | PaymentActionNode::Mill { .. }
+        | PaymentActionNode::Exert(_) => {
+            cursor.enter("activation.unsupported-action");
+            Err(cursor.fail(
+                "an activation cost the engine can pay (untap, reveal, mill and exert have no activation cost schema)",
             ))
         }
     }

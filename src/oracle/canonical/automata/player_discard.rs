@@ -3,7 +3,7 @@ use super::super::super::{NumericExpression, recognize_numeric_expression};
 use super::counted_card::recognize_card_count_noun;
 use super::player_subject::{PlayerBinding, PlayerEffectSubject, recognize_player_effect_subject};
 use super::selection_method::{CollectionSelectionMethod, recognize_postfix_selection_method};
-use super::{DiscardVerbForm, recognize_discard_action};
+use super::{ActingSubject, recognize_discard_action};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PlayerDiscardEffectNode {
@@ -23,8 +23,8 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_effect(
     let player =
         recognize_player_effect_subject(cursor, declared_target_binding, antecedent, false)?;
     let form = match player {
-        PlayerEffectSubject::Controller => DiscardVerbForm::Imperative,
-        _ => DiscardVerbForm::ThirdPersonSingular,
+        PlayerEffectSubject::Controller => ActingSubject::CONTROLLER,
+        _ => ActingSubject::THIRD_SINGULAR,
     };
     recognize_player_discard_action_fragment(cursor, player, form)
 }
@@ -32,7 +32,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_effect(
 pub(in crate::oracle::canonical::automata) fn recognize_player_discard_action_fragment(
     cursor: &mut OracleTokenCursor<'_>,
     player: PlayerEffectSubject,
-    form: DiscardVerbForm,
+    form: ActingSubject,
 ) -> MachineResult<PlayerDiscardEffectNode> {
     cursor.enter("effect.player-discard.action");
     let action = recognize_discard_action(cursor, form, |cursor| {

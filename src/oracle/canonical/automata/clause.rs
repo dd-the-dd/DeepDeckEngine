@@ -127,6 +127,10 @@ pub(in crate::oracle::canonical) enum ClauseArguments<'a> {
     /// A declared frame with no interpretation yet: claiming it fails
     /// explicitly instead of being taken for another frame.
     Unread(ArgumentFrame),
+    /// The parent reads the frame's operand with its own role child (a cost,
+    /// an event object, an effect operand): the clause owns the subject, the
+    /// lemma, its form and the frame choice, and stops after the verb.
+    Operand(ArgumentFrame),
 }
 
 impl ClauseArguments<'_> {
@@ -134,7 +138,7 @@ impl ClauseArguments<'_> {
         match self {
             Self::Life(_) => ArgumentFrame::LifeTotalChange,
             Self::Damage(_) => ArgumentFrame::DamageDealt,
-            Self::Unread(frame) => *frame,
+            Self::Unread(frame) | Self::Operand(frame) => *frame,
         }
     }
 }
@@ -199,6 +203,8 @@ pub(in crate::oracle::canonical) enum ClauseAction {
     },
     /// CR 120.1: an object deals damage; the arguments follow the policy.
     DealDamage(DamageClauseArguments),
+    /// The verb of the lemma in this frame; the parent reads the operand.
+    Operand(ArgumentFrame),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -428,7 +434,30 @@ fn arguments_claim(cursor: &OracleTokenCursor<'_>, arguments: ClauseArguments<'_
                 .filter_map(|offset| cursor.peek_ahead(offset))
                 .any(|raw| raw.eq_ignore_ascii_case(noun))
         }),
+        ClauseArguments::Operand(frame) => operand_frame_claims(cursor, frame),
     }
+}
+
+/// A counter frame claims when its counter noun precedes its relation word
+/// (`on` / `from`) in the same clause; other operand frames are the lemma's
+/// only reading in an operand position and claim on the verb.
+fn operand_frame_claims(cursor: &OracleTokenCursor<'_>, frame: ArgumentFrame) -> bool {
+    let relation = match frame {
+        ArgumentFrame::CountersOn => "on",
+        ArgumentFrame::CountersFrom => "from",
+        _ => return true,
+    };
+    let mut counter_seen = false;
+    for raw in (0..).map_while(|offset| cursor.peek_ahead(offset)) {
+        if matches!(raw, "." | "," | ";" | ":") {
+            return false;
+        }
+        if raw.eq_ignore_ascii_case(relation) {
+            return counter_seen;
+        }
+        counter_seen |= raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters");
+    }
+    false
 }
 
 fn life_frame_claims(cursor: &OracleTokenCursor<'_>, amount: ClauseAmountPolicy) -> bool {
@@ -613,7 +642,7 @@ pub(in crate::oracle::canonical) fn recognize_clause(
     };
     cursor.rollback(verb_position);
     if !forms.contains(&expected) {
-        return ClauseRecognition::Failed(cursor.fail(agreement_expectation(entry, expected)));
+        return ClauseRecognition::Failed(cursor.fail(&agreement_expectation(entry, expected)));
     }
     match read_predicate(cursor, entry, chosen, frame.tense) {
         Ok(action) => ClauseRecognition::Recognized(Clause {
@@ -628,23 +657,44 @@ pub(in crate::oracle::canonical) fn recognize_clause(
     }
 }
 
-fn agreement_expectation(entry: &VerbEntry, expected: VerbForm) -> &'static str {
-    match (entry.lemma, expected) {
-        (VerbLemma::Gain, VerbForm::Base) => "`gain`, the verb form its subject requires",
-        (VerbLemma::Gain, VerbForm::ThirdPersonSingular) => {
-            "`gains`, the verb form its subject requires"
+fn agreement_expectation(entry: &VerbEntry, expected: VerbForm) -> String {
+    format!(
+        "`{}`, the verb form its {} requires",
+        entry.surface(expected),
+        match expected {
+            VerbForm::Base | VerbForm::ThirdPersonSingular => "subject",
+            VerbForm::Past => "tense",
+            VerbForm::PastParticiple | VerbForm::PresentParticiple => "voice or aspect",
         }
-        (VerbLemma::Gain, _) => "`gained`, the verb form its tense requires",
-        (VerbLemma::Lose, VerbForm::Base) => "`lose`, the verb form its subject requires",
-        (VerbLemma::Lose, VerbForm::ThirdPersonSingular) => {
-            "`loses`, the verb form its subject requires"
-        }
-        (VerbLemma::Lose, _) => "`lost`, the verb form its tense requires",
-        (VerbLemma::Deal, VerbForm::Base) => "`deal`, the verb form its subject requires",
-        (VerbLemma::Deal, VerbForm::ThirdPersonSingular) => {
-            "`deals`, the verb form its subject requires"
-        }
-        (VerbLemma::Deal, _) => "`dealt`, the verb form its voice requires",
+    )
+}
+
+/// The verb of an operand frame after a subject the parent read: the lemma,
+/// in the subject's agreement, and the frame the tokens select. `Ok(None)`
+/// makes no claim; the cursor is left after the verb for the operand child.
+pub(in crate::oracle::canonical) fn recognize_operand_verb(
+    cursor: &mut OracleTokenCursor<'_>,
+    agreement: VerbAgreement,
+    lemmas: &'static [VerbLemma],
+    frames: &[ArgumentFrame],
+) -> MachineResult<Option<(VerbLemma, ArgumentFrame)>> {
+    let frame = ClauseFrame {
+        subject: ClauseSubjectPolicy::Supplied(agreement),
+        modality: ClauseModality::Indicative,
+        tense: ClauseTense::Present,
+        voice: Voice::Active,
+        arguments: frames
+            .iter()
+            .map(|frame| ClauseArguments::Operand(*frame))
+            .collect(),
+        lemmas,
+    };
+    let Some(clause) = recognize_clause(cursor, &frame).into_result()? else {
+        return Ok(None);
+    };
+    match clause.action {
+        ClauseAction::Operand(frame) => Ok(Some((clause.lemma, frame))),
+        _ => Err(cursor.fail("an operand frame")),
     }
 }
 
@@ -675,7 +725,7 @@ fn read_predicate(
             direction: match entry.lemma {
                 VerbLemma::Gain => TargetPlayerLifeAction::Gain,
                 VerbLemma::Lose => TargetPlayerLifeAction::Lose,
-                VerbLemma::Deal => return Err(cursor.fail("a life-total lemma")),
+                _ => return Err(cursor.fail("a life-total lemma")),
             },
             amount: read_life_amount(cursor, amount)?,
         },
@@ -686,6 +736,7 @@ fn read_predicate(
             cursor.enter("clause.arguments.unread");
             return Err(cursor.fail("an argument frame this parent interprets"));
         }
+        ClauseArguments::Operand(frame) => ClauseAction::Operand(frame),
     };
     if tense == ClauseTense::PastThisTurn {
         cursor.enter("clause.time-frame");

@@ -151,3 +151,27 @@ thème.
 - Suite (moteur) : les sélecteurs de source `objects` (remplacement, sorts
   admis) et `permanents` (observation de déclencheur, champ de bataille) ont
   une sémantique différente ; les unifier changerait le JSON émis.
+
+## Phase 3 réalisée : propagation des rôles (coût, événements)
+
+- Lexique : `sacrifice`, `discard`, `tap`, `untap`, `exile`, `return`, `put`,
+  `reveal`, `mill`, `exert`, `remove`, `pay`, `blight`, `create`, `cycle`, avec
+  leurs cadres (`ObjectSelection`, `ObjectToZone`, `CountersOn`,
+  `CountersFrom`, `CardCount`, `ResourcePayment`, `KeywordAmount`,
+  `TokenCreation`). `ActingSubject` (accord + chooser tiers) remplace
+  `DiscardVerbForm` ; `ImperativeActionVerb`, `PayLifeVerbForm`, la liste
+  `PAYMENT_VERBS` et la conjugaison `{verb}s` sont supprimés.
+- `ClauseArguments::Operand(frame)` / `recognize_operand_verb` : la
+  proposition lit sujet, lemme, forme et cadre ; le parent lit l'opérande avec
+  son enfant de rôle.
+- Le cadre de coût est client de la proposition : tout lemme du lexique dont
+  un cadre est lisible comme coût y est disponible. Abaissement d'activation
+  branché sur les primitives moteur existantes (`returnPermanentToOwnersHand`
+  choisi ou source, `putCountersOnSource`, `putCounters` choisi) ; `untap`,
+  `reveal`, `mill`, `exert` échouent explicitement (pas de schéma de coût).
+- Événements : `sacrifice_event`, `actor_object_event` et les verbes d'objet
+  de `player_event` lisent le lemme par la proposition.
+- Reste : le cadre de permission (`you may VERB … rather than pay`, `exert …
+  as it attacks`, `reveal … from your opening hand`) dépend de mécaniques
+  moteur absentes ; les lecteurs d'effet de ces lemmes gardent leurs tests de
+  mots ; `remove` comme effet n'a pas de primitive moteur.

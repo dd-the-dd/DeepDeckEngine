@@ -1,6 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::player_subject::recognize_player_effect_subject;
-use super::source_sacrifice::atomic_action::{DiscardVerbForm, recognize_discard_action};
+use super::source_sacrifice::atomic_action::{ActingSubject, recognize_discard_action};
 pub(in crate::oracle::canonical) use super::source_sacrifice::atomic_action::{
     player_discard::PlayerDiscardEffectNode,
     player_subject::{PlayerBinding, PlayerEffectSubject},
@@ -411,7 +411,7 @@ fn recognize_discard_chosen_card(
             }
             DiscardChosenCardState::Action => {
                 cursor.enter("hand-disruption.discard.action");
-                recognize_discard_action(cursor, DiscardVerbForm::ThirdPersonSingular, |cursor| {
+                recognize_discard_action(cursor, ActingSubject::THIRD_SINGULAR, |cursor| {
                     cursor.enter("hand-disruption.discard.card-reference");
                     let reference = cursor.consume_type("referenceWord")?;
                     cursor.require(reference.raw.eq_ignore_ascii_case("that"), "`that`")?;

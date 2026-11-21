@@ -16,21 +16,17 @@ enum PayLifeCostState {
     Complete,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum PayLifeVerbForm {
-    Imperative,
-    ThirdPerson,
-}
-
 pub(in crate::oracle::canonical) fn recognize_pay_life_cost(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PayLifeCostNode> {
-    recognize_pay_life_cost_with_verb(cursor, PayLifeVerbForm::Imperative)
+    recognize_pay_life_cost_with_verb(cursor, super::ActingSubject::CONTROLLER)
 }
 
+/// `pay N life` with the lexicon verb `pay` in the payer's agreement (the
+/// shared clause, resource-payment frame) and the life amount child.
 pub(in crate::oracle::canonical) fn recognize_pay_life_cost_with_verb(
     cursor: &mut OracleTokenCursor<'_>,
-    verb: PayLifeVerbForm,
+    payer: super::ActingSubject,
 ) -> MachineResult<PayLifeCostNode> {
     let mut state = PayLifeCostState::Action;
     let mut amount = None;
@@ -39,12 +35,19 @@ pub(in crate::oracle::canonical) fn recognize_pay_life_cost_with_verb(
         state = match state {
             PayLifeCostState::Action => {
                 cursor.enter("cost.pay-life.action");
-                let action = cursor.consume_type("costActionWord")?;
-                let (word, expected) = match verb {
-                    PayLifeVerbForm::Imperative => ("pay", "`pay`"),
-                    PayLifeVerbForm::ThirdPerson => ("pays", "`pays`"),
-                };
-                cursor.require(action.raw.eq_ignore_ascii_case(word), expected)?;
+                let verb = super::recognize_operand_verb(
+                    cursor,
+                    payer.agreement,
+                    &[super::VerbLemma::Pay],
+                    &[super::ArgumentFrame::ResourcePayment],
+                )?;
+                cursor.require(
+                    verb.is_some(),
+                    &format!(
+                        "`{}`",
+                        super::verb_entry(super::VerbLemma::Pay).surface(payer.agreement.form())
+                    ),
+                )?;
                 PayLifeCostState::Amount
             }
             PayLifeCostState::Amount => {

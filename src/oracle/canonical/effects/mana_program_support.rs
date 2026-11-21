@@ -220,7 +220,11 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::SacrificeObject(_)
         | LocalActivationCostNode::RemoveSourceCounters(_)
         | LocalActivationCostNode::RemoveControlledCounters(_)
-        | LocalActivationCostNode::ExileCards(_) => false,
+        | LocalActivationCostNode::ExileCards(_)
+        | LocalActivationCostNode::ReturnSelf
+        | LocalActivationCostNode::ReturnObjects(_)
+        | LocalActivationCostNode::PutSourceCounters(_)
+        | LocalActivationCostNode::PutChosenCounters(_) => false,
     })
 }
 

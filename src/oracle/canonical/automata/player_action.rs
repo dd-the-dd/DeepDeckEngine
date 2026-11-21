@@ -1,7 +1,7 @@
 //! A singular grammatical player subject followed by one independent action.
 //! Sequence owns subject lifetime; target declarations remain separate bindings.
 use super::super::{MachineResult, OracleTokenCursor};
-use super::source_sacrifice::atomic_action::DiscardVerbForm;
+use super::source_sacrifice::atomic_action::ActingSubject;
 use super::source_sacrifice::atomic_action::counted_card::recognize_card_count_noun;
 use super::source_sacrifice::atomic_action::player_discard::{
     PlayerDiscardEffectNode, recognize_player_discard_action_fragment,
@@ -264,12 +264,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         | PlayerEffectSubject::EventPlayer
         | PlayerEffectSubject::ObjectRelation { .. } => VerbAgreement::ThirdPersonSingular,
     };
-    // `DiscardVerbForm` is the shared conjugation of the selecting verbs: the
+    // `ActingSubject` is the shared conjugation of the selecting verbs: the
     // bare surface keeps the third-person chooser (`of their choice`).
     let other_form = if bare {
-        DiscardVerbForm::ThirdPersonPlural
+        ActingSubject::THIRD_PLURAL
     } else {
-        DiscardVerbForm::ThirdPersonSingular
+        ActingSubject::THIRD_SINGULAR
     };
     let action = if is_reveal_hand {
         SingularPlayerAction::Hand(recognize_player_hand_action(cursor, form)?)
@@ -285,10 +285,9 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         && referenced_card_operand_follows(cursor)
     {
         cursor.enter("player-action.referenced-cards.discard");
-        cursor.consume(match other_form {
-            DiscardVerbForm::ThirdPersonSingular => "discards",
-            DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => "discard",
-        })?;
+        cursor.consume(
+            super::verb_entry(super::VerbLemma::Discard).surface(other_form.agreement.form()),
+        )?;
         let cards = recognize_referenced_card_operand(cursor)?;
         SingularPlayerAction::ReferencedCards {
             verb: ReferencedCardVerb::Discard,

@@ -20,12 +20,13 @@ use crate::oracle::ability_catalog::{AbilitySignalPolicy, lookup_exact_lexeme, l
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ClauseAction, ClauseAmountPolicy, ClauseArguments, ClauseFrame, ClauseModality,
+    ArgumentFrame, ClauseAction, ClauseAmountPolicy, ClauseArguments, ClauseFrame, ClauseModality,
     ClauseSubjectPolicy, ClauseTense, DamageArguments, DamageClauseArguments, DamageKind,
     EventActorScope, LIFE_LEMMAS, LocalTriggerEventNode, ObjectKind, ObjectQueryNode,
-    TargetPlayerLifeAction, VerbAgreement, Voice, recognize_clause,
-    recognize_object_query_before_separator, recognize_supplied_damage_clause,
-    supplied_damage_frame, try_recognize_event_actor_scope, try_recognize_plural_event_actor_scope,
+    TargetPlayerLifeAction, VerbAgreement, VerbLemma, Voice, recognize_clause,
+    recognize_object_query_before_separator, recognize_operand_verb,
+    recognize_supplied_damage_clause, supplied_damage_frame, try_recognize_event_actor_scope,
+    try_recognize_plural_event_actor_scope,
 };
 
 /// Player-event verbs. Each is a vocabulary atom; the actor, the object and
@@ -130,29 +131,32 @@ fn named_action_at(cursor: &OracleTokenCursor<'_>, third_person: bool) -> Option
     (raw == expected).then_some(action_id)
 }
 
-fn object_verb_at(cursor: &OracleTokenCursor<'_>, third_person: bool) -> Option<PlayerEventAction> {
-    let raw = cursor.peek()?.to_ascii_lowercase();
-    let (base, action) = match raw.trim_end_matches('s') {
-        "discard" => ("discard", PlayerEventAction::DiscardCard),
-        "cycle" => ("cycle", PlayerEventAction::CycleCard),
-        _ => return None,
-    };
-    let expected = if third_person {
-        third_person_form(base)
-    } else {
-        base.to_string()
-    };
-    (raw == expected).then_some(action)
-}
-
-/// One verb of a union: an object verb or a named action, never a fixed
-/// phrase (whose complement is part of the verb).
+/// One verb of a union: an object verb of the lexicon (`discard`, `cycle`,
+/// in the actor's agreement through the shared clause) or a named keyword
+/// action, never a fixed phrase (whose complement is part of the verb).
 fn recognize_union_verb(
     cursor: &mut OracleTokenCursor<'_>,
     third_person: bool,
 ) -> Option<PlayerEventAction> {
-    let action = object_verb_at(cursor, third_person)
-        .or_else(|| named_action_at(cursor, third_person).map(PlayerEventAction::NamedAction))?;
+    let agreement = if third_person {
+        VerbAgreement::ThirdPersonSingular
+    } else {
+        VerbAgreement::Base
+    };
+    let mut trial = cursor.clone();
+    if let Ok(Some((lemma, _))) = recognize_operand_verb(
+        &mut trial,
+        agreement,
+        &[VerbLemma::Discard, VerbLemma::Cycle],
+        &[ArgumentFrame::ObjectSelection],
+    ) {
+        *cursor = trial;
+        return Some(match lemma {
+            VerbLemma::Cycle => PlayerEventAction::CycleCard,
+            _ => PlayerEventAction::DiscardCard,
+        });
+    }
+    let action = named_action_at(cursor, third_person).map(PlayerEventAction::NamedAction)?;
     let raw = cursor.peek()?.to_string();
     cursor.consume(&raw).ok()?;
     Some(action)

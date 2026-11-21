@@ -191,6 +191,19 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
     payment: PaymentActionNode,
 ) -> MachineResult<ResolutionCostNode> {
     match payment {
+        // Actions the resolution cost program has no schema for fail here,
+        // never approximated by another program.
+        PaymentActionNode::Untap(_)
+        | PaymentActionNode::ReturnToHand(_)
+        | PaymentActionNode::PutCounters(_)
+        | PaymentActionNode::Reveal { .. }
+        | PaymentActionNode::Mill { .. }
+        | PaymentActionNode::Exert(_) => {
+            cursor.enter("cost.resolution.unsupported-action");
+            Err(cursor.fail(
+                "a resolution cost the engine can pay (pay, sacrifice, discard, tap, exile, remove counters, blight)",
+            ))
+        }
         PaymentActionNode::Pay(payment) => Ok(ResolutionCostNode::Payment(payment)),
         PaymentActionNode::Blight { amount } => Ok(ResolutionCostNode::Blight { amount }),
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(noun)) => {

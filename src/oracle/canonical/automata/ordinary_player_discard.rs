@@ -1,7 +1,7 @@
 //! Ordinary controller discard is one composable effect, independent of costs.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::{
-    DiscardVerbForm,
+    ActingSubject,
     player_discard::{recognize_player_discard_action_fragment, recognize_player_discard_effect},
 };
 use super::{
@@ -23,7 +23,7 @@ pub(in crate::oracle::canonical) fn recognize_ordinary_player_discard(
         recognize_player_discard_action_fragment(
             cursor,
             PlayerEffectSubject::Controller,
-            DiscardVerbForm::Imperative,
+            ActingSubject::CONTROLLER,
         )?
     };
     cursor.enter("effect.ordinary-discard.actor");

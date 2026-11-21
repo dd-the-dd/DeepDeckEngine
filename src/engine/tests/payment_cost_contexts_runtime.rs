@@ -226,6 +226,105 @@ fn another_excludes_the_source_from_declared_sacrifice_and_tap_choices() {
     assert!(tapped("first") && tapped("second") && !tapped("source"));
 }
 
+fn in_hand(engine: &GameEngine, id: &str) -> bool {
+    engine.state.players[0]
+        .hand
+        .iter()
+        .any(|card| card.instance_id == id)
+}
+
+#[test]
+fn return_costs_bounce_a_chosen_permanent_or_the_source() {
+    // Quirion Ranger shape: one chosen land the payer controls.
+    let mut engine = self::engine();
+    engine.state.players[0].battlefield = vec![source(
+        "Creature - Elf",
+        "Return a land you control to its owner's hand: Draw a card.",
+    )];
+    assert!(activations(&mut engine).is_empty(), "no land to return");
+    engine.state.players[0].battlefield.push(plains("land"));
+    let actions = activations(&mut engine);
+    assert!(!actions.is_empty());
+    assert!(
+        actions
+            .iter()
+            .all(|action| chosen_ids(action) == ["land".to_string()])
+    );
+    let hand = engine.state.players[0].hand.len();
+    activate(&mut engine, &actions[0]);
+    assert!(in_hand(&engine, "land"));
+    assert_eq!(
+        engine.state.players[0].hand.len(),
+        hand + 2,
+        "land and the drawn card"
+    );
+
+    // Two chosen lands: one declaration of two distinct permanents.
+    let mut engine = self::engine();
+    engine.state.players[0].battlefield = vec![
+        source(
+            "Creature - Moonfolk",
+            "Return two lands you control to their owner's hand: Draw a card.",
+        ),
+        plains("first"),
+    ];
+    assert!(
+        activations(&mut engine).is_empty(),
+        "one land cannot pay two"
+    );
+    engine.state.players[0].battlefield.push(plains("second"));
+    let actions = activations(&mut engine);
+    assert!(!actions.is_empty());
+    activate(&mut engine, &actions[0]);
+    assert!(in_hand(&engine, "first") && in_hand(&engine, "second"));
+
+    // Attunement shape: the source itself returns while its ability resolves.
+    let mut engine = self::engine();
+    engine.state.players[0].battlefield = vec![source(
+        "Enchantment",
+        "Return this enchantment to its owner's hand: Draw a card.",
+    )];
+    let hand = engine.state.players[0].hand.len();
+    let actions = activations(&mut engine);
+    assert_eq!(actions.len(), 1);
+    activate(&mut engine, &actions[0]);
+    assert!(in_hand(&engine, "source"));
+    assert_eq!(engine.state.players[0].hand.len(), hand + 2);
+}
+
+#[test]
+fn put_counter_costs_mark_the_source_or_a_chosen_permanent() {
+    // Devoted Druid shape: counters on the source.
+    let mut engine = self::engine();
+    engine.state.players[0].battlefield = vec![source(
+        "Creature - Elf Druid",
+        "Put a -1/-1 counter on this creature: Draw a card.",
+    )];
+    let actions = activations(&mut engine);
+    assert_eq!(actions.len(), 1);
+    activate(&mut engine, &actions[0]);
+    assert_eq!(counter(&engine, "source", "-1/-1"), 1);
+
+    // Hatchet Bully shape: a chosen creature the payer controls.
+    let mut engine = self::engine();
+    engine.state.players[0].battlefield = vec![
+        source(
+            "Artifact",
+            "Put a +1/+1 counter on a creature you control: Draw a card.",
+        ),
+        instance("bear", definition("bear", "Creature - Bear")),
+    ];
+    let actions = activations(&mut engine);
+    assert!(!actions.is_empty());
+    assert!(
+        actions
+            .iter()
+            .all(|action| chosen_ids(action) == ["bear".to_string()])
+    );
+    activate(&mut engine, &actions[0]);
+    assert_eq!(counter(&engine, "bear", "+1/+1"), 1);
+}
+
 #[test]
 fn source_counters_are_removed_by_kind_or_by_declared_choice() {
     // Named kind and quantity.

@@ -4,7 +4,7 @@
 //! action verb, so `and you gain 2 life` stays with the enclosing sequence.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::{
-    DiscardVerbForm,
+    ActingSubject,
     player_discard::{PlayerDiscardEffectNode, recognize_player_discard_action_fragment},
     player_subject::{PlayerBinding, PlayerEffectSubject},
 };
@@ -161,7 +161,7 @@ fn recognize_quantified_action(
             QuantifiedPlayerAction::Discard(recognize_player_discard_action_fragment(
                 cursor,
                 PlayerEffectSubject::Bound(PlayerBinding(0)),
-                DiscardVerbForm::ThirdPersonSingular,
+                ActingSubject::THIRD_SINGULAR,
             )?)
         }
         Some("sacrifices") => {

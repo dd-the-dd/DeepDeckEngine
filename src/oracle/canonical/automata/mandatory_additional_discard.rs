@@ -1,6 +1,6 @@
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::{
-    DiscardVerbForm, recognize_discard_action, selection_method::recognize_postfix_selection_method,
+    ActingSubject, recognize_discard_action, selection_method::recognize_postfix_selection_method,
 };
 use super::{
     CollectionSelectionMethod, NumericAtom, ObjectKind, ObjectPredicate, object_predicate_uses_x,
@@ -38,7 +38,7 @@ pub(in crate::oracle::canonical) fn try_recognize_mandatory_additional_discard_c
         return MandatoryAdditionalDiscardCostAttempt::Failed(failure);
     }
     let mut malformed_quantity = false;
-    let action = recognize_discard_action(cursor, DiscardVerbForm::Imperative, |cursor| {
+    let action = recognize_discard_action(cursor, ActingSubject::CONTROLLER, |cursor| {
         cursor.enter("additional-cost.mandatory-discard.quantity");
         let quantity = if cursor
             .peek()

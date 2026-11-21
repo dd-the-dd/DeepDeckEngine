@@ -15,7 +15,7 @@
 //! onto the resolution `CostProgram`; the parent lowering adds the `unless`
 //! semantics (the payer chooses; an unpayable cost counts as not paid).
 use super::super::{MachineResult, OracleTokenCursor};
-use super::source_sacrifice::atomic_action::DiscardVerbForm;
+use super::source_sacrifice::atomic_action::ActingSubject;
 use super::{
     BooleanConditionNode, CostListGrammar, PaymentActionNode, PaymentObjectFilter,
     PaymentObjectsNode, PlayerTargetBinding, ResolutionCostNode, TargetBinding,
@@ -121,14 +121,14 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         return Ok(UnlessClauseNode::Condition(condition));
     } else if word(cursor, 0, "you") {
         cursor.consume("you")?;
-        (UnlessPayerNode::Controller, DiscardVerbForm::Imperative)
+        (UnlessPayerNode::Controller, ActingSubject::CONTROLLER)
     } else if word(cursor, 0, "its") && word(cursor, 1, "controller") {
         let binding = recognize_anaphoric_target_reference(cursor, target)?;
         cursor.enter("sequence.unless.payer.controller");
         cursor.consume("controller")?;
         (
             UnlessPayerNode::ControllerOf(binding),
-            DiscardVerbForm::ThirdPersonSingular,
+            ActingSubject::THIRD_SINGULAR,
         )
     } else if word(cursor, 0, "that") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.bound-player");
@@ -137,7 +137,7 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         cursor.consume_phrase(&["that", "player"])?;
         (
             UnlessPayerNode::BoundPlayer(binding),
-            DiscardVerbForm::ThirdPersonSingular,
+            ActingSubject::THIRD_SINGULAR,
         )
     } else if word(cursor, 0, "they") {
         cursor.enter("sequence.unless.payer.quantified-player");
@@ -148,7 +148,7 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         cursor.consume("they")?;
         (
             UnlessPayerNode::QuantifiedPlayer,
-            DiscardVerbForm::ThirdPersonPlural,
+            ActingSubject::THIRD_PLURAL,
         )
     } else if word(cursor, 0, "any") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.any-player");
@@ -205,7 +205,13 @@ fn payer_relative(payment: &PaymentActionNode) -> bool {
         // exiled cards come `from your` zone; a source belongs to the ability.
         PaymentActionNode::Tap(_)
         | PaymentActionNode::Exile { .. }
-        | PaymentActionNode::RemoveCounters(_) => false,
+        | PaymentActionNode::RemoveCounters(_)
+        | PaymentActionNode::Untap(_)
+        | PaymentActionNode::ReturnToHand(_)
+        | PaymentActionNode::PutCounters(_)
+        | PaymentActionNode::Reveal { .. }
+        | PaymentActionNode::Exert(_) => false,
+        PaymentActionNode::Mill { .. } => true,
     }
 }
 

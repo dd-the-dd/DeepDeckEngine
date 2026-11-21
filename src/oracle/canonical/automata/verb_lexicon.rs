@@ -20,6 +20,36 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Lose,
     /// `deal` (CR 120.1 an object deals damage).
     Deal,
+    /// `sacrifice` (CR 701.21).
+    Sacrifice,
+    /// `discard` (CR 701.9).
+    Discard,
+    /// `tap` (CR 701.26).
+    Tap,
+    /// `untap` (CR 701.26).
+    Untap,
+    /// `exile` (CR 701.13).
+    Exile,
+    /// `return` (a zone change to a named zone).
+    Return,
+    /// `put` (counters on an object, or an object into a zone).
+    Put,
+    /// `reveal` (CR 701.20).
+    Reveal,
+    /// `mill` (CR 701.17).
+    Mill,
+    /// `exert` (CR 701.43).
+    Exert,
+    /// `remove` (counters from an object).
+    Remove,
+    /// `pay` (CR 118: mana, life or another resource).
+    Pay,
+    /// `blight` (the keyword action: -1/-1 counters on a creature you control).
+    Blight,
+    /// `create` (CR 111.1 tokens).
+    Create,
+    /// `cycle` (CR 702.29: activating a cycling ability of a card).
+    Cycle,
 }
 
 /// One inflected form of a lemma.
@@ -76,6 +106,24 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     Control,
     /// `all abilities` (`loses all abilities`): declared, not yet read.
     Abilities,
+    /// `OBJECTS`: the objects the action is performed on (`sacrifice a
+    /// creature`, `discard two cards`, `tap an untapped Wall you control`).
+    ObjectSelection,
+    /// `OBJECTS to|into|onto|on ZONE` (`return a land you control to its
+    /// owner's hand`, `put a card from your hand on top of your library`).
+    ObjectToZone,
+    /// `N [KIND] counter(s) on HOLDER` (`put a -1/-1 counter on this creature`).
+    CountersOn,
+    /// `N [KIND] counter(s) from HOLDER` (`remove a charge counter from ...`).
+    CountersFrom,
+    /// `N card(s)` from the actor's library (`mill a card`).
+    CardCount,
+    /// `MANA` | `N life` (`pay {2}`, `pay 3 life`).
+    ResourcePayment,
+    /// `N` for a numbered keyword action (`blight 2`).
+    KeywordAmount,
+    /// `TOKENS` (`create a 1/1 white Soldier creature token`).
+    TokenCreation,
 }
 
 impl ArgumentFrame {
@@ -86,7 +134,14 @@ impl ArgumentFrame {
             Self::DamageDealt => Some("damage"),
             Self::Control => Some("control"),
             Self::Abilities => Some("abilities"),
-            Self::KeywordList => None,
+            Self::CountersOn | Self::CountersFrom => Some("counter"),
+            Self::KeywordList
+            | Self::ObjectSelection
+            | Self::ObjectToZone
+            | Self::CardCount
+            | Self::ResourcePayment
+            | Self::KeywordAmount
+            | Self::TokenCreation => None,
         }
     }
 }
@@ -183,6 +238,186 @@ const VERB_LEXICON: &[VerbEntry] = &[
         frames: &[ArgumentFrame::DamageDealt],
         voices: &[Voice::Active, Voice::Passive],
     },
+    VerbEntry {
+        lemma: VerbLemma::Sacrifice,
+        forms: VerbForms {
+            base: "sacrifice",
+            third_person_singular: "sacrifices",
+            past: "sacrificed",
+            past_participle: "sacrificed",
+            present_participle: "sacrificing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Discard,
+        forms: VerbForms {
+            base: "discard",
+            third_person_singular: "discards",
+            past: "discarded",
+            past_participle: "discarded",
+            present_participle: "discarding",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Tap,
+        forms: VerbForms {
+            base: "tap",
+            third_person_singular: "taps",
+            past: "tapped",
+            past_participle: "tapped",
+            present_participle: "tapping",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Untap,
+        forms: VerbForms {
+            base: "untap",
+            third_person_singular: "untaps",
+            past: "untapped",
+            past_participle: "untapped",
+            present_participle: "untapping",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Exile,
+        forms: VerbForms {
+            base: "exile",
+            third_person_singular: "exiles",
+            past: "exiled",
+            past_participle: "exiled",
+            present_participle: "exiling",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Return,
+        forms: VerbForms {
+            base: "return",
+            third_person_singular: "returns",
+            past: "returned",
+            past_participle: "returned",
+            present_participle: "returning",
+        },
+        frames: &[ArgumentFrame::ObjectToZone],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Put,
+        forms: VerbForms {
+            base: "put",
+            third_person_singular: "puts",
+            past: "put",
+            past_participle: "put",
+            present_participle: "putting",
+        },
+        frames: &[ArgumentFrame::CountersOn, ArgumentFrame::ObjectToZone],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Reveal,
+        forms: VerbForms {
+            base: "reveal",
+            third_person_singular: "reveals",
+            past: "revealed",
+            past_participle: "revealed",
+            present_participle: "revealing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Mill,
+        forms: VerbForms {
+            base: "mill",
+            third_person_singular: "mills",
+            past: "milled",
+            past_participle: "milled",
+            present_participle: "milling",
+        },
+        frames: &[ArgumentFrame::CardCount],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Exert,
+        forms: VerbForms {
+            base: "exert",
+            third_person_singular: "exerts",
+            past: "exerted",
+            past_participle: "exerted",
+            present_participle: "exerting",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Remove,
+        forms: VerbForms {
+            base: "remove",
+            third_person_singular: "removes",
+            past: "removed",
+            past_participle: "removed",
+            present_participle: "removing",
+        },
+        frames: &[ArgumentFrame::CountersFrom],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Pay,
+        forms: VerbForms {
+            base: "pay",
+            third_person_singular: "pays",
+            past: "paid",
+            past_participle: "paid",
+            present_participle: "paying",
+        },
+        frames: &[ArgumentFrame::ResourcePayment],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Blight,
+        forms: VerbForms {
+            base: "blight",
+            third_person_singular: "blights",
+            past: "blighted",
+            past_participle: "blighted",
+            present_participle: "blighting",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Create,
+        forms: VerbForms {
+            base: "create",
+            third_person_singular: "creates",
+            past: "created",
+            past_participle: "created",
+            present_participle: "creating",
+        },
+        frames: &[ArgumentFrame::TokenCreation],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Cycle,
+        forms: VerbForms {
+            base: "cycle",
+            third_person_singular: "cycles",
+            past: "cycled",
+            past_participle: "cycled",
+            present_participle: "cycling",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
 ];
 
 pub(in crate::oracle::canonical) fn verb_entry(lemma: VerbLemma) -> &'static VerbEntry {
@@ -202,6 +437,35 @@ pub(in crate::oracle::canonical) fn lookup_verb(
         let forms = entry.forms_of(raw);
         (!forms.is_empty()).then_some((entry, forms))
     })
+}
+
+/// The subject a parent states for an action verb: its agreement and whether
+/// a non-controller (third-person) actor makes the choices (`of their
+/// choice`). `you`/imperative: `Base`, not third person; `that player`:
+/// `ThirdPersonSingular`; `they`/`each player`... after `unless`: `Base`,
+/// third person. One mechanism with `VerbAgreement` replaces per-verb forms.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) struct ActingSubject {
+    pub agreement: VerbAgreement,
+    pub third_person: bool,
+}
+
+impl ActingSubject {
+    /// The ability controller (imperative or `you`).
+    pub(in crate::oracle::canonical) const CONTROLLER: Self = Self {
+        agreement: VerbAgreement::Base,
+        third_person: false,
+    };
+    /// A singular other player (`that player sacrifices`).
+    pub(in crate::oracle::canonical) const THIRD_SINGULAR: Self = Self {
+        agreement: VerbAgreement::ThirdPersonSingular,
+        third_person: true,
+    };
+    /// A plural other actor with the bare verb (`unless they sacrifice`).
+    pub(in crate::oracle::canonical) const THIRD_PLURAL: Self = Self {
+        agreement: VerbAgreement::Base,
+        third_person: true,
+    };
 }
 
 /// True when `raw` is the given form of the lemma. Lookahead gates of other
