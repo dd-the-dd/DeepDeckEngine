@@ -99,6 +99,7 @@ mod battlefield_departure;
 mod battlefield_entry_batch;
 mod card_movement;
 mod card_zone_transition;
+mod cast_events;
 mod casting_cost;
 mod casting_permission_modes;
 mod copy_program;
@@ -24938,6 +24939,12 @@ impl GameEngine {
             })
             .map(|object| object.targets.clone())
             .unwrap_or_default();
+        let cast_record = cast_events::CastEventRecord {
+            caster: casting_player_id,
+            spell,
+            decisions: cast_decisions,
+            targets: &cast_targets,
+        };
         for player in self.state.players.iter().filter(|player| !player.has_lost) {
             for source in &player.battlefield {
                 let has_prowess = self.permanent_has_keyword(source, "prowess");
@@ -24982,153 +24989,13 @@ impl GameEngine {
                     let matches_spell_event = triggered_event_variants(&rule["event"])
                         .into_iter()
                         .any(|event| match value_kind(event) {
-                            Some("spellCast") => {
-                                let cast_source_zone = cast_decisions
-                                    .get("castSourceZone")
-                                    .and_then(Value::as_str)
-                                    .unwrap_or("hand");
-                                let from_zone_matches = event["fromZone"]
-                                    .as_str()
-                                    .is_none_or(|from_zone| cast_source_zone == from_zone)
-                                    && event["fromZoneNot"]
-                                        .as_str()
-                                        .is_none_or(|from_zone| cast_source_zone != from_zone);
-                                let turn_matches = event["duringOpponentTurn"].as_bool()
-                                    != Some(true)
-                                    || (source.controller == casting_player_id
-                                        && self.state.players[self.state.active_player].id
-                                            != casting_player_id);
-                                let controller_turn_matches =
-                                    event["duringControllerTurn"].as_bool() != Some(true)
-                                        || (source.controller == casting_player_id
-                                            && self.state.players[self.state.active_player].id
-                                                == casting_player_id);
-                                let ordinal_matches = integer_value(&event["spellCastOrdinal"])
-                                    .is_none_or(|ordinal| {
-                                        self.state
-                                            .events
-                                            .iter()
-                                            .filter(|recorded| {
-                                                recorded.turn_number == self.state.turn_number
-                                                    && recorded.kind == "spellCast"
-                                                    && recorded.player_id.as_deref()
-                                                        == Some(casting_player_id)
-                                                    && (event["where"].is_null()
-                                                        || spell_cast_event_matches_filter(
-                                                            recorded,
-                                                            &event["where"],
-                                                        ))
-                                            })
-                                            .count()
-                                            == ordinal.max(0) as usize
-                                    });
-                                let starting_deck_matches =
-                                    event["fromStartingDeck"].as_bool().is_none_or(|expected| {
-                                        let conjured = cast_decisions
-                                            .get("conjured")
-                                            .and_then(Value::as_bool)
-                                            .unwrap_or(false);
-                                        expected != conjured
-                                    });
-                                let prepared_matches = event["preparedOnly"].as_bool()
-                                    != Some(true)
-                                    || cast_decisions
-                                        .get("preparedSourceInstanceId")
-                                        .and_then(Value::as_str)
-                                        .is_some()
-                                    || self
-                                        .state
-                                        .stack
-                                        .iter()
-                                        .rev()
-                                        .find(|object| object.card.definition.id == spell.id)
-                                        .is_some_and(|object| {
-                                            object
-                                                .card
-                                                .flags
-                                                .get("prepared")
-                                                .copied()
-                                                .unwrap_or(false)
-                                        });
-                                let parity_matches = event["manaValueParityDecisionId"]
-                                    .as_str()
-                                    .is_none_or(|decision_id| {
-                                        stored_decision_value(&source.definition, decision_id)
-                                            .is_some_and(|parity| {
-                                                let value = mana_value_with_decisions(
-                                                    spell,
-                                                    cast_decisions,
-                                                );
-                                                parity.eq_ignore_ascii_case("even")
-                                                    == (value % 2 == 0)
-                                            })
-                                    });
-                                let color_matches =
-                                    event["colorDecisionId"].as_str().is_none_or(|decision_id| {
-                                        stored_decision_value(&source.definition, decision_id)
-                                            .and_then(|color| {
-                                                let upper = color.to_ascii_uppercase();
-                                                matches!(
-                                                    upper.as_str(),
-                                                    "W" | "U" | "B" | "R" | "G"
-                                                )
-                                                .then_some(upper)
-                                                .or_else(|| {
-                                                    color_name_to_symbol(color)
-                                                        .map(ToOwned::to_owned)
-                                                })
-                                            })
-                                            .is_some_and(|color| {
-                                                card_color_symbols(spell).contains(&color)
-                                            })
-                                    });
-                                let creature_type_matches = event["creatureTypeDecisionId"]
-                                    .as_str()
-                                    .is_none_or(|decision_id| {
-                                        Self::chosen_creature_type_matches(
-                                            source,
-                                            spell,
-                                            &json!({ "decisionId": decision_id }),
-                                        )
-                                    });
-                                let single_target_matches = event["singleTarget"]
-                                    .as_bool()
-                                    .is_none_or(|required| !required || cast_targets.len() == 1);
-                                let mana_symbol_matches =
-                                    event["manaSymbol"].as_str().is_none_or(|required_symbol| {
-                                        let count = parse_mana_symbols(&spell.mana_cost)
-                                            .iter()
-                                            .filter(|symbol| {
-                                                symbol
-                                                    .split('/')
-                                                    .any(|part| part == required_symbol)
-                                            })
-                                            .count();
-                                        integer_value(&event["minimumManaSymbols"])
-                                            .and_then(|minimum| usize::try_from(minimum).ok())
-                                            .is_some_and(|minimum| count >= minimum)
-                                    });
-                                from_zone_matches
-                                    && turn_matches
-                                    && controller_turn_matches
-                                    && ordinal_matches
-                                    && starting_deck_matches
-                                    && prepared_matches
-                                    && parity_matches
-                                    && color_matches
-                                    && creature_type_matches
-                                    && single_target_matches
-                                    && mana_symbol_matches
-                                    && (event["anyPlayer"].as_bool() == Some(true)
-                                        || (event["opponentOfSourceController"].as_bool()
-                                            == Some(true)
-                                            && source.controller != casting_player_id)
-                                        || (event["opponentOfSourceController"].as_bool()
-                                            != Some(true)
-                                            && event["anyPlayer"].as_bool() != Some(true)
-                                            && source.controller == casting_player_id))
-                                    && matches_card_filter(spell, &event["where"])
-                            }
+                            // One cast record, one matcher (cast_events).
+                            Some("spellCast") => self.spell_cast_matches(
+                                event,
+                                &cast_record,
+                                source,
+                                cast_events::CastSubject::AnySpell,
+                            ),
                             Some("spellCastOrdinal") => {
                                 source.controller == casting_player_id
                                     && integer_value(&event["ordinal"]).is_some_and(|ordinal| {
@@ -25205,13 +25072,18 @@ impl GameEngine {
             .find(|object| object.card.definition.id == spell.id)
             .map(|object| object.card.clone())
         {
+            // `When you cast this spell`: the spell observes its own cast.
             for rule in source.definition.rules.iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && triggered_event_variants(&rule["event"])
                         .iter()
                         .any(|event| {
-                            value_kind(event) == Some("spellCast")
-                                && event["sourceIsSelf"].as_bool() == Some(true)
+                            self.spell_cast_matches(
+                                event,
+                                &cast_record,
+                                &source,
+                                cast_events::CastSubject::SourceSpell,
+                            )
                         })
             }) {
                 triggers.push((

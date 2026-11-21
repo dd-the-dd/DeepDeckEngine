@@ -561,3 +561,50 @@ fn sacrificed_object_predicates_read_the_departure_snapshot() {
         "trigger.sacrifice.numeric-snapshot-support"
     );
 }
+
+#[test]
+fn cast_patterns_read_the_source_spell_copies_and_matching_ordinals() {
+    // `When you cast this spell` (Eldrazi): the source spell itself.
+    let own = event(
+        "When you cast this spell, draw a card.",
+        "Creature — Eldrazi",
+    );
+    assert_eq!(own["kind"], "spellCast");
+    assert_eq!(own["player"], controller());
+    assert_eq!(own["sourceIsSelf"], true);
+    // Magecraft: cast or copy, one predicate for both events.
+    let magecraft = event(
+        "Whenever you cast or copy an instant or sorcery spell, draw a card.",
+        "Creature",
+    );
+    assert_eq!(magecraft["kind"], "oneOf");
+    assert_eq!(magecraft["events"][0]["kind"], "spellCast");
+    assert_eq!(magecraft["events"][1]["kind"], "spellCopied");
+    assert_eq!(
+        magecraft["events"][0]["where"],
+        magecraft["events"][1]["where"]
+    );
+    // A matching-spell ordinal (sibling: an opponent's first).
+    for text in [
+        "Whenever you cast your first instant or sorcery spell each turn, draw a card.",
+        "Whenever an opponent casts their first noncreature spell each turn, draw a card.",
+    ] {
+        let lowered = event(text, "Creature");
+        assert_eq!(lowered["spellCastOrdinal"], 1, "{text}");
+        assert!(!lowered["where"].is_null(), "{text}");
+    }
+    // Near misses: an ordinal over a color the spell history does not
+    // record, and an opponent's copy (the copy observer's player is yours).
+    for (text, state) in [
+        (
+            "Whenever you cast your second red spell each turn, draw a card.",
+            "trigger.spell-cast.ordinal-basis-support",
+        ),
+        (
+            "Whenever an opponent casts or copies an instant spell, draw a card.",
+            "trigger.spell-cast.copy-support",
+        ),
+    ] {
+        assert_eq!(committed_state(text), state, "{text}");
+    }
+}

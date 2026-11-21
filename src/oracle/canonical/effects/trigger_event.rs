@@ -60,11 +60,29 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                 }
             }
             if let Some(ordinal) = &event.ordinal {
+                // A matching-spell ordinal counts the caster's logged spells
+                // this turn that satisfy the same predicate; the log keeps
+                // type line and name only.
+                cursor.enter("trigger.spell-cast.ordinal-basis-support");
                 cursor.require(
-                    ordinal.basis == SpellCastOrdinalBasis::AllSpellsByCasterThisTurn,
-                    "an ordinal counted among all spells cast by that caster this turn",
+                    ordinal.basis == SpellCastOrdinalBasis::AllSpellsByCasterThisTurn
+                        || spell_history_predicate(&event.query.predicate),
+                    "an ordinal over spells whose type line or name the spell history records",
                 )?;
                 lowered["spellCastOrdinal"] = json!(ordinal.value);
+            }
+            if event.source_spell {
+                // CR 601.2i: the cast spell's own ability, from the stack.
+                lowered["sourceIsSelf"] = json!(true);
+            }
+            if event.also_copy {
+                cursor.enter("trigger.spell-cast.copy-support");
+                cursor.require(
+                    event.caster == SpellCastEventCaster::Controller && event.ordinal.is_none(),
+                    "a spell copied by the ability controller (the copy observer's only player)",
+                )?;
+                let copied = json!({"kind": "spellCopied", "player": controller(), "where": lowered["where"].clone()});
+                return Ok(json!({"kind": "oneOf", "events": [lowered, copied]}));
             }
             Ok(lowered)
         }
@@ -766,6 +784,22 @@ fn apply_damage_event_kind(
         DamageKind::Combat => lowered["combatOnly"] = json!(true),
     }
     Ok(())
+}
+
+/// The characteristics the spell-cast history records for each spell: its
+/// type line (types, subtypes, supertypes) and name.
+fn spell_history_predicate(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::ObjectKind(ObjectKind::Spell)
+        | ObjectPredicate::CardType(_)
+        | ObjectPredicate::Subtype(_)
+        | ObjectPredicate::Supertype(_) => true,
+        ObjectPredicate::Not(child) => spell_history_predicate(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            !children.is_empty() && children.iter().all(spell_history_predicate)
+        }
+        _ => false,
+    }
 }
 
 /// Only permanent-domain identity and token status survive this existing

@@ -114,11 +114,13 @@ fn unsupported_period_is_committed_to_native_diagnostic() {
         ability.diagnostics[0].automaton.as_deref(),
         Some("generic-trigger-program")
     );
+    // A matching-spell ordinal is a typed event attribute; the unsupported
+    // part is the period (`each game`), not the basis.
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("event.spell-cast.ordinal-basis")
+        Some("event.spell-cast.ordinal-period")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("each"));
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("game"));
     assert_eq!(
         ability.diagnostics[1].code,
         "oracle_candidate_machine_failure"

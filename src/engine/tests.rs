@@ -263,6 +263,10 @@ mod damage_event_model_runtime;
 mod zone_change_event_model_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/cast_event_model_runtime.rs"]
+mod cast_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/exalted_runtime.rs"]
 mod exalted_runtime;
 

@@ -24,6 +24,14 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_spell_cast_trigger_progra
         }
         SpellCastEventAttempt::Recognized(event) => event,
     };
+    if event.source_spell
+        || event.also_copy
+        || event.ordinal.as_ref().is_some_and(|ordinal| {
+            ordinal.basis != SpellCastOrdinalBasis::AllSpellsByCasterThisTurn
+        })
+    {
+        return SpellCastTriggerProgramParseAttempt::NotClaimed;
+    }
     cursor.enter("trigger.spell-cast.permanent-face");
     if let Err(failure) = cursor.require(
         type_line_has_permanent_card_type(input.face_type_line),

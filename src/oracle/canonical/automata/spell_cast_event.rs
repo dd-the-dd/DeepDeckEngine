@@ -36,6 +36,12 @@ pub(in crate::oracle::canonical) struct SpellCastEventNode {
     pub query: SpellCastQueryNode,
     pub ordinal: Option<SpellCastEventOrdinal>,
     pub triggering_player: TriggeringPlayerBinding,
+    /// `cast this spell`: the cast spell is the ability source itself
+    /// (CR 601.2i), observed from the stack.
+    pub source_spell: bool,
+    /// `cast or copy`: the same spell predicate also observes a copy of a
+    /// spell (CR 707.10), a distinct event of the same lemma family.
+    pub also_copy: bool,
 }
 
 pub(in crate::oracle::canonical) enum SpellCastEventAttempt {
@@ -60,6 +66,8 @@ struct SpellCastEventFrame {
     caster: Option<SpellCastEventCaster>,
     query: Option<SpellCastQueryNode>,
     ordinal: Option<SpellCastEventOrdinal>,
+    source_spell: bool,
+    also_copy: bool,
 }
 
 /// The enclosing ability owns the trigger word and separator. This wrapper
@@ -80,9 +88,11 @@ pub(in crate::oracle::canonical) fn try_recognize_spell_cast_event(
     if let Err(failure) = cursor.consume(&trigger) {
         return SpellCastEventAttempt::Unpromoted(failure);
     }
+    // The generic cast pattern counts matching spells by the caster this
+    // turn; each consumer checks the ordinal basis its lowering preserves.
     match recognize_optional_spell_cast_event_atom(
         cursor,
-        SpellCastOrdinalSupport::UnfilteredOrdinalsOnly,
+        SpellCastOrdinalSupport::MatchingSpellOrdinals,
     ) {
         Ok(Some(node)) => {
             cursor.enter("event.spell-cast.separator");
@@ -138,6 +148,18 @@ fn recognize_optional_spell_cast_event_atom(
                 } else {
                     "casts"
                 })?;
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+                    && cursor.peek_ahead(1).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("copy") || raw.eq_ignore_ascii_case("copies")
+                    })
+                {
+                    cursor.enter("event.spell-cast.copy-union");
+                    let copy = cursor.peek_ahead(1).expect("checked verb").to_string();
+                    cursor.consume_phrase(&["or", &copy])?;
+                    frame.also_copy = true;
+                }
                 SpellCastEventState::Determiner
             }
             SpellCastEventState::Determiner => {
@@ -148,6 +170,24 @@ fn recognize_optional_spell_cast_event_atom(
                     let article = cursor.peek().expect("checked article").to_string();
                     cursor.consume(&article)?;
                     SpellCastEventState::Query
+                } else if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("spell"))
+                    && frame.caster == Some(SpellCastEventCaster::Controller)
+                    && !frame.also_copy
+                {
+                    // `When you cast this spell`: the source itself.
+                    cursor.enter("event.spell-cast.source-spell");
+                    cursor.consume_phrase(&["this", "spell"])?;
+                    frame.source_spell = true;
+                    frame.query = Some(SpellCastQueryNode {
+                        predicate: ObjectPredicate::ObjectKind(ObjectKind::Spell),
+                        caster: None,
+                    });
+                    SpellCastEventState::Complete
                 } else {
                     cursor.enter("event.spell-cast.ordinal-owner");
                     cursor.consume(if frame.caster == Some(SpellCastEventCaster::Controller) {
@@ -218,6 +258,8 @@ fn recognize_optional_spell_cast_event_atom(
                     query: cursor.require_value(frame.query, "a typed spell query")?,
                     ordinal: frame.ordinal,
                     triggering_player: TriggeringPlayerBinding,
+                    source_spell: frame.source_spell,
+                    also_copy: frame.also_copy,
                 }));
             }
         };

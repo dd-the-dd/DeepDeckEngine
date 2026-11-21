@@ -358,6 +358,30 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Basilisk, Venomous Dragonfly, Tangle Asp, Tolarian Entrancer), 0 perdue,
   11 IR changées dont 0 déjà supportée.
 
+## Étape 6 réalisée : famille lancement
+
+- `src/engine/cast_events.rs` : `CastEventRecord` (lanceur, définition du
+  sort, décisions de lancement, cibles, historique des sorts du lanceur dans
+  le tour) et un seul correspondant `spell_cast_matches` pour `spellCast`. La
+  relation du sujet est typée : un sort quelconque observé par un permanent,
+  ou le sort source lui-même observé depuis la pile (`sourceIsSelf`,
+  CR 601.2i). Correction : un permanent portant `When you cast this spell`
+  ne se déclenche plus sur les autres sorts.
+- L'ordinal par tour est un modificateur du motif : il compte les sorts du
+  lanceur dans le tour qui satisfont le même prédicat (`your first instant
+  or sorcery spell each turn`) ; l'historique ne garde que ligne de type et
+  nom, d'où une restriction explicite des prédicats d'ordinal filtré.
+- Analyseur : `When you cast this spell`, `Whenever you cast or copy …`
+  (Magecraft : `oneOf` de `spellCast` et `spellCopied` sur le même prédicat)
+  et l'ordinal filtré sont reconnus par le lecteur partagé ; le parent de
+  champ de bataille historique laisse ces formes au programme générique.
+- Restent : prédicats numériques du sort sur la pile (valeur de mana avec X),
+  sorts qui ciblent (`a spell that targets`), origine `from your graveyard`.
+- Sondes : ligue 792 → 795 (+3 : Witherbloom Apprentice, Artisan of Kozilek,
+  Storm-Kiln Artist) ; corpus 13702 → 13730 (+28 : World Breaker, Archmage
+  Emeritus, Eldrazi Obligator, …), 0 perdue, 57 IR changées dont 0 déjà
+  supportée.
+
 ## Familles suivantes
 
 1. **Lancement** : `spellCast` et ses ordinaux (`spellCastOrdinal`) → lemme
