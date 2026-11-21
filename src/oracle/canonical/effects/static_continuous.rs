@@ -1,14 +1,28 @@
 //! Static continuous-effect frame (CR 611.3, 604.1):
 //!
 //! ```text
-//! Static    := [ability word "—"] ["as long as" Condition ","]
-//!              Subject Predicate ("and" Predicate)*
+//! Static    := [ability word "—"] [("as long as" Condition | TurnCondition) ","]
+//!              (Subject Predicate ("and" Predicate)* | "you control" AttachedObject)
 //!              ["as long as" Condition] "." [keyword reminder]
+//! TurnCondition := "during your turn" | "during turns other than yours"
 //! Subject   := source reference | "equipped creature" | "enchanted" PERMANENT
 //!            | ["each" | "all"] ["other"] permanent collection
 //! Predicate := ("get" | "gets") signed P/T delta | ("have" | "has") keyword list
 //!            | ("is" | "are") type change
+//!            | "can't" combat restriction | "attacks each combat if able"
+//!            | "must be blocked" ["each combat"] "if able"
+//!            | ("enter" | "enters") ("tapped" | "with" N "additional" COUNTER "counter(s) on them")
+//!            | ("doesn't" | "don't") "untap during" OWNER "untap step"
+//!            | ("loses" | "lose") "all abilities"
+//!            | "can attack as though" PRONOUN "didn't have defender"
+//!            | ("assigns" | "assign") "combat damage equal to" PRONOUN
+//!              "toughness rather than" PRONOUN "power"
 //! ```
+//!
+//! A turn condition (CR 611.3a) is a continuously evaluated condition on the
+//! turn's active player; it gates the whole ability like `as long as`.
+//! Combat restrictions reuse the shared combat-clause child of the source
+//! restriction frame (CR 508.1c, 509.1b) for any subject.
 //!
 //! Predicates are joined by `and`, or by a serial comma before a predicate
 //! verb. The copula's number must agree with the subject (`each land is`,
@@ -87,7 +101,18 @@ fn read_static_continuous_effect(
 ) -> MachineResult<(Vec<Value>, Option<StaticConditionNode>)> {
     recognize_optional_ability_word_envelope(cursor)?;
     let mut condition = None;
-    if as_long_as_starts(cursor) {
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("during"))
+    {
+        // `during` introduces a turn condition of the whole static ability.
+        *committed = true;
+    }
+    if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
+        condition = Some(turn_condition);
+        cursor.enter("static.continuous.leading-condition.separator");
+        cursor.consume(",")?;
+    } else if as_long_as_starts(cursor) {
         cursor.enter("static.continuous.leading-condition");
         cursor.consume_phrase(&["as", "long", "as"])?;
         *committed = true;
@@ -106,9 +131,14 @@ fn read_static_continuous_effect(
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("control"))
     {
-        return read_controller_predicate(cursor, input, committed, condition);
+        let modifier = read_player_control(cursor, input, committed)?;
+        cursor.require(
+            condition.is_none(),
+            "an unconditional control-changing static ability",
+        )?;
+        return Ok((vec![modifier], None));
     }
-    let (objects, subject_predicate, subject_number) = read_subject(cursor, input)?;
+    let (objects, subject_predicate, subject_number) = read_static_subject(cursor, input)?;
     let source_subject = objects == self_ref();
     let mut modifiers = Vec::new();
     let mut granted = Vec::new();
@@ -166,6 +196,16 @@ fn read_static_continuous_effect(
                                 ResourcePaymentPayer::WardTargetingPlayer,
                             ),
                         }),
+                        KeywordAtomNode::Protection { qualities } => json!({
+                            "kind": "grantProtection",
+                            "objects": objects.clone(),
+                            "from": lower_protection_qualities(&qualities),
+                        }),
+                        KeywordAtomNode::ManaCost(_) => {
+                            return Err(cursor.fail(
+                                "a granted keyword the engine reads from a static grant (a mana-cost keyword is read from the card itself)",
+                            ));
+                        }
                     });
                 }
             }
@@ -198,10 +238,82 @@ fn read_static_continuous_effect(
                 );
                 changes_types = true;
             }
+            "can't" | "can\u{2019}t" | "attacks" => {
+                *committed = true;
+                let mut clauses = Vec::new();
+                recognize_source_combat_clause(cursor, committed, &mut clauses)?;
+                for clause in &clauses {
+                    modifiers.push(lower_combat_clause(cursor, &objects, clause)?);
+                }
+            }
+            "doesn't" | "doesn\u{2019}t" | "don't" | "don\u{2019}t" => {
+                cursor.consume(&verb)?;
+                *committed = true;
+                read_untap_step_exclusion(cursor)?;
+                modifiers.push(json!({ "kind": "doesNotUntap", "objects": objects.clone() }));
+            }
+            "enter" | "enters" => {
+                cursor.consume(&verb)?;
+                *committed = true;
+                modifiers.push(read_collection_entry_modification(cursor, &objects)?);
+            }
+            "must" => {
+                cursor.consume("must")?;
+                *committed = true;
+                // CR 509.1c: a blocking requirement on the affected attackers.
+                cursor.enter("static.continuous.block-requirement");
+                cursor.consume_phrase(&["be", "blocked"])?;
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+                {
+                    cursor.consume_phrase(&["each", "combat"])?;
+                }
+                cursor.consume_phrase(&["if", "able"])?;
+                modifiers.push(json!({
+                    "kind": "grantKeyword",
+                    "objects": objects.clone(),
+                    "keyword": "mustBeBlockedIfAble",
+                }));
+            }
+            "loses" | "lose" => {
+                cursor.consume(&verb)?;
+                *committed = true;
+                cursor.enter("static.continuous.ability-loss");
+                cursor.consume_phrase(&["all", "abilities"])?;
+                modifiers.push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
+            }
+            "can" => {
+                cursor.consume("can")?;
+                *committed = true;
+                cursor.enter("static.continuous.defender-exception");
+                cursor.consume_phrase(&["attack", "as", "though"])?;
+                read_subject_pronoun(cursor, subject_number)?;
+                read_negated_have(cursor)?;
+                cursor.consume("defender")?;
+                modifiers.push(json!({
+                    "kind": "allowAttackWithDefender", "objects": objects.clone(),
+                }));
+            }
+            "assigns" | "assign" => {
+                cursor.consume(&verb)?;
+                *committed = true;
+                cursor.enter("static.continuous.combat-damage-assignment");
+                cursor.consume_phrase(&["combat", "damage", "equal", "to"])?;
+                read_possessive(cursor, subject_number)?;
+                cursor.consume_phrase(&["toughness", "rather", "than"])?;
+                read_possessive(cursor, subject_number)?;
+                cursor.consume("power")?;
+                modifiers.push(json!({
+                    "kind": "assignCombatDamageUsingToughness",
+                    "objects": objects.clone(),
+                    "onlyIfToughnessGreater": false,
+                }));
+            }
             _ => {
-                return Err(
-                    cursor.fail("`get(s)`, `have`/`has` or `is`/`are` continuous predicate")
-                );
+                return Err(cursor.fail(
+                    "a continuous predicate: `get(s)`, `have`/`has`, `is`/`are`, `can't`, `must be blocked`, `doesn't untap`, `loses all abilities`, `can attack as though`, or `assigns combat damage`",
+                ));
             }
         }
         cursor.enter("static.continuous.connector");
@@ -263,39 +375,181 @@ fn read_static_continuous_effect(
     Ok((modifiers, condition))
 }
 
-/// `you control OBJECT.` (CR 613.1b, layer 2): the controller of the static
-/// ability's source controls the object. The object is the shared static
-/// subject child; the engine's control layer covers the attached permanent.
-fn read_controller_predicate(
+const PREDICATE_VERBS: [&str; 6] = ["get", "gets", "have", "has", "is", "are"];
+
+/// `you control ATTACHED-PERMANENT.` (CR 613.1b): the control-changing
+/// effect of an Aura over the permanent it enchants. The object is read with
+/// the shared static subject; the engine evaluates only the attached object.
+fn read_player_control(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
     committed: &mut bool,
-    condition: Option<StaticConditionNode>,
-) -> MachineResult<(Vec<Value>, Option<StaticConditionNode>)> {
-    cursor.enter("static.continuous.control.subject");
+) -> MachineResult<Value> {
+    cursor.enter("static.control.subject");
     cursor.consume_phrase(&["you", "control"])?;
-    cursor.enter("static.continuous.control.object");
-    let (objects, _, _) = read_subject(cursor, input)?;
     *committed = true;
+    cursor.enter("static.control.object");
+    let (objects, _, _) = read_static_subject(cursor, input)?;
     cursor.require(
         objects == json!({ "kind": "attachedPermanent", "attachment": self_ref() }),
-        "the attached permanent as the controlled object",
+        "the permanent this Aura enchants (the engine changes control of no other static object)",
     )?;
-    cursor.require(
-        condition.is_none(),
-        "an unconditional control-changing static ability",
-    )?;
-    cursor.enter("static.continuous.control.terminator");
+    cursor.enter("static.control.terminator");
     cursor.consume(".")?;
-    cursor.enter("static.continuous.complete");
+    cursor.enter("static.control.complete");
     cursor.finish()?;
-    Ok((
-        vec![json!({ "kind": "controlAttachedPermanent", "attachment": self_ref() })],
-        None,
-    ))
+    Ok(json!({ "kind": "controlAttachedPermanent", "attachment": self_ref() }))
 }
 
-const PREDICATE_VERBS: [&str; 6] = ["get", "gets", "have", "has", "is", "are"];
+/// `enter tapped` / `enter with an additional COUNTER counter on them [for
+/// each …]` (CR 614.1c-d): a replacement applied to every permanent of a
+/// battlefield collection as it enters, generated by this static ability.
+/// The source's own entry belongs to the entry-replacement frame.
+fn read_collection_entry_modification(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.entry-modification");
+    cursor.require(
+        objects["kind"] == "permanents",
+        "a permanent collection entering the battlefield (the source's own entry is a replacement frame)",
+    )?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"))
+    {
+        cursor.consume("tapped")?;
+        return Ok(json!({ "kind": "permanentsEnterTapped", "objects": objects.clone() }));
+    }
+    cursor.enter("static.continuous.entry-counters");
+    cursor.consume("with")?;
+    let atom = recognize_numeric_atom(cursor)?;
+    cursor.require(
+        !matches!(atom, NumericAtom::Integer(value) if value <= 0),
+        "a positive counter quantity",
+    )?;
+    let singular = matches!(atom, NumericAtom::Integer(1));
+    cursor.consume("additional")?;
+    let counter = recognize_counter_name(cursor)?;
+    cursor.consume(if singular { "counter" } else { "counters" })?;
+    cursor.consume("on")?;
+    let pronoun = cursor
+        .peek()
+        .filter(|raw| raw.eq_ignore_ascii_case("them") || raw.eq_ignore_ascii_case("it"))
+        .map(str::to_string);
+    let pronoun = cursor.require_value(pronoun, "`them` or `it` for each entering permanent")?;
+    cursor.consume(&pronoun)?;
+    let base = NumericExpression::Atom(atom);
+    let count = if for_each_count_starts(cursor) {
+        let counted = recognize_for_each_count(cursor)?;
+        cursor.require_value(
+            scale_by_for_each_count(&base, counted),
+            "a literal counter quantity multiplied by `for each`",
+        )?
+    } else {
+        base
+    };
+    Ok(json!({
+        "kind": "addEnteringCounters",
+        "objects": objects.clone(),
+        "counter": counter.as_str(),
+        "count": cursor.require_value(
+            lower_numeric_expression(&count),
+            "a counter quantity the entry modification can evaluate",
+        )?,
+    }))
+}
+
+/// `during your turn` / `during turns other than yours` (CR 611.3a): whether
+/// the ability's controller is the active player, re-evaluated continuously.
+fn recognize_optional_turn_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<StaticConditionNode>> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("during"))
+    {
+        return Ok(None);
+    }
+    cursor.enter("static.continuous.turn-condition");
+    let not_your_turn =
+        BooleanConditionNode::Atom(StaticConditionAtom::Local(LocalConditionNode::NotYourTurn));
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+    {
+        cursor.consume_phrase(&["during", "your", "turn"])?;
+        return Ok(Some(BooleanConditionNode::Not(Box::new(not_your_turn))));
+    }
+    cursor.consume_phrase(&["during", "turns", "other", "than", "yours"])?;
+    Ok(Some(not_your_turn))
+}
+
+fn word_in(raw: Option<&str>, words: &[&str]) -> bool {
+    raw.is_some_and(|raw| {
+        let raw = raw.replace('\u{2019}', "'");
+        words.iter().any(|word| raw.eq_ignore_ascii_case(word))
+    })
+}
+
+/// `untap during OWNER untap step`: a permanent untaps only during its
+/// controller's untap step (CR 502.3), which every printed owner denotes.
+fn read_untap_step_exclusion(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("static.continuous.untap-exclusion");
+    cursor.consume_phrase(&["untap", "during"])?;
+    cursor.enter("static.continuous.untap-exclusion.step-owner");
+    if word_in(cursor.peek(), &["your"]) {
+        cursor.consume("your")?;
+    } else if word_in(cursor.peek(), &["its", "their"]) {
+        let pronoun = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&pronoun)?;
+        cursor.require(
+            word_in(cursor.peek(), &["controller's", "controllers'"]),
+            "the possessive `controller's` after the pronoun",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+    } else {
+        return Err(cursor.fail("`your`, `its controller's` or `their controllers'` untap step"));
+    }
+    cursor.enter("static.continuous.untap-exclusion.step");
+    cursor.consume("untap")?;
+    cursor.require(
+        word_in(cursor.peek(), &["step", "steps"]),
+        "`step` after the untap step owner",
+    )?;
+    cursor.advance_to(cursor.position() + 1)
+}
+
+fn read_subject_pronoun(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> MachineResult<()> {
+    let pronoun = match number {
+        TypeChangeNumber::Singular => "it",
+        TypeChangeNumber::Plural => "they",
+    };
+    cursor.consume(pronoun)
+}
+
+fn read_possessive(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> MachineResult<()> {
+    let possessive = match number {
+        TypeChangeNumber::Singular => "its",
+        TypeChangeNumber::Plural => "their",
+    };
+    cursor.consume(possessive)
+}
+
+fn read_negated_have(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.require(
+        word_in(cursor.peek(), &["didn't"]),
+        "the counterfactual `didn't have`",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume("have")
+}
 
 fn predicate_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
     cursor.peek_ahead(offset).is_some_and(|raw| {
@@ -323,6 +577,32 @@ fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {
                 .peek_ahead(offset)
                 .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
         })
+}
+
+/// The failure inside the static frame, for the frame claim of an otherwise
+/// unclaimed ability (CR 604.1): once a predicate was reached, or once the
+/// shared subject reader consumed at least one subject token. A subject that
+/// no reader starts is reported by the frame claim itself.
+pub(in crate::oracle::canonical) fn static_continuous_frame_failure(
+    input: &AbilityInput<'_>,
+) -> Option<MachineFailure> {
+    if !type_line_has_permanent_card_type(input.face_type_line) {
+        return None;
+    }
+    let mut cursor = OracleTokenCursor::new("static-continuous-effect", input.tokens);
+    let mut committed = false;
+    let failure = read_static_continuous_effect(&mut cursor, input, &mut committed).err()?;
+    let reached_predicate = cursor
+        .transitions()
+        .iter()
+        .any(|transition| transition.state == "static.continuous.predicate");
+    let subject_start = cursor
+        .transitions()
+        .iter()
+        .find(|transition| transition.state == "static.continuous.subject")
+        .map(|transition| transition.token_index);
+    let read_into_subject = subject_start.is_some_and(|start| failure.token_index > start);
+    (committed || reached_predicate || read_into_subject).then_some(failure)
 }
 
 fn condition_context<'a>(
@@ -377,7 +657,7 @@ fn read_optional_for_each_count(
 
 /// Returns the lowered subject, its predicate for a queried collection, and
 /// the grammatical number a copula must agree with.
-fn read_subject(
+pub(in crate::oracle::canonical) fn read_static_subject(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
 ) -> MachineResult<(Value, Option<ObjectPredicate>, TypeChangeNumber)> {
@@ -481,3 +761,7 @@ fn read_subject(
 #[cfg(test)]
 #[path = "static_continuous_condition_tests.rs"]
 mod condition_tests;
+
+#[cfg(test)]
+#[path = "static_continuous_predicate_tests.rs"]
+mod predicate_tests;

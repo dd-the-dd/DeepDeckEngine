@@ -44,17 +44,21 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
         lower_numeric_expression(&node.count),
         "a counter quantity the entry replacement can evaluate",
     )?;
+    let mut rule = json!({
+        "kind": "replacementEffect",
+        "source": self_ref(),
+        "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
+        "replacement": [{
+            "kind": "putEnteringCounters",
+            "counter": node.counter.as_str(),
+            "count": count,
+        }],
+    });
+    if let Some(condition) = &node.condition {
+        rule["condition"] = lower_static_condition(condition);
+    }
     Ok(draft(
-        json!({
-            "kind": "replacementEffect",
-            "source": self_ref(),
-            "event": { "kind": "wouldEnterBattlefield", "object": self_ref() },
-            "replacement": [{
-                "kind": "putEnteringCounters",
-                "counter": node.counter.as_str(),
-                "count": count,
-            }],
-        }),
+        rule,
         &[
             "Recognize an entering source and its counter quantity",
             "Compose the shared counter name and numeric quantity",

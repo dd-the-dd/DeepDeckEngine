@@ -5,7 +5,7 @@ use crate::oracle::characteristic_vocabulary::{
 
 use super::super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::super::{
-    GrantedKeyword, ObjectCardType, ObjectPredicate, ResourcePaymentNode,
+    GrantedKeyword, ObjectCardType, ObjectPredicate, ProtectionQuality, ResourcePaymentNode,
     recognize_resource_payment_predicate,
 };
 use super::KeywordAtomNode;
@@ -14,6 +14,7 @@ use super::KeywordAtomNode;
 pub(super) enum KeywordReminderNode {
     Parameterless,
     Ward,
+    Protection,
 }
 
 #[derive(Clone, Copy)]
@@ -46,6 +47,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
     Some(match keyword {
         GrantedKeyword::Cascade => "cascade",
         GrantedKeyword::Changeling => "changeling",
+        GrantedKeyword::Convoke => "convoke",
         GrantedKeyword::Deathtouch => "deathtouch",
         GrantedKeyword::Defender => "defender",
         GrantedKeyword::Devoid => "devoid",
@@ -53,11 +55,13 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Exalted => "exalted",
         GrantedKeyword::Fear => "fear",
         GrantedKeyword::FirstStrike => "first-strike",
+        GrantedKeyword::Flanking => "flanking",
         GrantedKeyword::Flash => "flash",
         GrantedKeyword::Flying => "flying",
         GrantedKeyword::Haste => "haste",
         GrantedKeyword::Hexproof => "hexproof",
         GrantedKeyword::Horsemanship => "horsemanship",
+        GrantedKeyword::Improvise => "improvise",
         GrantedKeyword::Indestructible => "indestructible",
         GrantedKeyword::Infect => "infect",
         GrantedKeyword::Intimidate => "intimidate",
@@ -77,6 +81,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::UmbraArmor => "umbra-armor",
         GrantedKeyword::Undying => "undying",
         GrantedKeyword::Vigilance => "vigilance",
+        GrantedKeyword::Wither => "wither",
         _ => return None,
     })
 }
@@ -101,6 +106,81 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
         ]),
         GrantedKeyword::Changeling => ParameterlessReminderSchema::Exact(&[
             "This", "card", "is", "every", "creature", "type", ".",
+        ]),
+        // CR 702.51a.
+        GrantedKeyword::Convoke => ParameterlessReminderSchema::Exact(&[
+            "Your",
+            "creatures",
+            "can",
+            "help",
+            "cast",
+            "this",
+            "spell",
+            ".",
+            "Each",
+            "creature",
+            "you",
+            "tap",
+            "while",
+            "casting",
+            "this",
+            "spell",
+            "pays",
+            "for",
+            "{1}",
+            "or",
+            "one",
+            "mana",
+            "of",
+            "that",
+            "creature's",
+            "color",
+            ".",
+        ]),
+        // CR 702.25a.
+        GrantedKeyword::Flanking => ParameterlessReminderSchema::Exact(&[
+            "Whenever", "a", "creature", "without", "flanking", "blocks", "this", "creature", ",",
+            "the", "blocking", "creature", "gets", "-1/-1", "until", "end", "of", "turn", ".",
+        ]),
+        // CR 702.126a.
+        GrantedKeyword::Improvise => ParameterlessReminderSchema::Exact(&[
+            "Your",
+            "artifacts",
+            "can",
+            "help",
+            "cast",
+            "this",
+            "spell",
+            ".",
+            "Each",
+            "artifact",
+            "you",
+            "tap",
+            "after",
+            "you're",
+            "done",
+            "activating",
+            "mana",
+            "abilities",
+            "pays",
+            "for",
+            "{1}",
+            ".",
+        ]),
+        // CR 702.80a.
+        GrantedKeyword::Wither => ParameterlessReminderSchema::Exact(&[
+            "This",
+            "deals",
+            "damage",
+            "to",
+            "creatures",
+            "in",
+            "the",
+            "form",
+            "of",
+            "-1/-1",
+            "counters",
+            ".",
         ]),
         GrantedKeyword::Deathtouch => ParameterlessReminderSchema::Exact(&[
             "Any", "amount", "of", "damage", "this", "deals", "to", "a", "creature", "is",
@@ -946,6 +1026,57 @@ fn recognize_ward_reminder(
     Ok(KeywordReminderNode::Ward)
 }
 
+/// CR 702.16b-e reminder of a color protection:
+/// `This PERMANENT can't be blocked, targeted, dealt damage, [enchanted, or
+/// equipped | or enchanted] by anything COLOR (or COLOR)*.` The colors must be
+/// exactly the printed qualities, in printed order.
+fn recognize_protection_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    qualities: &[ProtectionQuality],
+) -> MachineResult<KeywordReminderNode> {
+    cursor.enter("keyword.reminder.catalog");
+    cursor.require(
+        catalog_registers_reminder("protection"),
+        "a Protection catalog entry with reminder grammar",
+    )?;
+    cursor.enter("keyword.protection.reminder.subject");
+    cursor.consume("This")?;
+    let subject = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("a singular permanent type in the Protection reminder"))?;
+    cursor.require(
+        lookup_permanent_card_type(subject, AcceptedForms::SingularOnly).is_some(),
+        "a singular permanent type in the Protection reminder",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("keyword.protection.reminder.restrictions");
+    cursor.consume_phrase(&[
+        "can't", "be", "blocked", ",", "targeted", ",", "dealt", "damage", ",",
+    ])?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("enchanted"))
+    {
+        cursor.consume_phrase(&["enchanted", ",", "or", "equipped"])?;
+    } else {
+        cursor.consume_phrase(&["or", "enchanted"])?;
+    }
+    cursor.enter("keyword.protection.reminder.quality");
+    cursor.consume_phrase(&["by", "anything"])?;
+    for (index, quality) in qualities.iter().enumerate() {
+        if index > 0 {
+            cursor.consume("or")?;
+        }
+        let ProtectionQuality::Color(color) = quality else {
+            return Err(cursor.fail("a color protection quality described by the reminder"));
+        };
+        cursor.consume(color.oracle_name())?;
+    }
+    cursor.enter("keyword.protection.reminder.terminator");
+    cursor.consume(".")?;
+    Ok(KeywordReminderNode::Protection)
+}
+
 /// Consumes no tokens when an atom has no reminder. Once `(` is seen, this
 /// child commits and validates the registered reminder schema for that exact
 /// keyword atom. Parentheses are therefore never discarded as arbitrary text.
@@ -982,7 +1113,14 @@ fn recognize_optional_keyword_reminder_in_context(
             )?;
             recognize_ward_reminder(cursor, cost)?
         }
-        KeywordAtomNode::Quoted(_) => {
+        KeywordAtomNode::Protection { qualities } => {
+            cursor.require(
+                matches!(context, KeywordReminderSubjectContext::SelfObject),
+                "a Protection reminder attached to its local keyword atom",
+            )?;
+            recognize_protection_reminder(cursor, qualities)?
+        }
+        KeywordAtomNode::ManaCost(_) | KeywordAtomNode::Quoted(_) => {
             return Err(cursor.fail("a keyword atom that carries reminder text"));
         }
     };

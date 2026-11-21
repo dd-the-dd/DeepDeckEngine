@@ -38,10 +38,14 @@ pub(in crate::oracle::canonical) fn try_recognize_standalone_keyword_ability(
             return StandaloneKeywordRecognition::Failed(failure);
         }
     };
-    let parameterized_resource = list
-        .keywords
-        .iter()
-        .any(|atom| matches!(atom, KeywordAtomNode::Ward { .. }));
+    let parameterized_resource = list.keywords.iter().any(|atom| {
+        matches!(
+            atom,
+            KeywordAtomNode::Ward { .. }
+                | KeywordAtomNode::Protection { .. }
+                | KeywordAtomNode::ManaCost(_)
+        )
+    });
     if cursor.peek() == Some(".") {
         if let Err(failure) = cursor.consume(".") {
             return StandaloneKeywordRecognition::RejectedEnvelope {
@@ -87,3 +91,7 @@ mod sunburst_tests;
 #[cfg(test)]
 #[path = "split_second_keyword_tests.rs"]
 mod split_second_tests;
+
+#[cfg(test)]
+#[path = "cost_and_damage_keyword_tests.rs"]
+mod cost_and_damage_keyword_tests;

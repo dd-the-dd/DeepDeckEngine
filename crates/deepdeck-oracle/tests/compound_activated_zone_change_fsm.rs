@@ -130,15 +130,19 @@ fn later_effects_compose_or_fail_without_a_partial_zone_change() {
 #[test]
 fn activation_without_its_cost_separator_is_never_claimed() {
     // No activated parent can classify a cost list without `:`; the ability
-    // stays explicitly unsupported instead of being reinterpreted.
+    // stays explicitly unsupported instead of being reinterpreted. Without the
+    // separator it has no activated frame: the static frame owns it.
     let parsed = parse_land("{T}, Sacrifice this land Destroy target nonbasic land.");
     let ability = &parsed.abilities[0];
 
     assert_eq!(parsed.status, "unsupported");
-    assert_eq!(ability.recognizer, RecognizerProvenance::Unclaimed);
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_ne!(ability.status, "canonical");
     assert!(ability.rule.is_none());
-    assert_eq!(ability.diagnostics[0].code, "unsupported_oracle_ability");
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("ability-frame.static.subject")
+    );
 }
 
 #[test]

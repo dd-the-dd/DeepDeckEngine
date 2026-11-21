@@ -28,7 +28,12 @@ normally. Do not add a row without the attribute, or the reverse.
 
 The parser state is the first failing ability's committed diagnostic
 (`automaton / state`) and `expected / found` token, recorded on the
-branch `oracle/generalized-compiler` (PR #26).
+branch `oracle/generalized-compiler` (PR #26). Since the structural-frame
+change, an ability no family recognizes is no longer `unclaimed`: its frame
+(`ability-frame`, `generic-trigger-program`, ...) commits the failure, and
+the specialized family's state, when one applies, is kept as candidate
+evidence. A row's recorded state therefore names the grammar gap; the live
+committed diagnostic may name the enclosing frame instead.
 
 
 ## deepdeck-engine-runtime (src/engine) (137)

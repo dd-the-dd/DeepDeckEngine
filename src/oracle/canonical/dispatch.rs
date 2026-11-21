@@ -158,7 +158,15 @@ fn parse_native_rule(
     } else {
         existing
     };
-    preserve_committed_generic_failure(existing, committed_generic_failure)
+    match preserve_committed_generic_failure(existing, committed_generic_failure) {
+        // CR 113.3: every ability belongs to a structural frame. When no
+        // reader owned it, that frame owns it and reports where it stopped.
+        CanonicalParseOutcome::Unsupported => CanonicalParseOutcome::Failed {
+            failure: claim_unclaimed_ability_frame(input),
+            recognizer: RecognizerProvenance::Native,
+        },
+        outcome => outcome,
+    }
 }
 
 /// The shared static-continuous and contextual-program parents, without any
@@ -2083,6 +2091,16 @@ fn parse_existing_native_rule(
         StaticCollectionKeywordParseAttempt::NotClaimed => {}
     }
 
+    // CR 615.1a: a permanent's static prevention. Its failures are reported by
+    // the structural frame claim only when no later reader owns the ability.
+    if let StaticDamagePreventionAttempt::Parsed(draft) = try_parse_static_damage_prevention(input)
+    {
+        return CanonicalParseOutcome::Parsed {
+            draft,
+            recognizer: RecognizerProvenance::Native,
+        };
+    }
+
     // A committed static-frame failure never hides a later reader; it is
     // surfaced only if no reader below claims the ability.
     let static_continuous_rejection = match try_parse_static_continuous_effect(input) {
@@ -2179,7 +2197,9 @@ fn parse_existing_native_rule(
         SacrificeTriggerProgramParseAttempt::NotClaimed => {}
     }
 
-    match static_continuous_rejection.or(source_combat_restriction_rejection) {
+    // The source frame's diagnostic is the more specific one for a source
+    // subject; the shared static frame reads the same combat clauses.
+    match source_combat_restriction_rejection.or(static_continuous_rejection) {
         Some(failure) => CanonicalParseOutcome::Failed {
             failure,
             recognizer: RecognizerProvenance::Native,

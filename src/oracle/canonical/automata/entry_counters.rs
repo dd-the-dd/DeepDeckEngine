@@ -5,14 +5,16 @@
 //! counter kind and quantity are independent children: the subject is the
 //! shared source reference, the kind is the shared counter-name child, and
 //! the quantity is the shared numeric atom optionally scaled by the shared
-//! `for each` count.
+//! `for each` count. A trailing `if CONDITION` (CR 614.1c with a condition
+//! checked as the permanent enters) reuses the shared static condition.
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalObjectReference, NumericAtom, NumericExpression, for_each_count_starts,
-    recognize_counter_name, recognize_for_each_count, recognize_numeric_atom,
-    recognize_source_reference, scale_by_for_each_count,
+    LocalObjectReference, NumericAtom, NumericExpression, StaticConditionContext,
+    StaticConditionNode, for_each_count_starts, recognize_counter_name, recognize_for_each_count,
+    recognize_numeric_atom, recognize_source_reference, recognize_static_condition,
+    scale_by_for_each_count,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,6 +22,8 @@ pub(in crate::oracle::canonical) struct SourceEntryCountersNode {
     pub source: LocalObjectReference,
     pub counter: crate::oracle::counter_name::CounterName,
     pub count: NumericExpression,
+    /// Checked once, as the source enters (CR 614.1c).
+    pub condition: Option<StaticConditionNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,6 +36,7 @@ enum State {
     CounterNoun,
     Recipient,
     Scale,
+    Condition,
     Terminator,
     Complete,
 }
@@ -48,6 +53,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
     let mut source = None;
     let mut counter = None;
     let mut count = None;
+    let mut condition = None;
     loop {
         state = match state {
             State::Source => {
@@ -123,6 +129,24 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                         "a literal counter quantity multiplied by `for each`",
                     )?);
                 }
+                State::Condition
+            }
+            State::Condition => {
+                cursor.enter("replacement.entry-counters.condition");
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
+                {
+                    cursor.consume("if")?;
+                    condition = Some(recognize_static_condition(
+                        cursor,
+                        StaticConditionContext {
+                            source_subject: true,
+                            name_links,
+                            name_failure,
+                        },
+                    )?);
+                }
                 State::Terminator
             }
             State::Terminator => {
@@ -137,6 +161,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     source: cursor.require_value(source, "the entering source")?,
                     counter: cursor.require_value(counter, "a counter name")?,
                     count: cursor.require_value(count, "a counter quantity")?,
+                    condition,
                 });
             }
         };
