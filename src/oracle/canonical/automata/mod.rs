@@ -75,6 +75,7 @@ mod damage_prevention;
 mod delayed_blink;
 mod delayed_draw;
 mod delayed_step;
+mod delayed_step_timing;
 mod delve;
 mod destroy_collection;
 mod destroy_regeneration;
@@ -109,7 +110,6 @@ mod landfall_reflexive_counter;
 mod library_search;
 mod library_search_partition;
 mod life_action;
-mod linked_entry_exile;
 mod linked_exile_return;
 mod loyalty;
 mod loyalty_ability;
@@ -164,6 +164,7 @@ mod quantified_event;
 mod quantified_player_action;
 mod quantity_event;
 mod quantity_replacement;
+mod rebound;
 mod reference;
 mod regenerate;
 mod replicate;
@@ -230,6 +231,7 @@ mod typecycling;
 mod typed_target_reference;
 mod unless_clause;
 mod where_x_definition;
+mod zone_change_until;
 mod zone_list;
 mod zone_prohibition;
 
@@ -307,6 +309,7 @@ pub(super) use damage_prevention::*;
 pub(super) use delayed_blink::*;
 pub(super) use delayed_draw::*;
 pub(super) use delayed_step::*;
+pub(super) use delayed_step_timing::*;
 pub(super) use delve::*;
 pub(super) use destroy_collection::*;
 pub(super) use destroy_regeneration::*;
@@ -340,7 +343,6 @@ pub(super) use landfall_reflexive_counter::*;
 pub(super) use library_search::*;
 pub(super) use library_search_partition::*;
 pub(super) use life_action::*;
-pub(super) use linked_entry_exile::*;
 pub(super) use linked_exile_return::*;
 pub(super) use loyalty::*;
 pub(super) use loyalty_ability::*;
@@ -395,6 +397,7 @@ pub(super) use quantified_event::*;
 pub(super) use quantified_player_action::*;
 pub(super) use quantity_event::*;
 pub(super) use quantity_replacement::*;
+pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
 pub(super) use replicate::*;
@@ -455,6 +458,7 @@ pub(super) use typecycling::*;
 pub(super) use typed_target_reference::*;
 pub(super) use unless_clause::*;
 pub(super) use where_x_definition::*;
+pub(super) use zone_change_until::*;
 pub(super) use zone_list::*;
 pub(super) use zone_prohibition::*;
 
@@ -1110,6 +1114,10 @@ pub(super) enum EffectDurationNode {
     UntilEndOfNextTurn {
         player: LocalPlayerReference,
     },
+    /// `for as long as you control SOURCE` (CR 611.2b): ends when the
+    /// ability's controller no longer controls that source object. Produced
+    /// only by `recognize_source_control_duration` for consumers opting in.
+    WhileSourceControlled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1491,6 +1499,17 @@ pub(super) struct ZoneChangeEffectNode {
     pub action: ZoneChangeAction,
     pub target: TargetListNode,
     pub regeneration: ZoneChangeRegenerationPolicy,
+    /// `until EVENT` (CR 610.3), attached by the enclosing sequence.
+    pub until: Option<ZoneChangeUntilNode>,
+}
+
+/// The event ending a one-shot `until` zone change (CR 610.3). Its second
+/// one-shot effect returns the object to its previous zone under its owner's
+/// control (CR 610.3c).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ZoneChangeUntilNode {
+    /// `until SOURCE leaves the battlefield`.
+    SourceLeavesBattlefield,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1738,6 +1757,9 @@ pub(super) struct EffectSequenceNode {
     /// `EFFECT unless PAYER COST` / `unless CONDITION` frames (CR 118.12),
     /// each over the guarded actions of the sentence that carries it.
     pub unless: Vec<UnlessFrameNode>,
+    /// Action ranges performed later by a delayed triggered ability
+    /// (CR 603.7), each inside the sentence that states its timing.
+    pub delayed: Vec<DelayedFrameNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

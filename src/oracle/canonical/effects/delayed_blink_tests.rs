@@ -93,8 +93,10 @@ fn malformed_delayed_step_remains_committed_with_structured_failure() {
         primary.automaton.as_deref(),
         Some("generic-trigger-program")
     );
-    assert_eq!(primary.state.as_deref(), Some("effect.start"));
-    assert_eq!(primary.found.as_deref(), Some("At"));
+    // The shared delayed-timing child of the generic program owns the
+    // preposed `At the beginning of the next ...` introducer.
+    assert_eq!(primary.state.as_deref(), Some("delayed-step.timing.step"));
+    assert_eq!(primary.found.as_deref(), Some("combat"));
     let diagnostic = ability
         .diagnostics
         .iter()

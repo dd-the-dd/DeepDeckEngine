@@ -31,7 +31,8 @@ fn lower_keyword_grant_duration(duration: EffectDurationNode) -> Option<Value> {
                 }
             },
         }),
-        EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
+        EffectDurationNode::UntilEndOfNextTurn { .. }
+        | EffectDurationNode::WhileSourceControlled => return None,
     })
 }
 

@@ -9,6 +9,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     EffectDurationNode, EffectRecognitionContext, PermanentOperandNode, TargetCardinality,
     recognize_contextual_permanent_operand, recognize_effect_duration,
+    recognize_source_control_duration, source_control_duration_starts,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,11 +102,18 @@ pub(in crate::oracle::canonical) fn recognize_control_change_effect(
     let trailing = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("until"));
-    let duration = match (&context.preposed_duration, trailing) {
+    let while_controlled = source_control_duration_starts(cursor);
+    let duration = match (&context.preposed_duration, trailing || while_controlled) {
         (Some(_), true) => {
             return Err(cursor.fail("no second duration after a sentence-level preposed duration"));
         }
         (Some(duration), false) => Some(duration.clone()),
+        // CR 611.2b: `for as long as you control SOURCE`.
+        (None, true) if while_controlled => Some(recognize_source_control_duration(
+            cursor,
+            name_links,
+            name_failure,
+        )?),
         (None, true) => Some(recognize_effect_duration(cursor)?),
         (None, false) => None,
     };

@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/control-change-durations",
+  "cases": [
+    {
+      "id": "exact-act-of-treason",
+      "request": {
+        "cardName": "Act of Treason",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Gain control of target creature until end of turn. Untap that creature. It gains haste until end of turn. (It can attack and {T} this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "untapPermanent"
+              },
+              {
+                "pointer": "/effects/2/keyword",
+                "equals": "haste"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dragonlord-silumgar",
+      "request": {
+        "cardName": "Dragonlord Silumgar",
+        "typeLine": "Legendary Creature — Elder Dragon",
+        "manaCost": "{4}{U}{B}",
+        "oracleText": "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of target creature or planeswalker for as long as you control Dragonlord Silumgar.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "whileSourceControlled"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-indefinite-artifact-activation",
+      "request": {
+        "cardName": "Test Pilferer",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{3}, {T}: Gain control of target artifact an opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainControlPermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-as-long-as-condition",
+      "request": {
+        "cardName": "Test Tether",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Gain control of target creature for as long as this artifact remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "duration.while-source-controlled.condition"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unsupported-control-window",
+      "request": {
+        "cardName": "Test Borrow",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Draw a card. Gain control of target creature until your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.control-change.duration"
+          }
+        ]
+      }
+    }
+  ]
+}
