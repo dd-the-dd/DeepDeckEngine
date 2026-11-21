@@ -79,6 +79,7 @@ mod damage_clause;
 mod damage_event;
 mod damage_prevention;
 mod damage_replacement;
+mod deck_construction_keyword;
 mod delayed_blink;
 mod delayed_draw;
 mod delayed_step;
@@ -2197,6 +2198,7 @@ pub(super) use trigger_guard::*;
 pub(super) use trigger_program::*;
 
 pub(super) use boolean_condition::*;
+pub(super) use deck_construction_keyword::*;
 pub(super) use token_window::*;
 
 #[cfg(test)]

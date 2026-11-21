@@ -249,6 +249,7 @@ pub(super) use player_counter_sweep::*;
 
 pub(super) use casting_permission::*;
 pub(super) use damage_prevention::*;
+pub(super) use deck_construction_keyword::*;
 pub(super) use permanent_operand::*;
 pub(super) use permanent_selection::*;
 pub(super) use player_permission::*;
@@ -342,3 +343,4 @@ mod storm_keyword_tests;
 #[cfg(test)]
 #[path = "attach_tests.rs"]
 mod attach_tests;
+mod deck_construction_keyword;

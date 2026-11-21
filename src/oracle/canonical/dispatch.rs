@@ -1074,6 +1074,20 @@ fn parse_existing_native_rule(
             StaticSourceCombatRestrictionAttempt::NotClaimed => None,
         };
 
+    // CR 702.124a: partner abilities own their keyword frame.
+    if claims_deck_construction_keyword_family(input) {
+        return match parse_deck_construction_keyword(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_promoted_simple_keyword_family(input) {
         return match parse_promoted_simple_keyword(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
