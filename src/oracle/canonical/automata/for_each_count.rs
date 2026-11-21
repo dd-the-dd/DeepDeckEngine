@@ -10,6 +10,8 @@
 //! Countable := ["other"] permanent collection      (countPermanents)
 //!            | counter-name "counter(s)" "on this" NOUN   (countCounters)
 //!            | "color" "among" ["other"] collection (countDistinctColors)
+//!            | collection "in" zone-holders zone        (countCards)
+//!            | collection "on the battlefield"          (countPermanents, any controller)
 //! ```
 use super::super::{MachineResult, OracleTokenCursor};
 use super::*;
@@ -109,11 +111,41 @@ fn recognize_counted_collection(
         cursor.require(!colors, "one counting measure, not colors and names")?;
         cursor.consume_phrase(&["differently", "named"])?;
     }
+    if !colors && !distinct_names && counted_zone_relation_follows(cursor) {
+        // CR 400.1: a collection with an explicit `in ZONE` relation counts
+        // cards in that zone. The shared scoped query owns the predicate and
+        // the zone holders; this child only names the count.
+        cursor.enter("numeric.for-each.zone-collection");
+        let query = recognize_scoped_object_query(cursor)?;
+        cursor.require(
+            query.domain == ObjectKind::Card,
+            "a card collection in a graveyard, hand or exile zone",
+        )?;
+        return Ok(NumericExpression::CountQuery(Box::new(query)));
+    }
     let exclude_source = recognize_optional_source_exclusion(cursor)?;
     cursor.enter("numeric.for-each.collection");
     let query = recognize_object_collection(cursor)?;
+    // CR 110.1: `on the battlefield` names every permanent there, whoever
+    // controls it. The explicit zone anchors a nominal head such as `Elves`.
+    let explicit_battlefield = query.controller.is_none()
+        && ["on", "the", "battlefield"]
+            .iter()
+            .enumerate()
+            .all(|(i, word)| {
+                cursor
+                    .peek_ahead(i)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            });
+    if explicit_battlefield {
+        cursor.enter("numeric.for-each.battlefield");
+        cursor.consume_phrase(&["on", "the", "battlefield"])?;
+    }
     cursor.require(
-        battlefield_anchored(&query),
+        battlefield_anchored(&query)
+            || (explicit_battlefield
+                && query.predicate.supports_domain(ObjectKind::Permanent)
+                && query.predicate.has_nominal_head()),
         "a counted collection anchored in the battlefield-permanent domain",
     )?;
     cursor.require(
@@ -153,6 +185,20 @@ fn recognize_counted_collection(
             measure,
         },
     )))
+}
+
+/// Lexical lookahead: the counted collection is followed by `in` before the
+/// end of its noun phrase. The scoped query proves the actual zone grammar;
+/// a collection without that relation keeps the battlefield reading.
+fn counted_zone_relation_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut trial = cursor.clone();
+    if recognize_optional_source_exclusion(&mut trial).unwrap_or(false) {
+        return false;
+    }
+    recognize_object_collection(&mut trial).is_ok_and(|query| query.controller.is_none())
+        && trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
 }
 
 /// A collection is read on the battlefield when a permanent card type anchors
@@ -246,6 +292,8 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         LocalEffectNode::GainLife(node) => &mut node.amount,
         LocalEffectNode::LoseLife(node) => &mut node.amount,
         LocalEffectNode::PutCounters(node) => &mut node.count,
+        LocalEffectNode::DealDamage(node) => &mut node.amount,
+        LocalEffectNode::CreateExplicitTokens(node) => &mut node.quantity,
         LocalEffectNode::PlayerAction(node) => match &mut node.action {
             SingularPlayerAction::Draw(quantity) | SingularPlayerAction::Mill(quantity) => quantity,
             SingularPlayerAction::Life(life) => &mut life.amount,

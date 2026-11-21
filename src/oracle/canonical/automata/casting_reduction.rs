@@ -91,6 +91,11 @@ fn read_reduction(
         )?;
         cursor.consume(&quantifier)?;
         let query = recognize_scoped_object_query(cursor)?;
+        cursor.enter("casting-reduction.count-zone");
+        cursor.require(
+            !query.zones.contains(&CardZoneName::Library),
+            "a zone the casting-cost collection reader evaluates (not a library)",
+        )?;
         let count = NumericExpression::CountQuery(Box::new(query));
         if fixed == 1 {
             count
