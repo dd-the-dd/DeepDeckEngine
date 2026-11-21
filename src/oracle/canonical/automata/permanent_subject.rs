@@ -272,6 +272,21 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
                 .and_then(|targets| targets.slots.get(slot_index))
                 .map(|slot| &slot.selector);
         }
+        // Actions that declare their targets outside a permanent operand
+        // expose the same declared selector for nominal anaphora.
+        LocalEffectNode::DealDamage(node) => {
+            return match &node.recipient {
+                DamageRecipientNode::Targets(targets) => targets.slots.get(slot_index),
+                _ => None,
+            }
+            .map(|slot| &slot.selector);
+        }
+        LocalEffectNode::ZoneChange(node) => {
+            return node.target.slots.get(slot_index).map(|slot| &slot.selector);
+        }
+        LocalEffectNode::CounterSpell(node) => {
+            return node.target.slots.get(slot_index).map(|slot| &slot.selector);
+        }
         _ => return None,
     };
     match operand {
@@ -331,6 +346,17 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     context: &EffectRecognitionContext,
 ) -> MachineResult<PermanentOperandNode> {
     cursor.enter("permanent.subject.head");
+    if super::reference::attached_object_reference_starts(cursor) {
+        // `enchanted creature` / `equipped creature` is a reference, never
+        // a target declaration or a query (CR 301.5a, 303.4a).
+        let role = super::reference::recognize_attached_object_reference(
+            cursor,
+            context.source_attachment,
+        )?;
+        return Ok(PermanentOperandNode::BoundReference(
+            PermanentEffectReference::Attached(role),
+        ));
+    }
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))

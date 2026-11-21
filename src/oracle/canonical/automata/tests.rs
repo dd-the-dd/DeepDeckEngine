@@ -155,11 +155,19 @@ fn sentence_sequence_resolves_controller_and_power_against_the_exile_target() {
             ..
         })
     ));
+    // The shared player-action child owns the possessive subject; its target
+    // is also the antecedent of the amount's `its`.
     assert_eq!(
         sequence.effects[1],
-        LocalEffectNode::GainLife(GainLifeEffectNode {
-            player: LocalPlayerReference::ControllerOf(binding),
-            amount: NumericExpression::PowerOf(binding),
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            player: PlayerEffectSubject::ObjectRelation {
+                relation: ObjectPlayerRelation::Controller,
+                object: PermanentEffectReference::Target(binding),
+            },
+            action: SingularPlayerAction::Life(LifeActionNode {
+                action: TargetPlayerLifeAction::Gain,
+                amount: NumericExpression::PowerOf(binding),
+            }),
         })
     );
     assert_eq!(cursor.position(), tokens.len());

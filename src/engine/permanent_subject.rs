@@ -140,6 +140,28 @@ impl GameEngine {
                         }))
                 .then(|| instance_id.clone())
             }
+            Some("attachedPermanent") if value_kind(&reference["attachment"]) == Some("self") => {
+                // CR 301.5a, 303.4a: the permanent the source is attached to
+                // now; once the source left, its last known attachment.
+                let attached = self
+                    .permanent_position(&source.card.instance_id)
+                    .map(|(player, index)| {
+                        self.state.players[player].battlefield[index]
+                            .attached_to
+                            .clone()
+                    })
+                    .unwrap_or_else(|| source.card.attached_to.clone());
+                attached.filter(|instance_id| {
+                    self.permanent_position(instance_id)
+                        .is_some_and(|(player, index)| {
+                            !self.state.players[player].battlefield[index]
+                                .flags
+                                .get("phasedOut")
+                                .copied()
+                                .unwrap_or(false)
+                        })
+                })
+            }
             _ => return Ok(PermanentSubjectResolution::Historical),
         };
         Ok(match live_id {

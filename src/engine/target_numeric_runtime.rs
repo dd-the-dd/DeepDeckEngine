@@ -132,6 +132,8 @@ impl GameEngine {
             toughness: (creature
                 && requested.is_none_or(|property| property == TargetNumericProperty::Toughness))
             .then(|| self.current_toughness(card)),
+            controller: requested.is_none().then(|| card.controller.clone()),
+            owner: requested.is_none().then(|| card.owner.clone()),
         }
     }
 

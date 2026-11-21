@@ -18,6 +18,12 @@ pub(super) struct TargetNumericValues {
     pub mana_value: i32,
     pub power: Option<i32>,
     pub toughness: Option<i32>,
+    /// Player relations of the same incarnation (CR 108.3, 109.4), read as
+    /// last known information once it left the battlefield (CR 608.2h).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controller: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 impl TargetNumericValues {

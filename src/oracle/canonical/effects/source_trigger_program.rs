@@ -62,6 +62,7 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_source_trigger_program(
         input.name_resolution_failure,
         &EffectRecognitionContext::for_source(envelope.source)
             .with_source_event_subject(envelope.source)
+            .with_source_attachment(source_attachment_role(input.face_type_line))
             .with_sentence_conditionals()
             .with_unless_frames(),
     ) {

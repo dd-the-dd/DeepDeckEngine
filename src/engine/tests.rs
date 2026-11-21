@@ -37,6 +37,10 @@ mod linked_duration_runtime;
 mod rebound_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/reference_anaphora_runtime.rs"]
+mod reference_anaphora_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_lki_runtime.rs"]
 mod source_lki_runtime;
 
