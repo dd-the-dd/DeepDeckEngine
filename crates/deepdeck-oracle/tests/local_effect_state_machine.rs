@@ -109,8 +109,9 @@ fn a_connector_inside_a_trigger_envelope_is_not_claimed_as_a_spell_effect_sequen
         "Whenever Example Source deals damage and you gain 3 life, draw a card.",
     );
 
-    // The trigger frame claims the ability and rejects the conjoined event
-    // inside its envelope; no spell effect sequence claims the `and`.
+    // The trigger frame claims the ability: the dealt-damage event is read,
+    // and the conjoined second event is rejected at the envelope separator;
+    // no spell effect sequence claims the `and`.
     assert_eq!(parsed.status, "unsupported");
     let ability = &parsed.abilities[0];
     assert!(ability.rule.is_none());
@@ -122,9 +123,9 @@ fn a_connector_inside_a_trigger_envelope_is_not_claimed_as_a_spell_effect_sequen
     );
     assert_eq!(
         diagnostic.state.as_deref(),
-        Some("event.combat-damage.kind")
+        Some("trigger.envelope.separator")
     );
-    assert_eq!(diagnostic.found.as_deref(), Some("damage"));
+    assert_eq!(diagnostic.found.as_deref(), Some("and"));
 }
 
 #[test]

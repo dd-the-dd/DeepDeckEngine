@@ -83,6 +83,23 @@ fn noncombat_is_a_shared_complement_of_every_received_damage_subject() {
 }
 
 #[test]
+fn combat_is_a_shared_complement_of_every_received_damage_subject() {
+    assert_eq!(
+        event("Whenever a creature you control is dealt combat damage, draw a card."),
+        json!({
+            "kind": "controlledPermanentDealtDamage",
+            "player": controller(),
+            "where": {"kind": "cardTypeContains", "value": "Creature"},
+            "combatOnly": true,
+        })
+    );
+    assert_eq!(
+        event("Whenever an opponent is dealt combat damage, draw a card.")["combatOnly"],
+        json!(true)
+    );
+}
+
+#[test]
 fn an_unseen_combination_reuses_the_event_quantity_in_every_action() {
     let parsed = rule(
         "Whenever a creature you control is dealt damage, you draw that many cards and lose that much life.",
@@ -96,14 +113,6 @@ fn an_unseen_combination_reuses_the_event_quantity_in_every_action() {
 #[test]
 fn unrepresentable_received_damage_events_fail_at_their_own_state() {
     for (text, state) in [
-        (
-            "Whenever this creature is dealt combat damage, draw a card.",
-            "trigger.dealt-damage.kind-support",
-        ),
-        (
-            "Whenever a creature you control is dealt combat damage, draw a card.",
-            "trigger.dealt-damage.kind-support",
-        ),
         (
             "Whenever another creature you control is dealt damage, draw a card.",
             "trigger.object-event.source-exclusion-support",

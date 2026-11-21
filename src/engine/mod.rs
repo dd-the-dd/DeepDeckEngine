@@ -168,6 +168,7 @@ mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
 mod permanent_subject;
+mod player_action_events;
 mod player_damage_batch;
 mod player_damage_observation;
 mod player_damage_replacement_order;
@@ -188,6 +189,7 @@ mod runtime_collections;
 mod runtime_object_filter;
 mod sacrifice;
 mod saga;
+mod source_damage_observation;
 mod source_lki;
 #[cfg(all(
     test,
@@ -4908,11 +4910,16 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("permanentDealtDamage") => {
             value_kind(&event["object"]) == Some("self")
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
+                && event.get("combatOnly").is_none_or(Value::is_boolean)
         }
         Some("controlledPermanentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && card_filter_supported(&event["where"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
+                && event.get("combatOnly").is_none_or(Value::is_boolean)
+        }
+        Some("damageDealtBySource") => {
+            source_damage_observation::damage_dealt_by_source_event_supported(event)
         }
         Some("controlledPermanentManaAbilityActivated") => {
             (event["anyPlayer"].as_bool() == Some(true)
@@ -4961,8 +4968,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event.get("reason").is_none_or(Value::is_string)
         }
         Some("abilityPerformed") => {
-            value_kind(&event["player"]) == Some("controllerOf")
-                && value_kind(&event["player"]["object"]) == Some("self")
+            player_action_events::event_player_reference_supported(&event["player"])
                 && event["abilityId"]
                     .as_str()
                     .is_some_and(|ability_id| !ability_id.trim().is_empty())
@@ -5049,7 +5055,10 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("countersPlaced") => {
             player_reference_supported(&event["player"])
                 && event.get("counter").is_none_or(Value::is_string)
-                && card_filter_supported(&event["where"])
+                // The source itself needs no recipient filter.
+                && (value_kind(&event["object"]) == Some("self")
+                    && event.get("where").is_none()
+                    || card_filter_supported(&event["where"]))
                 && event.get("anyController").is_none_or(Value::is_boolean)
                 && event.get("placedBy").is_none_or(player_reference_supported)
                 && event.get("excludeSource").is_none_or(Value::is_boolean)
@@ -5122,10 +5131,13 @@ fn triggered_event_supported(event: &Value) -> bool {
                         .get("aggregation")
                         .is_none_or(|v| matches!(v.as_str(), Some("perRecipient" | "oneOrMore"))))
         }
-        Some("playerDiscardedCard") => true,
+        Some("playerDiscardedCard" | "cardCycled") => {
+            player_action_events::player_card_action_event_supported(event)
+        }
         Some("opponentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
+                && event.get("combatOnly").is_none_or(Value::is_boolean)
                 && event
                     .get("aggregation")
                     .is_none_or(|v| matches!(v.as_str(), Some("perRecipient" | "oneOrMore")))
@@ -23582,6 +23594,9 @@ impl GameEngine {
                     && event.player_id.as_deref() == Some(discarding_player_id)
             })
             .and_then(|event| event.card_instance_id.clone());
+        let discarded_card = discarded_id
+            .as_deref()
+            .and_then(|instance_id| self.card_after_player_action(instance_id));
         let sources = self
             .state
             .players
@@ -23600,7 +23615,13 @@ impl GameEngine {
                         && triggered_event_variants(&rule["event"])
                             .iter()
                             .any(|event| {
-                                value_kind(event) == Some("playerDiscardedCard")
+                                (value_kind(event) == Some("playerDiscardedCard")
+                                    && self.player_card_action_matches(
+                                        event,
+                                        &source,
+                                        discarding_player_id,
+                                        discarded_card.as_ref(),
+                                    ))
                                     || (value_kind(event) == Some("opponentDiscardedCard")
                                         && source.controller != discarding_player_id)
                             })
@@ -27490,6 +27511,8 @@ impl GameEngine {
                         );
                         self.check_quantity_failure()?;
                     }
+                    self.publish_cycling_card_actions(&action.player_id, &source);
+                    self.check_quantity_failure()?;
                     self.check_state_based_actions_with_provider(Some(provider))?;
                     return Ok(());
                 }
@@ -27572,6 +27595,8 @@ impl GameEngine {
                             "stackId": stack_id,
                         }),
                     );
+                    self.publish_cycling_card_actions(&action.player_id, &source);
+                    self.check_quantity_failure()?;
                     self.check_state_based_actions_with_provider(Some(provider))?;
                     return Ok(());
                 }
