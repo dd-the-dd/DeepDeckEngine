@@ -489,7 +489,11 @@ impl GameEngine {
                         counter_removals,
                     });
                 }
-                if self.static_modifier_applies_to("preventDamage", permanent) {
+                // CR 615.1a: a static prevention may be restricted to combat
+                // damage; other damage to the same permanent is still dealt.
+                if self.static_modifier_applies_to_where("preventDamage", permanent, |modifier| {
+                    combat || !modifier["combatOnly"].as_bool().unwrap_or(false)
+                }) {
                     events.record_event(
                         "damagePrevented",
                         None,

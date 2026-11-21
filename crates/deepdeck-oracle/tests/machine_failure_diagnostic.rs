@@ -39,9 +39,9 @@ fn a_committed_local_family_serializes_its_precise_machine_failure() {
 }
 
 #[test]
-fn legacy_unsupported_keeps_the_legacy_diagnostic_shape() {
-    // Every spell sentence is now claimed by the shared contextual program,
-    // so an unclaimed static sentence witnesses the legacy shape.
+fn an_unread_static_subject_is_owned_by_the_static_frame() {
+    // CR 113.3: no ability is left unclaimed. A static sentence whose subject
+    // no shared child reads is owned by the static frame at that subject.
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Test".to_string(),
         type_line: "Enchantment".to_string(),
@@ -52,15 +52,18 @@ fn legacy_unsupported_keeps_the_legacy_diagnostic_shape() {
     });
     assert_eq!(
         parsed.abilities[0].recognizer,
-        deepdeck_oracle::oracle::RecognizerProvenance::Unclaimed
+        deepdeck_oracle::oracle::RecognizerProvenance::Native
     );
     let diagnostic = &parsed.abilities[0].diagnostics[0];
 
-    assert_eq!(diagnostic.code, "unsupported_oracle_ability");
-    assert!(diagnostic.automaton.is_none());
-    assert!(diagnostic.state.is_none());
-    assert!(diagnostic.token_index.is_none());
-    assert!(diagnostic.trace.is_empty());
+    assert_eq!(diagnostic.code, "oracle_machine_failure");
+    assert_eq!(diagnostic.automaton.as_deref(), Some("ability-frame"));
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("ability-frame.static.subject")
+    );
+    assert_eq!(diagnostic.token_index, Some(0));
+    assert_eq!(diagnostic.found.as_deref(), Some("Players"));
 }
 
 #[test]

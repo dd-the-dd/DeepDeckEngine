@@ -882,7 +882,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
           }
         ]
       }
@@ -910,7 +911,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
           }
         ]
       }
@@ -966,7 +968,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.predicate"
           }
         ]
       }
@@ -994,7 +997,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
           }
         ]
       }
@@ -1022,7 +1026,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
           }
         ]
       }
@@ -1081,7 +1086,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "object-set.complete"
           }
         ]
       }

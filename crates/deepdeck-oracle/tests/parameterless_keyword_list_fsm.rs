@@ -112,7 +112,20 @@ fn keyword_adjective_at_the_start_of_an_effect_is_not_stolen() {
     let parsed = parse("Flying creatures you control have vigilance.");
     let ability = &parsed.abilities[0];
 
-    assert_ne!(ability.recognizer, RecognizerProvenance::Native);
+    // Structural frames now claim every ability explicitly: the near-miss is
+    // a committed ability-frame failure, never stolen by the adjacent family.
+    assert_eq!(ability.status, "unsupported");
+    assert!(ability.rule.is_none());
+    assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
+    assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("ability-frame")
+    );
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("ability-frame.static.subject")
+    );
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("Flying"));
     assert!(
         ability
             .diagnostics

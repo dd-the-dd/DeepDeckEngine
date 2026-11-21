@@ -65,11 +65,10 @@ fn both_public_entry_points_reject_an_unclaimed_static_rule() {
     let full = parse_oracle_card(request.clone());
     let native = parse_oracle_card_native(request);
 
+    // CR 113.3: the static frame owns the ability and reports where its
+    // type-change predicate stopped; nothing is left unclaimed.
     assert_eq!(full.status, "unsupported");
-    assert_eq!(
-        full.abilities[0].recognizer,
-        RecognizerProvenance::Unclaimed
-    );
+    assert_eq!(full.abilities[0].recognizer, RecognizerProvenance::Native);
     assert_eq!(full.abilities[0].status, "unsupported");
     assert!(full.abilities[0].rule.is_none());
     assert_eq!(
@@ -77,21 +76,19 @@ fn both_public_entry_points_reject_an_unclaimed_static_rule() {
         serde_json::to_value(&native).unwrap()
     );
     assert_eq!(native.status, "unsupported");
-    assert_eq!(
-        native.abilities[0].recognizer,
-        RecognizerProvenance::Unclaimed
-    );
-    assert_eq!(native.abilities[0].ability_type, "unclassifiedAbility");
+    assert_eq!(native.abilities[0].recognizer, RecognizerProvenance::Native);
+    assert_eq!(native.abilities[0].ability_type, "staticAbility");
     assert_eq!(native.abilities[0].status, "unsupported");
     assert!(native.abilities[0].rule.is_none());
+    let diagnostic = &native.abilities[0].diagnostics[0];
+    assert_eq!(diagnostic.code, "oracle_machine_failure");
     assert_eq!(
-        native.abilities[0].diagnostics[0].code,
-        "unsupported_oracle_ability"
+        diagnostic.automaton.as_deref(),
+        Some("static-continuous-effect")
     );
-    assert!(
-        native.abilities[0].diagnostics[0]
-            .message
-            .contains("No token-driven native automaton claimed")
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("static.continuous.type-change")
     );
 }
 

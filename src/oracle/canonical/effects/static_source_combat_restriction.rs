@@ -32,7 +32,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
         let modifiers = node
             .clauses
             .iter()
-            .map(|clause| lower_source_combat_clause(&cursor, clause))
+            .map(|clause| lower_combat_clause(&cursor, &self_ref(), clause))
             .collect::<MachineResult<Vec<_>>>()?;
         Ok((modifiers, node.condition))
     });
@@ -62,27 +62,35 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
     ))
 }
 
-fn lower_source_combat_clause(
+/// Lowers one combat clause for the objects a static ability affects: the
+/// source, its attached permanent or a permanent collection (CR 508.1c,
+/// 509.1b). The engine evaluates an attack requirement only on the source.
+pub(in crate::oracle::canonical) fn lower_combat_clause(
     cursor: &OracleTokenCursor<'_>,
+    objects: &Value,
     clause: &SourceCombatClause,
 ) -> MachineResult<Value> {
     Ok(match clause {
         SourceCombatClause::Prohibit(keyword) => json!({
-            "kind":"grantKeyword", "objects":self_ref(),
+            "kind":"grantKeyword", "objects":objects,
             "keyword":keyword.canonical_name(),
         }),
         SourceCombatClause::BlockedByAtMostOneCreature => json!({
-            "kind":"grantKeyword", "objects":self_ref(), "keyword":"maxOneBlocker",
+            "kind":"grantKeyword", "objects":objects, "keyword":"maxOneBlocker",
         }),
-        SourceCombatClause::AttacksEachCombat => json!({
-            "kind":"attackEachCombatIfAble", "object":self_ref(),
-        }),
+        SourceCombatClause::AttacksEachCombat => {
+            cursor.require(
+                *objects == self_ref(),
+                "an attack requirement on the ability's own source",
+            )?;
+            json!({ "kind":"attackEachCombatIfAble", "object":objects })
+        }
         SourceCombatClause::CantBeBlockedBy(query) => json!({
-            "kind":"blockRestriction", "attackers":self_ref(),
+            "kind":"blockRestriction", "attackers":objects,
             "blockers":lower_combat_object_selector(cursor, query, None)?,
         }),
         SourceCombatClause::CantBeBlockedExceptBy(query) => json!({
-            "kind":"blockRestriction", "attackers":self_ref(),
+            "kind":"blockRestriction", "attackers":objects,
             "blockers":lower_combat_object_selector(
                 cursor,
                 query,
@@ -92,7 +100,7 @@ fn lower_source_combat_clause(
         SourceCombatClause::CantBlockObjects(query) => json!({
             "kind":"blockRestriction",
             "attackers":lower_combat_object_selector(cursor, query, None)?,
-            "blockers":self_ref(),
+            "blockers":objects,
         }),
     })
 }

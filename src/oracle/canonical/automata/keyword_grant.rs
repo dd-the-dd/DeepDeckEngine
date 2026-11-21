@@ -39,6 +39,12 @@ pub(in crate::oracle::canonical) enum KeywordAtomNode {
     Ward {
         cost: ResourcePaymentNode,
     },
+    /// `protection from QUALITY …` (CR 702.16a), a parameterized atom.
+    Protection {
+        qualities: Vec<super::ProtectionQuality>,
+    },
+    /// A keyword parameterized by one mana cost (morph, dash, plot, warp).
+    ManaCost(super::ManaCostKeywordNode),
     /// Produced only by a parent that grants abilities to another object.
     Quoted(QuotedAbilityNode),
 }
@@ -61,16 +67,19 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
     Some(match raw.to_ascii_lowercase().as_str() {
         "cascade" => GrantedKeyword::Cascade,
         "changeling" => GrantedKeyword::Changeling,
+        "convoke" => GrantedKeyword::Convoke,
         "deathtouch" => GrantedKeyword::Deathtouch,
         "defender" => GrantedKeyword::Defender,
         "devoid" => GrantedKeyword::Devoid,
         "exalted" => GrantedKeyword::Exalted,
         "fear" => GrantedKeyword::Fear,
+        "flanking" => GrantedKeyword::Flanking,
         "flash" => GrantedKeyword::Flash,
         "flying" => GrantedKeyword::Flying,
         "haste" => GrantedKeyword::Haste,
         "hexproof" => GrantedKeyword::Hexproof,
         "horsemanship" => GrantedKeyword::Horsemanship,
+        "improvise" => GrantedKeyword::Improvise,
         "indestructible" => GrantedKeyword::Indestructible,
         "infect" => GrantedKeyword::Infect,
         "intimidate" => GrantedKeyword::Intimidate,
@@ -87,6 +96,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "trample" => GrantedKeyword::Trample,
         "undying" => GrantedKeyword::Undying,
         "vigilance" => GrantedKeyword::Vigilance,
+        "wither" => GrantedKeyword::Wither,
         // CR 702.14a: `[type]walk` with a land subtype from the shared vocabulary.
         other => GrantedKeyword::Landwalk(lookup_landwalk_word(other)?),
     })
@@ -207,6 +217,22 @@ fn recognize_keyword_atom(
             }
         };
         let atom = KeywordAtomNode::Ward { cost };
+        recognize_optional_keyword_reminder(cursor, &atom)?;
+        return Ok(atom);
+    }
+    if allow_parameterized && super::mana_cost_keyword_starts(cursor) {
+        // A keyword name followed by its mana cost commits the atom.
+        let node = super::recognize_mana_cost_keyword(cursor).inspect_err(|_| {
+            *resource_commitment = KeywordResourceCommitment::Failed;
+        })?;
+        return Ok(KeywordAtomNode::ManaCost(node));
+    }
+    if allow_parameterized && super::protection_starts(cursor) {
+        // `protection from` commits this parameterized atom (CR 702.16a).
+        let qualities = super::recognize_protection_keyword(cursor).inspect_err(|_| {
+            *resource_commitment = KeywordResourceCommitment::Failed;
+        })?;
+        let atom = KeywordAtomNode::Protection { qualities };
         recognize_optional_keyword_reminder(cursor, &atom)?;
         return Ok(atom);
     }
@@ -333,7 +359,10 @@ pub(in crate::oracle::canonical) fn recognize_keyword_list(
         .into_iter()
         .map(|keyword| match keyword {
             KeywordAtomNode::Parameterless(keyword) => Ok(keyword),
-            KeywordAtomNode::Ward { .. } | KeywordAtomNode::Quoted(_) => {
+            KeywordAtomNode::Ward { .. }
+            | KeywordAtomNode::Protection { .. }
+            | KeywordAtomNode::ManaCost(_)
+            | KeywordAtomNode::Quoted(_) => {
                 Err(cursor.fail("a parameterless keyword in a granted-keyword list"))
             }
         })
@@ -354,9 +383,10 @@ pub(in crate::oracle::canonical) fn recognize_effect_owned_keyword_list(
     .into_iter()
     .map(|atom| match atom {
         KeywordAtomNode::Parameterless(keyword) => Ok(keyword),
-        KeywordAtomNode::Ward { .. } | KeywordAtomNode::Quoted(_) => {
-            Err(cursor.fail("a parameterless token keyword"))
-        }
+        KeywordAtomNode::Ward { .. }
+        | KeywordAtomNode::Protection { .. }
+        | KeywordAtomNode::ManaCost(_)
+        | KeywordAtomNode::Quoted(_) => Err(cursor.fail("a parameterless token keyword")),
     })
     .collect()
 }
@@ -395,7 +425,9 @@ fn split_granted_atoms(
         match atom {
             KeywordAtomNode::Parameterless(keyword) => granted.keywords.push(keyword),
             KeywordAtomNode::Quoted(ability) => granted.abilities.push(ability),
-            KeywordAtomNode::Ward { .. } => {
+            KeywordAtomNode::Ward { .. }
+            | KeywordAtomNode::Protection { .. }
+            | KeywordAtomNode::ManaCost(_) => {
                 return Err(cursor.fail("a parameterless keyword or quoted ability"));
             }
         }

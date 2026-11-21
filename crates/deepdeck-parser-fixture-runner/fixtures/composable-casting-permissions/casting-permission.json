@@ -286,14 +286,14 @@
           {
             "index": 0,
             "status": "unsupported",
-            "recognizer": "unclaimed"
+            "recognizer": "native"
           }
         ],
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability",
-            "messageContains": "No token-driven native automaton claimed this ability."
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
           }
         ]
       }
@@ -316,14 +316,14 @@
           {
             "index": 0,
             "status": "unsupported",
-            "recognizer": "unclaimed"
+            "recognizer": "native"
           }
         ],
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability",
-            "messageContains": "No token-driven native automaton claimed this ability."
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
           }
         ]
       }
@@ -346,14 +346,14 @@
           {
             "index": 0,
             "status": "unsupported",
-            "recognizer": "unclaimed"
+            "recognizer": "native"
           }
         ],
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability",
-            "messageContains": "No token-driven native automaton claimed this ability."
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.permission.action"
           }
         ]
       }

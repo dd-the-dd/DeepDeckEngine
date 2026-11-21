@@ -25,7 +25,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.keyword.expansion"
           }
         ]
       }
@@ -53,7 +54,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure",
+            "state": "ability-frame.keyword.expansion"
           }
         ]
       }

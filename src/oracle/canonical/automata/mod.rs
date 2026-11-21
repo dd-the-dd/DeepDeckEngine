@@ -116,6 +116,7 @@ mod linked_exile_return;
 mod loyalty;
 mod loyalty_ability;
 mod mana;
+mod mana_cost_keyword;
 mod mana_spend_constraint;
 mod mana_spending_policy;
 mod mandatory_additional_cost_header;
@@ -161,6 +162,7 @@ mod player_set;
 mod player_spell_tax_draw;
 mod power_toughness;
 mod protected_attack_trigger;
+mod protection;
 mod put_counters;
 mod qualified_effect;
 mod quantified_event;
@@ -353,6 +355,7 @@ pub(super) use linked_exile_return::*;
 pub(super) use loyalty::*;
 pub(super) use loyalty_ability::*;
 pub(super) use mana::*;
+pub(super) use mana_cost_keyword::*;
 pub(super) use mana_spend_constraint::*;
 pub(super) use mana_spending_policy::*;
 pub(super) use mandatory_additional_cost_header::*;
@@ -398,6 +401,7 @@ pub(super) use player_set::*;
 pub(super) use player_spell_tax_draw::*;
 pub(super) use power_toughness::*;
 pub(super) use protected_attack_trigger::*;
+pub(super) use protection::*;
 pub(super) use put_counters::*;
 pub(super) use qualified_effect::*;
 pub(super) use quantified_event::*;
@@ -1032,6 +1036,8 @@ pub(super) enum GrantedKeyword {
     CantBeBlocked,
     CantBlock,
     Changeling,
+    /// CR 702.51: tapping creatures pays for this spell.
+    Convoke,
     Deathtouch,
     Defender,
     /// CR 702.114: characteristic-defining colorlessness.
@@ -1040,11 +1046,15 @@ pub(super) enum GrantedKeyword {
     Exalted,
     Fear,
     FirstStrike,
+    /// CR 702.25: a blocking creature without flanking gets -1/-1.
+    Flanking,
     Flash,
     Flying,
     Haste,
     Hexproof,
     Horsemanship,
+    /// CR 702.126: tapping artifacts pays for this spell.
+    Improvise,
     Indestructible,
     Infect,
     Intimidate,
@@ -1069,6 +1079,8 @@ pub(super) enum GrantedKeyword {
     UmbraArmor,
     Undying,
     Vigilance,
+    /// CR 702.80: damage to creatures is dealt as -1/-1 counters.
+    Wither,
 }
 
 impl GrantedKeyword {
@@ -1079,6 +1091,7 @@ impl GrantedKeyword {
             Self::CantBeBlocked => "cantBeBlocked",
             Self::CantBlock => "cantBlock",
             Self::Changeling => "changeling",
+            Self::Convoke => "convoke",
             Self::Deathtouch => "deathtouch",
             Self::Defender => "defender",
             Self::Devoid => "devoid",
@@ -1086,11 +1099,13 @@ impl GrantedKeyword {
             Self::Exalted => "exalted",
             Self::Fear => "fear",
             Self::FirstStrike => "firstStrike",
+            Self::Flanking => "flanking",
             Self::Flash => "flash",
             Self::Flying => "flying",
             Self::Haste => "haste",
             Self::Hexproof => "hexproof",
             Self::Horsemanship => "horsemanship",
+            Self::Improvise => "improvise",
             Self::Indestructible => "indestructible",
             Self::Infect => "infect",
             Self::Intimidate => "intimidate",
@@ -1110,6 +1125,7 @@ impl GrantedKeyword {
             Self::UmbraArmor => "umbraArmor",
             Self::Undying => "undying",
             Self::Vigilance => "vigilance",
+            Self::Wither => "wither",
         }
     }
 }

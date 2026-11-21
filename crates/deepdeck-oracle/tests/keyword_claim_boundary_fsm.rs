@@ -147,9 +147,19 @@ fn a_keyword_adjective_sentence_remains_outside_the_native_claim() {
     let parsed = parse("Flying creatures you control have vigilance.");
 
     assert_eq!(parsed.status, "unsupported");
-    assert_eq!(
-        parsed.abilities[0].recognizer,
-        RecognizerProvenance::Unclaimed
-    );
     assert!(parsed.abilities[0].rule.is_none());
+    // Structural frames now claim every ability explicitly: the near-miss is
+    // a committed ability-frame failure, never stolen by the adjacent family.
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
+    assert_eq!(
+        ability.diagnostics[0].automaton.as_deref(),
+        Some("ability-frame")
+    );
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("ability-frame.static.subject")
+    );
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("Flying"));
 }
