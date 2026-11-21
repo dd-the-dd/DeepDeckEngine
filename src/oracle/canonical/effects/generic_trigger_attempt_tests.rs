@@ -168,7 +168,8 @@ fn player_event_and_trigger_limit_near_misses_stay_explicit() {
     let tokens = recognize_entities("you gains life");
     let mut cursor = OracleTokenCursor::new("player-event-near-miss", &tokens);
     let failure = recognize_player_event(&mut cursor).expect_err("verb agreement");
-    assert_eq!(failure.state, "event.player.action");
+    // The shared life clause owns the agreement diagnostic of its verb.
+    assert_eq!(failure.state, "clause.verb");
     // Recognized event without a runtime matcher for this actor.
     let GenericTriggerProgramAttempt::FailedCommitted(failure) =
         program("Whenever an opponent attacks, draw a card.", "Creature")

@@ -5,8 +5,9 @@
 //! PlayerEvent  := Actor FixedVerb
 //!               | Actor ObjectVerb ("or" ObjectVerb)* CardObject
 //!               | Actor NamedVerb ("or" NamedVerb)*
+//!               | Actor LifeClause    (the shared clause, `clause.rs`)
 //! Actor        := "you" | "a player" | "an opponent" | "one or more" PLAYERS
-//! FixedVerb    := "gain(s) life" | "lose(s) life" | "draw(s) a card" | ...
+//! FixedVerb    := "draw(s) a card" | "attack(s)" | ...
 //! ObjectVerb   := "discard(s)" | "cycle(s)"
 //! CardObject   := ("a" | "an" | "another") CardQuery
 //! NamedVerb    := a keyword action whose catalog entry publishes a completed
@@ -19,7 +20,9 @@ use crate::oracle::ability_catalog::{AbilitySignalPolicy, lookup_exact_lexeme, l
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamageEventKind, EventActorScope, LocalTriggerEventNode, ObjectKind, ObjectQueryNode,
+    ClauseAction, ClauseAmountPolicy, ClauseFrame, ClauseModality, ClauseSubjectPolicy,
+    ClauseTense, DamageEventKind, EventActorScope, LIFE_LEMMAS, LocalTriggerEventNode, ObjectKind,
+    ObjectQueryNode, TargetPlayerLifeAction, VerbAgreement, recognize_clause,
     recognize_object_query_before_separator, try_recognize_event_actor_scope,
     try_recognize_plural_event_actor_scope,
 };
@@ -47,10 +50,6 @@ impl PlayerEventAction {
     /// Base and third-person verb forms followed by the fixed complement.
     fn fixed_phrase(self, third_person: bool) -> Option<&'static [&'static str]> {
         Some(match (self, third_person) {
-            (Self::GainLife, false) => &["gain", "life"],
-            (Self::GainLife, true) => &["gains", "life"],
-            (Self::LoseLife, false) => &["lose", "life"],
-            (Self::LoseLife, true) => &["loses", "life"],
             (Self::DrawCard, false) => &["draw", "a", "card"],
             (Self::DrawCard, true) => &["draws", "a", "card"],
             (Self::Attack, false) => &["attack"],
@@ -71,7 +70,16 @@ impl PlayerEventAction {
             (Self::BeDealtDamage(DamageEventKind::Noncombat), true) => {
                 &["is", "dealt", "noncombat", "damage"]
             }
-            (Self::DiscardCard | Self::CycleCard | Self::NamedAction(_), _) => return None,
+            // Life verbs are the shared life clause's; object and named
+            // verbs are union verbs.
+            (
+                Self::GainLife
+                | Self::LoseLife
+                | Self::DiscardCard
+                | Self::CycleCard
+                | Self::NamedAction(_),
+                _,
+            ) => return None,
         })
     }
 
@@ -94,9 +102,7 @@ impl PlayerEventAction {
     }
 }
 
-const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 8] = [
-    PlayerEventAction::GainLife,
-    PlayerEventAction::LoseLife,
+const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 6] = [
     PlayerEventAction::DrawCard,
     PlayerEventAction::Attack,
     PlayerEventAction::FaceDilemma,
@@ -208,6 +214,31 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
     };
     let third_person = actor != EventActorScope::Controller && !one_or_more;
     cursor.enter("event.player.action");
+    // `gain(s) life` / `lose(s) life`: the shared life clause with the actor
+    // as its supplied subject; the pattern has no amount.
+    let life_frame = ClauseFrame {
+        subject: ClauseSubjectPolicy::Supplied(if third_person {
+            VerbAgreement::ThirdPersonSingular
+        } else {
+            VerbAgreement::Base
+        }),
+        modality: ClauseModality::Indicative,
+        tense: ClauseTense::Present,
+        amount: ClauseAmountPolicy::Absent,
+        lemmas: LIFE_LEMMAS,
+    };
+    if let Some(clause) = recognize_clause(cursor, &life_frame).into_result()? {
+        let ClauseAction::LifeTotalChange { direction, .. } = clause.action;
+        return Ok(LocalTriggerEventNode::PlayerEvent {
+            actor,
+            actions: vec![match direction {
+                TargetPlayerLifeAction::Gain => PlayerEventAction::GainLife,
+                TargetPlayerLifeAction::Lose => PlayerEventAction::LoseLife,
+            }],
+            one_or_more,
+            card: None,
+        });
+    }
     for action in FIXED_PLAYER_EVENT_ACTIONS {
         let phrase = action.fixed_phrase(third_person).expect("fixed phrase");
         if (0..phrase.len()).all(|offset| {

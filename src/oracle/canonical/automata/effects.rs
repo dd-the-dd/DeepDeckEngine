@@ -2,14 +2,13 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CounterEffectNode, DamageEffectNode, DamageRecipientNode, GainLifeEffectNode, LifeVerbForm,
-    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, NumericExpression, ObjectCardType,
-    ObjectKind, PlayerTargetBinding, SelectorPredicate, TargetBinding, TargetCardinality,
-    TargetPlayerLifeAction, TargetPlayerLifeEffectNode, TargetSelector, ZoneChangeAction,
-    ZoneChangeDestination, ZoneChangeEffectNode, ZoneChangeRegenerationPolicy,
-    recognize_equal_to_amount_expression, recognize_life_action, recognize_numeric_expression,
-    recognize_player_reference, recognize_source_reference_with_typed_antecedent,
-    recognize_target_list, recognize_target_slot_selector,
+    CounterEffectNode, DamageEffectNode, DamageRecipientNode, LocalEffectNode, NumericExpression,
+    ObjectCardType, ObjectKind, SelectorPredicate, TargetBinding, TargetCardinality,
+    TargetSelector, ZoneChangeAction, ZoneChangeDestination, ZoneChangeEffectNode,
+    ZoneChangeRegenerationPolicy, recognize_equal_to_amount_expression,
+    recognize_numeric_expression, recognize_player_reference,
+    recognize_source_reference_with_typed_antecedent, recognize_target_list,
+    recognize_target_slot_selector,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -509,150 +508,6 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         SelectorPredicate::Union(operands) => {
             !operands.is_empty() && operands.iter().all(damageable_object_predicate)
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifeState {
-    Player,
-    Action,
-    Complete,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifeAction {
-    Gain,
-    Lose,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifePlayer {
-    Reference(LocalPlayerReference),
-    Target {
-        binding: PlayerTargetBinding,
-        declares_target: bool,
-    },
-}
-
-#[derive(Default)]
-struct LifeMemory {
-    player: Option<LifePlayer>,
-    action: Option<LifeAction>,
-    amount: Option<super::NumericExpression>,
-}
-
-pub(in crate::oracle::canonical) fn recognize_life_effect(
-    cursor: &mut OracleTokenCursor<'_>,
-    object_antecedent: Option<TargetBinding>,
-) -> MachineResult<LocalEffectNode> {
-    recognize_life_effect_with_player_target(cursor, object_antecedent, None, None)
-}
-
-pub(in crate::oracle::canonical) fn recognize_life_effect_with_player_target(
-    cursor: &mut OracleTokenCursor<'_>,
-    object_antecedent: Option<TargetBinding>,
-    current_player_target: Option<PlayerTargetBinding>,
-    player_antecedent: Option<PlayerTargetBinding>,
-) -> MachineResult<LocalEffectNode> {
-    let mut state = LifeState::Player;
-    let mut memory = LifeMemory::default();
-    loop {
-        state = match state {
-            LifeState::Player => {
-                cursor.enter("effect.life.player");
-                memory.player = Some(
-                    if cursor.peek().is_some_and(|token| {
-                        token.eq_ignore_ascii_case("gain") || token.eq_ignore_ascii_case("lose")
-                    }) {
-                        LifePlayer::Reference(LocalPlayerReference::Controller)
-                    } else if cursor
-                        .peek()
-                        .is_some_and(|token| token.eq_ignore_ascii_case("target"))
-                    {
-                        cursor.enter("effect.life.player.target-marker");
-                        cursor.consume("target")?;
-                        cursor.enter("effect.life.player.target-domain");
-                        cursor.consume("player")?;
-                        LifePlayer::Target {
-                            binding: current_player_target.ok_or_else(|| {
-                                cursor
-                                    .fail("a player-target binding supplied by the effect sequence")
-                            })?,
-                            declares_target: true,
-                        }
-                    } else if cursor
-                        .peek()
-                        .is_some_and(|token| token.eq_ignore_ascii_case("that"))
-                        && cursor
-                            .peek_ahead(1)
-                            .is_some_and(|token| token.eq_ignore_ascii_case("player"))
-                    {
-                        cursor.enter("effect.life.player.anaphor");
-                        cursor.consume_phrase(&["that", "player"])?;
-                        LifePlayer::Target {
-                            binding: player_antecedent.ok_or_else(|| {
-                                cursor.fail("a prior player target binding for `that player`")
-                            })?,
-                            declares_target: false,
-                        }
-                    } else {
-                        LifePlayer::Reference(recognize_player_reference(
-                            cursor,
-                            object_antecedent,
-                        )?)
-                    },
-                );
-                LifeState::Action
-            }
-            LifeState::Action => {
-                let form = match memory.player {
-                    Some(LifePlayer::Reference(LocalPlayerReference::Controller)) => {
-                        LifeVerbForm::Base
-                    }
-                    Some(_) => LifeVerbForm::ThirdPersonSingular,
-                    None => return Err(cursor.fail("a resolved life-total player")),
-                };
-                let action = recognize_life_action(cursor, form, object_antecedent)?;
-                memory.action = Some(match action.action {
-                    TargetPlayerLifeAction::Gain => LifeAction::Gain,
-                    TargetPlayerLifeAction::Lose => LifeAction::Lose,
-                });
-                memory.amount = Some(action.amount);
-                LifeState::Complete
-            }
-            LifeState::Complete => {
-                cursor.enter("effect.life.complete");
-                let player = cursor.require_value(memory.player, "a populated life player")?;
-                let amount = cursor.require_value(memory.amount, "a populated life amount")?;
-                let action = cursor.require_value(memory.action, "a populated life action")?;
-                return match player {
-                    LifePlayer::Reference(player) => match action {
-                        LifeAction::Gain => Ok(LocalEffectNode::GainLife(GainLifeEffectNode {
-                            player,
-                            amount,
-                        })),
-                        LifeAction::Lose => Ok(LocalEffectNode::LoseLife(LoseLifeEffectNode {
-                            player,
-                            amount,
-                        })),
-                    },
-                    LifePlayer::Target {
-                        binding,
-                        declares_target,
-                    } => Ok(LocalEffectNode::TargetPlayerLife(
-                        TargetPlayerLifeEffectNode {
-                            player: binding,
-                            declares_target,
-                            action: match action {
-                                LifeAction::Gain => TargetPlayerLifeAction::Gain,
-                                LifeAction::Lose => TargetPlayerLifeAction::Lose,
-                            },
-                            amount,
-                        },
-                    )),
-                };
-            }
-        };
     }
 }
 

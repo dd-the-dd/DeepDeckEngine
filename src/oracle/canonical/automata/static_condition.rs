@@ -5,15 +5,17 @@
 //! proposition that the engine evaluates continuously, not a card recipe.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    BooleanConditionNode, ConditionPlayerSubject, ControlledCountDirection,
-    ControllerTurnPropositionNode, LocalConditionNode, NumericAtom, ObjectKind, ObjectPredicate,
-    PlayerStateConditionNode, collective_opponents_condition_starts,
+    BooleanConditionNode, ClauseAction, ClauseAmount, ClauseAmountPolicy, ClauseFrame,
+    ClauseModality, ClauseSubject, ClauseSubjectPolicy, ClauseTense, ConditionPlayerSubject,
+    ControlledCountDirection, ControllerTurnPropositionNode, EventActorScope, LIFE_LEMMAS,
+    LocalConditionNode, NumericAtom, ObjectKind, ObjectPredicate, PlayerStateConditionNode,
+    TargetPlayerLifeAction, clause_starts, collective_opponents_condition_starts,
     quantified_player_condition_starts, recognize_boolean_condition_list_before_separator,
-    recognize_collective_opponents_condition, recognize_controller_turn_proposition,
-    recognize_numeric_atom, recognize_object_query_before_condition_connector,
-    recognize_player_possession_proposition, recognize_quantified_player_condition,
-    recognize_search_card_selector, recognize_source_reference, recognize_trigger_guard_atom,
-    source_reference_starts_at,
+    recognize_clause, recognize_collective_opponents_condition,
+    recognize_controller_turn_proposition, recognize_numeric_atom,
+    recognize_object_query_before_condition_connector, recognize_player_possession_proposition,
+    recognize_quantified_player_condition, recognize_search_card_selector,
+    recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -143,6 +145,9 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     context: StaticConditionContext<'_>,
 ) -> MachineResult<StaticConditionAtom> {
     cursor.enter("condition.static.atom-kind");
+    if let Some(atom) = try_recognize_life_history_atom(cursor)? {
+        return Ok(atom);
+    }
     if opponent_count_comparison_starts(cursor) {
         return recognize_opponent_count_comparison_atom(cursor);
     }
@@ -160,17 +165,12 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
         || (word_is(cursor, 0, "you")
             && (word_is(cursor, 1, "have")
                 || contraction_is(cursor, 1, "haven", "t")
-                || word_is(cursor, 1, "gained")
-                || word_is(cursor, 1, "attacked")
-                || word_is(cursor, 1, "lost")))
+                || word_is(cursor, 1, "attacked")))
     {
         return recognize_controller_history_atom(cursor);
     }
     if word_is(cursor, 0, "no") || (word_is(cursor, 0, "a") && word_is(cursor, 1, "player")) {
         return recognize_last_turn_spell_atom(cursor);
-    }
-    if word_is(cursor, 0, "an") && word_is(cursor, 1, "opponent") {
-        return recognize_opponent_life_loss_atom(cursor);
     }
     if word_is(cursor, 0, "a")
         || word_is(cursor, 0, "an")
@@ -249,7 +249,7 @@ fn recognize_source_state_atom(
 }
 
 /// `N or more` / `N or fewer` / `a` / `an`: a fixed bounded count comparison.
-fn recognize_count_comparison(
+pub(in crate::oracle::canonical) fn recognize_count_comparison(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<(i64, ControlledCountDirection, bool)> {
     cursor.enter("condition.static.count.threshold");
@@ -331,11 +331,8 @@ fn recognize_controller_history_atom(
         return recognize_completed_dungeon_atom(cursor, false);
     } else {
         cursor.consume("you")?;
-        // `you gained life this turn` is the simple-past form of the same history.
-        if !(word_is(cursor, 0, "gained")
-            || word_is(cursor, 0, "lost")
-            || word_is(cursor, 0, "attacked"))
-        {
+        // `you attacked this turn` is the simple-past form of the same history.
+        if !word_is(cursor, 0, "attacked") {
             cursor.consume("have")?;
         }
     }
@@ -361,46 +358,20 @@ fn recognize_controller_history_atom(
     let verb = cursor
         .peek()
         .map(str::to_ascii_lowercase)
-        .ok_or_else(|| cursor.fail("`drawn`, `cast`, `gained` or an enduring story"))?;
+        .ok_or_else(|| cursor.fail("`drawn`, `cast`, `attacked` or an enduring story"))?;
     match verb.as_str() {
-        "gained" => {
-            cursor.consume("gained")?;
-            cursor.enter("condition.static.controller-history.life");
-            let threshold = if word_is(cursor, 0, "life") {
-                1
-            } else {
-                let (threshold, direction, _) = recognize_count_comparison(cursor)?;
-                cursor.require(
-                    direction == ControlledCountDirection::OrMore && threshold >= 1,
-                    "an `or more` life-gain count of at least one",
-                )?;
-                threshold
-            };
-            cursor.consume("life")?;
-            cursor.consume_phrase(&["this", "turn"])?;
-            Ok(StaticConditionAtom::ControllerGainedLifeThisTurn { threshold })
-        }
         "attacked" => {
             cursor.consume("attacked")?;
             cursor.enter("condition.static.controller-history.attack");
             cursor.consume_phrase(&["this", "turn"])?;
             Ok(StaticConditionAtom::ControllerAttackedThisTurn)
         }
-        "lost" => {
-            cursor.consume("lost")?;
-            cursor.enter("condition.static.controller-history.life");
-            cursor.consume("life")?;
-            cursor.consume_phrase(&["this", "turn"])?;
-            Ok(StaticConditionAtom::ControllerLostLifeThisTurn)
-        }
         "an" => {
             cursor.consume_phrase(&["an", "enduring", "story"])?;
             Ok(StaticConditionAtom::ControllerHasEnduringStory)
         }
         "completed" => recognize_completed_dungeon_atom(cursor, true),
-        _ => {
-            Err(cursor.fail("`drawn`, `cast`, `gained`, `lost`, a life total or an enduring story"))
-        }
+        _ => Err(cursor.fail("`drawn`, `cast`, `attacked`, a life total or an enduring story")),
     }
 }
 
@@ -514,15 +485,68 @@ fn recognize_opponent_count_comparison_atom(
     })
 }
 
-/// `an opponent lost life this turn`.
-fn recognize_opponent_life_loss_atom(
+fn life_history_frame() -> ClauseFrame<'static> {
+    ClauseFrame {
+        subject: ClauseSubjectPolicy::PlayerScope,
+        modality: ClauseModality::Indicative,
+        tense: ClauseTense::PastThisTurn,
+        amount: ClauseAmountPolicy::Threshold,
+        lemmas: LIFE_LEMMAS,
+    }
+}
+
+/// True when a past life clause (`you gained life this turn`) starts here.
+pub(in crate::oracle::canonical) fn life_history_condition_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    clause_starts(cursor, &life_history_frame())
+}
+
+/// `PLAYER gained|lost [N or more] life this turn`: the past interpretation
+/// of the shared life clause, as a this-turn history query. Only histories
+/// the engine records are atoms; any other claimed clause fails here.
+fn try_recognize_life_history_atom(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<StaticConditionAtom> {
-    cursor.enter("condition.static.opponent-life.subject");
-    cursor.consume_phrase(&["an", "opponent"])?;
-    cursor.enter("condition.static.opponent-life.verb");
-    cursor.consume_phrase(&["lost", "life", "this", "turn"])?;
-    Ok(StaticConditionAtom::OpponentLostLifeThisTurn)
+) -> MachineResult<Option<StaticConditionAtom>> {
+    let Some(clause) = recognize_clause(cursor, &life_history_frame()).into_result()? else {
+        return Ok(None);
+    };
+    cursor.enter("condition.static.life-history");
+    let ClauseAction::LifeTotalChange { direction, amount } = clause.action;
+    let ClauseSubject::Scope {
+        actor,
+        one_or_more: false,
+    } = clause.subject
+    else {
+        return Err(cursor.fail("a singular player scope for a life history"));
+    };
+    Ok(Some(match (actor, direction, amount) {
+        (EventActorScope::Controller, TargetPlayerLifeAction::Gain, ClauseAmount::Unspecified) => {
+            StaticConditionAtom::ControllerGainedLifeThisTurn { threshold: 1 }
+        }
+        (
+            EventActorScope::Controller,
+            TargetPlayerLifeAction::Gain,
+            ClauseAmount::Count { value, direction },
+        ) => {
+            cursor.require(
+                direction == ControlledCountDirection::OrMore && value >= 1,
+                "an `or more` life-gain count of at least one",
+            )?;
+            StaticConditionAtom::ControllerGainedLifeThisTurn { threshold: value }
+        }
+        (EventActorScope::Controller, TargetPlayerLifeAction::Lose, ClauseAmount::Unspecified) => {
+            StaticConditionAtom::ControllerLostLifeThisTurn
+        }
+        (EventActorScope::Opponent, TargetPlayerLifeAction::Lose, ClauseAmount::Unspecified) => {
+            StaticConditionAtom::OpponentLostLifeThisTurn
+        }
+        _ => {
+            return Err(cursor.fail(
+                "a recorded life history (`you gained [N or more] life`, `you lost life`, or `an opponent lost life` this turn)",
+            ));
+        }
+    }))
 }
 
 /// `a creature died this turn`, `two or more Elves died this turn`: the

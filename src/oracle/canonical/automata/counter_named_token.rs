@@ -245,7 +245,11 @@ fn parse_named_token_effect(tokens: &[RecognizedEntity]) -> Option<NamedTokenEff
         {
             Some(NamedTokenEffect::DrawCards { amount: 1 })
         }
-        [you, gain, amount, life] if you == "you" && gain == "gain" && life == "life" => {
+        [you, gain, amount, life]
+            if you == "you"
+                && super::is_verb_form(gain, super::VerbLemma::Gain, super::VerbForm::Base)
+                && life == "life" =>
+        {
             Some(NamedTokenEffect::GainLife {
                 amount: numeric_word(amount)?,
             })

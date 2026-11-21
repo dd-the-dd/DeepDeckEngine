@@ -100,13 +100,13 @@ fn recognize_draw_cards_effect_attempt(
         cursor.consume("you")?;
     }
 
-    recognize_draw_action_attempt(cursor, super::LifeVerbForm::Base, context)
+    recognize_draw_action_attempt(cursor, super::VerbAgreement::Base, context)
 }
 
 /// Subject-free draw child; the caller resolves actor identity and agreement.
 pub(in crate::oracle::canonical) fn recognize_draw_action_fragment(
     cursor: &mut OracleTokenCursor<'_>,
-    form: super::LifeVerbForm,
+    form: super::VerbAgreement,
     context: &EffectRecognitionContext,
 ) -> MachineResult<NumericExpression> {
     recognize_draw_action_attempt(cursor, form, context)
@@ -119,12 +119,12 @@ pub(in crate::oracle::canonical) fn recognize_draw_action_fragment(
 
 fn recognize_draw_action_attempt(
     cursor: &mut OracleTokenCursor<'_>,
-    form: super::LifeVerbForm,
+    form: super::VerbAgreement,
     context: &EffectRecognitionContext,
 ) -> Result<DrawCardsEffectNode, DrawCardsEffectParseFailure> {
     let verb = match form {
-        super::LifeVerbForm::Base => "draw",
-        super::LifeVerbForm::ThirdPersonSingular => "draws",
+        super::VerbAgreement::Base => "draw",
+        super::VerbAgreement::ThirdPersonSingular => "draws",
     };
     if cursor
         .peek_ahead(1)

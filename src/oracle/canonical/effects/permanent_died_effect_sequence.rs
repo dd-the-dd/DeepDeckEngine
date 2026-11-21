@@ -33,8 +33,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_permanent_died_effect_sequen
         || first.is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
             && second.is_some_and(|raw| {
                 raw.eq_ignore_ascii_case("create")
-                    || raw.eq_ignore_ascii_case("gain")
-                    || raw.eq_ignore_ascii_case("lose")
+                    || LIFE_LEMMAS
+                        .iter()
+                        .any(|lemma| is_verb_form(raw, *lemma, VerbForm::Base))
             })
 }
 

@@ -23,7 +23,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_graveyard_card_entry_life_fa
         && tokens.windows(3).any(|window| {
             window[0].raw == "."
                 && window[1].raw.eq_ignore_ascii_case("you")
-                && window[2].raw.eq_ignore_ascii_case("lose")
+                && is_verb_form(&window[2].raw, VerbLemma::Lose, VerbForm::Base)
         })
 }
 

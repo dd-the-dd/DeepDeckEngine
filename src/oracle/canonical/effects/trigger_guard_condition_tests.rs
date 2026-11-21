@@ -97,7 +97,9 @@ fn attack_and_counted_life_gain_history_compose_with_the_controller() {
         failure_state(
             "At the beginning of each end step, if you gained 3 or fewer life this turn, draw a card."
         ),
-        "condition.static.count.direction"
+        // The past life clause reads the comparison; the history
+        // interpretation rejects a direction it has no evaluator for.
+        "condition.static.life-history"
     );
 }
 

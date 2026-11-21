@@ -37,7 +37,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_damage_life_family(
         && tokens.windows(3).any(|window| {
             matches!(window[0].raw.to_ascii_lowercase().as_str(), "and" | "then")
                 && window[1].raw.eq_ignore_ascii_case("you")
-                && window[2].raw.eq_ignore_ascii_case("gain")
+                && is_verb_form(&window[2].raw, VerbLemma::Gain, VerbForm::Base)
         })
         && tokens
             .iter()

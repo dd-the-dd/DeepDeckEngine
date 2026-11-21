@@ -15,8 +15,8 @@ use super::{
     recognize_earthbend_action, recognize_effect_connector, recognize_empower_jace_effect,
     recognize_empower_jace_reminder, recognize_exile_graveyard_collection_effect,
     recognize_for_each_count, recognize_investigate_effect, recognize_library_look_reminder,
-    recognize_life_effect_with_player_target, recognize_mill_cards_effect,
-    recognize_move_cards_effect, recognize_named_token_creation_reminder,
+    recognize_mill_cards_effect, recognize_move_cards_effect,
+    recognize_named_token_creation_reminder,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
     recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
     recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
@@ -765,6 +765,25 @@ fn recognize_effect_sequence_attempt_internal(
                         {
                             return Ok(LocalEffectNode::Sacrifice(operand));
                         }
+                        // `[SUBJECT] gain(s)|lose(s) AMOUNT life`: the shared
+                        // life clause owns its subject policy and agreement.
+                        match super::try_recognize_life_effect_clause(
+                            attempt,
+                            super::LifeEffectBindings {
+                                declared_target: Some(super::PlayerBinding(effect_index)),
+                                player_antecedent: memory
+                                    .last_player_target
+                                    .map(|binding| super::PlayerBinding(binding.effect_index)),
+                                inherited: memory.current_player_subject.as_ref(),
+                                object_subject: object_antecedent.clone(),
+                                object_antecedent: memory.last_target,
+                            },
+                            &action_context,
+                        ) {
+                            Ok(Some(effect)) => return Ok(effect),
+                            Ok(None) => {}
+                            Err(failure) => return Err(failure),
+                        }
                         // The keyword action `venture into …` (CR 701.49) is
                         // an action head even when the lexical name resolver
                         // left its words unresolved; it is never a source name.
@@ -855,8 +874,6 @@ fn recognize_effect_sequence_attempt_internal(
                                 name_links,
                                 name_failure,
                                 memory.last_target,
-                                Some(PlayerTargetBinding { effect_index }),
-                                memory.last_player_target,
                                 object_set_binding,
                                 memory.last_object_set.as_ref(),
                                 &action_context,
@@ -1644,8 +1661,6 @@ fn recognize_effect(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     antecedent: Option<TargetBinding>,
-    current_player_target: Option<PlayerTargetBinding>,
-    player_antecedent: Option<PlayerTargetBinding>,
     object_set_binding: ObjectSetBinding,
     object_set_antecedent: Option<&BoundPermanentSetNode>,
     context: &EffectRecognitionContext,
@@ -1917,20 +1932,6 @@ fn recognize_effect(
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("target"))
     {
-        if cursor
-            .peek_ahead(1)
-            .is_some_and(|token| token.eq_ignore_ascii_case("player"))
-            && cursor.peek_ahead(2).is_some_and(|token| {
-                token.eq_ignore_ascii_case("gains") || token.eq_ignore_ascii_case("loses")
-            })
-        {
-            return recognize_life_effect_with_player_target(
-                cursor,
-                antecedent,
-                current_player_target,
-                player_antecedent,
-            );
-        }
         return recognize_mill_cards_effect(cursor).map(LocalEffectNode::MillCards);
     }
     if super::quantified_player_action_starts(cursor) {
@@ -2295,28 +2296,6 @@ fn recognize_effect(
     {
         return recognize_optional_card_deployment_effect_with_context(cursor, context)
             .map(LocalEffectNode::OptionalCardDeployment);
-    }
-    if cursor.peek().is_some_and(|token| {
-        token.eq_ignore_ascii_case("gain") || token.eq_ignore_ascii_case("lose")
-    }) {
-        return recognize_life_effect_with_player_target(
-            cursor,
-            antecedent,
-            current_player_target,
-            player_antecedent,
-        );
-    }
-    if cursor.peek().is_some_and(|token| {
-        token.eq_ignore_ascii_case("you")
-            || token.eq_ignore_ascii_case("its")
-            || token.eq_ignore_ascii_case("that")
-    }) {
-        return recognize_life_effect_with_player_target(
-            cursor,
-            antecedent,
-            current_player_target,
-            player_antecedent,
-        );
     }
     Err(cursor.fail("a supported effect subject"))
 }

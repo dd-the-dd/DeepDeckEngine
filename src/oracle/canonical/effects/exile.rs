@@ -136,7 +136,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_exile_anaphora_family(
         && tokens.get(boundary + 1..boundary + 5).is_some_and(|head| {
             head[0].raw.eq_ignore_ascii_case("its")
                 && head[1].raw.eq_ignore_ascii_case("controller")
-                && head[2].raw.eq_ignore_ascii_case("gains")
+                && is_verb_form(&head[2].raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
                 && head[3].raw.eq_ignore_ascii_case("life")
         })
 }
