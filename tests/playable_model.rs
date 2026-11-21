@@ -330,10 +330,6 @@ fn playable_card_compilation_preserves_both_room_doors() {
 }
 
 /// Feature: A split card exposes both castable halves without merging their costs or effects.
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Expansion // Explosion; see docs/coverage-targets.md"
-)]
 #[test]
 fn playable_card_compilation_preserves_both_split_spells() {
     let compilation = compile_playable_card(PlayableCardInput {

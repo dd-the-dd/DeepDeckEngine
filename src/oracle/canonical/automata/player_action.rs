@@ -162,6 +162,148 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     Ok(Some(PlayerActionNode { player, action }))
 }
 
+/// `SUBJECT and SUBJECT each ACTION [and ACTION]...` (CR 109.5): one sentence
+/// whose coordinated player subjects each perform the same ordered actions.
+/// The verbs take the plural base form after `each`. The result is the
+/// distributed per-player list, action-major: every subject completes one
+/// action before the next action begins (CR 608.2c). A declared target subject
+/// keeps one declaration; its later uses are bound to it.
+///
+/// Returns `Ok(None)` (cursor restored) unless the coordinated subject frame
+/// `... and ... each` is present; after `each` the frame owns its failures.
+pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
+    cursor: &mut OracleTokenCursor<'_>,
+    first_effect_index: usize,
+    antecedent: Option<PlayerBinding>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<Vec<PlayerActionNode>>> {
+    let checkpoint = cursor.checkpoint();
+    let starts_subject = |cursor: &OracleTokenCursor<'_>| {
+        cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("you")
+                || raw.eq_ignore_ascii_case("target")
+                || raw.eq_ignore_ascii_case("that")
+        })
+    };
+    if !starts_subject(cursor) {
+        return Ok(None);
+    }
+    // Subjects are read tentatively: a target slot is bound to the effect
+    // index its first distributed action will occupy, fixed below.
+    let mut subjects = Vec::new();
+    loop {
+        let Ok(subject) = recognize_player_effect_subject(
+            cursor,
+            PlayerBinding(usize::MAX),
+            antecedent,
+            context.event_player,
+        ) else {
+            cursor.rollback(checkpoint);
+            return Ok(None);
+        };
+        subjects.push(subject);
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            && subjects.len() == 1
+        {
+            cursor.consume("and")?;
+            if !starts_subject(cursor) {
+                cursor.rollback(checkpoint);
+                return Ok(None);
+            }
+            continue;
+        }
+        break;
+    }
+    if subjects.len() < 2
+        || !cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+    {
+        cursor.rollback(checkpoint);
+        return Ok(None);
+    }
+    cursor.enter("player-subject.coordinated.each");
+    cursor.consume("each")?;
+    cursor.require(
+        subjects.iter().enumerate().all(|(index, subject)| {
+            !subjects[..index].contains(subject)
+                && !matches!(subject, PlayerEffectSubject::EventPlayer)
+        }),
+        "distinct coordinated player subjects",
+    )?;
+    let mut actions = Vec::new();
+    loop {
+        cursor.enter("player-subject.coordinated.action");
+        let verb = cursor.peek().unwrap_or("").to_ascii_lowercase();
+        actions.push(match verb.as_str() {
+            "draw" => SingularPlayerAction::Draw(recognize_draw_action_fragment(
+                cursor,
+                LifeVerbForm::Base,
+                context,
+            )?),
+            "mill" => SingularPlayerAction::Mill(recognize_mill_action_fragment(
+                cursor,
+                LifeVerbForm::Base,
+            )?),
+            "gain" | "lose" => {
+                SingularPlayerAction::Life(recognize_life_action(cursor, LifeVerbForm::Base, None)?)
+            }
+            _ => {
+                return Err(cursor.fail(
+                    "a supported coordinated player action (`draw`, `mill`, `gain`, or `lose`)",
+                ));
+            }
+        });
+        let list_checkpoint = cursor.checkpoint();
+        let and = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
+        if and {
+            cursor.consume("and")?;
+            if cursor.peek().is_some_and(|raw| {
+                matches!(
+                    raw.to_ascii_lowercase().as_str(),
+                    "draw" | "mill" | "gain" | "lose"
+                )
+            }) {
+                continue;
+            }
+        }
+        cursor.rollback(list_checkpoint);
+        break;
+    }
+    // Distribute action-major; the first use of a declared target declares
+    // it at its own effect index, every later use is bound to that index.
+    let mut distributed = Vec::new();
+    let mut declared: Vec<Option<PlayerBinding>> = vec![None; subjects.len()];
+    for action in &actions {
+        for (index, subject) in subjects.iter().enumerate() {
+            let effect_index = first_effect_index + distributed.len();
+            let player = match (subject, declared[index]) {
+                (PlayerEffectSubject::DeclaredTarget { target, .. }, None) => {
+                    let binding = PlayerBinding(effect_index);
+                    declared[index] = Some(binding);
+                    PlayerEffectSubject::DeclaredTarget {
+                        target: target.clone(),
+                        binding,
+                    }
+                }
+                (PlayerEffectSubject::DeclaredTarget { .. }, Some(binding)) => {
+                    PlayerEffectSubject::Bound(binding)
+                }
+                (other, _) => other.clone(),
+            };
+            distributed.push(PlayerActionNode {
+                player,
+                action: action.clone(),
+            });
+        }
+    }
+    Ok(Some(distributed))
+}
+
 /// Subject-free `mill N cards` child; the caller resolves actor and agreement.
 pub(in crate::oracle::canonical) fn recognize_mill_action_fragment(
     cursor: &mut OracleTokenCursor<'_>,

@@ -215,8 +215,16 @@ fn quantified_list_near_misses_stay_explicit_failures() {
     for text in [
         "When this creature dies, each player sacrifices a creature and loses.",
         "When this creature dies, each opponent discards a card and sings a song.",
-        "When this creature dies, each player sacrifices a creature, then loses 2 life.",
+        "When this creature dies, each player sacrifices a creature, then sings a song.",
     ] {
         assert!(parse(text).is_err(), "{text}");
     }
+    // CR 608.2c: `then` orders the shared subject's actions like `and`; the
+    // list now reads it (previously an explicit failure).
+    let program =
+        effects("When this creature dies, each player sacrifices a creature, then loses 2 life.");
+    assert_eq!(
+        kinds(&program),
+        ["forEachPlayer", "sacrificePermanents", "loseLife"]
+    );
 }
