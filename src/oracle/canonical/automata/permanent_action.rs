@@ -17,12 +17,13 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
         TemporaryKeywordGrantObjectsNode::Targets(targets) => {
             PermanentOperandNode::Targets(targets)
         }
-        TemporaryKeywordGrantObjectsNode::ControlledSet(set) => {
-            PermanentOperandNode::Collection(ObjectQueryNode {
+        TemporaryKeywordGrantObjectsNode::ControlledSet(set) => PermanentOperandNode::Collection {
+            objects: ObjectQueryNode {
                 predicate: set.predicate,
                 controller: Some(set.controller),
-            })
-        }
+            },
+            exclude_source: false,
+        },
     };
     TemporaryKeywordGrantNode {
         objects,
@@ -100,7 +101,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     // `each ... loses all abilities` keeps its set-binding owner, so a later
     // `those creatures` still names the same bound set.
     if becomes
-        && matches!(subject, PermanentOperandNode::Collection(_))
+        && matches!(subject, PermanentOperandNode::Collection { .. })
         && action.eq_ignore_ascii_case("loses")
     {
         return PermanentActionAttempt::NotClaimed;
@@ -223,7 +224,7 @@ fn recognize_fight_predicate(
     cursor.enter("effect.fight.second");
     let second = recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
     cursor.require(
-        !matches!(second, PermanentOperandNode::Collection(_)),
+        !matches!(second, PermanentOperandNode::Collection { .. }),
         "one permanent fighting the subject, not a collection",
     )?;
     Ok(FightEffectNode { first, second })

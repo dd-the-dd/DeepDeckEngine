@@ -21,10 +21,13 @@ fn each_operand_preserves_shared_query_and_following_effect_boundary() {
     };
     assert_eq!(
         counters.permanent,
-        PermanentOperandNode::Collection(ObjectQueryNode {
-            predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
-            controller: Some(ObjectControllerScope::AbilityController),
-        })
+        PermanentOperandNode::Collection {
+            objects: ObjectQueryNode {
+                predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
+                controller: Some(ObjectControllerScope::AbilityController),
+            },
+            exclude_source: false,
+        }
     );
     assert_eq!(cursor.position(), tokens.len());
 }
@@ -43,7 +46,7 @@ fn collection_and_source_share_the_same_counter_action() {
             panic!("one ordinary counter-placement action");
         };
         assert_eq!(
-            matches!(counters.permanent, PermanentOperandNode::Collection(_)),
+            matches!(counters.permanent, PermanentOperandNode::Collection { .. }),
             is_collection
         );
         assert_eq!(cursor.position(), tokens.len());

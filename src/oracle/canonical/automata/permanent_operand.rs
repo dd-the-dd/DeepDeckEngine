@@ -3,7 +3,7 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     LocalObjectReference, ObjectKind, ObjectQueryNode, recognize_object_collection,
-    recognize_source_reference_with_antecedent,
+    recognize_optional_source_exclusion, recognize_source_reference_with_antecedent,
 };
 
 /// A location in a reusable action is independent of the verb using it.
@@ -13,7 +13,12 @@ pub(in crate::oracle::canonical) enum PermanentOperandNode {
     Targets(super::TargetListNode),
     BoundReference(super::PermanentEffectReference),
     Reference(LocalObjectReference),
-    Collection(ObjectQueryNode),
+    /// `each [other] QUERY`: universal membership; `other` excludes the
+    /// bound ability source, never objects merely sharing its name.
+    Collection {
+        objects: ObjectQueryNode,
+        exclude_source: bool,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,6 +34,7 @@ enum PermanentOperandState {
 struct PermanentOperandFrame {
     reference: Option<LocalObjectReference>,
     collection: Option<ObjectQueryNode>,
+    exclude_source: bool,
 }
 
 /// The caller owns the action, separator and following effects. This child
@@ -67,6 +73,7 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
             }
             PermanentOperandState::Collection => {
                 cursor.enter("permanent.operand.collection");
+                frame.exclude_source = recognize_optional_source_exclusion(cursor)?;
                 frame.collection = Some(recognize_object_collection(cursor)?);
                 PermanentOperandState::Domain
             }
@@ -88,9 +95,10 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
                 if let Some(reference) = frame.reference {
                     return Ok(PermanentOperandNode::Reference(reference));
                 }
-                return Ok(PermanentOperandNode::Collection(
-                    cursor.require_value(frame.collection, "a typed permanent operand")?,
-                ));
+                return Ok(PermanentOperandNode::Collection {
+                    objects: cursor.require_value(frame.collection, "a typed permanent operand")?,
+                    exclude_source: frame.exclude_source,
+                });
             }
         }
     }

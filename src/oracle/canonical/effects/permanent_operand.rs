@@ -10,11 +10,17 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_permanent_operand(
             Err(TargetlessLoweringError::RequiresTarget)
         }
         PermanentOperandNode::Reference(LocalObjectReference::SourceSelf) => Ok(self_ref()),
-        PermanentOperandNode::Collection(query) => {
-            let (predicate, controller_filter) = lower_fixed_controller_permanent_query(query)?;
+        PermanentOperandNode::Collection {
+            objects,
+            exclude_source,
+        } => {
+            let (predicate, controller_filter) = lower_fixed_controller_permanent_query(objects)?;
             let mut object = json!({"kind":"eachPermanent", "where":predicate});
             if let Some(player) = controller_filter {
                 object["player"] = player;
+            }
+            if *exclude_source {
+                object["excludeSource"] = json!(true);
             }
             Ok(object)
         }
