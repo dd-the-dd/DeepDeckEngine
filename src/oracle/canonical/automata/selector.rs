@@ -796,6 +796,9 @@ fn compose_postnominal_scopes(
     Ok(shared.into_iter().map(|node| node.predicate).collect())
 }
 
+/// `with K [or K]*` holds when the object has any listed keyword;
+/// `without K [or K]*` when it has none of them (`creatures without flying
+/// or islandwalk`).
 fn recognize_keyword_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SelectorPredicate> {

@@ -175,8 +175,9 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
     // Committed shapes the engine cannot represent keep a precise state.
     for (text, state) in [
         (
+            // A duration ends the bare prohibition; a static frame owns none.
             "This creature can't block this turn.",
-            "selector.predicate.start",
+            "static.combat-restriction.complete",
         ),
         (
             "This creature can't block unless you control an Island.",

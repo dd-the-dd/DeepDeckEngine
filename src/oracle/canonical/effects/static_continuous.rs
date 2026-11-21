@@ -8,9 +8,7 @@
 //! Subject   := source reference | "equipped creature" | "enchanted" PERMANENT
 //!            | ["each" | "all"] ["other"] permanent collection
 //! Predicate := ("get" | "gets") signed P/T delta | ("have" | "has") keyword list
-//!            | ("is" | "are") type change
-//!            | "can't" combat restriction | "attacks each combat if able"
-//!            | "must be blocked" ["each combat"] "if able"
+//!            | ("is" | "are") type change | shared combat clause
 //!            | ("enter" | "enters") ("tapped" | "with" N "additional" COUNTER "counter(s) on them")
 //!            | ("doesn't" | "don't") "untap during" OWNER "untap step"
 //!            | ("loses" | "lose") "all abilities"
@@ -21,8 +19,8 @@
 //!
 //! A turn condition (CR 611.3a) is a continuously evaluated condition on the
 //! turn's active player; it gates the whole ability like `as long as`.
-//! Combat restrictions reuse the shared combat-clause child of the source
-//! restriction frame (CR 508.1c, 509.1b) for any subject.
+//! Combat restrictions and requirements reuse the shared combat-clause child
+//! (CR 508.1c-d, 509.1b-c) for any subject.
 //!
 //! Predicates are joined by `and`, or by a serial comma before a predicate
 //! verb. The copula's number must agree with the subject (`each land is`,
@@ -150,6 +148,22 @@ fn read_static_continuous_effect(
             .map(str::to_ascii_lowercase)
             .ok_or_else(|| cursor.fail("a continuous predicate"))?;
         match verb.as_str() {
+            _ if combat_clause_starts(cursor) => {
+                // The shared combat clause (CR 508.1c-d, 509.1b-c) lowers on
+                // the same objects as every other predicate of this subject.
+                let mut clauses = Vec::new();
+                recognize_combat_clause(
+                    cursor,
+                    CombatClauseContext::Static,
+                    committed,
+                    &mut clauses,
+                    &mut None,
+                )?;
+                cursor.enter("static.continuous.combat-clause.lowering");
+                for clause in &clauses {
+                    modifiers.push(lower_static_combat_clause(cursor, &objects, clause)?);
+                }
+            }
             "get" | "gets" => {
                 cursor.consume(&verb)?;
                 *committed = true;
@@ -251,14 +265,6 @@ fn read_static_continuous_effect(
                 );
                 changes_types = true;
             }
-            "can't" | "can\u{2019}t" | "attacks" => {
-                *committed = true;
-                let mut clauses = Vec::new();
-                recognize_source_combat_clause(cursor, committed, &mut clauses)?;
-                for clause in &clauses {
-                    modifiers.push(lower_combat_clause(cursor, &objects, clause)?);
-                }
-            }
             "doesn't" | "doesn\u{2019}t" | "don't" | "don\u{2019}t" => {
                 cursor.consume(&verb)?;
                 *committed = true;
@@ -269,25 +275,6 @@ fn read_static_continuous_effect(
                 cursor.consume(&verb)?;
                 *committed = true;
                 modifiers.push(read_collection_entry_modification(cursor, &objects)?);
-            }
-            "must" => {
-                cursor.consume("must")?;
-                *committed = true;
-                // CR 509.1c: a blocking requirement on the affected attackers.
-                cursor.enter("static.continuous.block-requirement");
-                cursor.consume_phrase(&["be", "blocked"])?;
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
-                {
-                    cursor.consume_phrase(&["each", "combat"])?;
-                }
-                cursor.consume_phrase(&["if", "able"])?;
-                modifiers.push(json!({
-                    "kind": "grantKeyword",
-                    "objects": objects.clone(),
-                    "keyword": "mustBeBlockedIfAble",
-                }));
             }
             "loses" | "lose" => {
                 cursor.consume(&verb)?;
@@ -325,7 +312,7 @@ fn read_static_continuous_effect(
             }
             _ => {
                 return Err(cursor.fail(
-                    "a continuous predicate: `get(s)`, `have`/`has`, `is`/`are`, `can't`, `must be blocked`, `doesn't untap`, `loses all abilities`, `can attack as though`, or `assigns combat damage`",
+                    "a continuous predicate: `get(s)`, `have`/`has`, `is`/`are`, a combat clause, `doesn't untap`, `enter(s)`, `loses all abilities`, `can attack as though`, or `assigns combat damage`",
                 ));
             }
         }
@@ -572,13 +559,21 @@ fn predicate_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
     })
 }
 
+/// A predicate verb, or the start of the shared combat clause, at `offset`.
+fn predicate_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    predicate_verb_at(cursor, offset) || {
+        let mut ahead = cursor.clone();
+        ahead.advance_to(ahead.position() + offset).is_ok() && combat_clause_starts(&ahead)
+    }
+}
+
 /// `, VERB` or `, and VERB` continues the predicate list of the same subject.
 fn serial_predicate_follows(cursor: &OracleTokenCursor<'_>) -> bool {
-    predicate_verb_at(cursor, 1)
+    predicate_starts_at(cursor, 1)
         || (cursor
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
-            && predicate_verb_at(cursor, 2))
+            && predicate_starts_at(cursor, 2))
 }
 
 fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {

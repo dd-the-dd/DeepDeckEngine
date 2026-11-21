@@ -32,7 +32,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
         let modifiers = node
             .clauses
             .iter()
-            .map(|clause| lower_combat_clause(&cursor, &self_ref(), clause))
+            .map(|clause| lower_static_combat_clause(&cursor, &self_ref(), clause))
             .collect::<MachineResult<Vec<_>>>()?;
         Ok((modifiers, node.condition))
     });
@@ -62,45 +62,60 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
     ))
 }
 
-/// Lowers one combat clause for the objects a static ability affects: the
-/// source, its attached permanent or a permanent collection (CR 508.1c,
-/// 509.1b). The engine evaluates an attack requirement only on the source.
-pub(in crate::oracle::canonical) fn lower_combat_clause(
+/// Lowers one shared combat clause on the objects of its static subject. The
+/// same clause lowers identically whether its subject is the source, an
+/// attachment or a battlefield collection.
+pub(in crate::oracle::canonical) fn lower_static_combat_clause(
     cursor: &OracleTokenCursor<'_>,
     objects: &Value,
-    clause: &SourceCombatClause,
+    clause: &CombatClause,
 ) -> MachineResult<Value> {
-    Ok(match clause {
-        SourceCombatClause::Prohibit(keyword) => json!({
-            "kind":"grantKeyword", "objects":objects,
+    let marker = |keyword: GrantedKeyword| {
+        json!({
+            "kind":"grantKeyword", "objects":objects.clone(),
             "keyword":keyword.canonical_name(),
+        })
+    };
+    Ok(match clause {
+        CombatClause::Prohibit(keyword) => marker(*keyword),
+        CombatClause::BlockedByAtMostOneCreature => marker(GrantedKeyword::MaxOneBlocker),
+        // The engine's self-requirement modifier is the same marker observed
+        // on its own source; other subjects receive the granted marker.
+        CombatClause::AttacksEachCombat if *objects == self_ref() => json!({
+            "kind":"attackEachCombatIfAble", "object":self_ref(),
         }),
-        SourceCombatClause::BlockedByAtMostOneCreature => json!({
-            "kind":"grantKeyword", "objects":objects, "keyword":"maxOneBlocker",
-        }),
-        SourceCombatClause::AttacksEachCombat => {
-            cursor.require(
-                *objects == self_ref(),
-                "an attack requirement on the ability's own source",
-            )?;
-            json!({ "kind":"attackEachCombatIfAble", "object":objects })
-        }
-        SourceCombatClause::CantBeBlockedBy(query) => json!({
-            "kind":"blockRestriction", "attackers":objects,
+        CombatClause::AttacksEachCombat => marker(GrantedKeyword::AttackEachCombatIfAble),
+        CombatClause::BlocksEachCombat => marker(GrantedKeyword::BlockEachCombatIfAble),
+        CombatClause::MustBeBlocked => marker(GrantedKeyword::MustBeBlockedIfAble),
+        CombatClause::CantBeBlockedBy(query) => json!({
+            "kind":"blockRestriction", "attackers":objects.clone(),
             "blockers":lower_combat_object_selector(cursor, query, None)?,
         }),
-        SourceCombatClause::CantBeBlockedExceptBy(query) => json!({
-            "kind":"blockRestriction", "attackers":objects,
+        CombatClause::CantBeBlockedExceptBy(query) => json!({
+            "kind":"blockRestriction", "attackers":objects.clone(),
             "blockers":lower_combat_object_selector(
                 cursor,
                 query,
                 Some(CombatDomainComplement::Creatures),
             )?,
         }),
-        SourceCombatClause::CantBlockObjects(query) => json!({
+        CombatClause::CantBlockObjects(query) => json!({
             "kind":"blockRestriction",
             "attackers":lower_combat_object_selector(cursor, query, None)?,
-            "blockers":objects,
+            "blockers":objects.clone(),
+        }),
+        CombatClause::BlockOnly(query) => json!({
+            "kind":"blockRestriction",
+            "attackers":lower_combat_object_selector(
+                cursor,
+                query,
+                Some(CombatDomainComplement::Creatures),
+            )?,
+            "blockers":objects.clone(),
+        }),
+        CombatClause::CantAttackController { planeswalkers } => json!({
+            "kind":"cantAttackSourceController", "objects":objects.clone(),
+            "defenders": if *planeswalkers { "playerAndPlaneswalkers" } else { "player" },
         }),
     })
 }
@@ -151,3 +166,7 @@ fn lower_combat_object_selector(
 #[cfg(test)]
 #[path = "static_source_combat_restriction_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "combat_clause_family_tests.rs"]
+mod family_tests;
