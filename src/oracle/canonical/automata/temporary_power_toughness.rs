@@ -5,6 +5,7 @@ use super::{
     recognize_granted_ability_list, recognize_signed_numeric_power_toughness_delta,
     recognize_target_list, recognize_trailing_or_supplied_duration,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TemporaryPowerToughnessNode<Subject = TargetListNode> {
@@ -95,14 +96,19 @@ pub(in crate::oracle::canonical) fn recognize_temporary_power_toughness_subject<
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
                     && cursor.peek_ahead(1).is_some_and(|raw| {
-                        raw.eq_ignore_ascii_case("gain") || raw.eq_ignore_ascii_case("gains")
+                        is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
+                            || is_verb_form(&raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
                     })
                 {
                     cursor.consume("and")?;
                     let action = cursor.consume_type("actionWord")?;
                     cursor.require(
-                        action.raw.eq_ignore_ascii_case("gain")
-                            || action.raw.eq_ignore_ascii_case("gains"),
+                        is_verb_form(&action.raw, VerbLemma::Gain, VerbForm::Base)
+                            || is_verb_form(
+                                &action.raw,
+                                VerbLemma::Gain,
+                                VerbForm::ThirdPersonSingular,
+                            ),
                         "`gain` or `gains` after the effect connector",
                     )?;
                     let list = recognize_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?;

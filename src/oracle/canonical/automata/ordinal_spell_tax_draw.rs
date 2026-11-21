@@ -6,6 +6,7 @@ use super::{
     recognize_source_property_variable_definition, recognize_spell_cast_event_atom,
     recognize_triggering_player_reference,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct OrdinalSpellCastEventNode {
@@ -98,7 +99,10 @@ pub(in crate::oracle::canonical) fn recognize_dynamic_mana_payment(
             DynamicPaymentState::PaymentAction => {
                 cursor.enter("effect.dynamic-mana-payment.action");
                 let action = cursor.consume_type("costActionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("pays"), "the `pays` action")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::ThirdPersonSingular),
+                    "the `pays` action",
+                )?;
                 DynamicPaymentState::VariableCost
             }
             DynamicPaymentState::VariableCost => {

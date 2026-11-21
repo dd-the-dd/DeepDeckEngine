@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_player_counter_payment_sweep_family(
@@ -13,7 +14,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_player_counter_payment_sweep
             .is_some_and(|token| token.raw.eq_ignore_ascii_case("get"))
         && tokens
             .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("pay"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::Base))
         && tokens
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("destroy"))

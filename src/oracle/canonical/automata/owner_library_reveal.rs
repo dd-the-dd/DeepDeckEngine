@@ -173,7 +173,11 @@ pub(in crate::oracle::canonical) fn recognize_owner_library_reveal_sequence(
             }
             OwnerLibraryRevealState::RevealAction => {
                 cursor.enter("owner-library.reveal.action");
-                cursor.consume("reveals")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Reveal,
+                    crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular,
+                )?;
                 OwnerLibraryRevealState::TopCardCollection
             }
             OwnerLibraryRevealState::TopCardCollection => {
@@ -238,7 +242,11 @@ pub(in crate::oracle::canonical) fn recognize_owner_library_reveal_sequence(
             }
             OwnerLibraryRevealState::PutAction => {
                 cursor.enter("owner-library.conditional.put-action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 OwnerLibraryRevealState::RevealedCardReference
             }
             OwnerLibraryRevealState::RevealedCardReference => {

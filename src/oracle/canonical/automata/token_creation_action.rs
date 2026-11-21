@@ -1,5 +1,6 @@
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ExplicitTokenCreationNode {
@@ -69,10 +70,11 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action(
     antecedent: Option<TargetBinding>,
 ) -> TokenCreationAttempt {
     let mut trial = cursor.clone();
-    let player = if trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("create"))
-    {
+    let player = if crate::oracle::canonical::automata::lemma_at(
+        &trial,
+        VerbLemma::Create,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    ) {
         LocalPlayerReference::Controller
     } else {
         match recognize_player_reference(&mut trial, antecedent) {

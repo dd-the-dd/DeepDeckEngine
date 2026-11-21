@@ -174,7 +174,11 @@ pub(in crate::oracle::canonical) fn recognize_targeted_same_name_search(
             }
             TargetedSameNameSearchState::ExileAction => {
                 cursor.enter("same-name-search.exile-action");
-                cursor.consume("exile")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Exile,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 TargetedSameNameSearchState::ExileReference
             }
             TargetedSameNameSearchState::ExileReference => {

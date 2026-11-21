@@ -89,7 +89,11 @@ pub(in crate::oracle::canonical) fn recognize_partition(
     binding: CollectionBinding,
 ) -> MachineResult<PartitionCollectionNode> {
     cursor.enter("effect.partition.action");
-    cursor.consume("put")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("effect.partition.count");
     let chosen_count = recognize_positive_count(cursor)?;
     cursor.enter("reference.collection.selected-from-binding");

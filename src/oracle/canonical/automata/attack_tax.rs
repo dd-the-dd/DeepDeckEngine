@@ -3,6 +3,7 @@ use super::{
     LocalPlayerReference, NumericAtom, NumericExpression, ObjectCardType,
     recognize_player_reference,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum AttackTaxPayerNode {
@@ -141,7 +142,10 @@ pub(in crate::oracle::canonical) fn recognize_attack_tax_modifier(
             AttackTaxState::PaymentAction => {
                 cursor.enter("modifier.attack-tax.payment-action");
                 let token = cursor.consume_type("costActionWord")?;
-                cursor.require(token.raw.eq_ignore_ascii_case("pays"), "the `pays` action")?;
+                cursor.require(
+                    is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::ThirdPersonSingular),
+                    "the `pays` action",
+                )?;
                 AttackTaxState::Payment
             }
             AttackTaxState::Payment => {

@@ -49,7 +49,11 @@ pub(in crate::oracle::canonical) fn recognize_mill_cards_effect(
             }
             MillCardsState::Action => {
                 cursor.enter("effect.mill-cards.action");
-                cursor.consume("mills")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Mill,
+                    crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular,
+                )?;
                 MillCardsState::Count
             }
             MillCardsState::Count => {

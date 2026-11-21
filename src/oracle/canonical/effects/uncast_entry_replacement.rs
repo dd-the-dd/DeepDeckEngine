@@ -3,6 +3,7 @@ use crate::oracle::canonical::automata::entry_replacement::{
     recognize_exile_instead_replacement, recognize_object_not_cast_condition,
     recognize_would_enter_battlefield_event,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
 use crate::oracle::syntax::AbilityInput;
 
@@ -27,7 +28,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_uncast_entry_replacement_fam
         })
         && tokens
             .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("exile"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base))
         && tokens
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("instead"))

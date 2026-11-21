@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -586,19 +587,43 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             ZoneChangeState::Action => {
                 cursor.enter("effect.zone-change.action");
                 action = Some(match cursor.peek() {
-                    Some(raw) if raw.eq_ignore_ascii_case("exile") => {
-                        cursor.consume("exile")?;
+                    Some(raw) if is_verb_form(&raw, VerbLemma::Exile, VerbForm::Base) => {
+                        cursor.consume(
+                            crate::oracle::canonical::automata::verb_entry(VerbLemma::Exile)
+                                .surface(VerbForm::Base),
+                        )?;
                         ZoneChangeAction::Exile
                     }
                     Some(raw) if raw.eq_ignore_ascii_case("destroy") => {
                         cursor.consume("destroy")?;
                         ZoneChangeAction::Destroy
                     }
-                    Some(raw) if raw.eq_ignore_ascii_case("return") => {
-                        cursor.consume("return")?;
+                    Some(raw) if is_verb_form(&raw, VerbLemma::Return, VerbForm::Base) => {
+                        cursor.consume(
+                            crate::oracle::canonical::automata::verb_entry(VerbLemma::Return)
+                                .surface(VerbForm::Base),
+                        )?;
                         ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)
                     }
-                    _ => return Err(cursor.fail("`exile`, `destroy`, or `return`")),
+                    // `put` in its object-to-zone frame (the clause chooses
+                    // it over the counters frame); the library position is
+                    // read with the destination.
+                    _ if crate::oracle::canonical::automata::lemma_at(
+                        cursor,
+                        VerbLemma::Put,
+                        crate::oracle::canonical::automata::VerbAgreement::Base,
+                    ) =>
+                    {
+                        crate::oracle::canonical::automata::consume_lemma(
+                            cursor,
+                            VerbLemma::Put,
+                            crate::oracle::canonical::automata::VerbAgreement::Base,
+                        )?;
+                        ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(
+                            super::LibraryPosition::Top,
+                        ))
+                    }
+                    _ => return Err(cursor.fail("`exile`, `destroy`, `return`, or `put`")),
                 });
                 ZoneChangeState::Target
             }
@@ -664,13 +689,41 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                     )?;
                 }
                 target = Some(targets);
-                if matches!(
-                    action,
-                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand))
-                ) {
-                    ZoneChangeState::DestinationRelation
-                } else {
-                    ZoneChangeState::Complete
+                match action {
+                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)) => {
+                        ZoneChangeState::DestinationRelation
+                    }
+                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(_))) => {
+                        cursor.enter("effect.zone-change.library.scalar");
+                        cursor.require(
+                            !target_collection_is_plural(target.as_ref()),
+                            "one target permanent put into its owner's library",
+                        )?;
+                        cursor.enter("effect.zone-change.library.position");
+                        let position = if cursor.consume_phrase(&["on", "top", "of"]).is_ok() {
+                            super::LibraryPosition::Top
+                        } else {
+                            cursor.consume_phrase(&["on", "the", "bottom", "of"])?;
+                            super::LibraryPosition::Bottom
+                        };
+                        action = Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(
+                            position,
+                        )));
+                        cursor.enter("effect.zone-change.library.owner");
+                        cursor.consume("its")?;
+                        let owner = cursor
+                            .peek()
+                            .filter(|raw| {
+                                raw.eq_ignore_ascii_case("owner's")
+                                    || raw.eq_ignore_ascii_case("owner\u{2019}s")
+                            })
+                            .map(ToOwned::to_owned)
+                            .ok_or_else(|| cursor.fail("`owner's`"))?;
+                        cursor.consume(&owner)?;
+                        cursor.consume("library")?;
+                        ZoneChangeState::Complete
+                    }
+                    _ => ZoneChangeState::Complete,
                 }
             }
             ZoneChangeState::DestinationRelation => {

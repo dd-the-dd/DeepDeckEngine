@@ -698,6 +698,48 @@ pub(in crate::oracle::canonical) fn recognize_operand_verb(
     }
 }
 
+/// True when `lemma` starts a clause at the cursor in `agreement`: the
+/// shared clause reads the verb with every frame of the lemma, the parent
+/// owning the operand. Effect dispatch uses this instead of a verb word.
+pub(in crate::oracle::canonical) fn lemma_at(
+    cursor: &OracleTokenCursor<'_>,
+    lemma: VerbLemma,
+    agreement: VerbAgreement,
+) -> bool {
+    let entry = super::verb_entry(lemma);
+    let mut trial = cursor.clone();
+    matches!(
+        recognize_operand_verb(
+            &mut trial,
+            agreement,
+            std::slice::from_ref(&entry.lemma),
+            entry.frames,
+        ),
+        Ok(Some(_))
+    )
+}
+
+/// Consumes `lemma` at the cursor in `agreement` as the shared clause reads
+/// it (any frame of the lemma, the parent reading the operand). A reader
+/// that owns a fixed verb position uses this instead of a verb word; the
+/// failure names the expected surface.
+pub(in crate::oracle::canonical) fn consume_lemma(
+    cursor: &mut OracleTokenCursor<'_>,
+    lemma: VerbLemma,
+    agreement: VerbAgreement,
+) -> MachineResult<()> {
+    let entry = super::verb_entry(lemma);
+    match recognize_operand_verb(
+        cursor,
+        agreement,
+        std::slice::from_ref(&entry.lemma),
+        entry.frames,
+    ) {
+        Ok(Some(_)) => Ok(()),
+        _ => Err(cursor.fail(entry.surface(agreement.form()))),
+    }
+}
+
 /// True when a clause of the frame is claimed at the cursor (recognized or
 /// failed after the claim). Reads a copy; the cursor is unchanged.
 pub(in crate::oracle::canonical) fn clause_starts(
@@ -805,3 +847,7 @@ fn read_life_amount(
 #[cfg(test)]
 #[path = "clause_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "effect_clause_tests.rs"]
+mod effect_tests;

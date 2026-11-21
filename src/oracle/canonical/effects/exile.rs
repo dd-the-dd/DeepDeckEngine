@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the targeted-player compound-exile envelope. The boundary is
@@ -18,7 +19,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_player_compound_exile_family
         ) && (token.raw.eq_ignore_ascii_case("player")
             || token.raw.eq_ignore_ascii_case("opponent"))
     }) && tokens.get(2).is_some_and(|token| {
-        token.token_type == "actionWord" && token.raw.eq_ignore_ascii_case("exiles")
+        token.token_type == "actionWord"
+            && is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::ThirdPersonSingular)
     }) && tokens.windows(2).any(|pair| {
         pair[0].raw.eq_ignore_ascii_case("they") && pair[1].raw.eq_ignore_ascii_case("control")
     }) && tokens
@@ -132,7 +134,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_exile_anaphora_family(
     };
     tokens
         .first()
-        .is_some_and(|token| token.raw.eq_ignore_ascii_case("exile"))
+        .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base))
         && tokens.get(boundary + 1..boundary + 5).is_some_and(|head| {
             head[0].raw.eq_ignore_ascii_case("its")
                 && head[1].raw.eq_ignore_ascii_case("controller")

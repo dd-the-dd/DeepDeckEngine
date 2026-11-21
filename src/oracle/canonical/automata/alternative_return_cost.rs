@@ -3,6 +3,7 @@ use super::{
     CurrentSpellManaCostReferenceNode, ObjectControllerScope, ObjectKind, ObjectPredicate,
     recognize_current_spell_mana_cost_reference, recognize_object_query,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ReturnControlledPermanentCostNode {
@@ -39,7 +40,11 @@ fn recognize_return_controlled_permanent_cost(
         state = match state {
             ReturnControlledPermanentCostState::Action => {
                 cursor.enter("cost.return-controlled.action");
-                cursor.consume("return")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Return,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 ReturnControlledPermanentCostState::Determiner
             }
             ReturnControlledPermanentCostState::Determiner => {
@@ -155,7 +160,10 @@ pub(in crate::oracle::canonical) fn recognize_alternative_return_cost_envelope(
             AlternativeReturnEnvelopeState::PaymentAction => {
                 cursor.enter("alternative-return.payment-action");
                 let action = cursor.consume_type("costActionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("pay"), "`pay`")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::Base),
+                    "`pay`",
+                )?;
                 AlternativeReturnEnvelopeState::ReplacedCost
             }
             AlternativeReturnEnvelopeState::ReplacedCost => {

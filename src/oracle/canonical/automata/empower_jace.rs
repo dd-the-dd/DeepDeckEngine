@@ -165,7 +165,11 @@ pub(in crate::oracle::canonical) fn recognize_empower_jace_reminder(
     let expected = catalog_token_abilities(cursor)?;
     cursor.enter("effect.empower-jace.reminder.open");
     cursor.consume("(")?;
-    cursor.consume("put")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("effect.empower-jace.reminder.count");
     match count {
         NumericExpression::Atom(NumericAtom::Integer(1)) => cursor.consume("a")?,

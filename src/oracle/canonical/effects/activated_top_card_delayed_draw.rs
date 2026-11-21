@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the structural activated envelope while leaving every cost, target,
@@ -15,8 +16,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_activated_top_card_delayed_d
     let supported_cost = tokens.first().is_some_and(|token| {
         token.token_type == "manaSymbol"
             || token.token_type == "tapSymbol"
-            || token.raw.eq_ignore_ascii_case("pay")
-            || token.raw.eq_ignore_ascii_case("sacrifice")
+            || is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::Base)
+            || is_verb_form(&token.raw, VerbLemma::Sacrifice, VerbForm::Base)
     });
     supported_cost
         && tokens

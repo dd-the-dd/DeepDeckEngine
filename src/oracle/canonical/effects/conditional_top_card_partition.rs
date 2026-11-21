@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_conditional_top_cards_partition_family(
@@ -13,7 +14,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_conditional_top_cards_partit
         .is_some_and(|token| token.raw.eq_ignore_ascii_case("look"))
         && tokens
             .get(boundary + 1)
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("put"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Put, VerbForm::Base))
         && tokens.last().is_some_and(|token| token.raw == ".")
         && tokens
             .iter()

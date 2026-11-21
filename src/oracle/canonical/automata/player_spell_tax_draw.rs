@@ -4,6 +4,7 @@ use super::{
     recognize_draw_cards_effect, recognize_mana_cost, recognize_player_casts_spell_event,
     recognize_triggering_player_reference,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct OptionalDrawUnlessPaymentNode {
@@ -78,7 +79,10 @@ pub(in crate::oracle::canonical) fn recognize_optional_draw_unless_payment(
             OptionalDrawUnlessPaymentState::PaymentAction => {
                 cursor.enter("effect.optional-draw-unless-payment.payment-action");
                 let action = cursor.consume_type("costActionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("pays"), "the `pays` action")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::ThirdPersonSingular),
+                    "the `pays` action",
+                )?;
                 OptionalDrawUnlessPaymentState::Cost
             }
             OptionalDrawUnlessPaymentState::Cost => {

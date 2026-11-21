@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a targeted battlefield zone change immediately followed by a
@@ -9,13 +10,18 @@ pub(in crate::oracle::canonical) fn claims_promoted_zone_change_token_family(
 ) -> bool {
     let tokens = input.tokens;
     tokens.first().is_some_and(|token| {
-        token.raw.eq_ignore_ascii_case("destroy") || token.raw.eq_ignore_ascii_case("exile")
+        token.raw.eq_ignore_ascii_case("destroy")
+            || is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base)
     }) && tokens.iter().enumerate().any(|(index, token)| {
         token.raw == "."
             && controller_reference_head_length(&tokens[index + 1..]).is_some_and(|length| {
-                tokens
-                    .get(index + 1 + length)
-                    .is_some_and(|action| action.raw.eq_ignore_ascii_case("creates"))
+                tokens.get(index + 1 + length).is_some_and(|action| {
+                    is_verb_form(
+                        &action.raw,
+                        VerbLemma::Create,
+                        VerbForm::ThirdPersonSingular,
+                    )
+                })
             })
     })
 }

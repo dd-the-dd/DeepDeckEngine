@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims one atomic targeted battlefield zone change, optionally followed by
@@ -10,8 +11,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_atomic_zone_change_family(
     let tokens = input.tokens;
     let action = tokens.first().is_some_and(|token| {
         token.raw.eq_ignore_ascii_case("destroy")
-            || token.raw.eq_ignore_ascii_case("exile")
-            || token.raw.eq_ignore_ascii_case("return")
+            || is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base)
+            || is_verb_form(&token.raw, VerbLemma::Return, VerbForm::Base)
     });
     let targeted = tokens.get(1).is_some_and(|token| {
         token.raw.eq_ignore_ascii_case("target") || token.raw.eq_ignore_ascii_case("up")
@@ -200,6 +201,14 @@ pub(in crate::oracle::canonical) fn lower_targeted_zone_change_effect(
         ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand) => json!({
             "kind": "returnToOwnersHand",
             "object": target,
+        }),
+        ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(position)) => json!({
+            "kind": "putPermanentOnOwnerLibrary",
+            "permanent": target,
+            "position": match position {
+                LibraryPosition::Top => "top",
+                LibraryPosition::Bottom => "bottom",
+            },
         }),
     }
 }

@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the promoted part of the source-entry envelope without swallowing
@@ -38,7 +39,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_effect_sequence
         && input
             .tokens
             .get(body_start + 2)
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("return"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Return, VerbForm::Base))
         && input.tokens[body_start + 3..].windows(2).any(|window| {
             (window[0].raw.eq_ignore_ascii_case("card")
                 || window[0].raw.eq_ignore_ascii_case("cards"))

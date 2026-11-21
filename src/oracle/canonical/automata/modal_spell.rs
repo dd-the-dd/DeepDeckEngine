@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{
     NameResolutionFailure, NameResolverMemory, ResolvedNameLink, UnresolvedName,
 };
@@ -364,10 +365,11 @@ fn recognize_primitive_modal_mode(
                             return Err(cursor.fail("a direct damage modal action"));
                         };
                         ModalPrimitiveActionNode::Damage(effect)
-                    } else if cursor
-                        .peek()
-                        .is_some_and(|raw| raw.eq_ignore_ascii_case("exile"))
-                    {
+                    } else if crate::oracle::canonical::automata::lemma_at(
+                        &cursor,
+                        VerbLemma::Exile,
+                        crate::oracle::canonical::automata::VerbAgreement::Base,
+                    ) {
                         if current_mode_is_graveyard_card_exile(cursor) {
                             ModalPrimitiveActionNode::TargetCardZoneChange(
                                 recognize_target_card_zone_change_effect(cursor)?,

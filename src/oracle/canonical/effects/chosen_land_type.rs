@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 fn token_is(input: &AbilityInput<'_>, index: usize, expected: &str) -> bool {
@@ -27,7 +28,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_chosen_land_type_entry_famil
             window[0].raw.eq_ignore_ascii_case("then")
                 && window[1].raw.eq_ignore_ascii_case("you")
                 && window[2].raw.eq_ignore_ascii_case("may")
-                && window[3].raw.eq_ignore_ascii_case("pay")
+                && is_verb_form(&window[3].raw, VerbLemma::Pay, VerbForm::Base)
         })
         && tokens.windows(2).any(|window| {
             window[0].raw.eq_ignore_ascii_case("enters")

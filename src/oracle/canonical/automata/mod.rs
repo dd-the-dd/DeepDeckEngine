@@ -1663,6 +1663,8 @@ pub(super) enum ZoneChangeAction {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ZoneChangeDestination {
     OwnerHand,
+    /// `on top of` / `on the bottom of its owner's library` (CR 401.4).
+    OwnerLibrary(LibraryPosition),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

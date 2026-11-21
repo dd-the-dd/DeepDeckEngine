@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_permanent_died_effect_sequence_family(
@@ -27,12 +28,12 @@ pub(in crate::oracle::canonical) fn claims_promoted_permanent_died_effect_sequen
         .tokens
         .get(body_position + 1)
         .map(|token| token.raw.as_str());
-    first.is_some_and(|raw| raw.eq_ignore_ascii_case("create"))
+    first.is_some_and(|raw| is_verb_form(&raw, VerbLemma::Create, VerbForm::Base))
         || first.is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
             && second.is_some_and(|raw| raw.eq_ignore_ascii_case("player"))
         || first.is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
             && second.is_some_and(|raw| {
-                raw.eq_ignore_ascii_case("create")
+                is_verb_form(&raw, VerbLemma::Create, VerbForm::Base)
                     || LIFE_LEMMAS
                         .iter()
                         .any(|lemma| is_verb_form(raw, *lemma, VerbForm::Base))

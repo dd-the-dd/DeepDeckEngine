@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 fn controller() -> Value {
@@ -21,7 +22,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_top_cards_reorder_family(
         && tokens.windows(3).any(|window| {
             window[0].raw == ","
                 && window[1].raw.eq_ignore_ascii_case("then")
-                && window[2].raw.eq_ignore_ascii_case("put")
+                && is_verb_form(&window[2].raw, VerbLemma::Put, VerbForm::Base)
         })
         && tokens
             .iter()

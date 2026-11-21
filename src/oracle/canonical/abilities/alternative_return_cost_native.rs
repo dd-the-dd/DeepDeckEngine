@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a controlled-permanent return used as a replacement for the
@@ -17,7 +18,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_alternative_return_cost_fami
             .is_some_and(|token| token.raw.eq_ignore_ascii_case("may"))
         && tokens
             .get(2)
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("return"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Return, VerbForm::Base))
         && tokens.windows(2).any(|window| {
             window[0].raw.eq_ignore_ascii_case("rather")
                 && window[1].raw.eq_ignore_ascii_case("than")

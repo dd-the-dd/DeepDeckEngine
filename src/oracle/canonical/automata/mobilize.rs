@@ -46,7 +46,11 @@ fn recognize_combat_token_batch(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CombatTokenBatchNode> {
     cursor.enter("effect.combat-token.action");
-    cursor.consume("create")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Create,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("effect.combat-token.quantity");
     let quantity = positive_literal(cursor, "a positive literal token quantity")?;
     cursor.enter("effect.combat-token.tapped");
@@ -103,7 +107,11 @@ fn recognize_delayed_batch_cleanup(
     batch_quantity: i64,
 ) -> MachineResult<DelayedBatchCleanupNode> {
     cursor.enter("effect.delayed-batch.action");
-    cursor.consume("sacrifice")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Sacrifice,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("effect.delayed-batch.objects");
     let pronoun = if batch_quantity == 1 { "it" } else { "them" };
     cursor.consume(pronoun)?;

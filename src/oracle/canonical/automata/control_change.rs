@@ -66,7 +66,11 @@ pub(in crate::oracle::canonical) fn recognize_control_change_effect(
         {
             cursor.consume("you")?;
         }
-        cursor.consume("gain")?;
+        crate::oracle::canonical::automata::consume_lemma(
+            cursor,
+            crate::oracle::canonical::automata::VerbLemma::Gain,
+            crate::oracle::canonical::automata::VerbAgreement::Base,
+        )?;
     }
     cursor.enter("effect.control-change.relation");
     cursor.consume_phrase(&["control", "of"])?;

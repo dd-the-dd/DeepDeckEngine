@@ -3,6 +3,7 @@ use super::{
     LocalPlayerReference, ObjectPredicate, recognize_player_reference,
     recognize_search_card_selector,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CardDeploymentSourceZone {
@@ -95,7 +96,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_card_deployment_effect_wi
                 cursor.enter("effect.optional-card-deployment.action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("put"),
+                    is_verb_form(&action.raw, VerbLemma::Put, VerbForm::Base),
                     "the `put` zone-change action",
                 )?;
                 OptionalCardDeploymentState::Article

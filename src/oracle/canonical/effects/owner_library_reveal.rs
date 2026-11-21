@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_owner_library_reveal_family(
@@ -25,7 +26,11 @@ pub(in crate::oracle::canonical) fn claims_promoted_owner_library_reveal_family(
     let reveal_sequence = tokens.windows(3).any(|window| {
         window[0].raw == ","
             && window[1].raw.eq_ignore_ascii_case("then")
-            && window[2].raw.eq_ignore_ascii_case("reveals")
+            && is_verb_form(
+                &window[2].raw,
+                VerbLemma::Reveal,
+                VerbForm::ThirdPersonSingular,
+            )
     });
     let conditional_move = tokens
         .iter()

@@ -1,6 +1,7 @@
 //! Atomic actions over a previously observed card collection. No sentence recipes.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CardOperandNode {
@@ -188,8 +189,11 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             owner: LocalPlayerReference::Controller,
         }));
     }
-    if head.eq_ignore_ascii_case("reveal") {
-        cursor.consume("reveal")?;
+    if is_verb_form(&head, VerbLemma::Reveal, VerbForm::Base) {
+        cursor.consume(
+            crate::oracle::canonical::automata::verb_entry(VerbLemma::Reveal)
+                .surface(VerbForm::Base),
+        )?;
         if cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
@@ -201,13 +205,17 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
         }
         return operand(cursor).map(|value| Some(CardActionNode::Reveal(value)));
     }
-    if head.eq_ignore_ascii_case("exile") {
-        cursor.consume("exile")?;
+    if is_verb_form(&head, VerbLemma::Exile, VerbForm::Base) {
+        cursor.consume(
+            crate::oracle::canonical::automata::verb_entry(VerbLemma::Exile)
+                .surface(VerbForm::Base),
+        )?;
         let cards = operand(cursor)?;
         let destination = recognize_card_action_destination(cursor, "exile")?;
         return Ok(Some(CardActionNode::Move { cards, destination }));
     }
-    let explicit_move = head.eq_ignore_ascii_case("put") || head.eq_ignore_ascii_case("return");
+    let explicit_move = is_verb_form(&head, VerbLemma::Put, VerbForm::Base)
+        || is_verb_form(&head, VerbLemma::Return, VerbForm::Base);
     if !explicit_move && !move_ellipsis {
         return Ok(None);
     }
@@ -321,7 +329,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
     cursor: &mut OracleTokenCursor<'_>,
     verb: &str,
 ) -> MachineResult<CardMoveDestinationNode> {
-    if verb.eq_ignore_ascii_case("exile") {
+    if is_verb_form(&verb, VerbLemma::Exile, VerbForm::Base) {
         return Ok(CardMoveDestinationNode {
             zone: CardZoneName::Exile,
             owner: CardMoveOwnerNode::EachCardOwner,

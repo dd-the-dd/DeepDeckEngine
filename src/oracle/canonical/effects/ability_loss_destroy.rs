@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a sequence from its first independent set-ability-loss effect only.
@@ -15,7 +16,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_set_ability_loss_sequence_fa
             .tokens
             .iter()
             .take_while(|token| token.raw != ".")
-            .any(|token| token.raw.eq_ignore_ascii_case("loses"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Lose, VerbForm::ThirdPersonSingular))
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_set_ability_loss_sequence(

@@ -175,3 +175,19 @@ thème.
   as it attacks`, `reveal … from your opening hand`) dépend de mécaniques
   moteur absentes ; les lecteurs d'effet de ces lemmes gardent leurs tests de
   mots ; `remove` comme effet n'a pas de primitive moteur.
+
+## Phase 4 réalisée : rôle effet par la proposition
+
+- `lemma_at(cursor, lemme, accord)` et `consume_lemma(cursor, lemme, accord)`
+  (`clause.rs`) : le dispatch et les positions de verbe fixes des lecteurs
+  d'effet lisent le lemme par la proposition partagée (tous ses cadres, le
+  parent gardant l'opérande). Les tests de mots restants des portes de famille
+  (fenêtres de jetons) interrogent le lexique (`is_verb_form`).
+- `eq_ignore_ascii_case("<verbe>")` hors lexique pour sacrifice, discard,
+  tap, untap, exile, return, put, reveal, mill, create, gain, lose, pay :
+  120 → 0. Les lecteurs d'effet de joueur (`player_action`, listes
+  quantifiées) dispatchent par lemme.
+- Reste : tables de phrases (`consume_phrase(&["loses", "all", ...])`,
+  rappels de mots-clés), clés `match` de quelques lecteurs de famille ;
+  `conjure` non ajouté (il faut un nœud d'effet, un lecteur de nom et une
+  preuve runtime dépendante du catalogue, pas seulement une entrée de lexique).

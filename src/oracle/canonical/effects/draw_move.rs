@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the generic `draw ..., then put ...` spell envelope. The claim only
@@ -14,7 +15,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_draw_move_family(
         && tokens.windows(3).any(|window| {
             window[0].raw == ","
                 && window[1].raw.eq_ignore_ascii_case("then")
-                && window[2].raw.eq_ignore_ascii_case("put")
+                && is_verb_form(&window[2].raw, VerbLemma::Put, VerbForm::Base)
         })
         && tokens.last().is_some_and(|token| token.raw == ".")
 }

@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_card_draw_payment_family(
@@ -17,7 +18,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_card_draw_payment_family(
         && tokens[7].raw.eq_ignore_ascii_case("that")
         && tokens[8].raw.eq_ignore_ascii_case("player")
         && tokens[9].raw.eq_ignore_ascii_case("may")
-        && tokens[10].raw.eq_ignore_ascii_case("pay")
+        && is_verb_form(&tokens[10].raw, VerbLemma::Pay, VerbForm::Base)
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_card_draw_payment(

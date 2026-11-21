@@ -33,7 +33,12 @@ pub(in crate::oracle::canonical) fn claims_put_counters_effect(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     let mut probe = cursor.clone();
-    if probe.consume("put").is_err()
+    if crate::oracle::canonical::automata::consume_lemma(
+        &mut probe,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )
+    .is_err()
         || recognize_counter_count(&mut probe, &EffectRecognitionContext::default()).is_err()
         || recognize_counter_name(&mut probe).is_err()
     {
@@ -99,7 +104,11 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
         state = match state {
             PutCountersState::Action => {
                 cursor.enter("effect.put-counters.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 PutCountersState::Count
             }
             PutCountersState::Count => {

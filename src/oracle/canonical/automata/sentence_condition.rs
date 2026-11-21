@@ -347,7 +347,11 @@ fn recognize_cast_zone(
         cursor.consume_phrase(&["a", "graveyard"])?;
         Ok((SourceCastZone::Graveyard, false))
     } else if word_is(cursor, 0, "exile") {
-        cursor.consume("exile")?;
+        crate::oracle::canonical::automata::consume_lemma(
+            cursor,
+            crate::oracle::canonical::automata::VerbLemma::Exile,
+            crate::oracle::canonical::automata::VerbAgreement::Base,
+        )?;
         Ok((SourceCastZone::Exile, false))
     } else {
         Err(cursor.fail("`your hand`, `a graveyard`, `exile` or `anywhere other than your hand`"))

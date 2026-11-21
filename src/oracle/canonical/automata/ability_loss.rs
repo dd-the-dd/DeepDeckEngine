@@ -93,7 +93,11 @@ pub(in crate::oracle::canonical) fn recognize_set_ability_loss_effect(
             }
             SetAbilityLossState::LossAction => {
                 cursor.enter("effect.set-ability-loss.action");
-                cursor.consume("loses")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Lose,
+                    crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular,
+                )?;
                 SetAbilityLossState::AbilityCollection
             }
             SetAbilityLossState::AbilityCollection => {

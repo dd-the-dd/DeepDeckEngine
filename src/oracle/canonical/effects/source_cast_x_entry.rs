@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_source_cast_x_entry_family(
@@ -11,13 +12,13 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_cast_x_entry_family(
     ) && input.tokens.windows(3).any(|window| {
         window[0].raw.eq_ignore_ascii_case("enters")
             && window[1].raw == ","
-            && window[2].raw.eq_ignore_ascii_case("put")
+            && is_verb_form(&window[2].raw, VerbLemma::Put, VerbForm::Base)
     }) && has_source_cast_x_counter_placement(input.tokens)
 }
 
 fn has_source_cast_x_counter_placement(tokens: &[crate::oracle::model::RecognizedEntity]) -> bool {
     tokens.iter().enumerate().any(|(index, token)| {
-        if !token.raw.eq_ignore_ascii_case("put")
+        if !is_verb_form(&token.raw, VerbLemma::Put, VerbForm::Base)
             || !tokens.get(index + 1).is_some_and(|quantity| {
                 quantity.token_type == "quantity" && quantity.raw.eq_ignore_ascii_case("x")
             })

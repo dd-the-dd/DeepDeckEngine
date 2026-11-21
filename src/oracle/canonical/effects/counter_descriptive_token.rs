@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a counter followed by a controller-linked descriptive creature-token
@@ -11,7 +12,11 @@ pub(in crate::oracle::canonical) fn claims_promoted_counter_descriptive_token_fa
     let Some(boundary) = tokens.windows(4).position(|window| {
         window[0].raw == "."
             && window[1].raw.eq_ignore_ascii_case("its")
-            && window[3].raw.eq_ignore_ascii_case("creates")
+            && is_verb_form(
+                &window[3].raw,
+                VerbLemma::Create,
+                VerbForm::ThirdPersonSingular,
+            )
     }) else {
         return false;
     };

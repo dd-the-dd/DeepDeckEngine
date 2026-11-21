@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a combat-damage trigger whose instruction begins with the optional
@@ -28,7 +29,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_optional_bound_mill_family(
         && input.tokens.windows(4).any(|window| {
             window[0].raw.eq_ignore_ascii_case("you")
                 && window[1].raw.eq_ignore_ascii_case("may")
-                && window[2].raw.eq_ignore_ascii_case("mill")
+                && is_verb_form(&window[2].raw, VerbLemma::Mill, VerbForm::Base)
                 && window[3].raw.eq_ignore_ascii_case("that")
         })
 }

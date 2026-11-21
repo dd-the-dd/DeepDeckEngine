@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 const REVEALED_TOP_CARDS_BINDING: &str = "revealedTopCards";
@@ -19,7 +20,7 @@ fn claims_card_type_partition_tokens(tokens: &[crate::oracle::model::RecognizedE
         .iter()
         .any(|token| token.token_type == "eventWord" && token.raw.eq_ignore_ascii_case("enters"));
     let reveal_top = tokens.windows(3).any(|window| {
-        window[0].raw.eq_ignore_ascii_case("reveal")
+        is_verb_form(&window[0].raw, VerbLemma::Reveal, VerbForm::Base)
             && window[1].raw.eq_ignore_ascii_case("the")
             && window[2].raw.eq_ignore_ascii_case("top")
     });

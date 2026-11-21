@@ -57,7 +57,11 @@ pub(in crate::oracle::canonical) fn recognize_conditional_zone_change_amendment(
                             ZoneChangeAction::Destroy
                         }
                         Some("exile") => {
-                            cursor.consume("exile")?;
+                            crate::oracle::canonical::automata::consume_lemma(
+                                cursor,
+                                crate::oracle::canonical::automata::VerbLemma::Exile,
+                                crate::oracle::canonical::automata::VerbAgreement::Base,
+                            )?;
                             ZoneChangeAction::Exile
                         }
                         _ => return Err(cursor.fail("`destroy` or `exile`")),

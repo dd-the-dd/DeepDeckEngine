@@ -5,6 +5,7 @@ use super::{
     PayLifeCostNode, recognize_controlled_permanent_presence_condition,
     recognize_not_your_turn_condition, recognize_numeric_atom,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::characteristic_vocabulary::lookup_card_color;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,7 +115,11 @@ pub(in crate::oracle::canonical) fn recognize_exile_qualified_card_from_hand_cos
         state = match state {
             ExileQualifiedCardCostState::Action => {
                 cursor.enter("cost.exile-card.action");
-                cursor.consume("exile")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Exile,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 ExileQualifiedCardCostState::Article
             }
             ExileQualifiedCardCostState::Article => {
@@ -177,10 +182,11 @@ pub(in crate::oracle::canonical) fn recognize_compound_alternative_cost_sequence
     cursor.enter("cost.sequence.first");
     let mut costs = Vec::new();
     let mut connectors = Vec::new();
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("pay"))
-    {
+    if crate::oracle::canonical::automata::lemma_at(
+        &cursor,
+        VerbLemma::Pay,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    ) {
         costs.push(CompoundCostNode::PayLife(recognize_pay_life_cost(cursor)?));
         cursor.enter("cost.sequence.connector");
         cursor.consume("and")?;
@@ -372,7 +378,10 @@ pub(in crate::oracle::canonical) fn recognize_alternative_mana_cost_envelope(
                 cursor.enter("alternative-mana-cost.substitution");
                 cursor.consume_phrase(&["rather", "than"])?;
                 let action = cursor.consume_type("costActionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("pay"), "`pay`")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::Base),
+                    "`pay`",
+                )?;
                 AlternativeManaCostEnvelopeState::ReplacedCost
             }
             AlternativeManaCostEnvelopeState::ReplacedCost => {

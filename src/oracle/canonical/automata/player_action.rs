@@ -19,6 +19,16 @@ use super::{
     recognize_supplied_life_action, supplied_life_action_starts,
     try_recognize_card_collection_reference,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+
+/// Lexicon lemmas this child dispatches on (other verbs keep their readers).
+const MIGRATED_PLAYER_LEMMAS: &[VerbLemma] = &[
+    VerbLemma::Mill,
+    VerbLemma::Discard,
+    VerbLemma::Sacrifice,
+    VerbLemma::Exile,
+    VerbLemma::Reveal,
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SingularPlayerAction {
@@ -67,15 +77,12 @@ pub(in crate::oracle::canonical) fn player_hand_verb_at(
     cursor: &OracleTokenCursor<'_>,
     form: VerbAgreement,
 ) -> Option<PlayerHandVerb> {
-    let verb = cursor.peek()?.to_ascii_lowercase();
-    let action = match (form, verb.as_str()) {
-        (VerbAgreement::ThirdPersonSingular, "reveals") | (VerbAgreement::Base, "reveal") => {
-            PlayerHandVerb::Reveal
-        }
-        (VerbAgreement::ThirdPersonSingular, "discards") | (VerbAgreement::Base, "discard") => {
-            PlayerHandVerb::Discard
-        }
-        _ => return None,
+    let action = if crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Reveal, form) {
+        PlayerHandVerb::Reveal
+    } else if crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Discard, form) {
+        PlayerHandVerb::Discard
+    } else {
+        return None;
     };
     (cursor
         .peek_ahead(1)
@@ -183,7 +190,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         return Ok(None);
     } else if let Some(player) = inherited {
         Ok(player.clone())
-    } else if head.eq_ignore_ascii_case("mill")
+    } else if is_verb_form(&head, VerbLemma::Mill, VerbForm::Base)
         || head.eq_ignore_ascii_case("venture")
         || head.eq_ignore_ascii_case("proliferate")
     {
@@ -197,7 +204,14 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     };
     let verb = cursor.peek().unwrap_or("").to_ascii_lowercase();
     let is_draw = matches!(verb.as_str(), "draw" | "draws");
-    let is_mill = matches!(verb.as_str(), "mill" | "mills");
+    // Lexicon lemmas at the head, in any agreement (the reader checks it).
+    let lemma = cursor
+        .peek()
+        .and_then(|raw| {
+            crate::oracle::canonical::automata::lookup_verb(raw, MIGRATED_PLAYER_LEMMAS)
+        })
+        .map(|(entry, _)| entry.lemma);
+    let is_mill = lemma == Some(VerbLemma::Mill);
     // `reveals|discards their hand`: the possessive must name the acting
     // player's own hand; other objects stay with their own readers.
     let hand_form = if bare {
@@ -212,15 +226,23 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             .is_some_and(|raw| raw.eq_ignore_ascii_case("into"));
     // Imperative `discard`/`sacrifice` of the controller keeps its established
     // readers; these third-person actions belong to a non-controller subject.
-    let is_third_person_other = if bare {
-        matches!(verb.as_str(), "discard" | "sacrifice")
+    let agreement = if bare {
+        VerbAgreement::Base
     } else {
-        matches!(verb.as_str(), "discards" | "sacrifices")
+        VerbAgreement::ThirdPersonSingular
     };
+    let is_third_person_other =
+        crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Discard, agreement)
+            || crate::oracle::canonical::automata::lemma_at(
+                cursor,
+                VerbLemma::Sacrifice,
+                agreement,
+            );
     // `exiles that card|it`: only a bound card reference is claimed; a
     // counted exile (`exiles a card from their hand`) has no reader yet.
-    let exile_form = if bare { "exile" } else { "exiles" };
-    let is_referenced_exile = verb == exile_form && referenced_card_operand_follows(cursor);
+    let is_referenced_exile =
+        crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Exile, agreement)
+            && referenced_card_operand_follows(cursor);
     let is_proliferate = verb == "proliferate" || (!bare && verb == "proliferates");
     let claimed = is_draw
         || is_mill
@@ -275,15 +297,16 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         SingularPlayerAction::Hand(recognize_player_hand_action(cursor, form)?)
     } else if is_referenced_exile {
         cursor.enter("player-action.referenced-cards.exile");
-        cursor.consume(exile_form)?;
+        cursor.consume(
+            crate::oracle::canonical::automata::verb_entry(VerbLemma::Exile)
+                .surface(agreement.form()),
+        )?;
         let cards = recognize_referenced_card_operand(cursor)?;
         SingularPlayerAction::ReferencedCards {
             verb: ReferencedCardVerb::Exile,
             cards,
         }
-    } else if matches!(verb.as_str(), "discards" | "discard")
-        && referenced_card_operand_follows(cursor)
-    {
+    } else if lemma == Some(VerbLemma::Discard) && referenced_card_operand_follows(cursor) {
         cursor.enter("player-action.referenced-cards.discard");
         cursor.consume(
             super::verb_entry(super::VerbLemma::Discard).surface(other_form.agreement.form()),
@@ -306,7 +329,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         SingularPlayerAction::Proliferate
     } else if is_venture {
         SingularPlayerAction::Venture(recognize_venture_action_fragment(cursor, form)?)
-    } else if matches!(verb.as_str(), "discards" | "discard") {
+    } else if lemma == Some(VerbLemma::Discard) {
         SingularPlayerAction::Discard(recognize_player_discard_action_fragment(
             cursor,
             player.clone(),
@@ -401,10 +424,17 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
                 VerbAgreement::Base,
                 context,
             )?),
-            "mill" => SingularPlayerAction::Mill(recognize_mill_action_fragment(
+            _ if crate::oracle::canonical::automata::lemma_at(
                 cursor,
+                VerbLemma::Mill,
                 VerbAgreement::Base,
-            )?),
+            ) =>
+            {
+                SingularPlayerAction::Mill(recognize_mill_action_fragment(
+                    cursor,
+                    VerbAgreement::Base,
+                )?)
+            }
             _ => match recognize_supplied_life_action(cursor, VerbAgreement::Base, None)? {
                 Some(life) => SingularPlayerAction::Life(life),
                 None => {
@@ -421,7 +451,8 @@ pub(in crate::oracle::canonical) fn try_recognize_coordinated_player_actions(
         if and {
             cursor.consume("and")?;
             if cursor.peek().is_some_and(|raw| {
-                raw.eq_ignore_ascii_case("draw") || raw.eq_ignore_ascii_case("mill")
+                raw.eq_ignore_ascii_case("draw")
+                    || is_verb_form(&raw, VerbLemma::Mill, VerbForm::Base)
             }) || supplied_life_action_starts(cursor, VerbAgreement::Base)
             {
                 continue;
@@ -495,10 +526,9 @@ pub(in crate::oracle::canonical) fn recognize_mill_action_fragment(
     form: VerbAgreement,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("player-action.mill.verb");
-    cursor.consume(match form {
-        VerbAgreement::Base => "mill",
-        VerbAgreement::ThirdPersonSingular => "mills",
-    })?;
+    cursor.consume(
+        crate::oracle::canonical::automata::verb_entry(VerbLemma::Mill).surface(form.form()),
+    )?;
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))

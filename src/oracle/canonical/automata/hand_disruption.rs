@@ -10,6 +10,7 @@ use super::{
     EffectSequenceNode, ObjectPredicate, PlayerPredicate, SelectorPredicate, TargetSelector,
     recognize_effect_sequence,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::{
     characteristic_vocabulary::{AcceptedForms, lookup_card_type},
     syntax::{NameResolutionFailure, ResolvedNameLink},
@@ -286,7 +287,11 @@ fn recognize_revealed_hand(
             RevealHandState::Action => {
                 cursor.enter("hand-disruption.reveal.action");
                 let action = cursor.consume_type("actionWord")?;
-                if !action.raw.eq_ignore_ascii_case("reveals") {
+                if !is_verb_form(
+                    &action.raw,
+                    VerbLemma::Reveal,
+                    VerbForm::ThirdPersonSingular,
+                ) {
                     return Err(cursor.fail_with_span(
                         "`reveals`",
                         action.index,

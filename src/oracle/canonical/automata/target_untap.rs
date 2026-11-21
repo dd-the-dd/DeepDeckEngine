@@ -34,7 +34,11 @@ pub(super) fn recognize_untap_permanent_effect(
         state = match state {
             State::Action => {
                 cursor.enter("effect.untap-target.action");
-                cursor.consume("untap")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Untap,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 State::Reference
             }
             State::Reference => {

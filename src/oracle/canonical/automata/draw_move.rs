@@ -310,7 +310,11 @@ pub(in crate::oracle::canonical) fn recognize_move_cards_effect(
         state = match state {
             MoveState::Action => {
                 cursor.enter("effect.move-cards.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 MoveState::Count
             }
             MoveState::Count => {

@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use serde_json::{Value, json};
 
 use super::super::*;
@@ -22,9 +23,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_labeled_entry_reflexive_coun
             && trigger.raw.eq_ignore_ascii_case("whenever")
             && (article.raw.eq_ignore_ascii_case("a")
                 || article.raw.eq_ignore_ascii_case("an")))
-        && tokens
-            .windows(2)
-            .any(|window| window[0].raw == "," && window[1].raw.eq_ignore_ascii_case("put"))
+        && tokens.windows(2).any(|window| {
+            window[0].raw == "," && is_verb_form(&window[1].raw, VerbLemma::Put, VerbForm::Base)
+        })
         && tokens
             .windows(2)
             .any(|window| window[0].raw == "." && window[1].raw.eq_ignore_ascii_case("when"))

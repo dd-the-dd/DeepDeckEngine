@@ -3,6 +3,7 @@ use super::{
     LocalPlayerReference, NumericAtom, PlayerZoneKind, recognize_card_noun,
     recognize_positive_card_count,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ZoneActionKind {
@@ -54,7 +55,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_exact_count_zone_action(
                 cursor.enter("optional-zone-action.action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("exile"),
+                    is_verb_form(&action.raw, VerbLemma::Exile, VerbForm::Base),
                     "the `exile` zone action",
                 )?;
                 OptionalZoneActionState::Count

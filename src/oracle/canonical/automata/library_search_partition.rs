@@ -103,7 +103,11 @@ fn recognize_reveal_collection(
         state = match state {
             RevealCollectionState::Action => {
                 cursor.enter("effect.reveal-collection.action");
-                cursor.consume("reveal")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Reveal,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 RevealCollectionState::Reference
             }
             RevealCollectionState::Reference => {
@@ -156,7 +160,11 @@ fn recognize_collection_partition(
         state = match state {
             PartitionCollectionState::Action => {
                 cursor.enter("effect.collection-partition.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 PartitionCollectionState::SelectedCount
             }
             PartitionCollectionState::SelectedCount => {

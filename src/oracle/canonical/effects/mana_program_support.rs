@@ -163,6 +163,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         LocalEffectNode::ZoneChange(movement) => match movement.action {
             ZoneChangeAction::Exile | ZoneChangeAction::Destroy => false,
             ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand) => false,
+            ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(_)) => true,
         },
         LocalEffectNode::ZoneBatch(movement) => match movement.collection {
             ZoneCollectionNode::AllGraveyards | ZoneCollectionNode::OpponentGraveyards => false,

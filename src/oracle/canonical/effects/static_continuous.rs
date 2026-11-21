@@ -512,7 +512,11 @@ fn read_untap_step_exclusion(cursor: &mut OracleTokenCursor<'_>) -> MachineResul
         return Err(cursor.fail("`your`, `its controller's` or `their controllers'` untap step"));
     }
     cursor.enter("static.continuous.untap-exclusion.step");
-    cursor.consume("untap")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Untap,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.require(
         word_in(cursor.peek(), &["step", "steps"]),
         "`step` after the untap step owner",

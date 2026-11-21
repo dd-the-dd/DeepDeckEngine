@@ -6,6 +6,7 @@ use super::{
     recognize_named_token_spec, recognize_player_reference,
 };
 use crate::card_catalog::named_token_printing;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::model::RecognizedEntity;
 use crate::oracle::syntax::recognize_entities;
 use std::cell::RefCell;
@@ -66,10 +67,11 @@ pub(in crate::oracle::canonical) fn recognize_create_named_tokens_effect(
             NamedTokenCreationState::Player => {
                 cursor.enter("effect.create-named-token.player");
                 player = Some(
-                    if cursor
-                        .peek()
-                        .is_some_and(|raw| raw.eq_ignore_ascii_case("create"))
-                    {
+                    if crate::oracle::canonical::automata::lemma_at(
+                        &cursor,
+                        VerbLemma::Create,
+                        crate::oracle::canonical::automata::VerbAgreement::Base,
+                    ) {
                         LocalPlayerReference::Controller
                     } else {
                         recognize_player_reference(cursor, antecedent)?
@@ -85,12 +87,16 @@ pub(in crate::oracle::canonical) fn recognize_create_named_tokens_effect(
                     .ok_or_else(|| cursor.fail("a populated token controller"))?;
                 match player {
                     LocalPlayerReference::Controller => cursor.require(
-                        action.raw.eq_ignore_ascii_case("create"),
+                        is_verb_form(&action.raw, VerbLemma::Create, VerbForm::Base),
                         "the second-person `create` token action",
                     )?,
                     LocalPlayerReference::ControllerOf(_)
                     | LocalPlayerReference::ControllerOfQualified(_) => cursor.require(
-                        action.raw.eq_ignore_ascii_case("creates"),
+                        is_verb_form(
+                            &action.raw,
+                            VerbLemma::Create,
+                            VerbForm::ThirdPersonSingular,
+                        ),
                         "the third-person `creates` token action",
                     )?,
                 }
