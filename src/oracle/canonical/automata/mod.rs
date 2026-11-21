@@ -2200,6 +2200,7 @@ pub(super) use trigger_program::*;
 pub(super) use boolean_condition::*;
 pub(super) use deck_construction_keyword::*;
 pub(super) use token_window::*;
+pub(super) use unsupported_word::*;
 
 #[cfg(test)]
 #[path = "target_card_sequence_tests.rs"]
@@ -2208,6 +2209,7 @@ mod target_card_sequence_tests;
 mod permanent_action;
 mod permanent_subject;
 mod token_window;
+mod unsupported_word;
 pub(in crate::oracle::canonical) use permanent_action::{
     PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
 };
