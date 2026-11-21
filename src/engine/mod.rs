@@ -170,6 +170,7 @@ mod object_identity_initialization;
 #[cfg(test)]
 mod object_identity_test_setup;
 mod object_predicate;
+mod object_snapshot;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -1311,6 +1312,8 @@ pub struct GameEngine {
     source_lki_contexts: source_lki::SourceLkiContexts,
     force_end_turn: bool,
     event_batches: event_batch::EventBatchState,
+    /// Effective characteristics of departed objects, per incarnation (LKI).
+    departure_characteristics: BTreeMap<String, object_snapshot::EffectiveCharacteristics>,
 }
 
 fn default_opening_hand_size() -> usize {
@@ -5112,7 +5115,6 @@ fn triggered_event_supported(event: &Value) -> bool {
                     .is_none_or(|v| matches!(v.as_str(), Some("perRecipient" | "oneOrMore")))
         }
         Some("opponentSmallCreatureBlocks") => player_reference_supported(&event["player"]),
-        Some("permanentSacrificed") => sacrifice::permanent_sacrificed_event_supported(event),
         Some("creatureExploited" | "permanentTransformed") => {
             (event.get("object").is_none() || value_kind(&event["object"]) == Some("self"))
                 && event.get("destination").is_none_or(Value::is_string)
@@ -6268,6 +6270,7 @@ impl GameEngine {
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
+            departure_characteristics: BTreeMap::new(),
         };
         engine.admit_initial_object_identities()?;
         Ok(engine)
@@ -6295,6 +6298,7 @@ impl GameEngine {
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
+            departure_characteristics: BTreeMap::new(),
         };
 
         evaluator

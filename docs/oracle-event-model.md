@@ -309,6 +309,35 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Purity, Vigor…) échouent désormais dans leur corps (`its owner shuffles`,
   `shuffle it into`), plus sur l'événement.
 
+## Étape 4 réalisée : instantané des caractéristiques effectives, sacrifice
+
+- `src/engine/object_snapshot.rs` : `EffectiveCharacteristics` (types,
+  sous-types, « tous les types de créature », couleurs, supertypes
+  légendaire/de base/neige, jeton, capacités mot-clé), calculées avec tous
+  les effets continus appliqués. `capture_pending_source_lki`, appelé par
+  chaque sortie centrale du champ de bataille pendant que l'objet y est
+  encore, enregistre cet instantané par incarnation (CR 608.2h, 603.10a).
+  Dans un lot simultané (sacrifice de plusieurs permanents), tous les
+  instantanés sont pris avant le premier départ.
+- Le correspondant de la famille changements de zone lit d'abord
+  l'instantané ; un atome qu'il ne capture pas (caractéristique numérique,
+  état) ou un objet sans capture garde la vue établie du motif.
+- `permanentSacrificed` est lu comme motif de déplacement (cause
+  `sacrificed`, observateurs capturés avant le départ), IR inchangée.
+- Analyseur : un sacrifice accepte tout prédicat sur les caractéristiques
+  capturées (`an artifact`, `a Clue`, `a black creature`, `a Clue or Food`,
+  `another creature`) ; une caractéristique numérique reste explicite
+  (`trigger.sacrifice.numeric-snapshot-support`).
+- Correction de règle assumée (CR 603.10a) : `permanentDied` filtré et les
+  départs lisent désormais les types/couleurs effectifs au moment du départ
+  au lieu de la définition imprimée (un terrain animé qui meurt est une
+  créature qui meurt). Le résultat ne change que si les caractéristiques
+  effectives diffèrent des imprimées.
+- Sondes : ligue 790 → 792 (+2 : Smothering Abomination, Crime Novelist) ;
+  corpus 13666 → 13692 (+26 : Tireless Tracker, Gleaming Geardrake,
+  Thraximundar, Body Dropper, Savra, …), 0 perdue, 45 IR changées dont 0
+  déjà supportée.
+
 ## Familles suivantes
 
 1. **Lancement** : `spellCast` et ses ordinaux (`spellCastOrdinal`) → lemme

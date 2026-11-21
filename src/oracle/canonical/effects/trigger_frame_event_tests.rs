@@ -540,3 +540,24 @@ fn zone_changes_without_an_established_observer_lower_to_move_patterns() {
         assert_eq!(committed_state(text), state, "{text}");
     }
 }
+
+#[test]
+fn sacrificed_object_predicates_read_the_departure_snapshot() {
+    // Gleaming Geardrake, Tireless Tracker, Savra, Jenny Flint.
+    for text in [
+        "Whenever you sacrifice an artifact, draw a card.",
+        "Whenever you sacrifice a Clue, draw a card.",
+        "Whenever you sacrifice a black creature, draw a card.",
+        "Whenever you sacrifice a Clue or Food, draw a card.",
+        "Whenever a player sacrifices another creature, draw a card.",
+    ] {
+        let lowered = event(text, "Creature");
+        assert_eq!(lowered["kind"], "permanentSacrificed", "{text}");
+        assert!(lowered["where"].is_object(), "{text}");
+    }
+    // Near miss: a numeric characteristic is not captured at departure.
+    assert_eq!(
+        committed_state("Whenever you sacrifice a creature with power 3 or greater, draw a card."),
+        "trigger.sacrifice.numeric-snapshot-support"
+    );
+}

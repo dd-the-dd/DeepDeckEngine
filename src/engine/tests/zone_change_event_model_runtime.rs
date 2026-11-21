@@ -207,3 +207,96 @@ fn historical_departure_kinds_keep_their_observers() {
     sources.sort();
     assert_eq!(sources, ["leaver", "watcher"]);
 }
+
+/// A land made a creature until end of turn by a continuous effect.
+fn animated_land(engine: &mut GameEngine, id: &str) {
+    let turn = engine.state.turn_number;
+    engine.state.rule_modifiers.push(json!({
+        "kind": "temporaryCardType",
+        "objectId": id,
+        "cardType": "Creature",
+        "expiresAfterTurn": turn,
+    }));
+}
+
+#[test]
+fn a_sacrifice_reads_the_effective_characteristics_captured_at_departure() {
+    // Body Dropper's event with a plain body: the sacrificed land was a
+    // creature when it left (CR 603.10a), though its card is not one.
+    let rules = parsed_rules(
+        "Sacrifice Watcher",
+        "Enchantment",
+        "Whenever you sacrifice a creature, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["kind"], "permanentSacrificed");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        object("watcher", "Enchantment", rules, "player-0"),
+        object("animated", "Land — Forest", Vec::new(), "player-0"),
+        object("plain-land", "Land — Forest", Vec::new(), "player-0"),
+    ];
+    animated_land(&mut engine, "animated");
+    admit(&mut engine);
+    engine
+        .move_permanent_to_graveyard("plain-land", "sacrificed")
+        .expect("a land is sacrificed");
+    assert!(
+        engine.state.stack.is_empty(),
+        "a land that was not a creature"
+    );
+    engine
+        .move_permanent_to_graveyard("animated", "sacrificed")
+        .expect("the animated land is sacrificed");
+    assert_eq!(stack_sources(&engine), ["watcher"]);
+}
+
+#[test]
+fn a_sacrificed_subtype_is_read_on_the_snapshot() {
+    // Tireless Tracker: a Clue, and a Food near miss.
+    let rules = parsed_rules(
+        "Tireless Tracker",
+        "Creature — Human Scout",
+        "Whenever you sacrifice a Clue, put a +1/+1 counter on this creature.",
+    );
+    let mut engine = test_engine(2);
+    let mut clue = object("clue", "Token Artifact — Clue", Vec::new(), "player-0");
+    clue.definition.is_token = true;
+    let mut food = object("food", "Token Artifact — Food", Vec::new(), "player-0");
+    food.definition.is_token = true;
+    engine.state.players[0].battlefield = vec![
+        object("tracker", "Creature — Human Scout", rules, "player-0"),
+        clue,
+        food,
+    ];
+    admit(&mut engine);
+    engine
+        .move_permanent_to_graveyard("food", "sacrificed")
+        .expect("a Food is sacrificed");
+    assert!(engine.state.stack.is_empty());
+    engine
+        .move_permanent_to_graveyard("clue", "sacrificed")
+        .expect("a Clue is sacrificed");
+    assert_eq!(stack_sources(&engine), ["tracker"]);
+}
+
+#[test]
+fn a_death_observer_reads_the_captured_card_types() {
+    // CR 603.10a correction of the printed view: an animated land that dies
+    // is a creature that died.
+    let rules = parsed_rules(
+        "Death Watcher",
+        "Enchantment",
+        "Whenever a creature you control dies, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        object("watcher", "Enchantment", rules, "player-0"),
+        object("animated", "Land — Forest", Vec::new(), "player-0"),
+    ];
+    animated_land(&mut engine, "animated");
+    admit(&mut engine);
+    engine
+        .move_permanent_to_graveyard("animated", "destroyed")
+        .expect("the animated land is destroyed");
+    assert_eq!(stack_sources(&engine), ["watcher"]);
+}

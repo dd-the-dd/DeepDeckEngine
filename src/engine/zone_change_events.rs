@@ -41,11 +41,17 @@ enum SubjectRelation<'a> {
     },
 }
 
+/// The established view of an object predicate. Every view first reads
+/// the effective characteristics captured when the object left the
+/// battlefield (`object_snapshot.rs`); an atom the capture does not answer,
+/// or an object without capture, uses the view itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ObjectView {
     /// The printed definition (the historical `permanentDied` filter).
     Printed,
-    /// Effective characteristics evaluated on the snapshot.
+    /// Printed definition plus permanent state (the historical sacrifice filter).
+    PermanentState,
+    /// Effective characteristics evaluated on the object.
     Effective,
 }
 
@@ -58,6 +64,8 @@ pub(super) enum ZoneChangeGroup {
     Departure,
     /// A card arriving in a graveyard: its own abilities.
     GraveyardArrival,
+    /// A permanent sacrificed, with the observers captured before it.
+    Sacrifice,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -297,6 +305,27 @@ pub(super) fn zone_change_pattern(event: &Value) -> Option<Result<ZoneChangePatt
                 )
             })
         })(),
+        // A sacrifice is a move from the battlefield caused by sacrifice.
+        "permanentSacrificed" => (|| {
+            sacrifice::permanent_sacrificed_event_supported(event).then_some(())?;
+            let subject = match event.get("object") {
+                Some(_) => SubjectRelation::Source,
+                None => SubjectRelation::Permanents {
+                    controller: event
+                        .get("player")
+                        .map_or(ControllerRelation::Any, ControllerRelation::Reference),
+                    exclude_source: optional_bool(event, "excludeSource")?,
+                },
+            };
+            Some(ZoneChangePattern {
+                filter: event
+                    .get("where")
+                    .filter(|filter| !filter.is_null())
+                    .map(|filter| (filter, ObjectView::PermanentState)),
+                reason: Some("sacrificed"),
+                ..ZoneChangePattern::new(subject, ZoneChangeGroup::Sacrifice)
+            })
+        })(),
         "eventPattern" if event["lemma"].as_str() == Some("move") => generic_move_pattern(event),
         _ => return None,
     };
@@ -363,9 +392,16 @@ impl GameEngine {
             }
         };
         related
-            && pattern.filter.is_none_or(|(filter, view)| match view {
-                ObjectView::Printed => matches_card_filter(&object.definition, filter),
-                ObjectView::Effective => self.permanent_matches_effective_filter(object, filter),
+            && pattern.filter.is_none_or(|(filter, view)| {
+                let established = |atom: &Value| match view {
+                    ObjectView::Printed => matches_card_filter(&object.definition, atom),
+                    ObjectView::PermanentState => matches_permanent_filter(object, atom),
+                    ObjectView::Effective => self.permanent_matches_effective_filter(object, atom),
+                };
+                match self.departed_characteristics(object) {
+                    Some(snapshot) => snapshot.matches(filter, &established),
+                    None => established(filter),
+                }
             })
             && pattern
                 .had_counter

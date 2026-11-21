@@ -520,35 +520,32 @@ impl GameEngine {
                 Value::String("sacrificed".to_string()),
             ),
         ]);
+        // One typed record of the zone-change family: a sacrifice, read on
+        // the object's last-known effective characteristics.
+        let sacrifice_record = zone_change_events::ZoneChangeRecord {
+            object: sacrificed,
+            from: Some("battlefield"),
+            to: "graveyard",
+            reason: Some("sacrificed"),
+        };
         let mut triggers = Vec::new();
         for observer in sources {
             let source = &observer.source;
             for rule in &observer.rules {
-                let matches = triggered_event_variants(&rule["event"])
-                    .into_iter()
-                    .any(|event| match value_kind(event) {
-                        Some("permanentSacrificed") => {
-                            event.get("player").is_none_or(|player| {
-                                self.event_player_reference_matches(
-                                    player,
-                                    source,
-                                    &sacrificed.controller,
-                                )
-                            }) && event
-                                .get("object")
-                                .is_none_or(|_| sacrificed.instance_id == source.instance_id)
-                                && event.get("where").is_none_or(|where_filter| {
-                                    matches_permanent_filter(sacrificed, where_filter)
-                                })
-                                && (!event["excludeSource"].as_bool().unwrap_or(false)
-                                    || sacrificed.instance_id != source.instance_id)
-                        }
+                let matches = self.rule_matches_zone_change(
+                    rule,
+                    zone_change_events::ZoneChangeGroup::Sacrifice,
+                    &sacrifice_record,
+                    source,
+                ) || triggered_event_variants(&rule["event"]).into_iter().any(
+                    |event| match value_kind(event) {
                         Some("tokenCreatedOrSacrificed") => {
                             sacrificed.definition.is_token
                                 && sacrificed.controller == source.controller
                         }
                         _ => false,
-                    });
+                    },
+                );
                 if matches {
                     triggers.push((source.clone(), rule.clone(), observer.multiplicity.clone()));
                 }

@@ -796,6 +796,26 @@ fn require_stable_permanent_event_predicate(
         "a stable permanent/token identity predicate until effective object characteristics are captured")
 }
 
+/// The characteristics the engine captures when an object leaves the
+/// battlefield (types, subtypes, colors, supertypes, token status, keywords;
+/// docs/oracle-event-model.md). Numeric characteristics are not captured.
+fn snapshot_permanent_event_predicate(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::ObjectKind(ObjectKind::Permanent)
+        | ObjectPredicate::IsToken
+        | ObjectPredicate::CardType(_)
+        | ObjectPredicate::Subtype(_)
+        | ObjectPredicate::Color(_)
+        | ObjectPredicate::Supertype(_)
+        | ObjectPredicate::HasKeyword(_) => true,
+        ObjectPredicate::Not(child) => snapshot_permanent_event_predicate(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            !children.is_empty() && children.iter().all(snapshot_permanent_event_predicate)
+        }
+        _ => false,
+    }
+}
+
 /// Shared by the generic event parent and the established sacrifice adapter.
 pub(in crate::oracle::canonical) fn lower_sacrifice_event(
     cursor: &mut OracleTokenCursor<'_>,
@@ -807,7 +827,20 @@ pub(in crate::oracle::canonical) fn lower_sacrifice_event(
             cursor.fail("an accepted shared sacrifice matcher for the opponent actor scope")
         );
     }
-    require_stable_permanent_event_predicate(cursor, &event.object.predicate)?;
+    if event.object.predicate.contains_numeric_comparison() {
+        cursor.enter("trigger.sacrifice.numeric-snapshot-support");
+        return Err(cursor.fail(
+            "a predicate without numeric sacrificed-object characteristics (not captured at departure)",
+        ));
+    }
+    // The engine reads the predicate on the effective characteristics
+    // captured as the object left the battlefield (CR 603.10a).
+    cursor.enter("trigger.sacrifice.characteristic-snapshot-support");
+    cursor.require(
+        snapshot_permanent_event_predicate(&event.object.predicate)
+            && domain_filter_is_representable(&event.object.predicate),
+        "a predicate over the characteristics captured at departure",
+    )?;
     let mut lowered = json!({"kind":"permanentSacrificed", "where":lower_permanent_object_predicate(&event.object.predicate)});
     if event.actor == EventActorScope::Controller {
         lowered["player"] = controller();
