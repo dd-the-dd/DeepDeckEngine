@@ -22,7 +22,7 @@ fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek() == Some(".")
         && ((cursor
             .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they"))
             && cursor.peek_ahead(2).is_some_and(|raw| {
                 raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
             }))
@@ -41,6 +41,34 @@ fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
                 && cursor.peek_ahead(6).is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
                 })))
+}
+
+/// `. They can't be regenerated` after a destroyed collection: the later
+/// sentence amends the earlier destruction (CR 608.2c, 701.19c). Returns
+/// false without consuming when the amendment does not start here; once its
+/// plural anaphor is read, a malformed remainder is a committed failure. The
+/// enclosing sequence keeps the final period.
+pub(in crate::oracle::canonical) fn recognize_plural_regeneration_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<bool> {
+    if !(cursor.peek() == Some(".")
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+        && cursor.peek_ahead(2).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
+        }))
+    {
+        return Ok(false);
+    }
+    cursor.enter("sequence.collection-regeneration.anaphor");
+    cursor.consume(".")?;
+    cursor.consume("they")?;
+    let modal = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&modal)?;
+    cursor.enter("sequence.collection-regeneration.regenerated");
+    cursor.consume_phrase(&["be", "regenerated"])?;
+    Ok(true)
 }
 
 pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amendment(
@@ -84,6 +112,23 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amen
                         zone_change.target.slots.len() == 1
                             && zone_change.target.slots[0].cardinality.maximum == 1,
                         "one scalar destroyed-object antecedent",
+                    )?;
+                    AmendmentState::NegatedModal
+                } else if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+                {
+                    // CR 701.19c: the prohibition covers every destroyed
+                    // member of the declared target collection.
+                    cursor.consume("they")?;
+                    cursor.require(
+                        zone_change.target.slots.len() > 1
+                            || zone_change
+                                .target
+                                .slots
+                                .iter()
+                                .any(|slot| slot.cardinality.maximum > 1),
+                        "a plural destroyed-object antecedent",
                     )?;
                     AmendmentState::NegatedModal
                 } else {

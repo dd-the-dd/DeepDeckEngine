@@ -1075,6 +1075,8 @@ pub(super) struct DestroyPermanentCollectionEffectNode {
     pub objects: ObjectQueryNode,
     /// `destroy all other ...`: the bound ability source is not destroyed.
     pub exclude_source: bool,
+    /// `They can't be regenerated.` read by the sentence parent (CR 701.19c).
+    pub cannot_regenerate: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

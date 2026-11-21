@@ -186,15 +186,22 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             (Err(failure), None) => Err(failure),
         };
     }
+    // The permission owns its own sentence (and directly following reminders)
+    // only. Without an outcome connector, a later sentence is an independent
+    // program step that runs whether or not the permission was used (CR
+    // 608.2c). A conditional or another permission inside the same sentence
+    // has no enclosing frame here and stays unsupported.
     cursor.enter("program.optional.scope");
+    let body_end = sentence_end_with_reminders(cursor);
     let mut offset = 0;
-    while let Some(raw) = cursor.peek_ahead(offset) {
-        if raw.eq_ignore_ascii_case("if")
-            || raw.eq_ignore_ascii_case("may")
-            || (raw == "." && cursor.peek_ahead(offset + 1).is_some())
-        {
+    while cursor.position() + offset < body_end {
+        let Some(raw) = cursor.peek_ahead(offset) else {
+            break;
+        };
+        if raw.eq_ignore_ascii_case("if") || raw.eq_ignore_ascii_case("may") {
             cursor.advance_to(cursor.position() + offset)?;
-            return Err(cursor.fail("one complete optional sentence without a later conditional or program continuation"));
+            return Err(cursor
+                .fail("one optional sentence without an inner conditional or second permission"));
         }
         offset += 1;
     }
@@ -203,17 +210,23 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     // the optional wrapper cannot order that choice, so the body rejects it.
     let mut permission_context = context.clone();
     permission_context.unless_frames = UnlessFrameSupport::Unsupported;
-    let body = recognize_effect_sequence_with_context(
-        cursor,
-        name_links,
-        name_failure,
-        &permission_context,
-    )?;
+    let body = cursor.bounded(body_end, |cursor| {
+        recognize_effect_sequence_with_context(
+            cursor,
+            name_links,
+            name_failure,
+            &permission_context,
+        )
+    })?;
     cursor.enter("program.optional.complete");
-    Ok(EffectProgramNode::Optional {
+    let optional = EffectProgramNode::Optional {
         player,
         body: Box::new(EffectProgramNode::Sequence(body)),
-    })
+    };
+    if cursor.peek().is_none() {
+        return Ok(optional);
+    }
+    complete_outcome_block(cursor, optional, name_links, name_failure, context)
 }
 
 /// `COST. OUTCOME, BODY.` after `PLAYER may`.
@@ -356,6 +369,18 @@ fn complete_outcome_block(
         return Ok(block);
     }
     cursor.enter("program.steps.following");
+    // A sentence-initial `Then` only restates the written order of the
+    // independent steps (CR 608.2c); the following step owns its sentence.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("then"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw != "." && raw != ",")
+    {
+        cursor.enter("program.steps.then");
+        cursor.consume("then")?;
+    }
     let mut steps = vec![block];
     push_program_steps(
         &mut steps,

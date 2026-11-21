@@ -27,8 +27,9 @@ use super::{
     recognize_zone_change_with_regeneration_amendment_with_support,
     signed_power_toughness_from_raw, source_or_anaphor_reference_starts_at,
     source_reference_starts_at, try_recognize_draw_cards_effect_with_context,
-    try_recognize_exile_target_card_zone_change_effect, try_recognize_temporary_combat_restriction,
-    try_recognize_temporary_player_permission,
+    try_recognize_exile_target_card_zone_change_effect,
+    try_recognize_target_card_zone_change_effect_with_verb,
+    try_recognize_temporary_combat_restriction, try_recognize_temporary_player_permission,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1986,11 +1987,12 @@ fn recognize_effect(
             token.eq_ignore_ascii_case("all") || token.eq_ignore_ascii_case("each")
         })
     {
-        return super::recognize_destroy_permanent_collection_effect_with_source(
+        let mut collection = super::recognize_destroy_permanent_collection_effect_with_source(
             cursor,
             context.source_numeric_reads,
-        )
-        .map(LocalEffectNode::DestroyCollection);
+        )?;
+        collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
+        return Ok(LocalEffectNode::DestroyCollection(collection));
     }
     if cursor
         .peek()
@@ -2013,7 +2015,7 @@ fn recognize_effect(
     {
         return recognize_zone_change_with_regeneration_amendment_with_support(
             cursor,
-            ZoneChangeTargetSupport::DestroyCollection,
+            ZoneChangeTargetSupport::TargetCollection,
         );
     }
     match try_recognize_exile_target_card_zone_change_effect(cursor) {
@@ -2048,6 +2050,25 @@ fn recognize_effect(
     {
         return recognize_source_zone_move_effect(cursor, name_links, name_failure, context)
             .map(LocalEffectNode::MoveSource);
+    }
+    // A counted card-target head (`up to two target creature cards from`)
+    // is claimed by the card-target operand itself, not by a lexical probe.
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("return"))
+        && !targeted_card_zone_move_starts(cursor)
+    {
+        match try_recognize_target_card_zone_change_effect_with_verb(cursor, "return") {
+            TargetCardZoneChangeParseAttempt::Parsed(node) => {
+                return Ok(LocalEffectNode::TargetCardZoneChange(node));
+            }
+            TargetCardZoneChangeParseAttempt::FailedCommitted(failure) => {
+                attempt_frame.commit();
+                return Err(failure);
+            }
+            TargetCardZoneChangeParseAttempt::NotClaimed
+            | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
+        }
     }
     if cursor
         .peek()
@@ -2093,7 +2114,7 @@ fn recognize_effect(
     }) {
         return recognize_zone_change_effect_with_policy(
             cursor,
-            ZoneChangeTargetSupport::DestroyCollection,
+            ZoneChangeTargetSupport::TargetCollection,
             context.zone_change_domains,
         );
     }

@@ -163,13 +163,16 @@ impl GameEngine {
                     .get("player")
                     .and_then(|player| self.resolve_player(player, stack_object, bindings));
                 let instance_ids = match value_kind(&effect["permanent"]) {
-                    Some("chosenTargets") => self
-                        .resolve_runtime_object_ids(
+                    // Declared target collections: members that became
+                    // illegal are unaffected, the others are still exiled
+                    // (CR 608.2b).
+                    Some("chosenTargets" | "union") => self
+                        .resolve_runtime_object_ids_for_effect(
                             &effect["permanent"],
                             stack_object,
                             bindings,
                             decisions,
-                        )
+                        )?
                         .unwrap_or_default(),
                     Some("eachPermanent") => self
                         .state

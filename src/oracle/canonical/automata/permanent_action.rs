@@ -35,6 +35,22 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
 
 /// A recognized subject plus the immediately following action owns the claim.
 /// The payload child receives its typed subject and end cursor, without reparsing.
+/// True when the operand denotes several permanents: a collection, several
+/// target slots, or a slot whose maximum exceeds one.
+fn permanent_operand_is_plural(operand: &PermanentOperandNode) -> bool {
+    match operand {
+        PermanentOperandNode::Targets(targets) => {
+            targets.slots.len() > 1
+                || targets
+                    .slots
+                    .iter()
+                    .any(|slot| slot.cardinality.maximum > 1)
+        }
+        PermanentOperandNode::Collection { .. } => true,
+        PermanentOperandNode::BoundReference(_) | PermanentOperandNode::Reference(_) => false,
+    }
+}
+
 pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -59,6 +75,23 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         Ok(subject) => subject,
         Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
     };
+    // A floating `each` after a plural subject distributes the action over
+    // its members (`Up to two target creatures each get +2/+2`). Each
+    // member already receives its own modification, so the quantifier adds
+    // no operation; a singular subject keeps rejecting it.
+    if subject_end
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+        && permanent_operand_is_plural(&subject)
+        && subject_end
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("get") || raw.eq_ignore_ascii_case("gain"))
+    {
+        subject_end.enter("permanent-action.distributive-each");
+        if let Err(failure) = subject_end.consume("each") {
+            return PermanentActionAttempt::RejectedCandidate(failure);
+        }
+    }
     let action_offset = usize::from(
         subject_end
             .peek()

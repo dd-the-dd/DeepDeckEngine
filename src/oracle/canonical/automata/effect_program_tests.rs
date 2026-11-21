@@ -25,10 +25,38 @@ fn optional_is_a_program_operator_and_connectors_stay_in_its_body() {
 }
 
 #[test]
-fn optional_scope_cannot_absorb_later_sentences_or_conditional_outcomes() {
+fn optional_scope_is_its_own_sentence_and_later_sentences_are_independent_steps() {
+    // CR 608.2c: without an outcome connector, the next sentence runs
+    // whether or not the permission was used; it is never absorbed.
+    let tokens = recognize_entities("you may destroy target artifact. Then draw a card.");
+    let mut cursor = OracleTokenCursor::new("optional-scope-steps", &tokens);
+    let program = recognize_effect_program_with_context(
+        &mut cursor,
+        &[],
+        None,
+        &EffectRecognitionContext::default(),
+    )
+    .unwrap();
+    cursor.finish().unwrap();
+    let EffectProgramNode::Steps(steps) = program else {
+        panic!("a later sentence must become an independent program step")
+    };
+    let [
+        EffectProgramNode::Optional { body, .. },
+        EffectProgramNode::Sequence(after),
+    ] = steps.as_slice()
+    else {
+        panic!("the permission owns only its first sentence: {steps:?}")
+    };
+    assert_eq!(body.action_count(), 1);
+    assert_eq!(after.effects.len(), 1);
+}
+
+#[test]
+fn optional_scope_rejects_an_inner_conditional_or_second_permission() {
     for text in [
-        "you may destroy target artifact. Draw a card.",
         "you may destroy target artifact and you may draw a card.",
+        "you may destroy target artifact if you control a creature. Draw a card.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("optional-scope-cap", &tokens);
@@ -39,7 +67,7 @@ fn optional_scope_cannot_absorb_later_sentences_or_conditional_outcomes() {
             &EffectRecognitionContext::default(),
         )
         .unwrap_err();
-        assert_eq!(failure.state, "program.optional.scope");
+        assert_eq!(failure.state, "program.optional.scope", "{text}");
     }
 }
 

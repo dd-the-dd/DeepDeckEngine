@@ -205,9 +205,21 @@ pub(in crate::oracle::canonical) fn lower_zone_change_target_candidates(
     let [slot] = effect.target.slots.as_slice() else {
         return None;
     };
+    lower_zone_change_slot_candidates(effect, slot)
+}
+
+/// Candidates and bounds of one slot of a zone-change target list. Only the
+/// sole scalar slot of a return may project the spell/permanent union.
+pub(in crate::oracle::canonical) fn lower_zone_change_slot_candidates(
+    effect: &ZoneChangeEffectNode,
+    slot: &TargetSlot,
+) -> Option<(&'static str, Value, i64, i64)> {
     let (id, mut candidates) = if permanent_target_supported(&slot.selector) {
         lower_target_selector_candidates(&slot.selector)?
-    } else if effect.action == ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand) {
+    } else if effect.action == ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)
+        && effect.target.slots.len() == 1
+        && slot.cardinality.maximum == 1
+    {
         validate_spell_or_permanent_target(&slot.selector).ok()?;
         lower_projected_return_selector(&slot.selector)?
     } else {
