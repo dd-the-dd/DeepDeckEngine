@@ -156,6 +156,7 @@ mod permanent_selection;
 mod phase_trigger_sequence;
 mod phyrexian_mana;
 mod player_action;
+mod player_condition;
 mod player_counter_sweep;
 mod player_event;
 mod player_numeric_fact;
@@ -1379,8 +1380,9 @@ pub(super) struct FightEffectNode {
 pub(super) struct CastingCostReductionNode {
     pub subject: CastingReductionSubject,
     pub amount: NumericExpression,
-    /// Shared Boolean condition gating the adjustment (`if you control ...`).
-    pub condition: Option<BooleanConditionNode<LocalConditionNode>>,
+    /// Shared sentence condition program gating the adjustment (`if you
+    /// control ...`, `if an opponent has ...`), read without antecedents.
+    pub condition: Option<SentenceConditionNode>,
     /// Object query matched against the spell's chosen targets (`if it targets ...`).
     pub target_query: Option<ObjectQueryNode>,
 }
@@ -2144,6 +2146,7 @@ pub(super) struct PlayerCompoundExileNode {
     pub connector: CompoundObjectConnector,
 }
 
+pub(super) use player_condition::*;
 pub(super) use sentence_condition::*;
 pub(super) use static_condition::*;
 pub(super) use trigger_envelope::*;

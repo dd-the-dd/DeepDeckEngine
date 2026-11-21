@@ -26,21 +26,23 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             SourceStateProposition::Untapped => {
                 not(json!({ "kind": "isTapped", "object": self_ref() }))
             }
+            SourceStateProposition::Attacking => {
+                json!({ "kind": "isAttacking", "object": self_ref() })
+            }
+            SourceStateProposition::Blocking => {
+                json!({ "kind": "isBlocking", "object": self_ref() })
+            }
             SourceStateProposition::Modified => json!({ "kind": "sourceIsModified" }),
         },
-        StaticConditionAtom::ControllerEventCount { event, threshold } => compare(
-            ">=",
-            json!({
-                "kind": "countEventsThisTurn",
-                "event": match event {
-                    ControllerTurnEvent::CardDrawn => "cardDrawn",
-                    ControllerTurnEvent::SpellCast => "spellCast",
-                },
-                "player": controller(),
-                "where": Value::Null,
-            }),
-            integer(*threshold),
-        ),
+        StaticConditionAtom::PlayerState(node) => lower_player_state_condition(node),
+        StaticConditionAtom::ControllerTurn(proposition) => {
+            let turn = json!({ "kind": "duringControllerTurn", "player": controller() });
+            if proposition.is_controller_turn {
+                turn
+            } else {
+                not(turn)
+            }
+        }
         StaticConditionAtom::ControllerGainedLifeThisTurn { threshold } => compare(
             ">=",
             json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
@@ -92,17 +94,6 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
                 }
             }
         }
-        StaticConditionAtom::ControllerLifeTotal {
-            threshold,
-            direction,
-        } => compare(
-            match direction {
-                ControlledCountDirection::OrMore => ">=",
-                ControlledCountDirection::OrFewer => "<=",
-            },
-            json!({ "kind": "lifeTotal", "player": controller() }),
-            integer(*threshold),
-        ),
         StaticConditionAtom::PermanentsDiedThisTurn { threshold, subject } => compare(
             ">=",
             json!({

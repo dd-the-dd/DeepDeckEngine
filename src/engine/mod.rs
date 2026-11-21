@@ -174,6 +174,7 @@ mod player_damage_batch;
 mod player_damage_observation;
 mod player_damage_replacement_order;
 mod player_iteration;
+mod player_quantifier;
 mod player_query;
 mod previous_turn_events;
 mod quantity_preflight;
@@ -2956,6 +2957,7 @@ fn condition_supported(condition: &Value) -> bool {
         Some("hasEnduringStory" | "hasCityBlessing") => {
             player_reference_supported(&condition["player"])
         }
+        Some("playerQuantifier") => player_quantifier::player_quantifier_supported(condition),
         Some("playersEqual") => {
             player_reference_supported(&condition["left"])
                 && player_reference_supported(&condition["right"])
@@ -9048,6 +9050,9 @@ impl GameEngine {
                                 .is_none_or(|name| !card.definition.name.eq_ignore_ascii_case(name))
                             && matches_permanent_filter(card, &condition["where"])
                     })
+            }
+            Some("playerQuantifier") => {
+                self.player_quantifier_holds(condition, controller_id, decisions, source)
             }
             Some("hasEnduringStory") => self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("enduringStory")

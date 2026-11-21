@@ -51,7 +51,8 @@ fn unconditional_reduction_has_no_condition_field() {
 fn near_misses_fail_at_precise_states() {
     let unknown = parse("This spell costs {1} less to cast if it's your birthday.")
         .expect_err("unknown condition atom");
-    assert_eq!(unknown.state, "condition.trigger-guard.atom-kind");
+    // The shared sentence atoms read `it's ...` as turn ownership.
+    assert_eq!(unknown.state, "condition.controller-turn.turn");
     let spell_set =
         parse("Creature spells you cast cost {1} less to cast if you control a Kithkin.")
             .expect_err("spell-set conditions are not executable");

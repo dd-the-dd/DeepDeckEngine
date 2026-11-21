@@ -293,3 +293,60 @@ fn an_intervening_trigger_condition_is_not_a_sentence_conditional() {
         );
     }
 }
+
+/// The canonical rule of the only ability.
+fn single_rule(type_line: &str, text: &str) -> Value {
+    let parsed = parse(type_line, "{2}", text);
+    let ability = parsed.abilities.last().expect("one ability");
+    assert_eq!(
+        ability.status,
+        "canonical",
+        "{text}: {:?}",
+        ability
+            .diagnostics
+            .first()
+            .map(|d| (&d.state, &d.expected, &d.found))
+    );
+    ability.rule.clone().expect("canonical rule")
+}
+
+#[test]
+fn the_controller_cast_fact_of_the_source_is_shared_by_guards_and_sentences() {
+    // The One Ring: intervening `if you cast it` (CR 603.4) over the source.
+    let ring = single_rule(
+        "Legendary Artifact",
+        "When this artifact enters, if you cast it, you gain 3 life.",
+    );
+    assert_eq!(
+        ring["condition"],
+        json!({ "kind": "wasCast", "object": { "kind": "self" } })
+    );
+    // An object pronoun and a cast zone, unused together before.
+    let hand = single_rule(
+        "Creature - Test",
+        "When this creature enters, if you cast him from your hand, draw a card.",
+    );
+    assert_eq!(
+        hand["condition"],
+        json!({ "kind": "wasCastFromHand", "object": { "kind": "self" } })
+    );
+    // The same fact in a spell's sentence conditional.
+    let spell = effects(
+        "Sorcery",
+        "{2}",
+        "Draw a card. If you cast this spell from your hand, you gain 2 life.",
+    );
+    assert_eq!(
+        spell[1]["condition"],
+        json!({ "kind": "wasCastFromHand", "object": { "kind": "self" } })
+    );
+    // A permanent does not remember a graveyard cast zone.
+    assert_eq!(
+        failure(
+            "Creature - Test",
+            "When this creature enters, if you cast it from a graveyard, draw a card.",
+        )
+        .0,
+        "condition.sentence.cast.permanent-zone"
+    );
+}
