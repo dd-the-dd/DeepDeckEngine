@@ -168,12 +168,6 @@ fn malformed_claimed_family_members_fail_at_the_responsible_local_machine() {
             "player-subject.bound.reference",
             "opponent",
         ),
-        (
-            "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player exiles that card.",
-            "targeted-hand-disruption",
-            "action.discard.verb",
-            "exiles",
-        ),
     ] {
         let parsed = parse_card("Malformed Hand Interaction", oracle_text);
         let ability = &parsed.abilities[0];
@@ -194,25 +188,50 @@ fn malformed_claimed_family_members_fail_at_the_responsible_local_machine() {
 
 #[test]
 fn neighboring_hand_sentences_remain_outside_the_promoted_boundary() {
-    for oracle_text in [
-        "Target opponent reveals their hand.",
-        "Each opponent reveals their hand. You choose a nonland card from each of them. Those players discard those cards.",
-        "Target opponent reveals their hand. You choose a nonland card from it and exile that card.",
+    // The shared contextual program owns these neighbors; the
+    // hand-disruption family never claims them. Its player verbs
+    // (`reveals their hand`, `exiles that card`) and the choice from the
+    // revealed hand compose them, while unrepresented grammar still fails.
+    for (oracle_text, canonical) in [
+        ("Target opponent reveals their hand.", true),
+        (
+            "Each opponent reveals their hand. You choose a nonland card from each of them. Those players discard those cards.",
+            false,
+        ),
+        (
+            "Target opponent reveals their hand. You choose a nonland card from it and exile that card.",
+            true,
+        ),
+        (
+            "Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player exiles that card.",
+            true,
+        ),
     ] {
-        // The shared contextual program owns these neighbors and rejects
-        // them explicitly; the hand-disruption family never claims them.
         let parsed = parse_card("Other Hand Interaction", oracle_text);
-        assert_eq!(parsed.status, "unsupported", "{oracle_text}");
         let ability = &parsed.abilities[0];
-        assert!(ability.rule.is_none(), "{oracle_text}");
-        assert!(
-            ability
-                .diagnostics
-                .iter()
-                .all(|diagnostic| diagnostic.automaton.as_deref()
-                    != Some("targeted-hand-disruption")),
+        assert_eq!(ability.rule.is_some(), canonical, "{oracle_text}");
+        assert_eq!(
+            parsed.status,
+            if canonical {
+                "canonical"
+            } else {
+                "unsupported"
+            },
             "{oracle_text}"
         );
+        if canonical {
+            let rule = ability.rule.as_ref().expect("canonical rule");
+            assert_eq!(rule["effects"][0]["kind"], "revealHand", "{oracle_text}");
+        } else {
+            assert!(
+                ability
+                    .diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.automaton.as_deref()
+                        != Some("targeted-hand-disruption")),
+                "{oracle_text}"
+            );
+        }
     }
 }
 
@@ -262,18 +281,11 @@ fn hand_disruption_core_composes_other_targetless_followups() {
 
 #[test]
 fn hand_disruption_followup_near_misses_fail_at_the_responsible_child() {
-    for (oracle_text, state, expected) in [
-        (
-            "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose life.",
-            "effect.life.amount-after-resource",
-            "`equal to` followed by a numeric expression",
-        ),
-        (
-            "Target player reveals their hand. You choose a nonland card from it. That player discards that card. Hand Probe deals 1 damage to target creature.",
-            "hand-disruption.followup.targetless-lowering",
-            "a targetless effect requiring no target declaration",
-        ),
-    ] {
+    for (oracle_text, state, expected) in [(
+        "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose life.",
+        "effect.life.amount-after-resource",
+        "`equal to` followed by a numeric expression",
+    )] {
         let parsed = parse_card("Hand Probe", oracle_text);
         let ability = &parsed.abilities[0];
         assert_eq!(
@@ -286,4 +298,35 @@ fn hand_disruption_followup_near_misses_fail_at_the_responsible_child() {
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.expected.as_deref(), Some(expected));
     }
+}
+
+#[test]
+fn a_targeted_followup_composes_through_the_shared_program() {
+    // The promoted family's targetless suffix cannot declare a target; the
+    // shared program reads the same reveal/choice/discard children and then
+    // the ordinary targeted damage action, with both declarations.
+    let parsed = parse_card(
+        "Hand Probe",
+        "Target player reveals their hand. You choose a nonland card from it. That player discards that card. Hand Probe deals 1 damage to target creature.",
+    );
+    assert_eq!(parsed.status, "canonical");
+    let rule = parsed.abilities[0].rule.as_ref().expect("canonical rule");
+    let decisions = rule["declaration"]["decisions"].as_array().unwrap();
+    assert_eq!(decisions.len(), 2);
+    let kinds = rule["effects"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|effect| effect["kind"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        kinds,
+        [
+            "revealHand",
+            "bind",
+            "chooseCards",
+            "discardCards",
+            "dealDamage"
+        ]
+    );
 }

@@ -177,6 +177,24 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
     name_failure: Option<&NameResolutionFailure>,
     source_antecedent: Option<super::PermanentEffectReference>,
 ) -> MachineResult<LocalEffectNode> {
+    recognize_damage_effect_with_agreement(
+        cursor,
+        name_links,
+        name_failure,
+        source_antecedent,
+        super::SubjectVerbAgreement::Finite,
+    )
+}
+
+/// The same damage frame; the subject's frame chooses `deals` or, after a
+/// causative `have`, the bare `deal` (`have it deal 4 damage to any target`).
+pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    source_antecedent: Option<super::PermanentEffectReference>,
+    agreement: super::SubjectVerbAgreement,
+) -> MachineResult<LocalEffectNode> {
     let mut state = DamageState::Source;
     let mut memory = DamageMemory::default();
     loop {
@@ -193,7 +211,10 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_source_antecede
             }
             DamageState::Action => {
                 cursor.enter("effect.damage.action");
-                cursor.consume("deals")?;
+                cursor.consume(match agreement {
+                    super::SubjectVerbAgreement::Finite => "deals",
+                    super::SubjectVerbAgreement::BareInfinitive => "deal",
+                })?;
                 DamageState::Amount
             }
             DamageState::Amount => {

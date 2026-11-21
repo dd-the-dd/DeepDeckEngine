@@ -9,9 +9,10 @@ use super::source_sacrifice::atomic_action::{
     player_subject::{PlayerBinding, PlayerEffectSubject},
 };
 use super::{
-    EffectRecognitionContext, LifeActionNode, LifeVerbForm, NumericExpression,
-    PlayerSacrificeActionNode, PlayerSetReferenceNode, recognize_draw_action_fragment,
-    recognize_life_action, recognize_mill_action_fragment, recognize_player_sacrifice_action,
+    EffectRecognitionContext, LifeActionNode, LifeVerbForm, NumericExpression, PlayerHandVerb,
+    PlayerSacrificeActionNode, PlayerSetReferenceNode, player_hand_verb_at,
+    recognize_draw_action_fragment, recognize_life_action, recognize_mill_action_fragment,
+    recognize_player_hand_action, recognize_player_sacrifice_action,
     recognize_player_set_reference,
 };
 
@@ -22,6 +23,9 @@ pub(in crate::oracle::canonical) enum QuantifiedPlayerAction {
     Sacrifice(PlayerSacrificeActionNode),
     Draw(NumericExpression),
     Mill(NumericExpression),
+    /// `discards|reveals their hand`: the same whole-hand child as singular
+    /// subjects; no single hand becomes an observed collection here.
+    Hand(PlayerHandVerb),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -39,6 +43,13 @@ fn is_quantified_action_verb(raw: &str) -> bool {
         raw.to_ascii_lowercase().as_str(),
         "gains" | "loses" | "discards" | "sacrifices" | "draws" | "mills"
     )
+}
+
+/// A verb that continues the shared subject's list: an ordinary action verb
+/// or a whole-hand verb (`reveals their hand`).
+fn quantified_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(is_quantified_action_verb)
+        || player_hand_verb_at(cursor, LifeVerbForm::ThirdPersonSingular).is_some()
 }
 
 /// True when the cursor starts `each opponent|player|other player` followed
@@ -64,9 +75,8 @@ pub(in crate::oracle::canonical) fn quantified_player_action_starts(
     } else {
         return false;
     };
-    cursor
-        .peek_ahead(verb_offset)
-        .is_some_and(is_quantified_action_verb)
+    let mut verb = cursor.clone();
+    verb.advance_to(verb.position() + verb_offset).is_ok() && quantified_action_starts(&verb)
 }
 
 pub(in crate::oracle::canonical) fn recognize_quantified_player_action(
@@ -105,10 +115,20 @@ pub(in crate::oracle::canonical) fn recognize_quantified_player_action(
         if and {
             cursor.consume("and")?;
         }
+        // `, then VERB` orders the next action of the same subject; the list
+        // already completes each action for every player first (CR 608.2c).
+        let then = comma
+            && !and
+            && cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("then"));
+        if then {
+            cursor.consume("then")?;
+        }
         // A separator belongs to this list only before another action verb;
-        // any other continuation (`you`, `then`, a new clause) is the
-        // enclosing sequence's, so the subject's scope ends here.
-        if (!comma && !and) || !cursor.peek().is_some_and(is_quantified_action_verb) {
+        // any other continuation (`you`, a new clause) is the enclosing
+        // sequence's, so the subject's scope ends here.
+        if (!comma && !and) || !quantified_action_starts(cursor) {
             cursor.rollback(checkpoint);
             break;
         }
@@ -127,6 +147,10 @@ fn recognize_quantified_action(
     context: &EffectRecognitionContext,
 ) -> MachineResult<QuantifiedPlayerAction> {
     cursor.enter("effect.quantified-player.action");
+    if player_hand_verb_at(cursor, LifeVerbForm::ThirdPersonSingular).is_some() {
+        return recognize_player_hand_action(cursor, LifeVerbForm::ThirdPersonSingular)
+            .map(QuantifiedPlayerAction::Hand);
+    }
     let verb = cursor.peek().map(str::to_ascii_lowercase);
     Ok(match verb.as_deref() {
         Some("gains" | "loses") => QuantifiedPlayerAction::Life(recognize_life_action(
