@@ -57,15 +57,31 @@ fn lower_sentence_condition_atom(
             negated,
         } => {
             let fact = match zone {
-                SourceCastZone::Hand => json!({ "kind": "wasCastFromHand", "object": self_ref() }),
-                SourceCastZone::Graveyard => json!({
+                None => json!({ "kind": "wasCast", "object": self_ref() }),
+                Some(SourceCastZone::Hand) => {
+                    json!({ "kind": "wasCastFromHand", "object": self_ref() })
+                }
+                Some(SourceCastZone::Graveyard) => json!({
                     "kind": "wasCastFromZone", "object": self_ref(), "zone": "graveyard",
                 }),
-                SourceCastZone::Exile => json!({
+                Some(SourceCastZone::Exile) => json!({
                     "kind": "wasCastFromZone", "object": self_ref(), "zone": "exile",
                 }),
             };
             if *negated { not(fact) } else { fact }
+        }
+        SentenceConditionAtom::NumericComparison { left, threshold } => {
+            cursor.enter("lower.sentence-condition.numeric");
+            let left = lower_numeric_expression(left)
+                .ok_or_else(|| cursor.fail("a numeric expression without a target binding"))?;
+            compare(
+                match threshold.operator {
+                    ThresholdOperator::AtLeast => ">=",
+                    ThresholdOperator::AtMost => "<=",
+                },
+                left,
+                integer(threshold.value),
+            )
         }
         SentenceConditionAtom::ReferencedObject(node) => {
             cursor.enter("lower.sentence-condition.object");

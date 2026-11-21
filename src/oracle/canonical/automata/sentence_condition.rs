@@ -46,13 +46,21 @@ pub(in crate::oracle::canonical) enum SentenceConditionAtom {
     /// Controller state and this-turn history atoms of static conditions.
     State(StaticConditionAtom),
     ControllerTurn(ControllerTurnPropositionNode),
-    /// `this spell was cast from ZONE`; `negated` reads `anywhere other than`.
+    /// `this spell was cast [from ZONE]`, `you cast it [from your hand]`:
+    /// a cast fact of the source (CR 601.2). Without a zone it only asserts
+    /// that the source was cast; `negated` reads `anywhere other than`.
     CastFrom {
         spell: LocalObjectReference,
-        zone: SourceCastZone,
+        zone: Option<SourceCastZone>,
         negated: bool,
     },
     ReferencedObject(ReferencedObjectConditionNode),
+    /// `X is N or more`: a shared numeric expression compared with a fixed
+    /// threshold (CR 107.3 X in a resolving spell or ability).
+    NumericComparison {
+        left: NumericExpression,
+        threshold: CountThreshold,
+    },
 }
 
 pub(in crate::oracle::canonical) type SentenceConditionNode =
@@ -183,6 +191,8 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
         || contraction_is(cursor, 0, "there", "s")
         || static_condition_event_count_starts(cursor)
         || super::opponent_count_comparison_starts(cursor)
+        || super::quantified_player_condition_starts(cursor)
+        || super::collective_opponents_condition_starts(cursor)
     {
         return recognize_static_condition_atom(
             cursor,
@@ -193,6 +203,12 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
             },
         )
         .map(SentenceConditionAtom::State);
+    }
+    if word_is(cursor, 0, "you") && word_is(cursor, 1, "cast") {
+        return recognize_controller_cast_source_atom(cursor, context);
+    }
+    if word_is(cursor, 0, "x") && word_is(cursor, 1, "is") {
+        return recognize_numeric_comparison_atom(cursor);
     }
     if contraction_is(cursor, 0, "it", "s")
         && (word_is(cursor, 1, "your") || (word_is(cursor, 1, "not") && word_is(cursor, 2, "your")))
@@ -221,6 +237,24 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     ))
 }
 
+/// `EXPRESSION is THRESHOLD`: the left operand is read by the shared numeric
+/// expression grammar and the right one by the shared count threshold.
+fn recognize_numeric_comparison_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SentenceConditionAtom> {
+    cursor.enter("condition.sentence.numeric.left");
+    let left = recognize_numeric_expression(cursor, None)?;
+    cursor.enter("condition.sentence.numeric.copula");
+    cursor.consume("is")?;
+    cursor.enter("condition.sentence.numeric.threshold");
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.require(
+        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        "a numeric threshold rather than `no`",
+    )?;
+    Ok(SentenceConditionAtom::NumericComparison { left, threshold })
+}
+
 /// `this spell was kicked`, `this spell was cast from ZONE`, and
 /// `this creature is CHARACTERISTIC` over the ability's own source.
 fn recognize_source_condition_atom(
@@ -238,26 +272,10 @@ fn recognize_source_condition_atom(
     }
     if word_is(cursor, 0, "was") && word_is(cursor, 1, "cast") {
         cursor.consume_phrase(&["was", "cast", "from"])?;
-        cursor.enter("condition.sentence.source.cast-zone");
-        let (zone, negated) = if word_is(cursor, 0, "anywhere") {
-            cursor.consume_phrase(&["anywhere", "other", "than", "your", "hand"])?;
-            (SourceCastZone::Hand, true)
-        } else if word_is(cursor, 0, "your") && word_is(cursor, 1, "hand") {
-            cursor.consume_phrase(&["your", "hand"])?;
-            (SourceCastZone::Hand, false)
-        } else if word_is(cursor, 0, "a") && word_is(cursor, 1, "graveyard") {
-            cursor.consume_phrase(&["a", "graveyard"])?;
-            (SourceCastZone::Graveyard, false)
-        } else if word_is(cursor, 0, "exile") {
-            cursor.consume("exile")?;
-            (SourceCastZone::Exile, false)
-        } else {
-            return Err(cursor
-                .fail("`your hand`, `a graveyard`, `exile` or `anywhere other than your hand`"));
-        };
+        let (zone, negated) = recognize_cast_zone(cursor)?;
         return Ok(SentenceConditionAtom::CastFrom {
             spell,
-            zone,
+            zone: Some(zone),
             negated,
         });
     }
@@ -265,6 +283,76 @@ fn recognize_source_condition_atom(
     let predicate = recognize_object_state_predicate(cursor, false)?;
     finish_referenced_object(cursor, context, object, predicate)
         .map(SentenceConditionAtom::ReferencedObject)
+}
+
+/// `you cast it`, `you cast this spell from your hand`: the controller cast
+/// the ability's own source. A pronoun must denote that source; a permanent
+/// remembers only whether it was cast and whether from a hand.
+fn recognize_controller_cast_source_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &SentenceConditionContext<'_>,
+) -> MachineResult<SentenceConditionAtom> {
+    cursor.enter("condition.sentence.cast.subject");
+    cursor.consume_phrase(&["you", "cast"])?;
+    cursor.enter("condition.sentence.cast.object");
+    let pronoun = ["it", "him", "her", "them"]
+        .iter()
+        .any(|pronoun| word_is(cursor, 0, pronoun));
+    let spell = if pronoun {
+        consume_current(cursor)?;
+        let reference = resolve_object_anaphor(cursor, context)?;
+        cursor.enter("condition.sentence.cast.source-pronoun");
+        cursor.require(
+            reference
+                == ConditionObjectReference::Permanent(PermanentEffectReference::Source(
+                    LocalObjectReference::SourceSelf,
+                )),
+            "a pronoun that denotes the ability's own source",
+        )?;
+        LocalObjectReference::SourceSelf
+    } else {
+        recognize_source_reference(cursor, context.name_links, context.name_failure)?
+    };
+    if !word_is(cursor, 0, "from") {
+        return Ok(SentenceConditionAtom::CastFrom {
+            spell,
+            zone: None,
+            negated: false,
+        });
+    }
+    cursor.consume("from")?;
+    let (zone, negated) = recognize_cast_zone(cursor)?;
+    cursor.enter("condition.sentence.cast.permanent-zone");
+    cursor.require(
+        !pronoun || zone == SourceCastZone::Hand,
+        "`from your hand`; a permanent does not remember another cast zone",
+    )?;
+    Ok(SentenceConditionAtom::CastFrom {
+        spell,
+        zone: Some(zone),
+        negated,
+    })
+}
+
+fn recognize_cast_zone(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(SourceCastZone, bool)> {
+    cursor.enter("condition.sentence.source.cast-zone");
+    if word_is(cursor, 0, "anywhere") {
+        cursor.consume_phrase(&["anywhere", "other", "than", "your", "hand"])?;
+        Ok((SourceCastZone::Hand, true))
+    } else if word_is(cursor, 0, "your") && word_is(cursor, 1, "hand") {
+        cursor.consume_phrase(&["your", "hand"])?;
+        Ok((SourceCastZone::Hand, false))
+    } else if word_is(cursor, 0, "a") && word_is(cursor, 1, "graveyard") {
+        cursor.consume_phrase(&["a", "graveyard"])?;
+        Ok((SourceCastZone::Graveyard, false))
+    } else if word_is(cursor, 0, "exile") {
+        cursor.consume("exile")?;
+        Ok((SourceCastZone::Exile, false))
+    } else {
+        Err(cursor.fail("`your hand`, `a graveyard`, `exile` or `anywhere other than your hand`"))
+    }
 }
 
 /// `it's a CHARACTERISTIC`, `it isn't …`, `that NOUN is …`, `it has mana

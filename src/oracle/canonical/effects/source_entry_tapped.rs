@@ -35,12 +35,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_state_family(
             introducer.raw.eq_ignore_ascii_case("if")
                 || introducer.raw.eq_ignore_ascii_case("unless")
         })
-        // Only the shared turn proposition (`it's ...`); other conditional
-        // entries keep their own parent families.
-        && input.tokens.get(state_end + 1).is_some_and(|subject| {
-            subject.raw.eq_ignore_ascii_case("it's") || subject.raw.eq_ignore_ascii_case("it’s")
-        })
     {
+        // The shared condition program owns every clause that the entry
+        // families dispatched before this one did not claim.
         return true;
     }
     if !input
@@ -129,12 +126,22 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_state(
         },
         "replacement": [replacement],
     });
-    if let Some(condition) = node.condition {
-        let controller_turn = json!({"kind": "duringControllerTurn", "player": controller()});
-        rule["condition"] = if condition.applies_during_controller_turn {
-            controller_turn
-        } else {
-            not(controller_turn)
+    if let Some(clause) = node.condition {
+        cursor.enter("replacement.source-entry-state.condition-lowering");
+        let condition = lower_sentence_condition(
+            &mut cursor,
+            &clause.condition,
+            &ConditionObjectBindings {
+                permanent_targets: &[],
+                card_targets: &[],
+                card_focus: None,
+            },
+        )?;
+        // `unless P` is `if not P`; a negated proposition folds back to P.
+        rule["condition"] = match (clause.unless, condition["kind"].as_str()) {
+            (true, Some("not")) => condition["operand"].clone(),
+            (true, _) => not(condition),
+            (false, _) => condition,
         };
     }
     Ok(draft(
