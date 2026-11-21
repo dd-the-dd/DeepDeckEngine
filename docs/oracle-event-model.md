@@ -260,14 +260,65 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Fire, …), 0 perdue, 30 IR changées (17 gagnées, 13 dont la capacité de
   dégâts compile et une autre échoue ailleurs).
 
+## Étape 3 réalisée : famille changements de zone
+
+- `src/engine/zone_change_events.rs` : `ZoneChangeRecord` (l'objet tel qu'il
+  existait en dernier dans la zone quittée — information de dernier état —,
+  zone d'origine si connue, zone d'arrivée, cause de la mort),
+  `ZoneChangePattern`, un seul correspondant `zone_change_matches`.
+- Trois points de publication, un même enregistrement :
+  - mort d'un permanent (`Death`) : sources capturées avant les morts
+    simultanées des actions d'état (`death_trigger_batch.rs`) ;
+  - départ du champ de bataille (`Departure`) : sources capturées avant le
+    départ, donc « regard en arrière » (CR 603.10a), y compris la source qui
+    part elle-même ;
+  - arrivée au cimetière (`GraveyardArrival`) : les capacités de la carte
+    elle-même (`put into a graveyard from anywhere`), quel que soit le chemin
+    (mort, meule, défausse, sort résolu ou contrecarré).
+- Le contrôleur, la force, l'endurance et les marqueurs lus par les motifs et
+  liés aux décisions sont ceux de l'instantané : une créature volée qui meurt
+  déclenche les observateurs de son dernier contrôleur, avec sa dernière
+  force (preuve runtime).
+- Alias lus comme motifs, IR inchangée : `permanentDied` (source ou filtré,
+  vue imprimée, `player`, `nontoken`, `reason`, `hadCounter`,
+  `hadAnyCounters`, `damagedBySourceThisTurn`, `excludeSource`,
+  agrégation), `attachedPermanentDied`, `permanentLeftBattlefield`,
+  `controlledPermanentLeftBattlefield`.
+- Nouveau motif `{"kind":"eventPattern","lemma":"move","subject":{"object":
+  …},"from":"battlefield","to":ZONE}` ; sujet `self` ou `permanents`
+  (contrôleur quelconque, relation de joueur, `where` lu sur l'instantané,
+  `excludeSource`). Sans `from` et vers le cimetière, sujet `self` : la
+  capacité de la carte à son arrivée.
+- Analyseur : un départ d'un permanent de n'importe quel contrôleur ou d'un
+  adversaire (`Whenever a land is put into a graveyard from the battlefield`,
+  `Whenever an artifact … leaves the battlefield`) et `SOURCE is put into a
+  graveyard from anywhere` sont abaissés en ce motif. Restent explicites :
+  `one or more` départs, `your graveyard` (relation de propriétaire de la
+  destination), un prédicat numérique sur l'objet parti.
+- `kind` sans producteur retirés : `smallControlledCreatureDied`,
+  `opponentCreatureDied`, `controlledCreatureDiedOrExiled`,
+  `sourceDiedOrExiled`, `selfEnteredGraveyard`.
+- Restent par `kind` : entrées (`enterBattlefield`, `permanentEntered`, vues
+  d'entrée propres à `entry_observation.rs`), `permanentSacrificed` (sacrifice
+  avec prédicat d'identité stable seulement : 62 cartes du corpus attendent
+  les caractéristiques effectives dans l'instantané), `cardsEnteredGraveyard`
+  et `cardsLeftGraveyard` (agrégats par joueur), `tokenCreated`.
+- Sondes : ligue inchangée ; corpus 13656 → 13666 (+10 : Disciple of the
+  Vault, Moriok Rigger, Molder Beast, Femeref Enchantress, Fangren Marauder,
+  …), 0 perdue, 16 IR changées. Les cartes `from anywhere` (titans Eldrazi,
+  Purity, Vigor…) échouent désormais dans leur corps (`its owner shuffles`,
+  `shuffle it into`), plus sur l'événement.
+
 ## Familles suivantes
 
-1. **Dégâts** : `damageDealtBySource`, `permanentDealtDamage`,
-   `combatDamageToPlayer`, `combatDamageReceived`, … → lemme `dealDamage`
-   (source, destinataire, montant, combat), unifiant les sélecteurs `objects`
-   et `permanents` notés en phase 2 de la couche de proposition.
-2. **Changements de zone** : `enterBattlefield`, `permanentDied`,
-   `permanentLeftBattlefield`, `cardsEnteredGraveyard`, … → lemme `move` avec
-   zones et instantané LKI (CR 603.10a).
-3. **Lancement** : `spellCast` et ses ordinaux → lemme `cast`.
-4. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`.
+1. **Lancement** : `spellCast` et ses ordinaux (`spellCastOrdinal`) → lemme
+   `cast` ; l'ordinal par lanceur et par tour est déjà émis, il reste à le
+   lire comme modificateur du motif générique.
+2. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`.
+3. **Entrées** : `enterBattlefield`, `permanentEntered` → lemme `move` vers le
+   champ de bataille, avec l'état d'entrée.
+4. **Agrégats** : `one or more` sur les dégâts (plusieurs sources), les
+   départs et les sacrifices ; caractéristiques effectives dans l'instantané
+   (sacrifice, prédicats numériques).
+5. **Délais** : `at end of combat` (7 cartes `destroy that creature at end of
+   combat` attendent ce déclencheur retardé).

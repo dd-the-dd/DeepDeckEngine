@@ -239,6 +239,13 @@ fn lower_source_event_union(
                 SourceEventVerb::LeftBattlefield => {
                     json!({"kind": "permanentLeftBattlefield", "object": object})
                 }
+                // A card's own `from anywhere` ability, matched as it arrives.
+                SourceEventVerb::PutIntoGraveyardFromAnywhere => json!({
+                    "kind": "eventPattern",
+                    "lemma": "move",
+                    "subject": {"object": object},
+                    "to": "graveyard",
+                }),
                 SourceEventVerb::PutIntoGraveyardFromBattlefield => json!({
                     "kind": "permanentLeftBattlefield",
                     "object": object,
@@ -385,6 +392,48 @@ fn lower_source_event_patterns(
     })
 }
 
+/// A departure of a permanent with any controller, or an opponent's: the
+/// generic zone-change pattern, read on the last-known object (CR 603.10a).
+fn lower_departure_move_pattern(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+) -> MachineResult<Value> {
+    let subject = &event.subject;
+    cursor.require(
+        !subject.query.predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(&subject.query.predicate),
+        "a representable departing-permanent predicate without numeric characteristics",
+    )?;
+    let mut object = json!({"kind": "permanents"});
+    match subject.query.controller {
+        None => {}
+        Some(ObjectControllerScope::OpponentOfAbilityController) => {
+            object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+        Some(_) => {
+            return Err(cursor.fail("a departing permanent with any controller or an opponent"));
+        }
+    }
+    if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        let filter = lower_permanent_object_predicate(&subject.query.predicate);
+        cursor.require(!filter.is_null(), "a lowered departing-permanent predicate")?;
+        object["where"] = filter;
+    }
+    if subject.exclude_source {
+        object["excludeSource"] = json!(true);
+    }
+    let mut lowered = json!({
+        "kind": "eventPattern",
+        "lemma": "move",
+        "subject": {"object": object},
+        "from": "battlefield",
+    });
+    if event.verb == ObjectEventVerb::PutIntoGraveyardFromBattlefield {
+        lowered["to"] = json!("graveyard");
+    }
+    Ok(lowered)
+}
+
 /// Maps (verb, multiplicity) to the runtime matcher that already implements
 /// that event grouping (CR 603.2c). The subject query is lowered by the shared
 /// predicate lowerer. Combinations without an inspected batch matcher fail
@@ -437,18 +486,20 @@ fn lower_object_event(
     if let ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield =
         event.verb
     {
-        // The departure matcher observes permanents the ability controller
-        // controlled, with an explicit source exclusion (CR 603.10a).
+        // The departure matcher observes one permanent as it last existed on
+        // the battlefield, with an explicit source exclusion (CR 603.10a).
         cursor.enter("trigger.object-event.departure-support");
         cursor.require(
             !per_event
-                && subject.query.controller == Some(ObjectControllerScope::AbilityController)
                 && subject
                     .query
                     .predicate
                     .supports_domain(ObjectKind::Permanent),
-            "one permanent the ability controller controls (no other departure observer)",
+            "one permanent leaving the battlefield (no one-or-more departure batch is proved)",
         )?;
+        if subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+            return lower_departure_move_pattern(cursor, event);
+        }
         let mut lowered = json!({
             "kind": "controlledPermanentLeftBattlefield",
             "player": controller(),

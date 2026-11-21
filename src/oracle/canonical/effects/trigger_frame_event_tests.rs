@@ -278,9 +278,10 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
     for (text, state) in [
-        // No observer exists for permanents another player controls.
+        // A one-or-more departure batch has no observer (any controller's
+        // single departure is the generic move pattern, tested below).
         (
-            "Whenever an artifact is put into a graveyard from the battlefield, draw a card.",
+            "Whenever one or more artifacts are put into a graveyard from the battlefield, draw a card.",
             "trigger.object-event.departure-support",
         ),
         (
@@ -485,4 +486,57 @@ fn deals_damage_without_recipient_is_the_aggregated_damage_pattern() {
         committed_state("Whenever one or more creatures you control deal damage, you gain 1 life."),
         "trigger.dealt-damage.source-support"
     );
+}
+
+#[test]
+fn zone_changes_without_an_established_observer_lower_to_move_patterns() {
+    // Dingus Egg, Disciple of the Vault, an opponent sibling, Ulamog.
+    for (text, expected) in [
+        (
+            "Whenever a land is put into a graveyard from the battlefield, draw a card.",
+            json!({"kind": "eventPattern", "lemma": "move",
+                "subject": {"object": {"kind": "permanents",
+                    "where": lower_permanent_object_predicate(
+                        &ObjectPredicate::CardType(ObjectCardType::Land))}},
+                "from": "battlefield", "to": "graveyard"}),
+        ),
+        (
+            "Whenever a creature an opponent controls leaves the battlefield, draw a card.",
+            json!({"kind": "eventPattern", "lemma": "move",
+                "subject": {"object": {"kind": "permanents",
+                    "controller": {"kind": "opponentsOf", "player": controller()},
+                    "where": lower_permanent_object_predicate(
+                        &ObjectPredicate::CardType(ObjectCardType::Creature))}},
+                "from": "battlefield"}),
+        ),
+        (
+            "When this creature is put into a graveyard from anywhere, draw a card.",
+            json!({"kind": "eventPattern", "lemma": "move",
+                "subject": {"object": {"kind": "self"}}, "to": "graveyard"}),
+        ),
+    ] {
+        assert_eq!(event(text, "Creature"), expected, "{text}");
+    }
+    // A permanent the ability controller controls keeps its historical kind.
+    assert_eq!(
+        event(
+            "Whenever a creature you control leaves the battlefield, draw a card.",
+            "Creature"
+        )["kind"],
+        "controlledPermanentLeftBattlefield"
+    );
+    // Near misses: a one-or-more departure batch, and an owner relation on
+    // the destination of a `from anywhere` move.
+    for (text, state) in [
+        (
+            "Whenever one or more lands are put into a graveyard from the battlefield, draw a card.",
+            "trigger.object-event.departure-support",
+        ),
+        (
+            "When this creature is put into your graveyard from anywhere, draw a card.",
+            "event.source.put-into-graveyard.zone",
+        ),
+    ] {
+        assert_eq!(committed_state(text), state, "{text}");
+    }
 }

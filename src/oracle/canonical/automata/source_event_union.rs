@@ -30,6 +30,8 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     LeftBattlefield,
     /// `is put into a graveyard from the battlefield` (any permanent type).
     PutIntoGraveyardFromBattlefield,
+    /// `is put into a graveyard from anywhere`.
+    PutIntoGraveyardFromAnywhere,
     BecameTapped,
     BecameUntapped,
     BecameBlocked,
@@ -173,6 +175,10 @@ fn recognize_source_event_verb(
         // `your graveyard` adds an owner relation without a matcher.
         cursor.consume_phrase(&["a", "graveyard"])?;
         cursor.enter("event.source.put-into-graveyard.origin");
+        if peek_is(cursor, 0, "from") && peek_is(cursor, 1, "anywhere") {
+            cursor.consume_phrase(&["from", "anywhere"])?;
+            return Ok(SourceEventVerb::PutIntoGraveyardFromAnywhere);
+        }
         cursor.consume_phrase(&["from", "the", "battlefield"])?;
         return Ok(SourceEventVerb::PutIntoGraveyardFromBattlefield);
     }

@@ -7,7 +7,7 @@
 
 use serde_json::Value;
 
-use super::{GameEngine, triggered_event_variants, value_kind};
+use super::GameEngine;
 
 pub(super) use super::trigger_multiplicity::CapturedTriggerSource as DeathTriggerSource;
 
@@ -22,21 +22,10 @@ impl DeathTriggerSourceSnapshot {
 }
 
 pub(super) fn rule_observes_permanent_death(rule: &Value) -> bool {
-    triggered_event_variants(&rule["event"])
-        .iter()
-        .any(|event| {
-            matches!(
-                value_kind(event),
-                Some(
-                    "permanentDied"
-                        | "attachedPermanentDied"
-                        | "smallControlledCreatureDied"
-                        | "opponentCreatureDied"
-                        | "controlledCreatureDiedOrExiled"
-                        | "sourceDiedOrExiled"
-                )
-            )
-        })
+    super::zone_change_events::rule_observes_zone_change(
+        rule,
+        super::zone_change_events::ZoneChangeGroup::Death,
+    )
 }
 
 impl GameEngine {
