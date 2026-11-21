@@ -3208,6 +3208,7 @@ fn target_reference_supported(reference: &Value) -> bool {
             Some("boundObject" | "singleBoundObject")
         ) && reference["binding"].is_string())
         || value_kind(reference) == Some("blockingPermanent")
+        || value_kind(reference) == Some("combatCounterpart")
         || (value_kind(reference) == Some("attachedPermanent")
             && value_kind(&reference["attachment"]) == Some("self"))
 }
@@ -31277,6 +31278,9 @@ impl GameEngine {
                 .map(|instance_id| TargetRef::Permanent {
                     instance_id: instance_id.to_string(),
                 }),
+            // The other combatant of the triggering block record, while it is
+            // still the same object (CR 400.7).
+            Some("combatCounterpart") => self.combat_counterpart_target(stack_object),
             Some("triggeringStackObject") => stack_object
                 .decisions
                 .get("triggeringStackId")
@@ -37594,6 +37598,7 @@ impl GameEngine {
                 "defendingPlayerId": defending_player_id,
                 "power": attacking_power,
                 "typeLine": attacking_type_line,
+                "objectIdentity": self.object_identity_value(&attacker_id),
             }),
         );
         attacks.insert(
@@ -38089,7 +38094,10 @@ impl GameEngine {
                     "blockerDeclared",
                     Some(defender_id.clone()),
                     Some(blocker_id.clone()),
-                    json!({ "attackerId": attacker_id }),
+                    json!({
+                        "attackerId": attacker_id,
+                        "objectIdentity": self.object_identity_value(&blocker_id),
+                    }),
                 );
                 // One typed record per declared block pair (event_model).
                 let block_record = self.block_record(&attacker_id, &blocker_id, &defender_id);

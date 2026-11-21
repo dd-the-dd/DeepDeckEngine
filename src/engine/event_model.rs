@@ -17,6 +17,9 @@
 //! order and decision bindings are preserved.
 use super::*;
 
+const COUNTERPART_ID: &str = "combatCounterpartId";
+const COUNTERPART_IDENTITY: &str = "combatCounterpartIdentity";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum CombatLemma {
     /// A creature is declared as an attacker (CR 508.1, 508.3a).
@@ -656,8 +659,11 @@ impl GameEngine {
     }
 
     /// Per-turn ordinal of a logged combat event kind for one object: the
-    /// current event is logged before its triggers are collected.
+    /// current event is logged before its triggers are collected. Only the
+    /// object's current incarnation counts: after a zone change it is a new
+    /// object with no history (CR 400.7).
     fn combat_turn_ordinal(&self, logged_kind: &str, instance_id: &str) -> usize {
+        let identity = self.object_identity_value(instance_id);
         self.state
             .events
             .iter()
@@ -665,6 +671,7 @@ impl GameEngine {
                 event.turn_number == self.state.turn_number
                     && event.kind == logged_kind
                     && event.card_instance_id.as_deref() == Some(instance_id)
+                    && event.detail.get("objectIdentity").unwrap_or(&Value::Null) == &identity
             })
             .count()
     }
@@ -817,25 +824,67 @@ impl GameEngine {
         Ok(())
     }
 
-    /// Bindings of a generic block pattern: both combatants.
+    /// Bindings of a generic block pattern: both combatants, and the other
+    /// combatant of the subject with its object identity (CR 400.7).
     fn bind_generic_block_counterparts(
+        &self,
         rule: &Value,
+        group: PublicationGroup,
         record: &CombatEventRecord,
         decisions: &mut BTreeMap<String, Value>,
     ) {
-        if rule_combat_patterns(rule)
+        if !rule_combat_patterns(rule)
             .iter()
-            .any(|pattern| pattern.generic)
+            .any(|pattern| pattern.generic && pattern.group == group)
         {
-            decisions.insert(
-                "blockingPermanentId".to_string(),
-                Value::String(record.blocker.clone().unwrap_or_default()),
-            );
-            decisions.insert(
-                "blockedPermanentId".to_string(),
-                Value::String(record.attacker.clone()),
-            );
+            return;
         }
+        let blocker = record.blocker.clone().unwrap_or_default();
+        decisions.insert(
+            "blockingPermanentId".to_string(),
+            Value::String(blocker.clone()),
+        );
+        decisions.insert(
+            "blockedPermanentId".to_string(),
+            Value::String(record.attacker.clone()),
+        );
+        let counterpart = match group {
+            PublicationGroup::BlockerDeclared | PublicationGroup::AttachmentOfBlocker => {
+                record.attacker.clone()
+            }
+            _ => blocker,
+        };
+        decisions.insert(
+            COUNTERPART_IDENTITY.to_string(),
+            self.object_identity_value(&counterpart),
+        );
+        decisions.insert(COUNTERPART_ID.to_string(), Value::String(counterpart));
+    }
+
+    /// The current incarnation of a permanent, or null when it has none.
+    pub(super) fn object_identity_value(&self, instance_id: &str) -> Value {
+        self.combat_permanent(instance_id)
+            .and_then(Self::tracked_zone_identity)
+            .map_or(Value::Null, |identity| Value::String(identity.to_string()))
+    }
+
+    /// The bound counterpart, only while it is the same object it was when
+    /// the ability triggered (CR 400.7).
+    pub(super) fn combat_counterpart_target(
+        &self,
+        stack_object: &StackObject,
+    ) -> Option<TargetRef> {
+        let instance_id = stack_object.decisions.get(COUNTERPART_ID)?.as_str()?;
+        let captured = stack_object
+            .decisions
+            .get(COUNTERPART_IDENTITY)
+            .cloned()
+            .unwrap_or(Value::Null);
+        (self.combat_permanent(instance_id).is_some()
+            && self.object_identity_value(instance_id) == captured)
+            .then(|| TargetRef::Permanent {
+                instance_id: instance_id.to_string(),
+            })
     }
 
     /// Publishes the observers of one declared block pair, in the
@@ -852,7 +901,12 @@ impl GameEngine {
                 "triggeringPermanentId".to_string(),
                 Value::String(blocker_id.clone()),
             )]);
-            Self::bind_generic_block_counterparts(&rule, record, &mut decisions);
+            self.bind_generic_block_counterparts(
+                &rule,
+                PublicationGroup::BlockerDeclared,
+                record,
+                &mut decisions,
+            );
             self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
             self.check_quantity_failure()?;
         }
@@ -872,7 +926,12 @@ impl GameEngine {
                     Value::String(record.actor.clone()),
                 );
             }
-            Self::bind_generic_block_counterparts(&rule, record, &mut decisions);
+            self.bind_generic_block_counterparts(
+                &rule,
+                PublicationGroup::AttackerBlocked,
+                record,
+                &mut decisions,
+            );
             self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
             self.check_quantity_failure()?;
         }
@@ -886,11 +945,17 @@ impl GameEngine {
         record: &CombatEventRecord,
     ) -> Result<(), EngineError> {
         let blocker_id = record.blocker.clone().unwrap_or_default();
-        let mut attachment_triggers =
-            self.combat_record_triggers(record, PublicationGroup::AttachmentOfAttacker);
-        attachment_triggers
-            .extend(self.combat_record_triggers(record, PublicationGroup::AttachmentOfBlocker));
-        for (source, rule) in attachment_triggers {
+        let mut attachment_triggers = self
+            .combat_record_triggers(record, PublicationGroup::AttachmentOfAttacker)
+            .into_iter()
+            .map(|trigger| (PublicationGroup::AttachmentOfAttacker, trigger))
+            .collect::<Vec<_>>();
+        attachment_triggers.extend(
+            self.combat_record_triggers(record, PublicationGroup::AttachmentOfBlocker)
+                .into_iter()
+                .map(|trigger| (PublicationGroup::AttachmentOfBlocker, trigger)),
+        );
+        for (group, (source, rule)) in attachment_triggers {
             let mut decisions = BTreeMap::from([
                 (
                     "triggeringPermanentId".to_string(),
@@ -901,7 +966,7 @@ impl GameEngine {
                     Value::String(blocker_id.clone()),
                 ),
             ]);
-            Self::bind_generic_block_counterparts(&rule, record, &mut decisions);
+            self.bind_generic_block_counterparts(&rule, group, record, &mut decisions);
             self.put_triggered_ability_on_stack_with_decisions(&source, rule, decisions);
             self.check_quantity_failure()?;
         }

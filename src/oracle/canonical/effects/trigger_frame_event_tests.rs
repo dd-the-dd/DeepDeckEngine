@@ -409,3 +409,36 @@ fn combat_modifiers_without_a_runtime_matcher_remain_engine_gaps() {
         assert_eq!(committed_state(text), "trigger.event.engine-gap", "{text}");
     }
 }
+
+#[test]
+fn that_creature_after_a_block_counterpart_is_the_other_combatant() {
+    let rule = |text: &str| match program(text, "Creature") {
+        GenericTriggerProgramAttempt::Parsed(draft) => draft.rule,
+        _ => panic!("{text}: not parsed"),
+    };
+    // Ogre Leadfoot, Phyrexian Slayer, and a union sibling.
+    for text in [
+        "Whenever this creature becomes blocked by an artifact creature, destroy that creature.",
+        "Whenever this creature becomes blocked by a white creature, destroy that creature. It can't be regenerated.",
+        "Whenever this creature blocks or becomes blocked by a creature, destroy that creature.",
+    ] {
+        assert_eq!(
+            rule(text)["effects"][0]["permanent"],
+            json!({"kind": "combatCounterpart"}),
+            "{text}"
+        );
+    }
+    // Near misses: a branch without counterpart, or no counterpart at all.
+    for text in [
+        "Whenever this creature attacks or becomes blocked by a creature, destroy that creature.",
+        "Whenever this creature becomes blocked, destroy that creature.",
+    ] {
+        assert!(
+            !matches!(
+                program(text, "Creature"),
+                GenericTriggerProgramAttempt::Parsed(_)
+            ),
+            "{text}"
+        );
+    }
+}

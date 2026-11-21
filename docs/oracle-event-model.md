@@ -197,6 +197,32 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   les règles synthétisées pour exalted, annihilator, flanking et le porteur de
   l'Anneau, et le test de cause d'attaque de `trigger_multiplicity.rs`.
 
+## Étape 1b réalisée : référence au combattant et identité (CR 400.7)
+
+- Analyseur : un événement de blocage dont chaque branche a une contrepartie
+  (`blocks a creature`, `becomes blocked by X`, `blocks or becomes blocked
+  by X`) lie l'autre combattant. Sans antécédent local, `that creature`
+  désigne cette référence typée (`TypedObservedEventObject::CombatCounterpart`,
+  IR `{"kind":"combatCounterpart"}`) ; `it` reste la source. Le lecteur
+  partagé de `destroy` accepte une référence liée (`destroy that creature`),
+  avec `It can't be regenerated` (même lecteur que `They can't…`).
+- Moteur : un motif générique de blocage lie `combatCounterpartId` (le
+  combattant opposé au rôle du sujet, selon la branche correspondante) et son
+  incarnation. À la résolution la référence ne désigne l'objet que s'il est
+  toujours la même incarnation (CR 400.7) ; sinon l'action ne fait rien.
+- L'ordinal par tour ne compte que l'incarnation courante : `attackerDeclared`
+  et `blockerDeclared` journalisent `objectIdentity`, et un objet revenu sur
+  le champ de bataille recommence son compte.
+- Sondes : ligue inchangée ; corpus 13633 → 13639 (+6 : Ogre Leadfoot,
+  Phyrexian Slayer, Phyrexian Reaper, Sylvan Basilisk, Quagmire Lamprey,
+  Flailing Drake), 0 perdue, 8 IR changées (les 6 gagnées, et Witherscale
+  Wurm, Evil Eye of Urborg dont une capacité de blocage compile désormais,
+  une autre échouant ailleurs).
+- Restent bloquées plus loin : 7 cartes `destroy that creature at end of
+  combat` (Cockatrice, Dread Specter, …) attendent un déclencheur retardé
+  `at end of combat` ; Battering Ram (`that Wall`, nominal de sous-type, et
+  banding) ; Catacomb Dragon (`non-Dragon`).
+
 ## Familles suivantes
 
 1. **Dégâts** : `damageDealtBySource`, `permanentDealtDamage`,

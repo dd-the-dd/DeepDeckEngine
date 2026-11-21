@@ -51,10 +51,24 @@ fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 pub(in crate::oracle::canonical) fn recognize_plural_regeneration_amendment(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<bool> {
+    recognize_pronoun_regeneration_amendment(cursor, "they")
+}
+
+/// `. It can't be regenerated` after the destruction of one bound object.
+pub(in crate::oracle::canonical) fn recognize_scalar_regeneration_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<bool> {
+    recognize_pronoun_regeneration_amendment(cursor, "it")
+}
+
+fn recognize_pronoun_regeneration_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+    pronoun: &str,
+) -> MachineResult<bool> {
     if !(cursor.peek() == Some(".")
         && cursor
             .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(pronoun))
         && cursor.peek_ahead(2).is_some_and(|raw| {
             raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
         }))
@@ -63,7 +77,7 @@ pub(in crate::oracle::canonical) fn recognize_plural_regeneration_amendment(
     }
     cursor.enter("sequence.collection-regeneration.anaphor");
     cursor.consume(".")?;
-    cursor.consume("they")?;
+    cursor.consume(pronoun)?;
     let modal = cursor.peek().unwrap_or_default().to_string();
     cursor.consume(&modal)?;
     cursor.enter("sequence.collection-regeneration.regenerated");
@@ -205,6 +219,37 @@ pub(in crate::oracle::canonical) fn recognize_destroy_regeneration_prohibition(
     cursor.consume(".")?;
     cursor.finish()?;
     Ok(node)
+}
+
+/// `destroy REFERENCE`: the destruction of one bound permanent reference
+/// (the shared contextual operand), with an optional regeneration
+/// prohibition (CR 701.19c). Target declarations stay with the targeted
+/// zone change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DestroyReferenceEffectNode {
+    pub object: super::PermanentEffectReference,
+    pub cannot_regenerate: bool,
+}
+
+pub(in crate::oracle::canonical) fn recognize_destroy_reference_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+    context: &super::EffectRecognitionContext,
+) -> MachineResult<DestroyReferenceEffectNode> {
+    cursor.enter("effect.destroy-reference.action");
+    cursor.consume("destroy")?;
+    cursor.enter("effect.destroy-reference.object");
+    let operand =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    let super::PermanentOperandNode::BoundReference(object) = operand else {
+        return Err(cursor.fail("a bound permanent reference"));
+    };
+    let cannot_regenerate = recognize_scalar_regeneration_amendment(cursor)?;
+    Ok(DestroyReferenceEffectNode {
+        object,
+        cannot_regenerate,
+    })
 }
 
 #[cfg(test)]

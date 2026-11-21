@@ -105,6 +105,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     context.event_player = event_names_player(&event.value);
     context.source_attachment = source_attachment;
     context.defending_player = event_names_defending_player(&event.value);
+    context.combat_counterpart = event_names_combat_counterpart(&event.value);
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
@@ -196,6 +197,20 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
         GenericTriggerEventNode::SourceEvent(node)
             if node.verbs == [super::SourceEventVerb::Attacked]
     )
+}
+
+/// A source block event whose every branch has a counterpart (`blocks or
+/// becomes blocked by a creature`): the runtime binds the other combatant.
+fn event_names_combat_counterpart(event: &GenericTriggerEventNode) -> bool {
+    let GenericTriggerEventNode::SourceEvent(node) = event else {
+        return false;
+    };
+    !node.verbs.is_empty()
+        && node.verbs.iter().all(|verb| {
+            node.modifiers.iter().any(|modifier| {
+                matches!(modifier, super::SourceEventModifier::Counterpart(counterpart) if counterpart.verb == *verb)
+            })
+        })
 }
 
 /// The referents available to a trigger's intervening `if` (CR 603.4): the

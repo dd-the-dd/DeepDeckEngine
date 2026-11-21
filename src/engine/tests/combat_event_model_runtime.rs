@@ -65,7 +65,10 @@ fn declare_attack(engine: &mut GameEngine, attacker_ids: &[&str]) {
             "attackerDeclared",
             Some(active.clone()),
             Some(attacker_id.clone()),
-            json!({"defendingPlayerId": "player-1"}),
+            json!({
+                "defendingPlayerId": "player-1",
+                "objectIdentity": engine.object_identity_value(attacker_id),
+            }),
         );
     }
     engine.record_event(
@@ -87,7 +90,10 @@ fn declare_block(engine: &mut GameEngine, attacker_id: &str, blocker_id: &str) {
         "blockerDeclared",
         Some("player-1".to_string()),
         Some(blocker_id.to_string()),
-        json!({"attackerId": attacker_id}),
+        json!({
+            "attackerId": attacker_id,
+            "objectIdentity": engine.object_identity_value(blocker_id),
+        }),
     );
     let record = engine.block_record(attacker_id, blocker_id, "player-1");
     engine
@@ -337,6 +343,7 @@ fn first_time_each_turn_reads_the_per_turn_attack_ordinal() {
         rules,
         "player-0",
     )];
+    admit(&mut engine);
     declare_attack(&mut engine, &["samurai"]);
     assert_eq!(engine.state.stack.len(), 1);
     resolve_stack(&mut engine);
@@ -483,4 +490,154 @@ fn an_unwritten_combination_composes_without_card_code() {
         engine.state.stack[0].decisions["blockedPermanentId"],
         "flyer"
     );
+}
+
+fn admit(engine: &mut GameEngine) {
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+}
+
+/// The permanent leaves and returns as a new object (CR 400.7).
+fn new_incarnation(engine: &mut GameEngine, id: &str) {
+    let (player_index, card_index) = engine.permanent_position(id).expect("permanent");
+    let mut card = engine.state.players[player_index].battlefield[card_index].clone();
+    let before = GameEngine::tracked_zone_identity(&card).map(ToOwned::to_owned);
+    engine
+        .assign_new_object_incarnation(&mut card)
+        .expect("a new incarnation");
+    assert_ne!(
+        GameEngine::tracked_zone_identity(&card).map(ToOwned::to_owned),
+        before
+    );
+    engine.state.players[player_index].battlefield[card_index] = card;
+}
+
+fn on_battlefield(engine: &GameEngine, id: &str) -> bool {
+    engine.permanent_position(id).is_some()
+}
+
+#[test]
+fn that_creature_binds_the_other_combatant_of_the_record() {
+    // Ogre Leadfoot: `that creature` is the blocker it becomes blocked by.
+    let rules = parsed_rules(
+        "Ogre Leadfoot",
+        "Creature — Ogre",
+        "Whenever this creature becomes blocked by an artifact creature, destroy that creature.",
+    );
+    assert_eq!(
+        rules[0]["effects"][0],
+        json!({"kind": "destroyPermanent", "permanent": {"kind": "combatCounterpart"}})
+    );
+    let setup = || {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![creature(
+            "ogre",
+            "Creature — Ogre",
+            "{0}",
+            rules.clone(),
+            "player-0",
+        )];
+        engine.state.players[1].battlefield = vec![creature(
+            "golem",
+            "Artifact Creature — Golem",
+            "{0}",
+            Vec::new(),
+            "player-1",
+        )];
+        admit(&mut engine);
+        declare_attack(&mut engine, &["ogre"]);
+        declare_block(&mut engine, "ogre", "golem");
+        assert_eq!(engine.state.stack.len(), 1);
+        engine
+    };
+    let mut engine = setup();
+    resolve_stack(&mut engine);
+    assert!(!on_battlefield(&engine, "golem"));
+    assert!(on_battlefield(&engine, "ogre"));
+    // The blocker left and returned before resolution: a new object that
+    // the reference no longer denotes (CR 400.7).
+    let mut engine = setup();
+    new_incarnation(&mut engine, "golem");
+    resolve_stack(&mut engine);
+    assert!(on_battlefield(&engine, "golem"));
+}
+
+#[test]
+fn each_branch_of_a_block_union_binds_its_own_counterpart() {
+    // Sibling of Cockatrice without its end-of-combat delay: the attacker
+    // it blocks, or each blocker it becomes blocked by.
+    let rules = parsed_rules(
+        "Basilisk Probe",
+        "Creature — Basilisk",
+        "Whenever this creature blocks or becomes blocked by a creature, destroy that creature. It can't be regenerated.",
+    );
+    assert_eq!(rules[0]["effects"][0]["cannotRegenerate"], true);
+    // As the blocker: the attacker is destroyed.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![vanilla("attacker", "player-0")];
+    engine.state.players[1].battlefield = vec![creature(
+        "basilisk",
+        "Creature — Basilisk",
+        "{0}",
+        rules.clone(),
+        "player-1",
+    )];
+    admit(&mut engine);
+    declare_attack(&mut engine, &["attacker"]);
+    declare_block(&mut engine, "attacker", "basilisk");
+    resolve_stack(&mut engine);
+    assert!(!on_battlefield(&engine, "attacker"));
+    assert!(on_battlefield(&engine, "basilisk"));
+    // As the attacker: each of its two blockers is destroyed (CR 509.3d).
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![creature(
+        "basilisk",
+        "Creature — Basilisk",
+        "{0}",
+        rules,
+        "player-0",
+    )];
+    engine.state.players[1].battlefield = vec![
+        vanilla("blocker-a", "player-1"),
+        vanilla("blocker-b", "player-1"),
+    ];
+    admit(&mut engine);
+    declare_attack(&mut engine, &["basilisk"]);
+    declare_block(&mut engine, "basilisk", "blocker-a");
+    declare_block(&mut engine, "basilisk", "blocker-b");
+    assert_eq!(engine.state.stack.len(), 2);
+    resolve_stack(&mut engine);
+    assert!(!on_battlefield(&engine, "blocker-a"));
+    assert!(!on_battlefield(&engine, "blocker-b"));
+    assert!(on_battlefield(&engine, "basilisk"));
+}
+
+#[test]
+fn a_new_object_starts_its_own_per_turn_ordinal() {
+    let rules = parsed_rules(
+        "Ordinal Probe",
+        "Creature — Samurai",
+        "Whenever this creature attacks for the first time each turn, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![creature(
+        "samurai",
+        "Creature — Samurai",
+        "{0}",
+        rules,
+        "player-0",
+    )];
+    admit(&mut engine);
+    declare_attack(&mut engine, &["samurai"]);
+    assert_eq!(engine.state.stack.len(), 1);
+    resolve_stack(&mut engine);
+    engine.state.combat.attackers.clear();
+    declare_attack(&mut engine, &["samurai"]);
+    assert!(engine.state.stack.is_empty(), "same object, second attack");
+    // It left and returned this turn: its first attack as a new object.
+    new_incarnation(&mut engine, "samurai");
+    engine.state.combat.attackers.clear();
+    declare_attack(&mut engine, &["samurai"]);
+    assert_eq!(engine.state.stack.len(), 1);
 }

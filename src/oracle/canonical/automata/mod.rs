@@ -551,6 +551,10 @@ pub(in crate::oracle::canonical) enum TypedObservedEventObject {
     MovedOntoBattlefield,
     /// The tokens the immediately preceding creation action created.
     CreatedTokens,
+    /// The other combatant of a block event (`that creature` after `blocks
+    /// a creature` / `becomes blocked by a creature`), bound by the runtime
+    /// record with its object identity (CR 400.7).
+    CombatCounterpart,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -624,6 +628,10 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// attached to; `defending player` names the player that creature attacks
     /// (CR 506.2), which the runtime records as the triggering player.
     pub defending_player: bool,
+    /// The triggering block event names the other combatant of the source in
+    /// every branch; `that creature` without a local antecedent denotes it.
+    /// Set only by the trigger parent from its typed event.
+    pub combat_counterpart: bool,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb
@@ -1876,6 +1884,8 @@ pub(super) enum LocalEffectNode {
     TargetPlayerLife(TargetPlayerLifeEffectNode),
     LoseAbilities(SetAbilityLossEffectNode),
     DestroyReferencedSet(DestroyReferencedSetEffectNode),
+    /// `destroy` a bound permanent reference (`destroy that creature`).
+    DestroyReference(DestroyReferenceEffectNode),
     DestroyCollection(DestroyPermanentCollectionEffectNode),
     Sacrifice(SacrificeEffectNode),
     ModifyStats(TemporaryPowerToughnessNode<PermanentOperandNode>),

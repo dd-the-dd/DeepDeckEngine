@@ -290,6 +290,7 @@ fn lower_local_effect_sequence(
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
+        | LocalEffectNode::DestroyReference(_)
         | LocalEffectNode::UntapTarget(_)
         | LocalEffectNode::Fight(_) => false,
     });
@@ -442,6 +443,7 @@ fn lower_local_effect_sequence(
             | LocalEffectNode::ModifyStats(_)
             | LocalEffectNode::BecomeTypes(_)
             | LocalEffectNode::QuantifiedPlayerAction(_)
+            | LocalEffectNode::DestroyReference(_)
             | LocalEffectNode::UntapTarget(_) => {
                 unreachable!("damage-family lowering does not claim zone-change/search effects")
             }
@@ -609,6 +611,7 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)
+            | LocalEffectNode::DestroyReference(_)
             | LocalEffectNode::UntapTarget(_)
             | LocalEffectNode::Fight(_) => None,
         })
@@ -706,6 +709,7 @@ fn lower_conditional_damage_effect(
                 | LocalEffectNode::BecomeTypes(_)
                 | LocalEffectNode::QuantifiedPlayerAction(_)
                 | LocalEffectNode::TemporaryPlayerPermission(_)
+                | LocalEffectNode::DestroyReference(_)
                 | LocalEffectNode::UntapTarget(_) => {
                     unreachable!(
                         "conditional damage lowering does not claim zone-change/search effects"

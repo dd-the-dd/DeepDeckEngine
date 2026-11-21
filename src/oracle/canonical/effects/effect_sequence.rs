@@ -1238,6 +1238,16 @@ fn lower_local_effect_sequence_with_collections(
                     lower_bound_permanent_reference(cursor, untap.permanent, &target_bindings)?;
                 effects.push(json!({"kind":"untapPermanent", "permanent":reference}));
             }
+            LocalEffectNode::DestroyReference(destroy) => {
+                cursor.enter("lower.destroy-reference.permanent-binding");
+                let reference =
+                    lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
+                let mut lowered = json!({"kind": "destroyPermanent", "permanent": reference});
+                if destroy.cannot_regenerate {
+                    lowered["cannotRegenerate"] = json!(true);
+                }
+                effects.push(lowered);
+            }
             LocalEffectNode::DealDamage(damage) if damage.fixed_source().is_none() => {
                 // An object subject deals the damage (CR 120.1): its slots are
                 // declared first, then the recipient's, in written order.
