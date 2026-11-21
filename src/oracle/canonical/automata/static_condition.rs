@@ -5,10 +5,15 @@
 //! proposition that the engine evaluates continuously, not a card recipe.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    BooleanConditionNode, ControlledCountDirection, LocalConditionNode, NumericAtom, ObjectKind,
-    ObjectPredicate, recognize_boolean_condition_list_before_separator, recognize_numeric_atom,
-    recognize_object_query_before_condition_connector, recognize_search_card_selector,
-    recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
+    BooleanConditionNode, ConditionPlayerSubject, ControlledCountDirection,
+    ControllerTurnPropositionNode, LocalConditionNode, NumericAtom, ObjectKind, ObjectPredicate,
+    PlayerStateConditionNode, collective_opponents_condition_starts,
+    quantified_player_condition_starts, recognize_boolean_condition_list_before_separator,
+    recognize_collective_opponents_condition, recognize_controller_turn_proposition,
+    recognize_numeric_atom, recognize_object_query_before_condition_connector,
+    recognize_player_possession_proposition, recognize_quantified_player_condition,
+    recognize_search_card_selector, recognize_source_reference, recognize_trigger_guard_atom,
+    source_reference_starts_at,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -17,14 +22,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 pub(in crate::oracle::canonical) enum SourceStateProposition {
     Tapped,
     Untapped,
+    /// CR 506.4: an attacking or blocking creature until removed from combat.
+    Attacking,
+    Blocking,
     Modified,
-}
-
-/// Counted events of the ability's controller during the current turn.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum ControllerTurnEvent {
-    CardDrawn,
-    SpellCast,
 }
 
 /// The quantified player relation of a controlled-permanent count comparison.
@@ -53,10 +54,12 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     /// Controller permanent presence / fixed-count atoms shared with guards.
     Local(LocalConditionNode),
     SourceState(SourceStateProposition),
-    ControllerEventCount {
-        event: ControllerTurnEvent,
-        threshold: i64,
-    },
+    /// `it's your turn` / `it's not your turn`: the shared turn proposition.
+    ControllerTurn(ControllerTurnPropositionNode),
+    /// A player-state proposition about the controller (`you have ...`,
+    /// `you've cast ...`) or a quantified player population (`an opponent
+    /// controls ...`, `each player has ...`).
+    PlayerState(PlayerStateConditionNode),
     /// `you gained life this turn` (threshold 1) / `gained N or more life`.
     ControllerGainedLifeThisTurn {
         threshold: i64,
@@ -72,11 +75,6 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     OpponentControlledCountComparison {
         predicate: ObjectPredicate,
         relation: OpponentCountRelation,
-    },
-    /// `you have N or more life` / `N or less life`: the controller's life total.
-    ControllerLifeTotal {
-        threshold: i64,
-        direction: ControlledCountDirection,
     },
     /// `a creature died this turn`, `three or more Elves died this turn`:
     /// permanents of every player put into a graveyard from the battlefield.
@@ -151,6 +149,13 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_trigger_guard_atom(cursor).map(StaticConditionAtom::Local);
     }
+    if collective_opponents_condition_starts(cursor) {
+        return recognize_collective_opponents_condition(cursor)
+            .map(StaticConditionAtom::PlayerState);
+    }
+    if quantified_player_condition_starts(cursor) {
+        return recognize_quantified_player_condition(cursor).map(StaticConditionAtom::PlayerState);
+    }
     if contraction_is(cursor, 0, "you", "ve")
         || (word_is(cursor, 0, "you")
             && (word_is(cursor, 1, "have")
@@ -178,6 +183,12 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {
         return recognize_graveyard_count_atom(cursor);
     }
+    if contraction_is(cursor, 0, "it", "s")
+        && (word_is(cursor, 1, "your") || (word_is(cursor, 1, "not") && word_is(cursor, 2, "your")))
+    {
+        return recognize_controller_turn_proposition(cursor)
+            .map(StaticConditionAtom::ControllerTurn);
+    }
     let source_subject = contraction_is(cursor, 0, "it", "s")
         || (word_is(cursor, 0, "it") && word_is(cursor, 1, "is"))
         || source_reference_starts_at(
@@ -194,7 +205,8 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
     ))
 }
 
-/// `it's [un]tapped`, `it's modified`, `this CARD is tapped`: a state of the
+/// `it's [un]tapped`, `it's attacking`, `it's modified`, `this CARD is
+/// blocking`: a state of the
 /// ability's own source. `it` is the source only when the subject is.
 fn recognize_source_state_atom(
     cursor: &mut OracleTokenCursor<'_>,
@@ -219,15 +231,18 @@ fn recognize_source_state_atom(
         cursor.consume("is")?;
     }
     cursor.enter("condition.static.source-state.property");
-    let property = cursor
-        .peek()
-        .map(str::to_ascii_lowercase)
-        .ok_or_else(|| cursor.fail("`tapped`, `untapped` or `modified`"))?;
+    let property = cursor.peek().map(str::to_ascii_lowercase).ok_or_else(|| {
+        cursor.fail("`tapped`, `untapped`, `attacking`, `blocking` or `modified`")
+    })?;
     let proposition = match property.as_str() {
         "tapped" => SourceStateProposition::Tapped,
         "untapped" => SourceStateProposition::Untapped,
+        "attacking" => SourceStateProposition::Attacking,
+        "blocking" => SourceStateProposition::Blocking,
         "modified" => SourceStateProposition::Modified,
-        _ => return Err(cursor.fail("`tapped`, `untapped` or `modified`")),
+        _ => {
+            return Err(cursor.fail("`tapped`, `untapped`, `attacking`, `blocking` or `modified`"));
+        }
     };
     cursor.consume(&property)?;
     Ok(StaticConditionAtom::SourceState(proposition))
@@ -325,35 +340,29 @@ fn recognize_controller_history_atom(
         }
     }
     cursor.enter("condition.static.controller-history.verb");
-    if cursor.peek().is_some_and(|raw| {
-        !raw.eq_ignore_ascii_case("an")
-            && (raw.parse::<i64>().is_ok() || parse_number_word(raw).is_some())
-    }) {
-        return recognize_life_total_atom(cursor);
+    if word_is(cursor, 0, "drawn")
+        || word_is(cursor, 0, "cast")
+        || word_is(cursor, 0, "no")
+        || word_is(cursor, 0, "at")
+        || cursor.peek().is_some_and(|raw| {
+            !raw.eq_ignore_ascii_case("an")
+                && !raw.eq_ignore_ascii_case("a")
+                && (raw.parse::<i64>().is_ok() || parse_number_word(raw).is_some())
+        })
+    {
+        let subject = ConditionPlayerSubject::Controller;
+        return recognize_player_possession_proposition(cursor, subject).map(|proposition| {
+            StaticConditionAtom::PlayerState(PlayerStateConditionNode {
+                subject,
+                proposition,
+            })
+        });
     }
     let verb = cursor
         .peek()
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| cursor.fail("`drawn`, `cast`, `gained` or an enduring story"))?;
     match verb.as_str() {
-        "drawn" | "cast" => {
-            cursor.consume(&verb)?;
-            let (threshold, direction, _) = recognize_count_comparison(cursor)?;
-            cursor.require(
-                direction == ControlledCountDirection::OrMore,
-                "an `or more` this-turn event count",
-            )?;
-            cursor.enter("condition.static.controller-history.noun");
-            let (noun, event) = if verb == "drawn" {
-                ("cards", ControllerTurnEvent::CardDrawn)
-            } else {
-                ("spells", ControllerTurnEvent::SpellCast)
-            };
-            cursor.consume(noun)?;
-            cursor.enter("condition.static.controller-history.duration");
-            cursor.consume_phrase(&["this", "turn"])?;
-            Ok(StaticConditionAtom::ControllerEventCount { event, threshold })
-        }
         "gained" => {
             cursor.consume("gained")?;
             cursor.enter("condition.static.controller-history.life");
@@ -432,33 +441,6 @@ fn recognize_completed_dungeon_atom(
     Ok(StaticConditionAtom::ControllerCompletedDungeon {
         dungeon: Some(words.join(" ")),
         completed,
-    })
-}
-
-/// `N or more life` / `N or less life` after `you have`: the controller's life
-/// total compared with a fixed bound.
-fn recognize_life_total_atom(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<StaticConditionAtom> {
-    cursor.enter("condition.static.life-total.threshold");
-    let threshold = match recognize_numeric_atom(cursor)? {
-        NumericAtom::Integer(value) => value,
-        NumericAtom::VariableX => return Err(cursor.fail("a fixed life threshold")),
-    };
-    cursor.consume("or")?;
-    cursor.enter("condition.static.life-total.direction");
-    let direction = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("more" | "greater") => ControlledCountDirection::OrMore,
-        Some("less" | "fewer") => ControlledCountDirection::OrFewer,
-        _ => return Err(cursor.fail("`more`, `greater`, `less` or `fewer`")),
-    };
-    let word = cursor.peek().expect("direction was checked").to_string();
-    cursor.consume(&word)?;
-    cursor.enter("condition.static.life-total.noun");
-    cursor.consume("life")?;
-    Ok(StaticConditionAtom::ControllerLifeTotal {
-        threshold,
-        direction,
     })
 }
 

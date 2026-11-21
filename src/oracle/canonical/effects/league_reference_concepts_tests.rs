@@ -159,10 +159,21 @@ fn activation_condition_composes_with_timing() {
     let condition = &rules[0]["activationCondition"];
     assert_eq!(condition["kind"], "and");
     assert_eq!(condition["operands"][0], json!({"kind": "sorceryTiming"}));
-    rejected(
+    // Turn ownership is a shared static atom, so the restriction composes.
+    let rules = canonical_rules(
         "Probe",
         "Artifact",
         "{T}: Draw a card. Activate only if it's your turn.",
+    );
+    assert_eq!(
+        rules[0]["activationCondition"],
+        json!({"kind": "duringControllerTurn",
+            "player": {"kind": "controllerOf", "object": {"kind": "self"}}})
+    );
+    rejected(
+        "Probe",
+        "Artifact",
+        "{T}: Draw a card. Activate only if it's your upkeep.",
     );
 }
 

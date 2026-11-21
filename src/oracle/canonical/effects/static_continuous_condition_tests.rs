@@ -151,8 +151,8 @@ fn unsupported_conditions_fail_at_a_precise_state() {
         "condition.static.source-state.subject"
     );
     assert_eq!(
-        rejected_state("This creature gets +1/+1 as long as it's your turn."),
-        "condition.static.source-state.property"
+        rejected_state("This creature gets +1/+1 as long as it's your upkeep."),
+        "condition.controller-turn.turn"
     );
     // One condition per static ability; a trailing predicate is not guessed.
     assert_eq!(

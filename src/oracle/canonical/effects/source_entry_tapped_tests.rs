@@ -100,7 +100,7 @@ fn typed_permanent_noun_cannot_override_a_nonpermanent_face() {
 }
 
 #[test]
-fn conditional_named_entry_is_not_claimed_by_the_unconditional_family() {
+fn conditional_named_entry_composes_the_shared_condition_program() {
     let name = "Clockwork Harbor";
     let type_line = "Artifact Land";
     let text = "Clockwork Harbor enters tapped unless you control an Island.";
@@ -133,19 +133,33 @@ fn conditional_named_entry_is_not_claimed_by_the_unconditional_family() {
         name_resolution_failure: None,
     };
 
-    assert!(!claims_promoted_source_entry_state_family(&input));
+    // The controlled-presence exception keeps its earlier, dedicated family
+    // (dispatch order); this family owns every other `if|unless` clause.
+    assert!(claims_promoted_conditional_entry_family(&input));
+    assert!(claims_promoted_source_entry_state_family(&input));
 
+    // Strangled Cemetery's exception, read by the shared condition program.
+    let draft = parse_named_source(
+        "Clockwork Harbor",
+        "Artifact Land",
+        "Clockwork Harbor enters tapped unless a player has 13 or less life.",
+    )
+    .expect("a shared player-state condition");
+    assert_eq!(draft.rule["condition"]["kind"], "not");
+    assert_eq!(
+        draft.rule["condition"]["operand"]["kind"],
+        "playerQuantifier"
+    );
+
+    // The entry machine owns the `if|unless` introducer, then delegates the
+    // proposition; an unsupported proposition fails in the shared child.
     let failure = parse_named_source(
         "Clockwork Harbor",
         "Artifact Land",
-        "Clockwork Harbor enters tapped unless you control an Island.",
+        "Clockwork Harbor enters tapped unless you're the monarch.",
     )
-    .expect_err("only the shared turn proposition may follow `unless`");
-
-    // The entry machine owns the `if|unless` introducer, then delegates the
-    // proposition; an unsupported proposition fails in that shared child.
-    assert_eq!(failure.state, "condition.controller-turn.subject");
-    assert!(failure.expected.contains("it's"), "{failure:?}");
+    .expect_err("no shared atom reads the monarch designation");
+    assert_eq!(failure.state, "condition.sentence.atom-kind");
 }
 
 #[test]

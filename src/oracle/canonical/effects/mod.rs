@@ -49,6 +49,7 @@ mod graveyard_card_return;
 mod graveyard_characteristic;
 mod graveyard_destination;
 mod named_token_creation;
+mod player_condition;
 mod program_resolution;
 mod sacrifice;
 mod sentence_condition;
@@ -283,6 +284,7 @@ pub(super) use zone_change::*;
 pub(super) use zone_change_search::*;
 pub(super) use zone_change_token::*;
 
+pub(super) use player_condition::*;
 pub(super) use sentence_condition::*;
 pub(super) use static_condition::*;
 pub(super) use trigger_event::*;
