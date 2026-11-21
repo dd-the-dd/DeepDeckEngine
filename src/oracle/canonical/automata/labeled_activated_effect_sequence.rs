@@ -14,7 +14,7 @@ pub(in crate::oracle::canonical) struct ShortAbilityLabelNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct LabeledActivatedEffectSequenceNode {
-    pub label: ShortAbilityLabelNode,
+    pub label: Option<ShortAbilityLabelNode>,
     pub costs: ActivationCostSequenceNode,
     pub effects: EffectSequenceNode,
     pub reduction: ActivationCostReductionNode,
@@ -47,12 +47,21 @@ pub(in crate::oracle::canonical) fn recognize_labeled_activated_effect_sequence(
     loop {
         state = match state {
             LabeledActivationState::Label => {
+                // The ability boundary strips a top-level label (CR 207.2c);
+                // an unlabeled envelope starts with its costs.
                 cursor.enter("activation.labeled.label");
-                let token = cursor.consume_type("abilityWord")?;
-                label = Some(ShortAbilityLabelNode {
-                    name: token.raw.clone(),
-                });
-                LabeledActivationState::LabelSeparator
+                if cursor
+                    .peek_token()
+                    .is_some_and(|token| token.token_type == "abilityWord")
+                {
+                    let token = cursor.consume_type("abilityWord")?;
+                    label = Some(ShortAbilityLabelNode {
+                        name: token.raw.clone(),
+                    });
+                    LabeledActivationState::LabelSeparator
+                } else {
+                    LabeledActivationState::Costs
+                }
             }
             LabeledActivationState::LabelSeparator => {
                 cursor.enter("activation.labeled.label-separator");
@@ -88,7 +97,7 @@ pub(in crate::oracle::canonical) fn recognize_labeled_activated_effect_sequence(
                 cursor.enter("activation.labeled.complete");
                 cursor.finish()?;
                 return Ok(LabeledActivatedEffectSequenceNode {
-                    label: cursor.require_value(label, "a populated short ability label")?,
+                    label,
                     costs: cursor.require_value(costs, "populated activation costs")?,
                     effects: cursor.require_value(effects, "a populated effect sequence")?,
                     reduction: cursor

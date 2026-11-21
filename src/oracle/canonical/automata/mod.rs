@@ -2197,6 +2197,7 @@ pub(super) use trigger_guard::*;
 pub(super) use trigger_program::*;
 
 pub(super) use boolean_condition::*;
+pub(super) use token_window::*;
 
 #[cfg(test)]
 #[path = "target_card_sequence_tests.rs"]
@@ -2204,6 +2205,7 @@ mod target_card_sequence_tests;
 
 mod permanent_action;
 mod permanent_subject;
+mod token_window;
 pub(in crate::oracle::canonical) use permanent_action::{
     PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
 };

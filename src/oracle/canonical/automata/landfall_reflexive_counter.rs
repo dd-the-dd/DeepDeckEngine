@@ -53,7 +53,7 @@ pub(in crate::oracle::canonical) struct ReflexiveCounterFollowupNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct LabeledControlledEntryReflexiveCounterNode {
-    pub label: AbilityWordMarkerNode,
+    pub label: Option<AbilityWordMarkerNode>,
     pub event: ControlledPermanentEntryEventNode,
     pub antecedent: PutCountersOnObjectEffectNode,
     pub followup: ReflexiveCounterFollowupNode,
@@ -417,21 +417,24 @@ pub(in crate::oracle::canonical) fn recognize_labeled_controlled_entry_reflexive
     loop {
         state = match state {
             LabeledReflexiveState::Label => {
+                // The ability boundary strips a top-level label (CR 207.2c);
+                // an unlabeled trigger starts with its event.
                 cursor.enter("trigger.labeled-reflexive-counter.label");
-                cursor.require(
-                    cursor
-                        .peek_token()
-                        .is_some_and(|token| token.token_type == "abilityWord"),
-                    "an ability-word label",
-                )?;
-                while cursor
+                if cursor
                     .peek_token()
                     .is_some_and(|token| token.token_type == "abilityWord")
                 {
-                    cursor.consume_type("abilityWord")?;
+                    while cursor
+                        .peek_token()
+                        .is_some_and(|token| token.token_type == "abilityWord")
+                    {
+                        cursor.consume_type("abilityWord")?;
+                    }
+                    label = Some(AbilityWordMarkerNode);
+                    LabeledReflexiveState::LabelSeparator
+                } else {
+                    LabeledReflexiveState::Event
                 }
-                label = Some(AbilityWordMarkerNode);
-                LabeledReflexiveState::LabelSeparator
             }
             LabeledReflexiveState::LabelSeparator => {
                 cursor.enter("trigger.labeled-reflexive-counter.label-separator");
@@ -546,7 +549,7 @@ pub(in crate::oracle::canonical) fn recognize_labeled_controlled_entry_reflexive
                 cursor.enter("trigger.labeled-reflexive-counter.complete");
                 cursor.finish()?;
                 return Ok(LabeledControlledEntryReflexiveCounterNode {
-                    label: cursor.require_value(label, "an ability-word marker")?,
+                    label,
                     event: cursor.require_value(event, "a controlled-entry event")?,
                     antecedent: cursor
                         .require_value(antecedent, "an antecedent counter placement")?,

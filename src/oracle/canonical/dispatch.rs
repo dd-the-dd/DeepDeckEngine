@@ -92,6 +92,61 @@ fn parse_native_rule(
             },
         };
     }
+    // CR 207.2c-d: an ability word or flavor word labels the ability and has
+    // no rules meaning. The ability boundary strips it once; every frame then
+    // reads only the body. Failures are reported at their position in the
+    // whole ability.
+    if let Some(body_start) = rules_free_label_body_start(input.tokens) {
+        let end = input.tokens.len();
+        let name_links = input
+            .name_links
+            .iter()
+            .filter_map(|link| rebase_name_link(link, body_start, end))
+            .collect::<Vec<_>>();
+        let name_failure = input
+            .name_resolution_failure
+            .and_then(|failure| rebase_name_failure(failure, body_start, end));
+        let body = AbilityInput {
+            face_name: input.face_name,
+            face_type_line: input.face_type_line,
+            source: input.source,
+            tokens: &input.tokens[body_start..],
+            name_links: &name_links,
+            name_resolution_failure: name_failure.as_ref(),
+        };
+        return rebase_outcome(parse_ability_body(&body, ability_kind), body_start);
+    }
+    parse_ability_body(input, ability_kind)
+}
+
+/// Reports a body outcome at its position in the labeled ability.
+fn rebase_outcome(outcome: CanonicalParseOutcome, body_start: usize) -> CanonicalParseOutcome {
+    match outcome {
+        CanonicalParseOutcome::Failed {
+            failure,
+            recognizer,
+        } => CanonicalParseOutcome::Failed {
+            failure: rebase_machine_failure(failure, body_start),
+            recognizer,
+        },
+        CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure,
+            candidate_failure,
+            recognizer,
+        } => CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure: rebase_machine_failure(failure, body_start),
+            candidate_failure: rebase_machine_failure(candidate_failure, body_start),
+            recognizer,
+        },
+        outcome => outcome,
+    }
+}
+
+/// Every frame of one ability body, in native precedence order.
+fn parse_ability_body(
+    input: &AbilityInput<'_>,
+    ability_kind: AbilityKindConstraint<'_>,
+) -> CanonicalParseOutcome {
     let mut committed_generic_failure = None;
     if ability_kind == "triggeredAbility" {
         // This atomic native contract predates sequence-local decision IDs.
@@ -2245,3 +2300,7 @@ fn parse_existing_native_rule(
 #[cfg(test)]
 #[path = "generic_trigger_dispatch_tests.rs"]
 mod generic_trigger_dispatch_tests;
+
+#[cfg(test)]
+#[path = "ability_label_boundary_tests.rs"]
+mod ability_label_boundary_tests;

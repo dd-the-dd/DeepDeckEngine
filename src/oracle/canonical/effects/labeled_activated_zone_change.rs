@@ -1,18 +1,15 @@
 use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
-/// Claims a labeled activated ability whose effect sequence is followed by a
+/// Claims an activated ability whose effect sequence is followed by a
 /// per-permanent generic-cost reduction. Label spelling, costs, effects, and
 /// metadata remain owned by typed child machines after this structural claim.
 pub(in crate::oracle::canonical) fn claims_promoted_labeled_activated_zone_change_family(
     input: &AbilityInput<'_>,
 ) -> bool {
+    // Any ability-word label was stripped at the ability boundary (CR 207.2c).
     let tokens = input.tokens;
-    tokens
-        .first()
-        .is_some_and(|token| token.token_type == "abilityWord")
-        && tokens.get(1).is_some_and(|token| token.raw == "—")
-        && tokens.iter().any(|token| token.raw == ":")
+    tokens.iter().any(|token| token.raw == ":")
         && tokens.windows(3).any(|window| {
             window[0].raw.eq_ignore_ascii_case("this")
                 && window[1].raw.eq_ignore_ascii_case("ability")
@@ -55,7 +52,10 @@ pub(in crate::oracle::canonical) fn parse_promoted_labeled_activated_zone_change
     )?;
     cursor.enter("activation.labeled-zone-change.validation");
     cursor.require(
-        !ability.label.name.is_empty(),
+        ability
+            .label
+            .as_ref()
+            .is_none_or(|label| !label.name.is_empty()),
         "a nonempty short ability label",
     )?;
 

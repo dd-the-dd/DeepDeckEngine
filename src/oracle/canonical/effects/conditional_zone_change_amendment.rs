@@ -1,16 +1,20 @@
 use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
+/// Claims `destroy|exile that ... instead ...` amending the spell's primary
+/// target. Any ability-word label was already stripped at the ability
+/// boundary (CR 207.2c), so the claim reads only the body.
 pub(in crate::oracle::canonical) fn claims_promoted_conditional_zone_change_amendment_family(
     input: &AbilityInput<'_>,
 ) -> bool {
-    input
-        .tokens
-        .first()
-        .is_some_and(|token| token.token_type == "abilityWord")
-        && input.tokens.get(1).is_some_and(|token| token.raw == "—")
-        && input
-            .tokens
+    let tokens = input.tokens;
+    let start = ability_word_body_start(tokens).unwrap_or(0);
+    tokens.get(start).is_some_and(|token| {
+        token.raw.eq_ignore_ascii_case("destroy") || token.raw.eq_ignore_ascii_case("exile")
+    }) && tokens
+        .get(start + 1)
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("that"))
+        && tokens[start..]
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("instead"))
 }
