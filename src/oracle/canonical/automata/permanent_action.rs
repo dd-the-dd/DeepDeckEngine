@@ -66,6 +66,21 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let Some(action) = subject_end.peek_ahead(action_offset) else {
         return PermanentActionAttempt::NotClaimed;
     };
+    if action_offset == 0 && PermanentKeywordAction::from_subject_verb(action).is_some() {
+        // `SUBJECT explores|connives|endures`: the subject and verb own the
+        // claim; the keyword child reads its own numeric argument.
+        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
+            return PermanentActionAttempt::FailedCommitted(failure);
+        }
+        let mut trial = subject_end.clone();
+        return match super::recognize_subject_keyword_action(&mut trial, subject, None) {
+            Ok(node) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(LocalEffectNode::PermanentKeywordAction(node))
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
+    }
     let keyword = action.eq_ignore_ascii_case("gain") || action.eq_ignore_ascii_case("gains");
     let stats = action_offset == 0
         && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));

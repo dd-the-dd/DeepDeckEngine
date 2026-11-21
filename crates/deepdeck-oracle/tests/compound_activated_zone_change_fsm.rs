@@ -121,7 +121,21 @@ fn later_effects_compose_or_fail_without_a_partial_zone_change() {
             .collect::<Vec<_>>();
         assert_eq!(kinds, ["exilePermanent", "drawCards"], "{text}");
     }
+    // Manifest dread is now an ordinary keyword-action verb (CR 701.62), so the
+    // later effect composes after the exile instead of failing.
     let parsed = parse_land("{T}: Exile target creature and manifest dread.");
+    let rule = parsed.abilities[0]
+        .rule
+        .as_ref()
+        .expect("manifest dread composes");
+    assert_eq!(rule["effects"][0]["kind"], "exilePermanent");
+    assert!(
+        rule["effects"]
+            .as_array()
+            .is_some_and(|effects| effects.len() >= 2)
+    );
+    // An unknown later verb still fails without a partial zone change.
+    let parsed = parse_land("{T}: Exile target creature and teleport a card.");
     assert_eq!(parsed.status, "unsupported");
     assert!(parsed.abilities[0].rule.is_none());
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);

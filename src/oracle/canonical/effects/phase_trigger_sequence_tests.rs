@@ -149,7 +149,7 @@ fn third_person_life_verb_is_never_defaulted_to_controller() {
 #[test]
 fn unsupported_bodies_and_wide_optional_scope_are_unpromoted_candidates() {
     for text in [
-        "At the beginning of your upkeep, manifest dread.",
+        "At the beginning of your upkeep, incubate 2.",
         "At the beginning of your upkeep, you may draw a card and gain 1 life.",
     ] {
         assert!(

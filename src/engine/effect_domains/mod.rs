@@ -261,7 +261,8 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "createEmblem"
             | "replaceGraveyardWithExileUntilEndOfTurn"
             | "goadAllCreaturesUntilNextTurn"
-            | "goadPermanents",
+            | "goadPermanents"
+            | "prohibitPermanentActivations",
         ) => Some(Domain::RulesPermissions),
         Some(
             "installUntapRestriction"
