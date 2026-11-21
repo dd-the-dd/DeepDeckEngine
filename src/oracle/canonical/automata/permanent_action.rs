@@ -69,7 +69,15 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let stats = action_offset == 0
         && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));
     let becomes = action_offset == 0 && action.eq_ignore_ascii_case("becomes");
-    if !keyword && !stats && !becomes {
+    let deals = action_offset == 0
+        && action.eq_ignore_ascii_case("deals")
+        && matches!(
+            subject,
+            PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
+        );
+    let fights = action_offset == 0
+        && (action.eq_ignore_ascii_case("fights") || action.eq_ignore_ascii_case("fight"));
+    if !keyword && !stats && !becomes && !deals && !fights {
         return PermanentActionAttempt::NotClaimed;
     }
     if becomes {
@@ -96,6 +104,46 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     }
     if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
         return PermanentActionAttempt::FailedCommitted(failure);
+    }
+    if deals || fights {
+        let mut trial = subject_end.clone();
+        let result = if deals {
+            let antecedent = match &subject {
+                PermanentOperandNode::Targets(targets) => {
+                    match (targets.slots.as_slice(), context.current_effect_index) {
+                        ([_], Some(effect_index)) => {
+                            DamageSourceAntecedent::Target(TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            })
+                        }
+                        _ => DamageSourceAntecedent::Unavailable,
+                    }
+                }
+                PermanentOperandNode::BoundReference(PermanentEffectReference::Target(binding)) => {
+                    DamageSourceAntecedent::Target(*binding)
+                }
+                _ => DamageSourceAntecedent::Unavailable,
+            };
+            recognize_damage_predicate(&mut trial, subject.clone(), antecedent)
+                .map(LocalEffectNode::DealDamage)
+        } else {
+            recognize_fight_predicate(
+                &mut trial,
+                subject.clone(),
+                name_links,
+                name_failure,
+                context,
+            )
+            .map(LocalEffectNode::Fight)
+        };
+        return match result {
+            Ok(node) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(node)
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
     }
     let mut trial = cursor.clone();
     let result = if keyword {
@@ -127,6 +175,33 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         }
         Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
     }
+}
+
+/// `fights OBJECT` (CR 701.14) after a recognized permanent subject. The
+/// second fighter is read by the same contextual permanent operand grammar.
+fn recognize_fight_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    first: PermanentOperandNode,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> Result<FightEffectNode, MachineFailure> {
+    cursor.enter("effect.fight.action");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("fight"))
+    {
+        cursor.consume("fight")?;
+    } else {
+        cursor.consume("fights")?;
+    }
+    cursor.enter("effect.fight.second");
+    let second = recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    cursor.require(
+        !matches!(second, PermanentOperandNode::Collection(_)),
+        "one permanent fighting the subject, not a collection",
+    )?;
+    Ok(FightEffectNode { first, second })
 }
 
 /// Source references are admitted only by a parent that establishes source

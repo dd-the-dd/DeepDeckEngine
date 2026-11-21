@@ -2,7 +2,9 @@ use super::*;
 
 fn effect(amount: NumericAtom, players: PlayerSetReferenceNode) -> LocalEffectNode {
     LocalEffectNode::DealDamage(DamageEffectNode {
-        source: LocalObjectReference::SourceSelf,
+        source: crate::oracle::canonical::automata::PermanentOperandNode::Reference(
+            LocalObjectReference::SourceSelf,
+        ),
         amount: NumericExpression::Atom(amount),
         recipient: DamageRecipientNode::PlayerSet(players),
     })

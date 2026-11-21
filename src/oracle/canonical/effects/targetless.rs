@@ -105,6 +105,42 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
     }
 }
 
+/// One fixed recipient group of a damage frame. A permanent collection is the
+/// shared object query (`eachPermanent`), evaluated when the damage resolves.
+pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
+    recipient: &DamageRecipientNode,
+    declarations: TargetlessDeclarationSupport,
+) -> Result<Value, TargetlessLoweringError> {
+    match recipient {
+        DamageRecipientNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
+        DamageRecipientNode::PlayerSet(players) => Ok(lower_player_set_reference(*players)),
+        DamageRecipientNode::Targets(_)
+        | DamageRecipientNode::Player(
+            LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
+        ) => Err(TargetlessLoweringError::RequiresTarget),
+        DamageRecipientNode::EachPermanent(collection) => {
+            if object_predicate_uses_x(&collection.objects.predicate)
+                && declarations != TargetlessDeclarationSupport::XValue
+            {
+                return Err(TargetlessLoweringError::RequiresDeclaration);
+            }
+            let mut objects = json!({
+                "kind": "eachPermanent",
+                "where": lower_permanent_object_predicate(&collection.objects.predicate),
+            });
+            if let Some(scope) = collection.objects.controller {
+                objects["player"] = lower_object_controller_scope(scope);
+            }
+            if collection.exclude_source {
+                objects["excludeSource"] = json!(true);
+            }
+            Ok(objects)
+        }
+        // A conjunction expands into one atom per group in the plural lowerer.
+        DamageRecipientNode::All(_) => Err(TargetlessLoweringError::UnsupportedEffect),
+    }
+}
+
 /// Expands procedural actions and retains atomic effects as one-element lists.
 /// The caller's scope isolates transient bindings between sibling actions.
 pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
@@ -114,6 +150,25 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
 ) -> Result<Vec<Value>, TargetlessLoweringError> {
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
         return lower_explicit_token_creation(node, declarations).map(|effect| vec![effect]);
+    }
+    // `to each creature and each player`: the same source and amount reach
+    // every recipient group; each group is one shared damage atom.
+    if let LocalEffectNode::DealDamage(damage) = effect
+        && let DamageRecipientNode::All(groups) = &damage.recipient
+    {
+        return groups
+            .iter()
+            .map(|group| {
+                lower_targetless_local_effect(
+                    &LocalEffectNode::DealDamage(DamageEffectNode {
+                        source: damage.source.clone(),
+                        amount: damage.amount.clone(),
+                        recipient: group.clone(),
+                    }),
+                    declarations,
+                )
+            })
+            .collect();
     }
     if let LocalEffectNode::DiscardCards(action) = effect {
         if action.player != PlayerEffectSubject::Controller {
@@ -189,25 +244,14 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::AddMana(effect) => Ok(lower_add_mana_effect(effect)),
         LocalEffectNode::TemporaryPlayerPermission(node) => lower_temporary_player_permission(node),
         LocalEffectNode::DealDamage(effect) => {
-            let recipient = match &effect.recipient {
-                DamageRecipientNode::Player(LocalPlayerReference::Controller) => controller(),
-                DamageRecipientNode::PlayerSet(players) => lower_player_set_reference(*players),
-                DamageRecipientNode::Targets(_)
-                | DamageRecipientNode::Player(
-                    LocalPlayerReference::ControllerOf(_)
-                    | LocalPlayerReference::ControllerOfQualified(_),
-                ) => {
-                    return Err(TargetlessLoweringError::RequiresTarget);
-                }
-                DamageRecipientNode::EachPermanent(_) => {
-                    return Err(TargetlessLoweringError::UnsupportedEffect);
-                }
+            let source = match effect.fixed_source() {
+                Some(LocalObjectReference::SourceSelf) => self_ref(),
+                None => return Err(TargetlessLoweringError::RequiresTarget),
             };
+            let recipient = lower_targetless_damage_recipient(&effect.recipient, declarations)?;
             Ok(json!({
                 "kind": "dealDamage",
-                "source": match &effect.source {
-                    LocalObjectReference::SourceSelf => self_ref(),
-                },
+                "source": source,
                 "amount": lower_targetless_numeric_expression(&effect.amount, declarations)?,
                 "recipient": recipient,
             }))
@@ -311,7 +355,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
-        | LocalEffectNode::UntapTarget(_) => Err(TargetlessLoweringError::RequiresTarget),
+        | LocalEffectNode::UntapTarget(_)
+        | LocalEffectNode::Fight(_) => Err(TargetlessLoweringError::RequiresTarget),
         LocalEffectNode::MoveCards(_)
         | LocalEffectNode::CreateExplicitTokens(_)
         | LocalEffectNode::CreateTokens(_)

@@ -199,6 +199,35 @@ fn quantified_opponent_phase_draw_is_complete_native_ir() {
 }
 
 #[test]
+fn source_damage_to_a_permanent_collection_is_complete_native_ir() {
+    // Formerly a native failure case below: the shared damage forms now
+    // compose an object source with a permanent-collection recipient.
+    let request = OracleCardParseRequest {
+        card_name: "Flame Blitz".to_string(),
+        type_line: "Enchantment".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "At the beginning of your end step, this enchantment deals 5 damage to each planeswalker."
+                .to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    for result in [
+        parse_oracle_card_native(request.clone()),
+        parse_oracle_card(request),
+    ] {
+        assert_eq!(result.status, "canonical");
+        let ability = &result.abilities[0];
+        assert!(ability.diagnostics.is_empty(), "{:?}", ability.diagnostics);
+        let rule = ability.rule.as_ref().expect("complete rule");
+        assert_eq!(rule["event"]["step"], "endStep");
+        assert_eq!(rule["effects"].as_array().map(Vec::len), Some(1), "{rule}");
+        assert_eq!(rule["effects"][0]["amount"]["value"], 5, "{rule}");
+    }
+}
+
+#[test]
 fn default_preserves_native_phase_failure_without_fallback() {
     for (name, type_line, text, primary_state, candidate_state) in [
         (
@@ -214,13 +243,6 @@ fn default_preserves_native_phase_failure_without_fallback() {
             "At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.",
             "effect.draw-cards.unsupported-qualifier",
             "effect.draw-cards.unsupported-qualifier",
-        ),
-        (
-            "Flame Blitz",
-            "Enchantment",
-            "At the beginning of your end step, this enchantment deals 5 damage to each planeswalker.",
-            "lower.sentence-conditional.ranges",
-            "lower.sentence-conditional.ranges",
         ),
     ] {
         let request = OracleCardParseRequest {
