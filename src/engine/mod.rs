@@ -25722,6 +25722,12 @@ impl GameEngine {
                 }
             }
         }
+        self.fire_delayed_step_triggers(step);
+    }
+
+    /// Puts every delayed trigger waiting for `step` on the stack (CR 603.7);
+    /// returns how many were waiting.
+    fn fire_delayed_step_triggers(&mut self, step: &str) -> usize {
         let delayed_step_triggers = self
             .state
             .rule_modifiers
@@ -25774,7 +25780,7 @@ impl GameEngine {
                 trigger_multiplicity::TriggerOrigin::Delayed,
             );
             if self.check_quantity_failure().is_err() {
-                return;
+                return delayed_step_triggers.len();
             }
         }
         self.state.rule_modifiers.retain(|modifier| {
@@ -25782,6 +25788,7 @@ impl GameEngine {
                 .iter()
                 .any(|consumed| consumed == modifier)
         });
+        delayed_step_triggers.len()
     }
 
     fn apply_priority_action_inner<P: DecisionProvider>(
@@ -38089,6 +38096,14 @@ impl GameEngine {
         };
         result?;
         self.record_attack_outcomes(&attacks, &blocks, combat_event_start);
+        // The end of combat step (CR 511): delayed `at end of combat` triggers.
+        if self.fire_delayed_step_triggers("endOfCombat") > 0 {
+            self.run_priority_window(provider)?;
+            if self.state.outcome.is_some() || self.force_end_turn {
+                self.clear_combat_state();
+                return Ok(());
+            }
+        }
         self.process_end_combat_exiles()?;
         self.drain_linked_exile_returns(provider)?;
         self.clear_combat_state();

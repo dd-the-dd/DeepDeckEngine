@@ -224,3 +224,44 @@ fn combat_damage_to_a_player_reads_the_historical_kind_as_a_pattern() {
         "player-1"
     );
 }
+
+#[test]
+fn every_copy_of_an_aggregated_damage_trigger_sees_the_total() {
+    // A trigger multiplier publishes two copies; later damage of the same
+    // event grows both (CR 603.2d).
+    let rules = parsed_rules(
+        "Phantom Nishoba",
+        "Creature — Cat Beast Spirit",
+        "Whenever this creature deals damage, you gain that much life.",
+    );
+    let mut engine = setup(rules);
+    let mut doubler = permanent("doubler", "Artifact", Vec::new(), "player-0");
+    doubler.definition.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": {"kind": "self"},
+        "activeWhile": {"kind": "inZone", "object": {"kind": "self"}, "zone": {"kind": "battlefield"}},
+        "modifiers": [{
+            "kind": "multiplyTriggeredAbility",
+            "sources": {
+                "kind": "permanents",
+                "controller": {"kind": "controllerOf", "object": {"kind": "self"}},
+                "where": {"kind": "cardTypeContains", "value": "Creature"},
+            },
+            "additionalTriggers": 1,
+        }],
+    })];
+    engine.state.players[0].battlefield.push(doubler);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let scope = engine.begin_event_batch();
+    damage(&mut engine, creature_target("bear-a"), 1, "nishoba", false);
+    damage(&mut engine, player_target("player-1"), 3, "nishoba", false);
+    engine.end_event_batch(scope);
+    assert_eq!(engine.state.stack.len(), 2);
+    for object in &engine.state.stack {
+        assert_eq!(object.decisions["damageAmount"], 4);
+    }
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[0].life, 28);
+}

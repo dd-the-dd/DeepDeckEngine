@@ -641,3 +641,54 @@ fn a_new_object_starts_its_own_per_turn_ordinal() {
     declare_attack(&mut engine, &["samurai"]);
     assert_eq!(engine.state.stack.len(), 1);
 }
+
+#[test]
+fn at_end_of_combat_delays_the_action_on_the_bound_combatant() {
+    // Cockatrice: the delayed trigger destroys the creature bound when the
+    // ability resolved, at the end of combat step (CR 511, 603.7).
+    let rules = parsed_rules(
+        "Cockatrice",
+        "Creature — Cockatrice",
+        "Whenever this creature blocks or becomes blocked by a non-Wall creature, destroy that creature at end of combat.",
+    );
+    assert_eq!(rules[0]["effects"][0]["kind"], "installDelayedStepTrigger");
+    assert_eq!(rules[0]["effects"][0]["step"], "endOfCombat");
+    assert_eq!(
+        rules[0]["effects"][0]["effects"][0]["permanent"],
+        json!({"kind": "combatCounterpart"})
+    );
+    let setup = || {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![vanilla("attacker", "player-0")];
+        engine.state.players[1].battlefield = vec![creature(
+            "cockatrice",
+            "Creature — Cockatrice",
+            "{0}",
+            rules.clone(),
+            "player-1",
+        )];
+        admit(&mut engine);
+        declare_attack(&mut engine, &["attacker"]);
+        declare_block(&mut engine, "attacker", "cockatrice");
+        resolve_stack(&mut engine);
+        // Resolving creates the delayed trigger; nothing is destroyed yet.
+        assert!(on_battlefield(&engine, "attacker"));
+        engine
+    };
+    let mut engine = setup();
+    engine.fire_delayed_step_triggers("endStep");
+    assert!(
+        engine.state.stack.is_empty(),
+        "another step does not wake it"
+    );
+    engine.fire_delayed_step_triggers("endOfCombat");
+    assert_eq!(engine.state.stack.len(), 1);
+    resolve_stack(&mut engine);
+    assert!(!on_battlefield(&engine, "attacker"));
+    // The creature became a new object before end of combat (CR 400.7).
+    let mut engine = setup();
+    new_incarnation(&mut engine, "attacker");
+    engine.fire_delayed_step_triggers("endOfCombat");
+    resolve_stack(&mut engine);
+    assert!(on_battlefield(&engine, "attacker"));
+}

@@ -82,10 +82,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_activated_top_card_delayed_dr
             )
         }
     };
-    let delayed_step = match ability.delayed.step {
-        DelayedTurnStep::Upkeep => "upkeep",
-        DelayedTurnStep::EndStep => "endStep",
-    };
+    let delayed_step = ability.delayed.step.runtime_step();
     cursor.require(
         ability.delayed.turn == DelayedTurnReference::NextTurn,
         "the next turn as the delayed turn reference",

@@ -338,7 +338,10 @@ impl GameEngine {
         let Some(batch) = record.batch else {
             return false;
         };
-        let Some(pending) = self.state.stack.iter_mut().find(|object| {
+        // Every copy published for this event (trigger multipliers, CR
+        // 603.2d) observes the same event and sees the same total.
+        let mut merged = false;
+        for pending in self.state.stack.iter_mut().filter(|object| {
             object.card.instance_id == observer.instance_id
                 && object.ability_rule.as_ref() == Some(rule)
                 && object
@@ -351,19 +354,19 @@ impl GameEngine {
                     .get("damageSourceId")
                     .and_then(Value::as_str)
                     == Some(record.source.as_str())
-        }) else {
-            return false;
-        };
-        let total = pending
-            .decisions
-            .get("damageAmount")
-            .and_then(Value::as_i64)
-            .unwrap_or(0)
-            + i64::from(record.amount);
-        pending
-            .decisions
-            .insert("damageAmount".to_string(), Value::from(total));
-        true
+        }) {
+            let total = pending
+                .decisions
+                .get("damageAmount")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                + i64::from(record.amount);
+            pending
+                .decisions
+                .insert("damageAmount".to_string(), Value::from(total));
+            merged = true;
+        }
+        merged
     }
 
     /// Publishes one dealt-damage record to every matching battlefield

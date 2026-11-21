@@ -60,10 +60,7 @@ pub(in crate::oracle::canonical) fn lower_delayed_draw_schedule(
         delayed.turn == DelayedTurnReference::NextTurn,
         "the next turn as the delayed turn reference",
     )?;
-    let step = match delayed.step {
-        DelayedTurnStep::Upkeep => "upkeep",
-        DelayedTurnStep::EndStep => "endStep",
-    };
+    let step = delayed.step.runtime_step();
     let mut effects = Vec::new();
     match delayed.effect.as_ref() {
         LocalEffectNode::DrawCards(draw) => {

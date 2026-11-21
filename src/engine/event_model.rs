@@ -875,6 +875,38 @@ impl GameEngine {
             .map_or(Value::Null, |identity| Value::String(identity.to_string()))
     }
 
+    /// The decisions of event references read by delayed effects, copied
+    /// when the delayed trigger is created (the other combatant and its
+    /// identity), so the later trigger denotes the same object.
+    pub(super) fn transported_event_references(
+        &self,
+        effects: &Value,
+        stack_object: &StackObject,
+    ) -> Vec<(String, Value)> {
+        fn reads_counterpart(value: &Value) -> bool {
+            match value {
+                Value::Object(map) => {
+                    value_kind(value) == Some("combatCounterpart")
+                        || map.values().any(reads_counterpart)
+                }
+                Value::Array(items) => items.iter().any(reads_counterpart),
+                _ => false,
+            }
+        }
+        if !reads_counterpart(effects) {
+            return Vec::new();
+        }
+        [COUNTERPART_ID, COUNTERPART_IDENTITY]
+            .into_iter()
+            .filter_map(|key| {
+                stack_object
+                    .decisions
+                    .get(key)
+                    .map(|value| (key.to_string(), value.clone()))
+            })
+            .collect()
+    }
+
     /// The bound counterpart, only while it is the same object it was when
     /// the ability triggered (CR 400.7).
     pub(super) fn combat_counterpart_target(

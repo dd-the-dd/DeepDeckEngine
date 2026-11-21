@@ -87,8 +87,10 @@ fn supports_known_effect(effect: &Value) -> bool {
                 })
         }
         Some("installDelayedStepTrigger") => {
-            matches!(effect["step"].as_str(), Some("upkeep" | "endStep"))
-                && player_reference_supported(&effect["controller"])
+            matches!(
+                effect["step"].as_str(),
+                Some("upkeep" | "endStep" | "endOfCombat")
+            ) && player_reference_supported(&effect["controller"])
                 && effect.get("captureBindings").is_none_or(|captured| {
                     captured.as_array().is_some_and(|captured| {
                         !captured.is_empty()
@@ -539,6 +541,13 @@ impl GameEngine {
                         }
                     };
                     captured_bindings.insert(binding_id.to_string(), captured_value);
+                }
+                // An event reference bound when the ability resolved (the
+                // other combatant) travels with its object identity.
+                for (key, value) in
+                    self.transported_event_references(&effect["effects"], stack_object)
+                {
+                    captured_bindings.insert(key, value);
                 }
                 let tracked_object_id = if let Some(object) = effect.get("trackedObject") {
                     let Some(instance_id) = self

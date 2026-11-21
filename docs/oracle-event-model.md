@@ -338,6 +338,26 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Thraximundar, Body Dropper, Savra, …), 0 perdue, 45 IR changées dont 0
   déjà supportée.
 
+## Étape 5 réalisée : déclencheur retardé `at end of combat`, multiplicateurs
+
+- Le cadre retardé existant (`installDelayedStepTrigger`) reçoit une étape
+  `endOfCombat` (CR 511) ; `at end of combat` est lu par le même lecteur de
+  moment que `at the beginning of the next end step`, en tête ou en fin de
+  phrase. Aucun parent par carte : `DelayedTurnStep::runtime_step` donne le
+  nom d'étape à tous les abaisseurs retardés.
+- Le moteur déclenche les délais `endOfCombat` à l'étape de fin de combat,
+  avant les exils de fin de combat, et ouvre une fenêtre de priorité si l'un
+  d'eux a été posé (aucun changement pour les combats sans délai).
+- Une référence d'événement lue par les actions retardées (l'autre
+  combattant) est transportée à la création du délai avec son identité : le
+  délai ne détruit que le même objet (CR 400.7).
+- Multiplicateurs de déclenchement (CR 603.2d) : chaque copie d'un
+  déclencheur de dégâts agrégé voit le total de l'événement.
+- Sondes : ligue inchangée ; corpus 13692 → 13702 (+10 : Cockatrice, Dread
+  Specter, Thicket Basilisk, Deathgazer, Infernal Medusa, Abomination, Rock
+  Basilisk, Venomous Dragonfly, Tangle Asp, Tolarian Entrancer), 0 perdue,
+  11 IR changées dont 0 déjà supportée.
+
 ## Familles suivantes
 
 1. **Lancement** : `spellCast` et ses ordinaux (`spellCastOrdinal`) → lemme
