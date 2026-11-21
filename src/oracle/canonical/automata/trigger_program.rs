@@ -147,7 +147,30 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
         event,
         GenericTriggerEventNode::Step(StepEventNode { player, .. })
             if *player != StepPlayerScope::AbilityController
-    )
+    ) || matches!(
+        event,
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::PlayerEvent {
+            actions,
+            one_or_more: false,
+            ..
+        }) if actions.iter().all(|action| action.records_acting_player())
+    ) || event_damage_complement(event)
+        .is_some_and(|complement| matches!(complement.recipient, Some(DamageRecipient::Player(_))))
+}
+
+/// The dealt-damage complement of a source, attached or object damage event.
+fn event_damage_complement(event: &GenericTriggerEventNode) -> Option<&DamageDealtComplement> {
+    match event {
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+            complement, ..
+        }) => Some(complement),
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::DealDamage,
+            damage,
+            ..
+        }) => damage.as_ref(),
+        _ => None,
+    }
 }
 
 /// The referents available to a trigger's intervening `if` (CR 603.4): the
@@ -157,6 +180,10 @@ fn trigger_guard_context(event: &GenericTriggerEventNode) -> EffectRecognitionCo
         GenericTriggerEventNode::SourceTransition(_)
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked { .. })
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::CombatDamageToPlayer { .. })
+        | GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+            subject: DamageDealer::Source(_),
+            ..
+        })
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. })
         | GenericTriggerEventNode::SourceEvent(_) => {
             EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)

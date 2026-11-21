@@ -160,3 +160,15 @@ mod trigger_guard_condition_tests;
 #[cfg(test)]
 #[path = "trigger_frame_event_tests.rs"]
 mod trigger_frame_event_tests;
+
+#[cfg(test)]
+#[path = "player_action_trigger_tests.rs"]
+mod player_action_trigger_tests;
+
+#[cfg(test)]
+#[path = "counter_event_trigger_tests.rs"]
+mod counter_event_trigger_tests;
+
+#[cfg(test)]
+#[path = "damage_event_trigger_tests.rs"]
+mod damage_event_trigger_tests;

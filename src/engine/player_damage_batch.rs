@@ -325,6 +325,13 @@ impl GameEngine {
                     r.amount,
                     &batch.source,
                 );
+                // One dealt-damage event per damaged player (CR 120.1).
+                self.enqueue_source_damage_observers(
+                    &batch.source,
+                    super::source_damage_observation::DamageRecipientRef::Player(&r.player_id),
+                    r.amount,
+                    false,
+                );
             }
         }
         if let Some(gain) = batch.life_gain {

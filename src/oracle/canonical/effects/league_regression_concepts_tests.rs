@@ -319,7 +319,8 @@ fn attached_object_events_bind_the_attachment_not_the_source() {
 fn attached_object_event_near_misses_fail_explicitly() {
     for text in [
         "Whenever equipped artifact dies, draw a card.",
-        "Whenever equipped creature deals combat damage to a creature, draw a card.",
+        // No aggregation over every recipient of one damage event is proved.
+        "Whenever equipped creature deals damage, draw a card.",
         "Whenever equipped creature attacks or blocks, draw a card.",
         "Whenever equipped creature dies draw a card.",
     ] {

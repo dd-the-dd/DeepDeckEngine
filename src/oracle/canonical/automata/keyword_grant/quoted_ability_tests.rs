@@ -168,12 +168,12 @@ fn a_static_has_predicate_grants_a_quoted_activated_or_mana_ability() {
 
 #[test]
 fn a_quote_with_a_non_canonical_inner_ability_fails_with_the_inner_diagnostic() {
-    // The runtime has no combat-only received-damage matcher, so the inner
-    // trigger is not representable and the grant must not be accepted with the
-    // quote dropped.
+    // A dealt-damage event without a recipient has no proved aggregation, so
+    // the inner trigger is not representable and the grant must not be
+    // accepted with the quote dropped.
     let parsed = parse(
         "Instant",
-        "Until end of turn, target creature you control gains indestructible and \"Whenever this creature is dealt combat damage, put that many +1/+1 counters on it.\"",
+        "Until end of turn, target creature you control gains indestructible and \"Whenever this creature deals damage, put that many +1/+1 counters on it.\"",
     );
     assert_ne!(parsed.status, "canonical");
     assert!(parsed.rule.is_none());

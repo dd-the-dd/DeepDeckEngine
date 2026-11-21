@@ -214,10 +214,6 @@ fn claimed_frames_report_the_furthest_event_failure() {
             "At the beginning of enchanted player's upkeep, draw a card.",
             "event.step.scope",
         ),
-        (
-            "Whenever you cycle another card, draw a card.",
-            "reference.source.start",
-        ),
         // A label naming a mechanic is not a rules-free flavor word (CR 207.2c).
         (
             "Exile Cannon \u{2014} When this creature enters, draw a card.",

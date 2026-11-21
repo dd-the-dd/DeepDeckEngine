@@ -86,13 +86,16 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         damage: DamageEventKind,
         amount: EventNumericBinding,
     },
-    /// `ACTOR VERB` player event: one shared actor reader composed with one
-    /// player-event verb (CR 119.9 life gain, 120 draw, 508.1 attack, ...).
+    /// `ACTOR VERB [or VERB]... [CARD]` player event: one shared actor reader
+    /// composed with player-event verbs (CR 119.9 life gain, 120 draw, 508.1
+    /// attack, 701.9 discard, 702.29 cycling, 701.22 scry, ...). A union
+    /// selects one occurrence and shares the actor and the card object.
     /// `one_or_more` reads the plural `one or more PLAYERS` actor (CR 603.2c).
     PlayerEvent {
         actor: super::EventActorScope,
-        action: PlayerEventAction,
+        actions: Vec<super::PlayerEventAction>,
         one_or_more: bool,
+        card: Option<super::PlayerEventCardObject>,
     },
     /// `equipped|enchanted creature VERB`: the event subject is the object the
     /// ability source is attached to (CR 301.5a, 303.4a), not the source.
@@ -100,6 +103,20 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         role: AttachedObjectRole,
         action: AttachedObjectEventAction,
     },
+    /// `SUBJECT deals [combat|noncombat] damage [to RECIPIENT]` (CR 120.1)
+    /// for the source or its attached object, beyond the established
+    /// `combat damage to a player` atoms.
+    DamageDealt {
+        subject: DamageDealer,
+        complement: super::DamageDealtComplement,
+    },
+}
+
+/// The object that deals the damage of a local damage event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DamageDealer {
+    Source(LocalObjectReference),
+    Attached(AttachedObjectRole),
 }
 
 /// How the ability source is attached to the event subject.
@@ -161,7 +178,15 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("deals"))
     {
-        cursor.consume_phrase(&["deals", "combat", "damage", "to", "a", "player"])?;
+        cursor.consume("deals")?;
+        let complement = super::recognize_damage_dealt_complement(cursor)?;
+        if !complement.is_combat_damage_to_any_player() {
+            cursor.enter("event.attached-object.complete");
+            return Ok(LocalTriggerEventNode::DamageDealt {
+                subject: DamageDealer::Attached(role),
+                complement,
+            });
+        }
         AttachedObjectEventAction::DealCombatDamageToPlayer
     } else if cursor
         .peek()
@@ -189,95 +214,6 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
     Ok(LocalTriggerEventNode::AttachedObjectEvent { role, action })
 }
 
-/// Player-event verbs. Each is a vocabulary atom; the actor and the lowering
-/// to a runtime event are independent concepts.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum PlayerEventAction {
-    GainLife,
-    LoseLife,
-    DrawCard,
-    Attack,
-    FaceDilemma,
-    BeDealtDamage(DamageEventKind),
-}
-
-impl PlayerEventAction {
-    /// Base and third-person verb forms followed by the fixed complement.
-    fn phrase(self, third_person: bool) -> &'static [&'static str] {
-        match (self, third_person) {
-            (Self::GainLife, false) => &["gain", "life"],
-            (Self::GainLife, true) => &["gains", "life"],
-            (Self::LoseLife, false) => &["lose", "life"],
-            (Self::LoseLife, true) => &["loses", "life"],
-            (Self::DrawCard, false) => &["draw", "a", "card"],
-            (Self::DrawCard, true) => &["draws", "a", "card"],
-            (Self::Attack, false) => &["attack"],
-            (Self::Attack, true) => &["attacks"],
-            (Self::FaceDilemma, false) => &["face", "a", "dilemma"],
-            (Self::FaceDilemma, true) => &["faces", "a", "dilemma"],
-            (Self::BeDealtDamage(DamageEventKind::Any), false) => &["are", "dealt", "damage"],
-            (Self::BeDealtDamage(DamageEventKind::Any), true) => &["is", "dealt", "damage"],
-            (Self::BeDealtDamage(DamageEventKind::Combat), false) => {
-                &["are", "dealt", "combat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Combat), true) => {
-                &["is", "dealt", "combat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Noncombat), false) => {
-                &["are", "dealt", "noncombat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Noncombat), true) => {
-                &["is", "dealt", "noncombat", "damage"]
-            }
-        }
-    }
-}
-
-const PLAYER_EVENT_ACTIONS: [PlayerEventAction; 8] = [
-    PlayerEventAction::GainLife,
-    PlayerEventAction::LoseLife,
-    PlayerEventAction::DrawCard,
-    PlayerEventAction::Attack,
-    PlayerEventAction::FaceDilemma,
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Any),
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Combat),
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Noncombat),
-];
-
-/// Recognizes `ACTOR VERB` after the trigger word. The actor comes from the
-/// shared event-actor reader; the verb must agree with it (`you gain`,
-/// `an opponent gains`). The enclosing envelope owns the comma and body.
-pub(in crate::oracle::canonical) fn recognize_player_event(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<LocalTriggerEventNode> {
-    cursor.enter("event.player.actor");
-    let plural = super::try_recognize_plural_event_actor_scope(cursor)?;
-    let one_or_more = plural.is_some();
-    let actor = match plural {
-        Some(actor) => actor,
-        None => super::try_recognize_event_actor_scope(cursor)?
-            .ok_or_else(|| cursor.fail("a player event actor"))?,
-    };
-    let third_person = actor != super::EventActorScope::Controller && !one_or_more;
-    cursor.enter("event.player.action");
-    for action in PLAYER_EVENT_ACTIONS {
-        let phrase = action.phrase(third_person);
-        if (0..phrase.len()).all(|offset| {
-            cursor
-                .peek_ahead(offset)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case(phrase[offset]))
-        }) {
-            cursor.consume_phrase(phrase)?;
-            return Ok(LocalTriggerEventNode::PlayerEvent {
-                actor,
-                action,
-                one_or_more,
-            });
-        }
-    }
-    Err(cursor.fail("a player-event verb agreeing with its actor"))
-}
-
 /// Recognizes the event atom `SOURCE is dealt [combat|noncombat] damage`. The
 /// enclosing triggered-ability machine owns `whenever` and the comma.
 pub(in crate::oracle::canonical) fn recognize_source_dealt_damage_event(
@@ -298,10 +234,10 @@ pub(in crate::oracle::canonical) fn recognize_source_dealt_damage_event(
     })
 }
 
-/// Recognizes the event atom `SOURCE deals combat damage to a player`. The
-/// enclosing triggered-ability machine owns `whenever` and the comma. A
-/// successful event exports the dealt amount as a typed numeric binding for
-/// later `that many` expressions.
+/// Recognizes the event atom `SOURCE deals [combat|noncombat] damage [to
+/// RECIPIENT]`. The enclosing triggered-ability machine owns `whenever` and
+/// the comma. `combat damage to a player` keeps its established atom; every
+/// event exports the dealt amount for later `that many` expressions.
 pub(in crate::oracle::canonical) fn recognize_combat_damage_to_player_event(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -311,16 +247,17 @@ pub(in crate::oracle::canonical) fn recognize_combat_damage_to_player_event(
     let source = recognize_source_reference(cursor, name_links, name_failure)?;
     cursor.enter("event.combat-damage.action");
     cursor.consume("deals")?;
-    cursor.enter("event.combat-damage.kind");
-    cursor.consume_phrase(&["combat", "damage"])?;
-    cursor.enter("event.combat-damage.recipient-relation");
-    cursor.consume("to")?;
-    cursor.enter("event.combat-damage.recipient");
-    cursor.consume_phrase(&["a", "player"])?;
+    let complement = super::recognize_damage_dealt_complement(cursor)?;
     cursor.enter("event.combat-damage.complete");
-    Ok(LocalTriggerEventNode::CombatDamageToPlayer {
-        source,
-        amount: EventNumericBinding::DamageAmount,
+    if complement.is_combat_damage_to_any_player() {
+        return Ok(LocalTriggerEventNode::CombatDamageToPlayer {
+            source,
+            amount: EventNumericBinding::DamageAmount,
+        });
+    }
+    Ok(LocalTriggerEventNode::DamageDealt {
+        subject: DamageDealer::Source(source),
+        complement,
     })
 }
 
