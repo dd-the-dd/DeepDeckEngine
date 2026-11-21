@@ -1,14 +1,18 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{ManaCostNode, recognize_mana_cost};
+use super::{ManaCostNode, ObjectPredicate, recognize_mana_cost, recognize_object_predicate_atom};
+use crate::oracle::characteristic_vocabulary::AcceptedForms;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EquipKeywordNode {
     pub cost: ManaCostNode,
+    /// CR 702.6c `Equip [quality] creature`: the legal-target restriction.
+    pub quality: Option<ObjectPredicate>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EquipState {
     Keyword,
+    Quality,
     Cost,
     ReminderOrComplete,
     ReminderOpen,
@@ -34,6 +38,7 @@ enum EquipState {
 
 #[derive(Default)]
 struct EquipMemory {
+    quality: Option<ObjectPredicate>,
     printed_cost: Option<ManaCostNode>,
     reminder_cost: Option<ManaCostNode>,
 }
@@ -50,6 +55,32 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
             EquipState::Keyword => {
                 cursor.enter("keyword.equip.keyword");
                 cursor.consume("equip")?;
+                EquipState::Quality
+            }
+            EquipState::Quality => {
+                cursor.enter("keyword.equip.quality");
+                if !cursor
+                    .peek_token()
+                    .is_some_and(|token| token.token_type == "manaSymbol")
+                {
+                    let mut atoms = Vec::new();
+                    while !cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("creature"))
+                    {
+                        atoms.push(recognize_object_predicate_atom(
+                            cursor,
+                            AcceptedForms::SingularOnly,
+                        )?);
+                    }
+                    cursor.require(!atoms.is_empty(), "a quality before `creature`")?;
+                    cursor.consume("creature")?;
+                    memory.quality = Some(if atoms.len() == 1 {
+                        atoms.remove(0)
+                    } else {
+                        ObjectPredicate::Intersection(atoms)
+                    });
+                }
                 EquipState::Cost
             }
             EquipState::Cost => {
@@ -61,7 +92,8 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
                 cursor.enter("keyword.equip.reminder-or-complete");
                 match cursor.peek() {
                     None => EquipState::Complete,
-                    Some("(") => EquipState::ReminderOpen,
+                    // The registered reminder names an unrestricted target.
+                    Some("(") if memory.quality.is_none() => EquipState::ReminderOpen,
                     _ => return Err(cursor.fail("a canonical Equip reminder or end of input")),
                 }
             }
@@ -171,8 +203,13 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
                 cursor.finish()?;
                 return Ok(EquipKeywordNode {
                     cost: cursor.require_value(memory.printed_cost, "a populated Equip cost")?,
+                    quality: memory.quality,
                 });
             }
         };
     }
 }
+
+#[cfg(test)]
+#[path = "equip_quality_tests.rs"]
+mod quality_tests;

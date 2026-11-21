@@ -82,7 +82,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         NumericExpression::CountQuery(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         NumericExpression::PowerOf(_)
         | NumericExpression::ManaValueOf(_)
-        | NumericExpression::QualifiedTargetProperty { .. } => {
+        | NumericExpression::QualifiedTargetProperty { .. }
+        | NumericExpression::CountersOnRecipient { .. } => {
             Err(TargetlessLoweringError::RequiresTarget)
         }
         NumericExpression::ObjectProperty { .. }

@@ -1698,6 +1698,16 @@ fn recognize_effect(
     }
     if cursor
         .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("double"))
+        && !cursor
+            .peek_ahead(1)
+            .is_some_and(|token| token.eq_ignore_ascii_case("strike"))
+    {
+        return super::recognize_double_counters_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::PutCounters);
+    }
+    if cursor
+        .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("put"))
     {
         if targeted_card_zone_move_starts(cursor) {

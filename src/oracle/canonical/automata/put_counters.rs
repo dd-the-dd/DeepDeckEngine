@@ -152,3 +152,49 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
         };
     }
 }
+
+/// `double the number of COUNTER counters on PERMANENT-OPERAND` (CR 701.10e):
+/// the doubled object is given as many counters of that kind as it already
+/// has. The keyword action is a typed expansion into the ordinary
+/// counter-placement action whose count is the recipient's own counter count;
+/// the permanent operand is the same child `put ... on` reads.
+pub(in crate::oracle::canonical) fn recognize_double_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PutCountersOnObjectEffectNode> {
+    cursor.enter("effect.double.action");
+    cursor.consume("double")?;
+    cursor.enter("effect.double.quantity");
+    cursor.require(
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("number")),
+        "`the number of` counters; doubling power, toughness, life or mana needs its own typed expansion",
+    )?;
+    cursor.consume_phrase(&["the", "number", "of"])?;
+    cursor.enter("effect.double.counter-kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("effect.double.counter-noun");
+    cursor.consume("counters")?;
+    cursor.enter("effect.double.relation");
+    cursor.consume("on")?;
+    cursor.enter("effect.double.permanent");
+    let permanent =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(PutCountersOnObjectEffectNode {
+        permanent,
+        count: NumericExpression::CountersOnRecipient {
+            counter: counter.clone(),
+        },
+        counter,
+    })
+}
+
+#[cfg(test)]
+#[path = "keyword_action_verb_tests.rs"]
+mod keyword_action_verb_tests;

@@ -11,6 +11,10 @@ mod bound_object_zone_identity;
 #[path = "tests/landwalk_runtime.rs"]
 mod landwalk_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/keyword_expansion_runtime.rs"]
+mod keyword_expansion_runtime;
+
 #[path = "tests/league_regression_runtime.rs"]
 mod league_regression_runtime;
 

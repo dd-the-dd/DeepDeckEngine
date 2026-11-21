@@ -83,6 +83,8 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("doubleAllCountersOnPermanents") => {
             player_reference_supported(&effect["player"]) && card_filter_supported(&effect["where"])
         }
+        // CR 701.34a: the proliferating player chooses the recipients.
+        Some("proliferate") => singular_player_reference_supported(&effect["player"]),
         Some("addPlayerCounters") => {
             player_reference_supported(&effect["player"])
                 && effect["counter"].is_string()
@@ -726,6 +728,9 @@ impl GameEngine {
                     );
                 }
             }
+            Some("proliferate") => {
+                self.proliferate(effect, stack_object, bindings, decisions, provider)?;
+            }
             Some("addPlayerCounters") => {
                 let Some(player_id) =
                     self.resolve_player(&effect["player"], stack_object, bindings)
@@ -788,6 +793,163 @@ impl GameEngine {
                 )));
             }
         }
+        Ok(())
+    }
+}
+
+/// Every subset of `objects` (smallest first), capped for the decision menu.
+fn proliferate_subsets(objects: &[String], maximum: usize) -> Vec<Vec<String>> {
+    let mut subsets = Vec::new();
+    for size in 0..=objects.len() {
+        subsets.extend(GameEngine::resolution_selections(
+            objects,
+            size,
+            maximum.saturating_sub(subsets.len()),
+        ));
+        if subsets.len() >= maximum {
+            break;
+        }
+    }
+    subsets
+}
+
+fn selected_ids(decisions: &BTreeMap<String, Value>, decision_id: &str) -> Vec<String> {
+    decisions
+        .get(decision_id)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn positive_counter_kinds(counters: &BTreeMap<String, i32>) -> Vec<String> {
+    counters
+        .iter()
+        .filter(|(_, count)| **count > 0)
+        .map(|(counter, _)| counter.clone())
+        .collect()
+}
+
+impl GameEngine {
+    /// CR 701.34a: choose any number of permanents and/or players that have a
+    /// counter, then give each one additional counter of each kind it already
+    /// has. Permanents and players are two typed selections of one choice;
+    /// permanent counters use the ordinary placement primitive.
+    fn proliferate<P: DecisionProvider>(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &mut BTreeMap<String, Value>,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        let player_id = self
+            .resolve_player(&effect["player"], stack_object, bindings)
+            .ok_or_else(|| EngineError::new("proliferate has no acting player"))?;
+        self.player_index(&player_id)?;
+        let permanent_candidates = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| !positive_counter_kinds(&permanent.counters).is_empty())
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>();
+        let player_candidates = self
+            .state
+            .players
+            .iter()
+            .filter(|player| {
+                !player.has_lost && !positive_counter_kinds(&player.counters).is_empty()
+            })
+            .map(|player| player.id.clone())
+            .collect::<Vec<_>>();
+        let sequence = self.state.events.len();
+        let mut chosen_permanents = Vec::new();
+        if !permanent_candidates.is_empty() {
+            let decision_id = format!("proliferatePermanents:{}:{sequence}", stack_object.id);
+            let values = proliferate_subsets(&permanent_candidates, 128);
+            self.make_resolution_decision(
+                &decision_id,
+                &player_id,
+                stack_object,
+                DecisionChoice::CardSelection {
+                    decision_id: decision_id.clone(),
+                    candidate_card_instance_ids: permanent_candidates.clone(),
+                    minimum: 0,
+                    maximum: permanent_candidates.len(),
+                    prompt: "Choose any number of permanents with counters to proliferate."
+                        .to_string(),
+                },
+                values,
+                decisions,
+                provider,
+            )?;
+            chosen_permanents = selected_ids(decisions, &decision_id);
+        }
+        let mut chosen_players = Vec::new();
+        if !player_candidates.is_empty() {
+            let decision_id = format!("proliferatePlayers:{}:{sequence}", stack_object.id);
+            let values = proliferate_subsets(&player_candidates, 128);
+            self.make_resolution_decision(
+                &decision_id,
+                &player_id,
+                stack_object,
+                DecisionChoice::OptionSelection {
+                    decision_id: decision_id.clone(),
+                    options: player_candidates.clone(),
+                    prompt: "Choose any number of players with counters to proliferate."
+                        .to_string(),
+                },
+                values,
+                decisions,
+                provider,
+            )?;
+            chosen_players = selected_ids(decisions, &decision_id);
+        }
+        for instance_id in chosen_permanents {
+            let kinds = self
+                .permanent_position(&instance_id)
+                .map(|(player_index, card_index)| {
+                    positive_counter_kinds(
+                        &self.state.players[player_index].battlefield[card_index].counters,
+                    )
+                })
+                .unwrap_or_default();
+            for counter in kinds {
+                self.place_counters(
+                    &instance_id,
+                    &counter,
+                    1,
+                    QuantityOrigin::Effect,
+                    Some(&player_id),
+                    provider,
+                )?;
+            }
+        }
+        for chosen in chosen_players {
+            let player_index = self.player_index(&chosen)?;
+            for counter in positive_counter_kinds(&self.state.players[player_index].counters) {
+                *self.state.players[player_index]
+                    .counters
+                    .entry(counter.clone())
+                    .or_default() += 1;
+                self.record_event(
+                    "playerCountersAdded",
+                    Some(chosen.clone()),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({ "count": 1, "counter": counter }),
+                );
+            }
+        }
+        self.record_event(
+            "proliferated",
+            Some(player_id),
+            Some(stack_object.card.instance_id.clone()),
+            json!({}),
+        );
         Ok(())
     }
 }

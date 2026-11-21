@@ -29,6 +29,10 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `sacrifices N QUERY [of their choice]` on the acting player's own
     /// permanents (CR 701.21a); the player chooses, then all are sacrificed.
     Sacrifice(PlayerSacrificeActionNode),
+    /// `proliferate` (CR 701.34a): the acting player chooses any number of
+    /// permanents and/or players that have a counter, then gives each one
+    /// additional counter of each kind already there.
+    Proliferate,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,7 +73,10 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         recognize_player_effect_subject(cursor, binding, antecedent, context.event_player)
     } else if let Some(player) = inherited {
         Ok(player.clone())
-    } else if head.eq_ignore_ascii_case("mill") || head.eq_ignore_ascii_case("venture") {
+    } else if head.eq_ignore_ascii_case("mill")
+        || head.eq_ignore_ascii_case("venture")
+        || head.eq_ignore_ascii_case("proliferate")
+    {
         // Imperative mood: an instruction without a subject is performed by
         // the ability's controller (`Mill two cards.`). Draw and life keep
         // their established imperative readers and exact historical IR.
@@ -88,7 +95,9 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
     // Imperative `discard`/`sacrifice` of the controller keeps its established
     // readers; these third-person actions belong to a non-controller subject.
     let is_third_person_other = matches!(verb.as_str(), "discards" | "sacrifices");
-    let claimed = is_draw || is_life || is_mill || is_venture || is_third_person_other;
+    let is_proliferate = matches!(verb.as_str(), "proliferate" | "proliferates");
+    let claimed =
+        is_draw || is_life || is_mill || is_venture || is_proliferate || is_third_person_other;
     // Exact old explicit life paths retain their nodes and diagnostics. The
     // shared sequence can still inherit their declared player for the next verb.
     if !claimed
@@ -130,6 +139,13 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action(
         SingularPlayerAction::Draw(recognize_draw_action_fragment(cursor, form, context)?)
     } else if is_mill {
         SingularPlayerAction::Mill(recognize_mill_action_fragment(cursor, form)?)
+    } else if is_proliferate {
+        cursor.enter("player-action.proliferate.verb");
+        cursor.consume(match form {
+            LifeVerbForm::Base => "proliferate",
+            LifeVerbForm::ThirdPersonSingular => "proliferates",
+        })?;
+        SingularPlayerAction::Proliferate
     } else if is_venture {
         SingularPlayerAction::Venture(recognize_venture_action_fragment(cursor, form)?)
     } else if verb == "discards" {
