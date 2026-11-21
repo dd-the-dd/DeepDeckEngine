@@ -26,6 +26,7 @@
 //! ability is never reported as unclaimed. Nothing here accepts a parse; the
 //! outcome is always an explicit failure.
 use super::super::*;
+use crate::oracle::ability_catalog::match_catalog_mechanic;
 use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
 use crate::oracle::model::RecognizedEntity;
 use crate::oracle::syntax::AbilityInput;
@@ -219,6 +220,101 @@ fn structural_keyword_line(tokens: &[RecognizedEntity], start: usize) -> bool {
     false
 }
 
+/// Root separators of a keyword line (CR 702.1): `,` `;` and `and` outside a
+/// reminder. Each item keeps the reminder that follows it.
+fn keyword_line_items(tokens: &[RecognizedEntity], start: usize) -> Vec<(usize, usize)> {
+    let mut items = Vec::new();
+    let mut item_start = start;
+    let mut depth = 0_usize;
+    for (index, token) in tokens.iter().enumerate().skip(start) {
+        match token.raw.as_str() {
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "," | ";" if depth == 0 => {
+                items.push((item_start, index));
+                item_start = index + 1;
+            }
+            raw if depth == 0 && raw.eq_ignore_ascii_case("and") => {
+                if item_start < index {
+                    items.push((item_start, index));
+                }
+                item_start = index + 1;
+            }
+            _ => {}
+        }
+    }
+    let end = if tokens.last().is_some_and(|token| token.raw == ".") {
+        tokens.len() - 1
+    } else {
+        tokens.len()
+    };
+    items.push((item_start, end.max(item_start)));
+    items.retain(|(item_start, item_end)| item_start < item_end);
+    items
+}
+
+/// The failure of a keyword line names the item that the shared keyword
+/// reader rejects, not the first keyword of the line. When every item reads
+/// alone, the separator joining them is what the list grammar lacks.
+fn keyword_line_failure(tokens: &[RecognizedEntity], start: usize) -> MachineFailure {
+    let items = keyword_line_items(tokens, start);
+    let failing = items.iter().position(|(item_start, item_end)| {
+        let mut cursor = OracleTokenCursor::new(
+            "ability-frame-keyword-item",
+            &tokens[*item_start..*item_end],
+        );
+        !matches!(
+            try_recognize_standalone_keyword_ability(&mut cursor),
+            StandaloneKeywordRecognition::Parsed(_)
+        )
+    });
+    let mut cursor = OracleTokenCursor::new("ability-frame", tokens);
+    match failing {
+        Some(index) => {
+            // An item that does not start with a keyword continues the
+            // previous item's parameters (`hexproof from X, Y, and Z`).
+            let owner = (0..=index)
+                .rev()
+                .find(|candidate| {
+                    let first = &tokens[items[*candidate].0];
+                    *candidate == 0
+                        || first.token_type == "keywordWord"
+                        || match_catalog_mechanic(tokens, items[*candidate].0).is_some()
+                })
+                .unwrap_or(0);
+            let item_start = items[owner].0;
+            let end = keyword_run_end(tokens, item_start);
+            cursor.enter("ability-frame.keyword.expansion");
+            let found = tokens[item_start..end]
+                .iter()
+                .map(|token| token.raw.as_str())
+                .collect::<Vec<_>>()
+                .join(" ");
+            cursor.fail_with_span(
+                "a keyword ability with a typed, executable rules expansion (CR 702)",
+                item_start,
+                tokens[item_start].span_start,
+                tokens[end - 1].span_end,
+                found,
+            )
+        }
+        None => {
+            let separator = items
+                .first()
+                .map_or(start, |(_, separator)| *separator)
+                .min(tokens.len().saturating_sub(1));
+            cursor.enter("ability-frame.keyword.list-separator");
+            cursor.fail_with_span(
+                "a keyword-list separator supported by the shared keyword list (CR 702.1)",
+                separator,
+                tokens[separator].span_start,
+                tokens[separator].span_end,
+                tokens[separator].raw.clone(),
+            )
+        }
+    }
+}
+
 /// The first root `enter`/`enters` before the first root comma, when it is
 /// followed by an entry modification rather than ending a clause.
 fn entry_modification_verb(tokens: &[RecognizedEntity], start: usize, end: usize) -> Option<usize> {
@@ -348,23 +444,7 @@ pub(in crate::oracle::canonical) fn claim_unclaimed_ability_frame(
         .unwrap_or(tokens.len());
     let after_comma = root.comma.map_or(tokens.len(), |comma| comma + 1);
     match recognize_ability_frame(input) {
-        AbilityFrame::Keyword => {
-            let end = keyword_run_end(tokens, start);
-            let mut cursor = OracleTokenCursor::new("ability-frame", tokens);
-            cursor.enter("ability-frame.keyword.expansion");
-            let found = tokens[start..end]
-                .iter()
-                .map(|token| token.raw.as_str())
-                .collect::<Vec<_>>()
-                .join(" ");
-            cursor.fail_with_span(
-                "a keyword ability with a typed, executable rules expansion (CR 702)",
-                start,
-                tokens[start].span_start,
-                tokens[end - 1].span_end,
-                found,
-            )
-        }
+        AbilityFrame::Keyword => keyword_line_failure(tokens, start),
         AbilityFrame::Activated => fail_at(
             input,
             "ability-frame.activated.program",
@@ -444,3 +524,7 @@ pub(in crate::oracle::canonical) fn claim_unclaimed_ability_frame(
 #[cfg(test)]
 #[path = "ability_frame_claim_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "ability_frame_keyword_list_tests.rs"]
+mod keyword_list_tests;
