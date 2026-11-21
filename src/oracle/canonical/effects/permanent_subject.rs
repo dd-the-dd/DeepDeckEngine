@@ -36,6 +36,7 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
+        LocalEffectNode::ControlChange(node) => &node.objects,
         _ => return None,
     };
     match operand {

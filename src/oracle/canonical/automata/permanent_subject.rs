@@ -105,6 +105,9 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::PermanentKeywordAction(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
+        LocalEffectNode::ControlChange(node) => {
+            Local(subject_after_operand(&node.objects, effect_index))
+        }
         LocalEffectNode::Attach(node) => {
             Local(subject_after_operand(&node.recipient, effect_index))
         }
@@ -172,6 +175,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::CardAction(_)
         | LocalEffectNode::OptionalSequence(_)
         | LocalEffectNode::CounterSpell(_)
+        | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::Retarget(_)
         | LocalEffectNode::DrawCards(_)
         | LocalEffectNode::DiscardCards(_)
@@ -258,6 +262,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
+        LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,
         LocalEffectNode::Choose(node) => {
             return node

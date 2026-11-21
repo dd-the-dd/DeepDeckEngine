@@ -99,6 +99,15 @@ fn read_static_continuous_effect(
         cursor.enter("static.continuous.leading-condition.separator");
         cursor.consume(",")?;
     }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("control"))
+    {
+        return read_controller_predicate(cursor, input, committed, condition);
+    }
     let (objects, subject_predicate, subject_number) = read_subject(cursor, input)?;
     let source_subject = objects == self_ref();
     let mut modifiers = Vec::new();
@@ -252,6 +261,38 @@ fn read_static_continuous_effect(
     cursor.enter("static.continuous.complete");
     cursor.finish()?;
     Ok((modifiers, condition))
+}
+
+/// `you control OBJECT.` (CR 613.1b, layer 2): the controller of the static
+/// ability's source controls the object. The object is the shared static
+/// subject child; the engine's control layer covers the attached permanent.
+fn read_controller_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+    committed: &mut bool,
+    condition: Option<StaticConditionNode>,
+) -> MachineResult<(Vec<Value>, Option<StaticConditionNode>)> {
+    cursor.enter("static.continuous.control.subject");
+    cursor.consume_phrase(&["you", "control"])?;
+    cursor.enter("static.continuous.control.object");
+    let (objects, _, _) = read_subject(cursor, input)?;
+    *committed = true;
+    cursor.require(
+        objects == json!({ "kind": "attachedPermanent", "attachment": self_ref() }),
+        "the attached permanent as the controlled object",
+    )?;
+    cursor.require(
+        condition.is_none(),
+        "an unconditional control-changing static ability",
+    )?;
+    cursor.enter("static.continuous.control.terminator");
+    cursor.consume(".")?;
+    cursor.enter("static.continuous.complete");
+    cursor.finish()?;
+    Ok((
+        vec![json!({ "kind": "controlAttachedPermanent", "attachment": self_ref() })],
+        None,
+    ))
 }
 
 const PREDICATE_VERBS: [&str; 6] = ["get", "gets", "have", "has", "is", "are"];

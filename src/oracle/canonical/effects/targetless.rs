@@ -298,6 +298,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             Ok(lower_destroy_permanent_collection_effect(effect))
         }
         LocalEffectNode::Retarget(_)
+        | LocalEffectNode::ControlChange(_)
+        | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::TemporaryKeywordGrant(_)
         | LocalEffectNode::MillCards(_)
