@@ -635,6 +635,41 @@ fn recognize_effect_sequence_attempt_internal(
                         .cloned(),
                     _ => None,
                 };
+                // `its controller` / `that NOUN's owner`: the singular object
+                // of the previous action (a countered spell, or the permanent
+                // subject scope), with the selector that declared it.
+                let object_antecedent = match memory.effects.last() {
+                    Some(LocalEffectNode::CounterSpell(counter))
+                        if counter.target.slots.len() == 1
+                            && counter.target.slots[0].cardinality.maximum == 1 =>
+                    {
+                        Some(super::ObjectSubjectAntecedent {
+                            reference: super::PermanentEffectReference::Target(TargetBinding {
+                                effect_index: effect_index - 1,
+                                slot_index: 0,
+                            }),
+                            selector: Some(counter.target.slots[0].selector.clone()),
+                        })
+                    }
+                    Some(LocalEffectNode::CounterSpell(_)) => None,
+                    _ => super::permanent_subject::proven_permanent_antecedent(&action_context)
+                        .map(|reference| super::ObjectSubjectAntecedent {
+                            reference,
+                            selector: match reference {
+                                super::PermanentEffectReference::Target(binding) => memory
+                                    .effects
+                                    .get(binding.effect_index)
+                                    .and_then(|effect| {
+                                        super::permanent_subject::target_slot_selector(
+                                            effect,
+                                            binding.slot_index,
+                                        )
+                                    })
+                                    .cloned(),
+                                _ => None,
+                            },
+                        }),
+                };
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
@@ -708,6 +743,7 @@ fn recognize_effect_sequence_attempt_internal(
                         // an action head even when the lexical name resolver
                         // left its words unresolved; it is never a source name.
                         if super::venture_action_starts(attempt)
+                            || super::defending_player_starts(attempt)
                             || !source_reference_starts_at(
                                 attempt.position(),
                                 attempt.peek(),
@@ -739,13 +775,14 @@ fn recognize_effect_sequence_attempt_internal(
                                     return Err(failure);
                                 }
                             }
-                            match super::try_recognize_player_action(
+                            match super::try_recognize_player_action_with_object_antecedent(
                                 attempt,
                                 super::PlayerBinding(effect_index),
                                 memory
                                     .last_player_target
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
                                 memory.current_player_subject.as_ref(),
+                                object_antecedent.clone(),
                                 &action_context,
                             ) {
                                 Ok(Some(action)) => {

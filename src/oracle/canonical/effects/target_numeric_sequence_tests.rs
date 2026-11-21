@@ -37,10 +37,15 @@ fn permanent_property_read_after_destruction_preserves_primitive_sequence() {
 }
 
 #[test]
-fn post_zone_controller_reference_stays_capped_despite_numeric_lki_support() {
-    let failure =
+fn post_zone_controller_reference_reads_the_original_target() {
+    // The target's departure record now carries its controller (CR 608.2h);
+    // the runtime proof lives in engine/tests/reference_anaphora_runtime.rs.
+    let result =
         lower("Destroy target creature. Its controller gains life equal to its mana value.")
-            .err()
-            .expect("numeric LKI does not prove a controller snapshot");
-    assert_eq!(failure.state, "sequence.target-numeric.lki-support");
+            .unwrap();
+    assert_eq!(result.effects[0]["kind"], "destroyPermanent");
+    assert_eq!(
+        result.effects[1],
+        json!({"kind":"gainLife","player":{"kind":"controllerOf","object":{"kind":"chosenTarget","id":"targetPermanent"}},"amount":{"kind":"manaValueOf","object":{"kind":"chosenTarget","id":"targetPermanent"}}})
+    );
 }

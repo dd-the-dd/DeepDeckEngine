@@ -54,14 +54,39 @@ fn exile_then_controller_life_snapshots_values_before_the_zone_change() {
 }
 
 #[test]
-fn unsupported_owner_or_toughness_followups_do_not_approximate_controller_and_power() {
-    for oracle_text in [
-        "Exile target creature. Its owner gains life equal to its power.",
-        "Exile target creature. Its controller gains life equal to its toughness.",
+fn owner_or_toughness_followups_compose_without_approximating_controller_and_power() {
+    // The shared player-action child reads `its owner` and the shared numeric
+    // child reads `its toughness`; the runtime resolves both from the target's
+    // last known information (CR 608.2h). Neither becomes controller/power.
+    for (oracle_text, relation, property) in [
+        (
+            "Exile target creature. Its owner gains life equal to its power.",
+            "ownerOf",
+            "powerOf",
+        ),
+        (
+            "Exile target creature. Its controller gains life equal to its toughness.",
+            "controllerOf",
+            "toughnessOf",
+        ),
     ] {
         let parsed = parse_spell(oracle_text);
-        assert_eq!(parsed.status, "unsupported");
-        assert!(parsed.abilities[0].rule.is_none());
+        assert_eq!(parsed.status, "canonical", "{oracle_text}");
+        assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
+        let rule = parsed.abilities[0]
+            .rule
+            .as_ref()
+            .expect("the composed sequence should produce primitive IR");
+        let effects = rule["effects"].as_array().expect("ordered effects");
+        assert_eq!(effects.len(), 2, "{oracle_text}");
+        assert_eq!(effects[0]["kind"], "exilePermanent");
+        let target = &effects[0]["permanent"];
+        assert_eq!(target["kind"], "chosenTarget");
+        assert_eq!(effects[1]["kind"], "gainLife");
+        assert_eq!(effects[1]["player"]["kind"], relation, "{oracle_text}");
+        assert_eq!(&effects[1]["player"]["object"], target);
+        assert_eq!(effects[1]["amount"]["kind"], property, "{oracle_text}");
+        assert_eq!(&effects[1]["amount"]["object"], target);
     }
 }
 
@@ -69,9 +94,10 @@ fn unsupported_owner_or_toughness_followups_do_not_approximate_controller_and_po
 fn committed_near_misses_report_the_responsible_local_automaton_state() {
     for (oracle_text, expected_state, found) in [
         (
-            "Exile target creature. Its controller gains life equal to its toughness.",
-            "sequence.exile-anaphora.validation",
-            None,
+            // A player has no power: the possessive must name an object.
+            "Exile target creature. Its controller gains life equal to that player's power.",
+            "numeric.expression.object-reference.nominal",
+            Some("player's"),
         ),
         (
             // `Hero` is now a cataloged creature subtype; use an unknown noun.

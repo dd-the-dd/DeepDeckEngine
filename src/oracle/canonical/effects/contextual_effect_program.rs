@@ -431,7 +431,9 @@ fn activation_body_context(
             | LocalActivationCostNode::DiscardSelf(_)
             | LocalActivationCostNode::ExileSelf(_) => false,
         });
-    let mut context = base.clone();
+    let mut context = base
+        .clone()
+        .with_source_attachment(source_attachment_role(face_type_line));
     context.source = None;
     context.source_cast_x = false;
     // A card discarded, exiled or sacrificed to pay for its own ability is
@@ -445,6 +447,27 @@ fn activation_body_context(
                 | LocalActivationCostNode::SacrificeSelf(_)
         )
     }) {
+        context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
+    }
+    // `Remove a counter from this creature: It deals 1 damage ...`: a cost
+    // that names the source while it stays on the battlefield is the only
+    // object antecedent when no other cost names an object.
+    let names_other_object = costs.costs.iter().any(|cost| {
+        matches!(
+            cost,
+            LocalActivationCostNode::TapObjects(_)
+                | LocalActivationCostNode::SacrificeObject(_)
+                | LocalActivationCostNode::ExileCards(_)
+                | LocalActivationCostNode::DiscardCard(_)
+                | LocalActivationCostNode::RemoveControlledCounters(_)
+        )
+    });
+    if !names_other_object
+        && costs
+            .costs
+            .iter()
+            .any(|cost| matches!(cost, LocalActivationCostNode::RemoveSourceCounters(_)))
+    {
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
     }
     context.source_numeric_reads =
