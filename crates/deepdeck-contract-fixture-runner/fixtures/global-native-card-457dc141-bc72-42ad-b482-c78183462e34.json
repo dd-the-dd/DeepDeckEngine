@@ -1,0 +1,46 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/457dc141-bc72-42ad-b482-c78183462e34/complete-rule-set",
+    "cardName":  "Forced March",
+    "oracleId":  "457dc141-bc72-42ad-b482-c78183462e34",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "and",
+                                                                          "operands":  [
+                                                                                           {
+                                                                                               "kind":  "cardTypeContains",
+                                                                                               "value":  "Creature"
+                                                                                           },
+                                                                                           {
+                                                                                               "kind":  "compare",
+                                                                                               "left":  {
+                                                                                                            "kind":  "manaValueOf",
+                                                                                                            "object":  {
+                                                                                                                           "kind":  "candidate"
+                                                                                                                       }
+                                                                                                        },
+                                                                                               "operator":  "\u003c=",
+                                                                                               "right":  {
+                                                                                                             "decisionId":  "xValue",
+                                                                                                             "kind":  "decisionResult"
+                                                                                                         }
+                                                                                           }
+                                                                                       ]
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

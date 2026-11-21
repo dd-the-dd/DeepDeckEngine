@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "flashback/complete-exact-input",
+  "cardName": "Faithless Looting",
+  "oracleId": "3d6fa57a-aa53-4b5c-b8af-a7612c823117",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "fc019ffa-4461-4f3d-ab8d-e4d20e77ca0c",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Faithless Looting",
+      "typeLine": "Sorcery",
+      "manaCost": "{R}",
+      "oracleText": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/1729317d-ccfb-4f27-84c6-20b36b2826c9",
+  "cardName": "Krosan Wayfarer",
+  "oracleId": "1729317d-ccfb-4f27-84c6-20b36b2826c9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5356e684-c2fc-465e-a16c-7300824d2a8d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Krosan Wayfarer",
+      "typeLine": "Creature — Human Druid",
+      "manaCost": "{G}",
+      "oracleText": "Sacrifice this creature: You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

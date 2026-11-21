@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/69003cbc-8e5a-41dc-ac53-18f6e776217b",
+  "cardName": "Sparkmage Apprentice",
+  "oracleId": "69003cbc-8e5a-41dc-ac53-18f6e776217b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "22331eb5-c791-4d38-a6f7-cc5f4ef815ef",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Sparkmage Apprentice",
+      "typeLine": "Creature — Human Wizard",
+      "manaCost": "{1}{R}",
+      "oracleText": "When this creature enters, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "target-slot/another-combat-exclusion",
+  "cardName": "Deserter's Disciple",
+  "oracleId": "73ca3132-d849-4cf9-beba-75ba09789332",
+  "cases": [
+    {
+      "id": "exact-deserters-disciple",
+      "request": {
+        "cardName": "Deserter's Disciple",
+        "typeLine": "Creature — Human Rebel Ally",
+        "manaCost": "{1}{R}",
+        "oracleText": "{T}: Another target creature you control with power 2 or less can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "excludeSource": true,
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "operator": "<=",
+                            "left": {
+                              "kind": "powerOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "right": {
+                              "kind": "integer",
+                              "value": 2
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-target-with-union-predicate-sibling",
+      "request": {
+        "cardName": "Union Gate",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Another target artifact or creature you control can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "excludeSource": true,
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "cantBeBlocked",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

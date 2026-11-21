@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "post-freeze-holdout-up-to-two-artifacts-reveal-move-graveyard",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 6
+        },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "lookedCards"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 2
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "filterObjects",
+                "objects": {
+                  "kind": "boundObjects",
+                  "binding": "lookedCards"
+                },
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                }
+              }
+            }
+          ]
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Artifact"
+        }
+      },
+      {
+        "kind": "revealCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForHand"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForHand"
+        },
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "holdout-source",
+            "name": "Independent Collection Composition",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{U}"
+          },
+          {
+            "id": "unobserved-hand-artifact",
+            "name": "Unobserved Hand Artifact",
+            "typeLine": "Artifact"
+          }
+        ],
+        "library": [
+          {
+            "id": "holdout-artifact-a",
+            "name": "Observed Artifact A",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "holdout-artifact-b",
+            "name": "Observed Artifact B",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "holdout-creature",
+            "name": "Observed Creature",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "holdout-land",
+            "name": "Observed Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "holdout-instant",
+            "name": "Observed Instant",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "holdout-sorcery",
+            "name": "Observed Sorcery",
+            "typeLine": "Sorcery"
+          }
+        ],
+        "manaPool": [
+          "C",
+          "C",
+          "U"
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "holdout-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "holdout-artifact-a",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "holdout-artifact-b",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "holdout-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "holdout-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "holdout-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "holdout-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "holdout-sorcery",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "unobserved-hand-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 4
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

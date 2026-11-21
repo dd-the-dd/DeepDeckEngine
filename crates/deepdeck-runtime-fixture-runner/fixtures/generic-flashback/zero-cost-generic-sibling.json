@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "flashback/zero-cost-generic-sibling",
+  "seed": 7041,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 1
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "graveyard": [
+          {
+            "id": "generic-zero",
+            "name": "Generic Zero Recast",
+            "typeLine": "Sorcery",
+            "manaCost": "{5}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": 1
+                  }
+                ]
+              },
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "flashback",
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "draw-one",
+            "name": "draw-one",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "draw-two",
+            "name": "draw-two",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "manaPool": []
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 1
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "exile",
+      "definitionId": "generic-zero",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

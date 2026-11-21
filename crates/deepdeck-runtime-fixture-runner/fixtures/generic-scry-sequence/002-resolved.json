@@ -1,0 +1,488 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "scry-sequence/preordain-resolved-watcher",
+  "seed": 73,
+  "rule": {
+    "effects": [
+      {
+        "bind": "effect0:scryLookedCards",
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "from": {
+          "binding": "effect0:scryLookedCards",
+          "kind": "boundObjects"
+        },
+        "id": "effect0:scryBottomCards",
+        "kind": "chooseCards",
+        "maximum": {
+          "kind": "countObjects",
+          "objects": {
+            "binding": "effect0:scryLookedCards",
+            "kind": "boundObjects"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "id": "effect0:scryBottomOrder",
+        "kind": "chooseOrder",
+        "objects": {
+          "decisionId": "effect0:scryBottomCards",
+          "kind": "decisionResult"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "effect0:scryBottomOrder",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "order": {
+          "decisionId": "effect0:scryBottomOrder",
+          "kind": "decisionOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "bottom"
+        }
+      },
+      {
+        "id": "effect0:scryTopOrder",
+        "kind": "chooseOrder",
+        "objects": {
+          "kind": "setDifference",
+          "left": {
+            "binding": "effect0:scryLookedCards",
+            "kind": "boundObjects"
+          },
+          "right": {
+            "decisionId": "effect0:scryBottomCards",
+            "kind": "decisionResult"
+          }
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "effect0:scryTopOrder",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "order": {
+          "decisionId": "effect0:scryTopOrder",
+          "kind": "decisionOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "top"
+        }
+      },
+      {
+        "abilityId": "scry",
+        "kind": "emitAbilitySignal",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pilot",
+        "battlefield": [
+          {
+            "id": "scry-watcher",
+            "name": "Scry Watcher",
+            "typeLine": "Creature — Wizard",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "abilityPerformed",
+                  "abilityId": "scry",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "preordain",
+            "name": "Preordain",
+            "typeLine": "Sorcery",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "bind": "effect0:scryLookedCards",
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "lookAtTopCards",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "from": {
+                      "binding": "effect0:scryLookedCards",
+                      "kind": "boundObjects"
+                    },
+                    "id": "effect0:scryBottomCards",
+                    "kind": "chooseCards",
+                    "maximum": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "binding": "effect0:scryLookedCards",
+                        "kind": "boundObjects"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "id": "effect0:scryBottomOrder",
+                    "kind": "chooseOrder",
+                    "objects": {
+                      "decisionId": "effect0:scryBottomCards",
+                      "kind": "decisionResult"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "effect0:scryBottomOrder",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "order": {
+                      "decisionId": "effect0:scryBottomOrder",
+                      "kind": "decisionOrder"
+                    },
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "position": "bottom"
+                    }
+                  },
+                  {
+                    "id": "effect0:scryTopOrder",
+                    "kind": "chooseOrder",
+                    "objects": {
+                      "kind": "setDifference",
+                      "left": {
+                        "binding": "effect0:scryLookedCards",
+                        "kind": "boundObjects"
+                      },
+                      "right": {
+                        "decisionId": "effect0:scryBottomCards",
+                        "kind": "decisionResult"
+                      }
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "effect0:scryTopOrder",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "order": {
+                      "decisionId": "effect0:scryTopOrder",
+                      "kind": "decisionOrder"
+                    },
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "position": "top"
+                    }
+                  },
+                  {
+                    "abilityId": "scry",
+                    "kind": "emitAbilitySignal",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "library-bottom",
+            "name": "library-bottom",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "watcher-draw",
+            "name": "watcher-draw",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "spell-draw",
+            "name": "spell-draw",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "put-on-bottom",
+            "name": "put-on-bottom",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "manaPool": [
+          "U"
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "preordain"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "spell-draw",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "put-on-bottom",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "preordain",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 2
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "watcher-draw",
+      "equals": true
+    }
+  ]
+}

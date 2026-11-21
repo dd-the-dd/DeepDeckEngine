@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "tatyova-benthic-druid/permanent-entered-is-executable",
+  "cardName": "Tatyova, Benthic Druid",
+  "oracleId": "0715e860-3b3b-4331-9718-207973e94fee",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "cardTypeContains", "value": "Land" }
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      },
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  }
+}

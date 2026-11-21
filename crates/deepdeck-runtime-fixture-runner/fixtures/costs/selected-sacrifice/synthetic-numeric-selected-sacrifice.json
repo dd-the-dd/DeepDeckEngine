@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-numeric-cost/same-x-binds-payment-and-chosen-object-filter",
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{X}"
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent1"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseNumber",
+          "id": "xValue",
+          "minimum": 0
+        },
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent1",
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "right": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Payer",
+        "manaPool": [
+          "C",
+          "C"
+        ],
+        "battlefield": [
+          {
+            "id": "numeric-source",
+            "name": "Synthetic Numeric Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{X}"
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "chosenObject",
+                      "id": "activationCostPermanent1"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseNumber",
+                      "id": "xValue",
+                      "minimum": 0
+                    },
+                    {
+                      "kind": "chooseObjects",
+                      "id": "activationCostPermanent1",
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "compare",
+                              "operator": "<=",
+                              "left": {
+                                "kind": "powerOf",
+                                "object": {
+                                  "kind": "candidate"
+                                }
+                              },
+                              "right": {
+                                "kind": "decisionResult",
+                                "decisionId": "xValue"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "power-two",
+            "name": "Power Two",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "power-three",
+            "name": "Power Three",
+            "typeLine": "Creature",
+            "power": "3",
+            "toughness": "3"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "numeric-source",
+      "abilityRuleIndex": 0,
+      "declarationDecisions": {
+        "xValue": 2
+      },
+      "targets": {
+        "activationCostPermanent1": {
+          "kind": "permanentDefinition",
+          "definitionId": "power-two"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "power-two",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "power-three",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "numeric-source",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentLeftBattlefield",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

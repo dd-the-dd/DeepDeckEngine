@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "scry-sequence/preordain-complete-input",
+  "cardName": "Preordain",
+  "oracleId": "ac641490-ca14-48d7-8cc4-b69ce984befa",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "dd29a0e5-c1de-4e8a-8866-715e9f9cde1f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Preordain",
+      "typeLine": "Sorcery",
+      "manaCost": "{U}",
+      "oracleText": "Scry 2, then draw a card. (To scry 2, look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

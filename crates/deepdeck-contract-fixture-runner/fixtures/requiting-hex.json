@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "requiting-hex/qualified-destroy-and-paid-cost-life-is-executable",
+  "cardName": "Requiting Hex",
+  "oracleId": "eda16b31-33db-4ad2-901a-80fbe6273733",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                  "right": { "kind": "integer", "value": 2 }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "additionalCostMode" },
+          "value": "pay"
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 2 }
+          }
+        ],
+        "else": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Cathartic-Reunion/casting-source-in-plural-selection-rejected",
+  "seed": 1522,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 3
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reunion caster",
+        "manaPool": [
+          "R",
+          "C"
+        ],
+        "library": [
+          {
+            "id": "drawn-one",
+            "name": "drawn-one",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "drawn-two",
+            "name": "drawn-two",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "drawn-three",
+            "name": "drawn-three",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "cathartic-reunion",
+            "name": "Cathartic Reunion",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseObjects",
+                      "id": "additionalCostCard",
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": null
+                      },
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 2
+                        }
+                      }
+                    }
+                  ],
+                  "additionalCosts": [
+                    {
+                      "kind": "discardCard",
+                      "card": {
+                        "kind": "chosenObject",
+                        "id": "additionalCostCard:0"
+                      }
+                    },
+                    {
+                      "kind": "discardCard",
+                      "card": {
+                        "kind": "chosenObject",
+                        "id": "additionalCostCard:1"
+                      }
+                    }
+                  ]
+                },
+                "effects": []
+              },
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 3
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "payment-one",
+            "name": "payment-one",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "payment-two",
+            "name": "payment-two",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "cathartic-reunion",
+      "equals": false,
+      "declarationDecisions": {
+        "additionalCostCard": [
+          {
+            "card": {
+              "instanceId": "player-0:cathartic-reunion:3"
+            }
+          },
+          {
+            "card": {
+              "instanceId": "player-0:payment-one:4"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 3
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "R",
+        "C"
+      ]
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

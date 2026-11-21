@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/loseLifeEachOpponent",
+  "cardName": "Retired opponent-loss adapter",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "loseLifeEachOpponent",
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

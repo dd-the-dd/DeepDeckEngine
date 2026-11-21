@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "volcanic-island-chooses-blue-mana",
+  "seed": 79,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Volcanic Island pilot",
+        "battlefield": [{
+          "id": "volcanic-island",
+          "name": "Volcanic Island",
+          "typeLine": "Land - Island Mountain"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "volcanic-island",
+    "manaSymbols": ["U"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "volcanic-island", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

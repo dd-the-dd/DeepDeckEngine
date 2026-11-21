@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/7ef67bae-4af3-47b9-95d2-08f3c5a0b39d",
+  "cardName": "Stonybrook Schoolmaster",
+  "oracleId": "7ef67bae-4af3-47b9-95d2-08f3c5a0b39d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "69fa2293-f398-4ad8-895e-c739ddea56d0",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Stonybrook Schoolmaster",
+      "typeLine": "Creature — Merfolk Wizard",
+      "manaCost": "{2}{W}",
+      "oracleText": "Whenever this creature becomes tapped, you may create a 1/1 blue Merfolk Wizard creature token.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-prohibition/opponent-graveyard-card-stays-put",
+  "seed": 1914,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveTopMatchingCard",
+        "zone": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        },
+        "grantKeywords": [],
+        "exileAtNextEndStep": false
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "cage",
+            "name": "Grafdigger's Cage",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitEnterBattlefieldFromZones",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "prohibitCastFromZones",
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "zones": [
+                      "graveyard",
+                      "library"
+                    ]
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "graveyard": [
+          {
+            "id": "candidate",
+            "name": "candidate",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p1",
+    "sourceDefinitionId": "executor"
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "definitionId": "candidate",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "candidate",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardMovedToBattlefield",
+      "equals": 0
+    }
+  ]
+}

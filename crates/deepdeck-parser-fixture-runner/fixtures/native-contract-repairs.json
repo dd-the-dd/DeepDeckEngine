@@ -1,0 +1,282 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "native-contract-repairs",
+  "cases": [
+    {
+      "id": "faerie-trickery-complete",
+      "request": {
+        "cardName": "Faerie Trickery",
+        "typeLine": "Kindred Instant — Faerie",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Counter target non-Faerie spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "spells",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "subtypeContains",
+                          "value": "Faerie"
+                        }
+                      }
+                    },
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "exileInstead": true,
+                  "kind": "counterSpell",
+                  "spell": {
+                    "id": "targetSpell",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "containment-priest-complete",
+      "request": {
+        "cardName": "Containment Priest",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "Flash\nIf a nontoken creature would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "ability": {
+                "kind": "flash"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "destination": "exile",
+                  "kind": "prohibitUncastBattlefieldEntry",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "isToken"
+                        }
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "artifact-source-and-object-sibling",
+      "request": {
+        "cardName": "Entry Scope Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "If a nontoken artifact would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "destination": "exile",
+                  "kind": "prohibitUncastBattlefieldEntry",
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "isToken"
+                        }
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "nonpermanent-source-rejected",
+      "request": {
+        "cardName": "Entry Scope Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "If a nontoken artifact would enter and it wasn't cast, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "replacement.uncast-entry.source-domain",
+            "expectedContains": "a permanent source face"
+          }
+        ]
+      }
+    },
+    {
+      "id": "stack-subtype-non-goblin-sibling",
+      "request": {
+        "cardName": "Subtype Counter Probe",
+        "typeLine": "Kindred Instant — Faerie",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Counter target non-Goblin spell. If that spell is countered this way, exile it instead of putting it into its owner's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "spells",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "subtypeContains",
+                          "value": "Goblin"
+                        }
+                      }
+                    },
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "exileInstead": true,
+                  "kind": "counterSpell",
+                  "spell": {
+                    "id": "targetSpell",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

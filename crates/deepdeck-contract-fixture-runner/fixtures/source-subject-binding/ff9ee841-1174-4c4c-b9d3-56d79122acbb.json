@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/ff9ee841-1174-4c4c-b9d3-56d79122acbb",
+  "cardName": "Elemental",
+  "oracleId": "ff9ee841-1174-4c4c-b9d3-56d79122acbb",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "e4c5edb6-58be-4e61-9c3a-699816f9160f",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Elemental",
+      "typeLine": "Token Creature — Elemental",
+      "manaCost": "",
+      "oracleText": "Whenever this creature becomes tapped, it deals 1 damage to target player.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

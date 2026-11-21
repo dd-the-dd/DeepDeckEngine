@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "spirebluff-canal/all-native-rules-are-executable",
+  "cardName": "Spirebluff Canal",
+  "oracleId": "eb0d8093-5f93-4b25-9384-08f9731bfb28",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "condition": {
+        "kind": "not",
+        "operand": {
+          "kind": "compare",
+          "operator": "<=",
+          "left": {
+            "kind": "countPermanents",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Land" }
+          },
+          "right": { "kind": "integer", "value": 2 }
+        }
+      },
+      "replacement": [
+        { "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }
+      ]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+      }]
+    }
+  ]
+}

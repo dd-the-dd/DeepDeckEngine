@@ -46,7 +46,7 @@
           "object": { "kind": "self" }
         },
         "decisions": [{
-          "id": "payTwoLife",
+          "id": "optionalLifePayment",
           "kind": "chooseWhetherToPay",
           "player": { "kind": "controllerOf", "object": { "kind": "self" } },
           "cost": {
@@ -58,7 +58,7 @@
           "kind": "conditional",
           "condition": {
             "kind": "not",
-            "operand": { "kind": "costWasPaid", "decisionId": "payTwoLife" }
+            "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
           },
           "then": [{
             "kind": "setEnteringState",

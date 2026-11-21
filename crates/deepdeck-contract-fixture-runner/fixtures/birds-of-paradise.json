@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "birds-of-paradise/native-keyword-and-mana-rules-are-executable",
+  "cardName": "Birds of Paradise",
+  "oracleId": "d3a0b660-358c-41bd-9cd2-41fbf3491b1a",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flying" }
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseColor", "amount": 1 }
+      }]
+    }
+  ]
+}

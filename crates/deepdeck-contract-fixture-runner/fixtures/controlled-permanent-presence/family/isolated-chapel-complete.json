@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-isolated-chapel",
+  "cardName": "Isolated Chapel",
+  "oracleId": "7e5d9efe-48a9-434b-bb09-056e0e09cc9a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "e992b8e8-1d0c-4c44-b413-10d6596c9b23",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Isolated Chapel",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "This land enters tapped unless you control a Plains or a Swamp.\n{T}: Add {W} or {B}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

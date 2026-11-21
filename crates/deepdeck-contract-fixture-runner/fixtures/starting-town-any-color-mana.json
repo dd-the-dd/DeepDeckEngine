@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "starting-town/life-cost-any-color-mana-is-executable",
+  "cardName": "Starting Town",
+  "oracleId": "d04e0975-f401-41b8-a9db-9bcf9cbbce66",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      {
+        "kind": "payLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseColor", "amount": 1 }
+      }
+    ]
+  }
+}

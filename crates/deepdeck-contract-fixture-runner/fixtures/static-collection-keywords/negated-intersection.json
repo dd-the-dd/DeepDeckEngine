@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "static-collection-keywords/negated-intersection",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": {
+        "kind": "self"
+      },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                }
+              ]
+            },
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "keyword": "hexproof"
+        }
+      ]
+    }
+  ]
+}

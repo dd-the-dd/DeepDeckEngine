@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-numeric/provisional-feed-the-swarm-after-destroy",
+  "seed": 16301,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                }
+              ]
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      },
+      {
+        "amount": {
+          "kind": "manaValueOf",
+          "object": {
+            "id": "targetPermanent",
+            "kind": "chosenTarget"
+          }
+        },
+        "kind": "loseLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "B",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "feed",
+            "name": "Feed the Swarm",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{B}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            }
+                          ]
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "amount": {
+                      "kind": "manaValueOf",
+                      "object": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "target",
+            "name": "Five Mana Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{3}{U}{U}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "feed"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "target",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 15
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

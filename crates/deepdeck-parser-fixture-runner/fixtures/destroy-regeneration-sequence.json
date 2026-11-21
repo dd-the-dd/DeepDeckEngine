@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "destroy-regeneration/shared-effect-sequence",
+  "cardName": "Damn and Pongify",
+  "cases": [
+    {
+      "id": "exact-damn-alternate-result-anaphor-and-overload",
+      "request": {
+        "cardName": "Damn",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}{B}",
+        "oracleText": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent" },
+              { "pointer": "/declaration/decisions/0/condition/kind", "equals": "not" },
+              { "pointer": "/effects/0/kind", "equals": "conditionalEffect" },
+              { "pointer": "/effects/0/then/0/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/0/then/0/cannotRegenerate", "equals": true },
+              { "pointer": "/effects/0/then/0/permanent/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/then/0/permanent/where/value", "equals": "Creature" },
+              { "pointer": "/effects/0/else/0/cannotRegenerate", "equals": true },
+              { "pointer": "/effects/0/else/0/permanent/id", "equals": "targetPermanent" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "ruleAssertions": [
+              { "pointer": "/ability/kind", "equals": "alternativeCost" },
+              { "pointer": "/ability/mode", "equals": "overload" },
+              { "pointer": "/ability/costs/0/manaCost", "equals": "{2}{W}{W}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pongify-sequences-amendment-and-controller-token",
+      "request": {
+        "cardName": "Pongify",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. It can't be regenerated. Its controller creates a 3/3 green Ape creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "bind" },
+            { "pointer": "/effects/0/id", "equals": "changedPermanentController" },
+            { "pointer": "/effects/0/value/object/id", "equals": "targetPermanent" },
+            { "pointer": "/effects/1/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/1/cannotRegenerate", "equals": true },
+            { "pointer": "/effects/2/kind", "equals": "createTokens" },
+            { "pointer": "/effects/2/controller/id", "equals": "changedPermanentController" },
+            { "pointer": "/effects/2/token/colors/0", "equals": "Green" },
+            { "pointer": "/effects/2/token/subtypes/0", "equals": "Ape" },
+            { "pointer": "/effects/2/token/power", "equals": 3 },
+            { "pointer": "/effects/2/token/toughness", "equals": 3 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "terminate-existing-pronoun-sibling",
+      "request": {
+        "cardName": "General Termination",
+        "typeLine": "Instant",
+        "manaCost": "{B}{R}",
+        "oracleText": "Destroy target nonartifact creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/0/cannotRegenerate", "equals": true },
+            { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "and" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "ordinary-following-action-remains-independent",
+      "request": {
+        "cardName": "Termination Reward",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy target creature. It can't be regenerated. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/0/cannotRegenerate", "equals": true },
+            { "pointer": "/effects/1/kind", "equals": "gainLife" },
+            { "pointer": "/effects/1/amount/value", "equals": 2 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "two-destroys-keep-distinct-target-ids-and-one-policy",
+      "request": {
+        "cardName": "Independent Destructions",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Destroy target artifact. Then destroy target creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent1" },
+            { "pointer": "/declaration/decisions/1/id", "equals": "targetPermanent2" },
+            { "pointer": "/effects/0/permanent/id", "equals": "targetPermanent1" },
+            { "pointer": "/effects/1/permanent/id", "equals": "targetPermanent2" },
+            { "pointer": "/effects/1/cannotRegenerate", "equals": true }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "typed-creature-anaphor-cannot-rebind-artifact",
+      "request": {
+        "cardName": "Bad Result Binding",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target artifact. A creature destroyed this way can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "selector.predicate-atom.complete",
+          "expectedContains": "referenced card type",
+          "found": "destroyed"
+        }]
+      }
+    },
+    {
+      "id": "committed-amendment-keeps-structured-verb-failure",
+      "request": {
+        "cardName": "Malformed Termination",
+        "typeLine": "Instant",
+        "manaCost": "{B}{R}",
+        "oracleText": "Destroy target creature. It can't be restored.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "sequence.destroy-regeneration.regeneration",
+          "expectedContains": "regenerated",
+          "found": "restored"
+        }]
+      }
+    }
+  ]
+}

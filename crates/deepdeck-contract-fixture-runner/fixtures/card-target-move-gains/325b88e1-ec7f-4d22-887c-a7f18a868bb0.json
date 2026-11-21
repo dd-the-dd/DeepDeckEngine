@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/325b88e1-ec7f-4d22-887c-a7f18a868bb0",
+  "cardName": "Monastery Messenger",
+  "oracleId": "325b88e1-ec7f-4d22-887c-a7f18a868bb0",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "0c9eeced-6464-41f0-bbea-05b3af4cc005",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Monastery Messenger",
+      "typeLine": "Creature — Bird Scout",
+      "manaCost": "{2/U}{2/R}{2/W}",
+      "oracleText": "Flying, vigilance\nWhen this creature enters, put up to one target noncreature, nonland card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

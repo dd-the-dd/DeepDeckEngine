@@ -1,0 +1,417 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "undercity-sewers-enters-tapped-and-surveils-one",
+  "seed": 73,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "landToPut",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "landToPut"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Undercity Sewers controller",
+        "battlefield": [
+          {
+            "id": "surveil-watcher",
+            "name": "Surveil Watcher",
+            "typeLine": "Creature â€” Wizard",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "abilityPerformed",
+                  "abilityId": "surveil",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "entry-driver",
+            "name": "Entry Driver",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "undercity-sewers",
+            "name": "Undercity Sewers",
+            "typeLine": "Land — Island Swamp",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ]
+              },
+              {
+                "effects": [
+                  {
+                    "bind": "surveilLookedCards",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "lookAtTopCards",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "from": {
+                      "binding": "surveilLookedCards",
+                      "kind": "boundObjects"
+                    },
+                    "id": "surveilGraveyardCards",
+                    "kind": "chooseCards",
+                    "maximum": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "binding": "surveilLookedCards",
+                        "kind": "boundObjects"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "id": "surveilGraveyardOrder",
+                    "kind": "chooseOrder",
+                    "objects": {
+                      "decisionId": "surveilGraveyardCards",
+                      "kind": "decisionResult"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "surveilGraveyardOrder",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "order": {
+                      "decisionId": "surveilGraveyardOrder",
+                      "kind": "decisionOrder"
+                    },
+                    "to": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "surveilTopOrder",
+                    "kind": "chooseOrder",
+                    "objects": {
+                      "kind": "setDifference",
+                      "left": {
+                        "binding": "surveilLookedCards",
+                        "kind": "boundObjects"
+                      },
+                      "right": {
+                        "decisionId": "surveilGraveyardCards",
+                        "kind": "decisionResult"
+                      }
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "surveilTopOrder",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "order": {
+                      "decisionId": "surveilTopOrder",
+                      "kind": "decisionOrder"
+                    },
+                    "to": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "position": "top"
+                    }
+                  },
+                  {
+                    "abilityId": "surveil",
+                    "kind": "emitAbilitySignal",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "library-bottom-card",
+            "name": "Library Bottom Card",
+            "typeLine": "Creature — Fish",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "watcher-draw-card",
+            "name": "Watcher Draw Card",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "surveilled-card",
+            "name": "Surveilled Card",
+            "typeLine": "Instant"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "entry-driver"
+  },
+  "actions": [
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "undercity-sewers",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "undercity-sewers",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "surveilled-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "library-bottom-card",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "surveilled",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "watcher-draw-card",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 0
+    }
+  ]
+}

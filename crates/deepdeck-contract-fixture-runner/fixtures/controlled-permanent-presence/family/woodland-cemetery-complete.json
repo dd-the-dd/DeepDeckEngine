@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-woodland-cemetery",
+  "cardName": "Woodland Cemetery",
+  "oracleId": "c9fe1383-1331-4a58-a45a-3320250221a9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4d6f6c96-f813-4864-b4e1-b2a0aa8be1e8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Woodland Cemetery",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "This land enters tapped unless you control a Swamp or a Forest.\n{T}: Add {B} or {G}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

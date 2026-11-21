@@ -1,0 +1,676 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/trigger-guard-programs",
+  "cases": [
+    {
+      "id": "exact-scholar-of-stars-complete-oracle",
+      "request": {
+        "cardName": "Scholar of Stars",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lagonna-band-elder-complete-oracle",
+      "request": {
+        "cardName": "Lagonna-Band Elder",
+        "typeLine": "Creature — Centaur Advisor",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, if you control an enchantment, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Enchantment"
+                  },
+                  "excludeSource": false
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-full-subject-and-count",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact and you control two or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-boolean-or-does-not-become-object-union",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact or you control an enchantment, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Enchantment"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-oxford-three-condition-atoms",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact, you control an enchantment, and you control two or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Enchantment"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "excludeSource": false
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-prefix-not-remains-boolean",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if not you control an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "excludeSource": false
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-condition-atom",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you have seven cards in hand, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unbound-count-variable",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control X or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-missing-parent-comma",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-wrong-controlled-domain",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an instant, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unproved-subject-ellipsis",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact and an enchantment, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-right-or-atom",
+      "request": {
+        "cardName": "Condition Program Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, if you control an artifact or banana, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

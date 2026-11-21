@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "generic-keyword-color-template",
+  "seed": 912,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "power": 2,
+          "toughness": 3,
+          "colors": [
+            "Blue",
+            "Green"
+          ],
+          "types": [
+            "Artifact",
+            "Creature"
+          ],
+          "subtypes": [
+            "Golem"
+          ],
+          "abilities": [
+            {
+              "kind": "flying"
+            },
+            {
+              "kind": "haste"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "maker",
+            "name": "maker",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "createTokens",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "power": 2,
+                      "toughness": 3,
+                      "colors": [
+                        "Blue",
+                        "Green"
+                      ],
+                      "types": [
+                        "Artifact",
+                        "Creature"
+                      ],
+                      "subtypes": [
+                        "Golem"
+                      ],
+                      "abilities": [
+                        {
+                          "kind": "flying"
+                        },
+                        {
+                          "kind": "haste"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentGroup",
+      "playerId": "player-0",
+      "definitionId": "token:golem token",
+      "count": 1,
+      "owner": "player-0",
+      "controller": "player-0",
+      "powerToughness": {
+        "power": 2,
+        "toughness": 3
+      }
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 1
+    },
+    {
+      "kind": "permanentColorSymbol",
+      "playerId": "player-0",
+      "definitionId": "token:golem token",
+      "symbol": "U",
+      "equals": true
+    },
+    {
+      "kind": "permanentColorSymbol",
+      "playerId": "player-0",
+      "definitionId": "token:golem token",
+      "symbol": "G",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "token:golem token",
+      "keyword": "flying",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "token:golem token",
+      "keyword": "haste",
+      "equals": true
+    }
+  ],
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "maker"
+  }
+}

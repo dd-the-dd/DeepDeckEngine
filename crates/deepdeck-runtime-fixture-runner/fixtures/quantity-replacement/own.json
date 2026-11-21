@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "counter-selection/own",
+  "seed": 704,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "player": {
+            "kind": "abilityController"
+          }
+        },
+        "counter": "charge",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ability controller",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "own",
+            "name": "own",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "enemy",
+            "name": "enemy",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor"
+  },
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "own",
+      "counter": "charge",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "enemy",
+      "counter": "charge",
+      "equals": 0
+    }
+  ]
+}

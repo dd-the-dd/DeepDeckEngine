@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "context/room-door-index",
+  "cases": [
+    {
+      "id": "exact-roaring-furnace-steaming-sauna-right-door",
+      "request": {
+        "cardName": "Roaring Furnace // Steaming Sauna",
+        "typeLine": "Enchantment — Room // Enchantment — Room",
+        "manaCost": "{1}{R} // {3}{U}{U}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "roaring-furnace",
+            "name": "Roaring Furnace",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{1}{R}",
+            "oracleText": "When you unlock this door, this Room deals damage equal to the number of cards in your hand to target creature an opponent controls.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)"
+          },
+          {
+            "id": "steaming-sauna",
+            "name": "Steaming Sauna",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{3}{U}{U}",
+            "oracleText": "You have no maximum hand size.\nAt the beginning of your end step, draw a card.\n(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 5,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/roomDoorIndex", "equals": 1 },
+              { "pointer": "/modifiers/0/kind", "equals": "noMaximumHandSize" }
+            ]
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/roomDoorIndex", "equals": 1 },
+              { "pointer": "/event/kind", "equals": "stepBegan" },
+              { "pointer": "/effects/0/kind", "equals": "drawCards" }
+            ]
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-two-room-faces-use-face-order-not-line-order",
+      "request": {
+        "cardName": "Twin Study // Twin Archive",
+        "typeLine": "Enchantment — Room // Enchantment — Room",
+        "manaCost": "{1}{U} // {2}{U}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "twin-study",
+            "name": "Twin Study",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{1}{U}",
+            "oracleText": "You have no maximum hand size."
+          },
+          {
+            "id": "twin-archive",
+            "name": "Twin Archive",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{2}{U}",
+            "oracleText": "You have no maximum hand size."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/roomDoorIndex", "equals": 0 }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/roomDoorIndex", "equals": 1 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-not-every-face-is-a-room",
+      "request": {
+        "cardName": "Study // Archive",
+        "typeLine": "Enchantment — Room // Enchantment",
+        "manaCost": "{1}{U} // {2}{U}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "study-room",
+            "name": "Study",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{1}{U}",
+            "oracleText": "You have no maximum hand size."
+          },
+          {
+            "id": "archive-enchantment",
+            "name": "Archive",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{U}",
+            "oracleText": "You have no maximum hand size."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "battlefield" }
+              },
+              "modifiers": [
+                {
+                  "kind": "noMaximumHandSize",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "self" }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

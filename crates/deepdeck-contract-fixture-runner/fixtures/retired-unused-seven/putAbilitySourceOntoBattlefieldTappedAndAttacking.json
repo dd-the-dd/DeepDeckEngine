@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-unused-seven/after/putAbilitySourceOntoBattlefieldTappedAndAttacking",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putAbilitySourceOntoBattlefieldTappedAndAttacking",
+        "replacingAttacker": {
+          "kind": "chosenTarget",
+          "id": "replacingAttacker"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "replacingAttacker",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

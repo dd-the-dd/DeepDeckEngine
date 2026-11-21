@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-marker-cannot-complete-ordinary-hand-movement",
+  "expectedExecutable": false,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "effects": [
+        {
+          "kind": "moveCards",
+          "cards": {
+            "kind": "boundObjects",
+            "binding": "cards"
+          },
+          "to": {
+            "kind": "hand",
+            "player": {
+              "kind": "abilityController"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "rulesMarker",
+      "source": {
+        "kind": "self"
+      },
+      "text": "Historical morbid destination metadata",
+      "morbidSearchDestination": true
+    }
+  ]
+}

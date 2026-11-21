@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/53e88e64-6f82-4154-a66e-6aeb0154b368/part-0",
+  "cardName": "Rule of Law",
+  "oracleId": "53e88e64-6f82-4154-a66e-6aeb0154b368",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "a1f4e79b-b103-4380-afa0-61a2b1773c9e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Rule of Law",
+      "typeLine": "Enchantment",
+      "manaCost": "{2}{W}",
+      "oracleText": "Each player can't cast more than one spell each turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

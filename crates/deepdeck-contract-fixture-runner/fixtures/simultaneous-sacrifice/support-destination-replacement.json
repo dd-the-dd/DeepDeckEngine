@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/support-destination-replacement",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": {
+          "kind": "eachPlayer"
+        },
+        "where": null,
+        "from": {
+          "kind": "anyZone"
+        },
+        "to": {
+          "kind": "exile"
+        }
+      }
+    ]
+  }
+}

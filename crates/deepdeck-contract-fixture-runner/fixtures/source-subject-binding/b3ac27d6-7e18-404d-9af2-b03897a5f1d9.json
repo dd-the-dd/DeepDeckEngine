@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/b3ac27d6-7e18-404d-9af2-b03897a5f1d9",
+  "cardName": "Wylie Duke, Atiin Hero",
+  "oracleId": "b3ac27d6-7e18-404d-9af2-b03897a5f1d9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "bc97ffcf-4f51-44cd-8daa-a7dae4592ee5",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Wylie Duke, Atiin Hero",
+      "typeLine": "Legendary Creature — Human Ranger",
+      "manaCost": "{1}{G}{W}",
+      "oracleText": "Vigilance\nWhenever Wylie Duke becomes tapped, you gain 1 life and draw a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

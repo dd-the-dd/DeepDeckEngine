@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/58b9f933-7b13-4335-996c-4722ab9e08b2",
+  "cardName": "Returned Pastcaller",
+  "oracleId": "58b9f933-7b13-4335-996c-4722ab9e08b2",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "7aa0e762-0fec-4f6b-b3d7-ad8295bf557d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Returned Pastcaller",
+      "typeLine": "Creature — Spirit Cleric",
+      "manaCost": "{3}{R}{R/W}{W}",
+      "oracleText": "Flying\nWhen this creature enters, return target Spirit, instant, or sorcery card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

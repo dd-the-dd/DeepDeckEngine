@@ -1,0 +1,187 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "composable-look-owner-differs-from-explicit-viewer-FIELD-PROOF",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "chosenTarget",
+            "id": "owner"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "viewerCards",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "viewer"
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "boundObjects",
+            "binding": "viewerCards"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "owner-viewer-source",
+            "name": "Owner Viewer Source",
+            "typeLine": "Artifact"
+          }
+        ],
+        "library": [
+          {
+            "id": "own-sentinel",
+            "name": "Own Sentinel",
+            "typeLine": "Land"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "other-a",
+            "name": "Other A",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "other-b",
+            "name": "Other B",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "owner-viewer-source",
+    "targets": {
+      "owner": {
+        "player": {
+          "playerId": "p1"
+        }
+      },
+      "viewer": {
+        "player": {
+          "playerId": "p0"
+        }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 22
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "p1",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "eventDetails",
+      "eventKind": "cardsLookedAt",
+      "playerId": "p0",
+      "fields": {
+        "zonePlayerId": "p1",
+        "count": 2
+      },
+      "equals": 1
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "knownLibraryCards",
+        "playerId": "p1",
+        "viewerId": "p0"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "knownLibraryCards",
+        "playerId": "p1",
+        "viewerId": "p1"
+      },
+      "equals": 0
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "knownLibraryCards",
+        "playerId": "p0",
+        "viewerId": "p0"
+      },
+      "equals": 0
+    }
+  ]
+}

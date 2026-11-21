@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "phelia-exuberant-shepherd/all-native-rules-are-executable",
+  "cardName": "Phelia, Exuberant Shepherd",
+  "oracleId": "5d86a59a-ba1f-45f7-b829-dca6f9f3e624",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flash" }
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "declaredAttacker",
+        "object": { "kind": "self" }
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 0,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            "excludeSource": true
+          }
+        }]
+      },
+      "effects": [
+        {
+          "kind": "exilePermanent",
+          "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+          "bind": "delayedExiledPermanent"
+        },
+        {
+          "kind": "conditionalEffect",
+          "condition": {
+            "kind": "bindingNotEmpty",
+            "binding": "delayedExiledPermanent"
+          },
+          "then": [
+            {
+              "kind": "bind",
+              "id": "delayedExiledOwner",
+              "value": {
+                "kind": "ownerOf",
+                "object": {
+                  "kind": "singleBoundObject",
+                  "binding": "delayedExiledPermanent"
+                }
+              }
+            },
+            {
+              "kind": "installDelayedStepTrigger",
+              "step": "endStep",
+              "controller": {
+                "kind": "controllerOf",
+                "object": { "kind": "self" }
+              },
+              "captureBindings": [
+                "delayedExiledPermanent",
+                "delayedExiledOwner"
+              ],
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "boundObjects",
+                    "binding": "delayedExiledPermanent"
+                  },
+                  "from": {
+                    "kind": "exile",
+                    "player": {
+                      "kind": "boundValue",
+                      "id": "delayedExiledOwner"
+                    }
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "boundValue",
+                      "id": "delayedExiledOwner"
+                    },
+                    "tapped": false
+                  },
+                  "bind": "delayedReturnedPermanent"
+                },
+                {
+                  "kind": "conditionalEffect",
+                  "condition": {
+                    "kind": "playersEqual",
+                    "left": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "singleBoundObject",
+                        "binding": "delayedReturnedPermanent"
+                      }
+                    },
+                    "right": {
+                      "kind": "controllerOf",
+                      "object": { "kind": "self" }
+                    }
+                  },
+                  "then": [{
+                    "kind": "putCounters",
+                    "permanent": { "kind": "self" },
+                    "counter": "+1/+1",
+                    "count": { "kind": "integer", "value": 1 }
+                  }],
+                  "else": []
+                }
+              ]
+            }
+          ],
+          "else": []
+        }
+      ]
+    }
+  ]
+}

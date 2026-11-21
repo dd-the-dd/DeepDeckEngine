@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "generic/observed-reference-needs-entry-producer",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentEntered",
+      "where": null,
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "entryState": {
+        "tapped": true
+      }
+    },
+    "effects": [
+      {
+        "kind": "untapPermanent",
+        "permanent": {
+          "kind": "observedEventObject",
+          "event": "permanentEntered"
+        }
+      }
+    ]
+  },
+  "expectedExecutable": false
+}

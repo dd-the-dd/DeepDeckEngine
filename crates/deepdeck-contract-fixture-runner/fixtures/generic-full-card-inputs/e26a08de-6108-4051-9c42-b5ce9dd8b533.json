@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/e26a08de-6108-4051-9c42-b5ce9dd8b533/part-0",
+  "cardName": "Soul-Guide Gryff",
+  "oracleId": "e26a08de-6108-4051-9c42-b5ce9dd8b533",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "39388258-cf07-4f29-a379-c743ecac680b",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Soul-Guide Gryff",
+      "typeLine": "Creature — Hippogriff Spirit",
+      "manaCost": "{4}{W}",
+      "oracleText": "Flying\nWhen this creature enters, exile up to one target card from a graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

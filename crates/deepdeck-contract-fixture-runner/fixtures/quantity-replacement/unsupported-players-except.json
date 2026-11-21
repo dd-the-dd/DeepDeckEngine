@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "counter-selection-negative/unsupported-players-except",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "player": {
+            "kind": "playersExcept"
+          }
+        },
+        "counter": "charge",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

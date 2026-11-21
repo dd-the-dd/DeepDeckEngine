@@ -1,0 +1,288 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger/permanent-died-effect-sequence-draft",
+  "cases": [
+    {
+      "id": "exact-blood-artist-preserves-source-union-and-target-player",
+      "request": {
+        "cardName": "Blood Artist",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "permanentDied",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "permanentDied",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "excludeSource": true
+                  }
+                ]
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPlayer",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pitiless-plunderer-controlled-other-creature",
+      "request": {
+        "cardName": "Pitiless Plunderer",
+        "typeLine": "Creature — Human Pirate",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/event/where/kind",
+                "equals": "cardTypeContains"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/event/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/token/kind",
+                "equals": "namedToken"
+              },
+              {
+                "pointer": "/effects/0/token/name",
+                "equals": "Treasure"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-opponent-controlled-creature-sibling",
+      "request": {
+        "cardName": "Relic Mourner",
+        "typeLine": "Creature — Cleric",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever another creature an opponent controls dies, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/event/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-player-target-binding-is-reused-by-that-player",
+      "request": {
+        "cardName": "Mortal Bargain",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever another creature dies, target player gains 2 life and that player loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/kind",
+                "equals": "players"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/player/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/1/player/id",
+                "equals": "targetPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "claimed-family-missing-event-separator",
+      "request": {
+        "cardName": "Malformed Mourner",
+        "typeLine": "Creature — Cleric",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever another creature you control dies target player loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "trigger.envelope.separator",
+            "expected": ",",
+            "found": "target",
+            "tokenIndex": 6
+          }
+        ]
+      }
+    }
+  ]
+}

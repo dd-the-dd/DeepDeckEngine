@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/ebf7ce9b-9e5e-4557-9e28-76556997f0ee",
+  "cardName": "Chulane, Teller of Tales",
+  "oracleId": "ebf7ce9b-9e5e-4557-9e28-76556997f0ee",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d1499a4b-1af1-4913-8e26-57d0707264db",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "4",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Chulane, Teller of Tales",
+      "typeLine": "Legendary Creature — Human Druid",
+      "manaCost": "{2}{G}{W}{U}",
+      "oracleText": "Vigilance\nWhenever you cast a creature spell, draw a card, then you may put a land card from your hand onto the battlefield.\n{3}, {T}: Return target creature you control to its owner's hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

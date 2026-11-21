@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/e11e2dc8-b28e-415d-9a5d-0eb46da8945c",
+  "cardName": "Omen of the Forge",
+  "oracleId": "e11e2dc8-b28e-415d-9a5d-0eb46da8945c",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "70388773-709b-4cd8-a8b7-56093fd77a1d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Omen of the Forge",
+      "typeLine": "Enchantment",
+      "manaCost": "{1}{R}",
+      "oracleText": "Flash\nWhen this enchantment enters, it deals 2 damage to any target.\n{2}{R}, Sacrifice this enchantment: Scry 2.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

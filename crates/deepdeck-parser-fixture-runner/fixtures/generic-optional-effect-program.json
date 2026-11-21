@@ -1,0 +1,370 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/optional-effect-program",
+  "cases": [
+    {
+      "id": "real-reclamation-sage",
+      "request": {
+        "cardName": "Reclamation Sage",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact or enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "destroyPermanent",
+                      "permanent": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-exile-shares-program",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may exile target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "exilePermanent",
+                      "permanent": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "and-remains-inside-optional-one-sentence",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "destroyPermanent",
+                      "permanent": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    },
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "period-does-not-silently-extend-optionality",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "if-you-do-not-implicitly-accepted",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "independent-second-permission-not-nested-silently",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact and you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-player-may-not-rebound-to-controller",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, target opponent may destroy target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-optional-action",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dangling-sequence-connector",
+      "request": {
+        "cardName": "Synthetic Optional Program",
+        "typeLine": "Creature \u2014 Elf Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you may destroy target artifact and.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

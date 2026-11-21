@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "cyclonic-rift/overload-composition-is-executable",
+  "cardName": "Cyclonic Rift",
+  "oracleId": "d75b9c82-1b49-4c3e-a1b5-aeef57d6644b",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "condition": {
+            "kind": "not",
+            "operand": { "kind": "wasCastWithAlternativeCost", "mode": "overload" }
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "playersExcept",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "conditionalEffect",
+        "condition": { "kind": "wasCastWithAlternativeCost", "mode": "overload" },
+        "then": [{
+          "kind": "returnToOwnersHand",
+          "object": {
+            "kind": "eachPermanent",
+            "excludeSourceController": true,
+            "where": {
+              "kind": "not",
+              "operand": { "kind": "cardTypeContains", "value": "Land" }
+            }
+          }
+        }],
+        "else": [{
+          "kind": "returnToOwnersHand",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }]
+      }]
+    },
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": {
+        "kind": "alternativeCost",
+        "mode": "overload",
+        "costs": [{ "kind": "payMana", "manaCost": "{6}{U}" }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[package]
+name = "deepdeck-engine-runtime"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["oracle-compilation"]
+oracle-compilation = ["dep:deepdeck-oracle"]
+# Runs tests quarantined in docs/coverage-targets.md as ordinary tests.
+# Without it they are reported as ignored with their coverage-target reason;
+# CI executes them with `-- --ignored` in its continue-on-error step.
+coverage-targets = []
+ci-test-partition = []
+ci-unit-tests-1 = ["ci-test-partition"]
+ci-unit-tests-2 = ["ci-test-partition"]
+ci-unit-tests-3 = ["ci-test-partition"]
+ci-unit-tests-4 = ["ci-test-partition"]
+
+[dependencies]
+deepdeck-card-domain = { path = "../deepdeck-card-domain" }
+deepdeck-oracle = { path = "../deepdeck-oracle", optional = true }
+rand = "0.8"
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[lib]
+name = "deepdeck_engine_runtime"
+path = "src/lib.rs"

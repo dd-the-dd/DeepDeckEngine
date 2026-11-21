@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "noxious-revival-does-not-find-a-target-that-left-the-graveyard",
+  "seed": 307,
+  "rule": {
+    "kind": "spellAbility", "source": { "kind": "self" },
+    "declaration": { "kind": "castingDeclaration", "decisions": [{ "id": "targetCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1, "candidates": { "kind": "cards", "zone": { "kind": "anyGraveyard" }, "where": null } }] },
+    "effects": [{ "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetCard" }, "to": { "kind": "library", "player": { "kind": "ownerOf", "object": { "kind": "chosenTarget", "id": "targetCard" } }, "position": "top" } }]
+  },
+  "initialState": { "activePlayerId": "player-0", "players": [
+    {
+      "id": "player-0", "name": "Revival caster", "manaPool": ["G"],
+      "hand": [
+        { "id": "noxious-revival", "name": "Noxious Revival", "typeLine": "Instant", "manaCost": "{G/P}" },
+        { "id": "grave-rescue", "name": "Grave Rescue", "typeLine": "Instant", "manaCost": "", "rules": [{
+          "kind": "spellAbility", "source": { "kind": "self" },
+          "declaration": { "kind": "castingDeclaration", "decisions": [{ "id": "targetGraveyardCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1, "candidates": { "kind": "cards", "zone": { "kind": "anyGraveyard" }, "where": null } }] },
+          "effects": [{ "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" }, "to": { "kind": "hand", "player": { "kind": "ownerOf", "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" } } } }]
+        }] }
+      ]
+    },
+    { "id": "player-1", "name": "Target owner", "library": [{ "id": "owner-library-anchor", "name": "Owner Library Anchor", "typeLine": "Land", "rules": [] }], "graveyard": [{ "id": "departing-target", "name": "Departing Target", "typeLine": "Sorcery", "rules": [] }] }
+  ] },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "noxious-revival" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "grave-rescue" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "hand", "definitionId": "departing-target", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "library", "definitionId": "departing-target", "equals": false },
+    { "kind": "libraryTopIs", "playerId": "player-1", "definitionId": "owner-library-anchor" },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "noxious-revival", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "grave-rescue", "equals": true },
+    { "kind": "eventCount", "eventKind": "spellFizzled", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

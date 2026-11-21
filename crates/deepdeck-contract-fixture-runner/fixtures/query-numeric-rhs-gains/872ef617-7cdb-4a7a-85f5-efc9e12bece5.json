@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/872ef617-7cdb-4a7a-85f5-efc9e12bece5",
+  "cardName": "Elvish Piper",
+  "oracleId": "872ef617-7cdb-4a7a-85f5-efc9e12bece5",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1a8e47b9-6735-4e46-b3fd-ac69edc39745",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Elvish Piper",
+      "typeLine": "Creature — Elf Shaman",
+      "manaCost": "{3}{G}",
+      "oracleText": "{G}, {T}: You may put a creature card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

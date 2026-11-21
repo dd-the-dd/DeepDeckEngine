@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "zuran-orb/selected-sacrifice-cost",
+  "cardName": "Zuran Orb",
+  "oracleId": "08cb8a30-9cb4-4517-bee5-8848aa60d1a2",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent0"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent0",
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          },
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  }
+}

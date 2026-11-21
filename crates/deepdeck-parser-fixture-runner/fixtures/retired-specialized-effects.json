@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "retired-specialized-explicit-failures",
+  "cardName": "Synthetic retired-instruction probes",
+  "cases": [
+    {
+      "id": "global-graveyard",
+      "request": {
+        "cardName": "Retired Native Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "linked-exile",
+      "request": {
+        "cardName": "Retired Native Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "When this enchantment enters, exile target creature until this enchantment leaves the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-name-search",
+      "request": {
+        "cardName": "Retired Native Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Choose target card in a graveyard other than a basic land card. Search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "activated-linked-card",
+      "request": {
+        "cardName": "Retired Native Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Exile target card from a graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "exileTargetCards",
+                    "cards": { "kind": "chosenTargets", "id": "targetCard" }
+                  }
+                ]
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/zone/kind",
+                "equals": "anyGraveyard"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "replacement/named-source-entry-state",
+  "cases": [
+    {
+      "id": "exact-timeless-lotus",
+      "request": {
+        "cardName": "Timeless Lotus",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{5}",
+        "oracleText": "Timeless Lotus enters tapped.\n{T}: Add {W}{U}{B}{R}{G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": { "kind": "self" }
+              },
+              "replacement": [{
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{
+                "kind": "addMana",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": { "kind": "self" }
+                },
+                "mana": "{W}{U}{B}{R}{G}"
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "arbitrary-linked-artifact-name-reuses-the-same-machine",
+      "request": {
+        "cardName": "Clockwork Archive",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Clockwork Archive enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "replacementEffect",
+          "ruleAssertions": [
+            { "pointer": "/event/kind", "equals": "wouldEnterBattlefield" },
+            { "pointer": "/event/object/kind", "equals": "self" },
+            { "pointer": "/replacement/0/kind", "equals": "setEnteringState" },
+            { "pointer": "/replacement/0/tapped", "equals": true }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "named-instant-cannot-enter-the-battlefield",
+      "request": {
+        "cardName": "Delayed Insight",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Delayed Insight enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "source-entry-state",
+          "state": "replacement.source-entry-state.validation",
+          "expectedContains": "permanent card face"
+        }]
+      }
+    },
+    {
+      "id": "typed-permanent-noun-cannot-override-a-sorcery-face",
+      "request": {
+        "cardName": "Mismatched Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "This land enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{ "index": 0, "status": "unsupported", "recognizer": "native" }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "source-entry-state",
+          "state": "replacement.source-entry-state.validation",
+          "expectedContains": "permanent card face"
+        }]
+      }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "shared-cost-query/real-crab-reduction-clause-executable",
+  "cardName": "Eddymurk Crab (reduction clause only)",
+  "oracleId": "3c345e24-1726-45ac-91ca-e348d1e7acfe",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "stackOrCast"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "reduceOwnGenericCastingCost",
+        "amount": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "cardsInZone",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Instant"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Sorcery"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

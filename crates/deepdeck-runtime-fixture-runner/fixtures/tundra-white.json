@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tundra-chooses-white-mana",
+  "seed": 116,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{W}", "{U}"] }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tundra pilot",
+        "battlefield": [{
+          "id": "tundra",
+          "name": "Tundra",
+          "typeLine": "Land — Plains Island"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "tundra",
+    "manaSymbols": ["W"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["W"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "tundra", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

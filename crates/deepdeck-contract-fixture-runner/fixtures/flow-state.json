@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "flow-state/conditional-top-card-partition-is-executable",
+  "cardName": "Flow State",
+  "oracleId": "e7194bca-0cf4-4a86-8b84-d2f9219a08b3",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "count": { "kind": "integer", "value": 3 },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "from": { "kind": "boundObjects", "binding": "lookedCards" },
+        "count": {
+          "kind": "conditionalValue",
+          "condition": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countCards",
+                  "zone": {
+                    "kind": "graveyard",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  },
+                  "where": { "kind": "cardTypeContains", "value": "Instant" }
+                },
+                "right": { "kind": "integer", "value": 1 }
+              },
+              {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countCards",
+                  "zone": {
+                    "kind": "graveyard",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  },
+                  "where": { "kind": "cardTypeContains", "value": "Sorcery" }
+                },
+                "right": { "kind": "integer", "value": 1 }
+              }
+            ]
+          },
+          "ifTrue": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 2 },
+              {
+                "kind": "countObjects",
+                "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+              }
+            ]
+          },
+          "ifFalse": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 1 },
+              {
+                "kind": "countObjects",
+                "objects": { "kind": "boundObjects", "binding": "lookedCards" }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "cardsForHand" },
+        "to": {
+          "kind": "hand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "remainderOrder",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "objects": {
+          "kind": "setDifference",
+          "left": { "kind": "boundObjects", "binding": "lookedCards" },
+          "right": { "kind": "decisionResult", "decisionId": "cardsForHand" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "remainderOrder" },
+        "to": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "position": "bottom"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "remainderOrder" }
+      }
+    ]
+  }
+}

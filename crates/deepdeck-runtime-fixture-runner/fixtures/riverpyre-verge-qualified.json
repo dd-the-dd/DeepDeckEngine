@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "riverpyre-verge-adds-blue-when-controller-has-mountain",
+  "seed": 77,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "activationCondition": {
+      "kind": "controlsPermanent",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "subtypeContains", "value": "Island" },
+          { "kind": "subtypeContains", "value": "Mountain" }
+        ]
+      }
+    },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{U}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Riverpyre Verge pilot",
+        "battlefield": [
+          {
+            "id": "riverpyre-verge",
+            "name": "Riverpyre Verge",
+            "typeLine": "Land"
+          },
+          {
+            "id": "qualifying-mountain",
+            "name": "Qualifying Mountain",
+            "typeLine": "Basic Land \u2014 Mountain"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "riverpyre-verge",
+    "manaSymbols": ["U"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["U"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "riverpyre-verge", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

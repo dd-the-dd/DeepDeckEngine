@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "mana-type-range-parser-only",
+  "cases": [
+    {
+      "id": "type-i32-max-parser-only",
+      "request": {
+        "cardName": "Generic maximum type quantity",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add 2147483647 mana of any type that a land you control could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "manaTypesLandsYouControlCouldProduce",
+                    "amount": 2147483647
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "type-i32-max-plus-one-rejected",
+      "request": {
+        "cardName": "Generic oversized type quantity",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add 2147483648 mana of any type that a land you control could produce.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

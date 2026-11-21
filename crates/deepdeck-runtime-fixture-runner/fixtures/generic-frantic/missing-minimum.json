@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "selection-counts/missing-minimum",
+  "seed": 7311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": 1
+      },
+      {
+        "kind": "choosePermanents",
+        "id": "effect1:selectedPermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        },
+        "minimum": {
+          "kind": "decisionResult",
+          "decisionId": "missing"
+        },
+        "maximum": 0
+      },
+      {
+        "kind": "untapPermanents",
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "effect1:selectedPermanents"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "Executor",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "land-a",
+            "name": "land-a",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          },
+          {
+            "id": "land-b",
+            "name": "land-b",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "decisions": [],
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "executor"
+        }
+      },
+      "expectedErrorContains": "numeric expression for choosePermanents.minimum",
+      "retry": false
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentUntapped",
+      "equals": 0
+    }
+  ]
+}

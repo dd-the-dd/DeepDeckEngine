@@ -1,0 +1,1200 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "composable-query-numeric-rhs-deployment",
+  "cases": [
+    {
+      "id": "real-aether-vial-complete",
+      "request": {
+        "cardName": "Aether Vial",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "At the beginning of your upkeep, you may put a charge counter on this artifact.\n{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "counter": "charge",
+                      "kind": "putCounters",
+                      "permanent": {
+                        "kind": "self"
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "stepBegan",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "step": "upkeep"
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "countCounters",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "counter": "charge"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "counter-data-and-arithmetic",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put an artifact card with mana value equal to the number of Echo counters on this artifact plus one from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "add",
+                            "left": {
+                              "kind": "countCounters",
+                              "object": {
+                                "kind": "self"
+                              },
+                              "counter": "echo"
+                            },
+                            "right": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-independent-library-count-child",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to half the number of cards in your library, rounded up from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "divide",
+                            "left": {
+                              "kind": "countCards",
+                              "zone": {
+                                "kind": "library",
+                                "player": {
+                                  "kind": "controllerOf",
+                                  "object": {
+                                    "kind": "self"
+                                  }
+                                }
+                              },
+                              "where": null
+                            },
+                            "right": {
+                              "kind": "integer",
+                              "value": 2
+                            },
+                            "round": "up"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ordinary-sequence-independent-followup",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "countCounters",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "counter": "charge"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-information-source-card-alias",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this card from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "countCounters",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "counter": "charge"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-independent-selections-distinct-bindings",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield. You may put an artifact card with mana value equal to the number of time counters on this artifact from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "countCounters",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "counter": "charge"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment2",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "countCounters",
+                            "object": {
+                              "kind": "self"
+                            },
+                            "counter": "time"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment2"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-information-not-spell",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this spell from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-information-not-instant",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this instant from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-trailing-instruction",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield. Sing a song.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-source-proof",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{1}: You may put a creature card with mana value equal to the number of charge counters on that artifact from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-implicit-source-after-sacrifice",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}, Sacrifice this artifact: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-variable",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to X plus one from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cannot-borrow-face-mana-x-for-activation",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{X}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to X plus one from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "own-activation-x-producer",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{X}, {T}: You may put a creature card with mana value equal to X plus one from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{X}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "xValue",
+                    "kind": "chooseNumber",
+                    "minimum": 0
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "chooseCards",
+                  "id": "optionalCardDeployment",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "candidates": {
+                    "kind": "cards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "==",
+                          "right": {
+                            "kind": "add",
+                            "left": {
+                              "kind": "decisionResult",
+                              "decisionId": "xValue"
+                            },
+                            "right": {
+                              "kind": "integer",
+                              "value": 1
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalCardDeployment"
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "cannot-borrow-other-face-x",
+      "request": {
+        "cardName": "Query Front // Query Back",
+        "typeLine": "Artifact // Sorcery",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "front",
+            "name": "Query Front",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "oracleText": "{T}: You may put a creature card with mana value equal to X plus one from your hand onto the battlefield."
+          },
+          {
+            "id": "back",
+            "name": "Query Back",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "oracleText": "Draw X cards."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-receipt-invented",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-other-controller-hoist",
+      "request": {
+        "cardName": "Query Operand Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: You may put a creature card you control with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

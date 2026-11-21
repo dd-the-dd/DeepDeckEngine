@@ -1,0 +1,395 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "flashback/fixed-keyword-cost",
+  "cases": [
+    {
+      "id": "exact-faithless-looting-full-input",
+      "request": {
+        "cardName": "Faithless Looting",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Draw two cards, then discard two cards.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flashback",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{2}{R}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-mana-zero",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {0}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flashback",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{0}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-mana-snow-hybrid",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {S}{W/U}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flashback",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{S}{W/U}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "shared-mana-phyrexian",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {3}{B/P}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flashback",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{3}{B/P}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "registered-reminder-with-terminal-cost-period",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2}{R}. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flashback",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{2}{R}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "variable-x-cost-is-not-an-invented-producer",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {X}{R}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "life-cost-explicit-runtime-cap",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback Pay 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sacrifice-cost-explicit-runtime-cap",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback Sacrifice a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "composite-cost-is-not-partially-paid",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {1}, Pay 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-mana-cost-part-is-not-ignored",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {1}, {R}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "changed-reminder-source",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2}{R} (You may cast this card from your hand for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.reminder.permission"
+          }
+        ]
+      }
+    },
+    {
+      "id": "changed-reminder-destination",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then destroy it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.reminder.exile"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-trailing-other-effect",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2}{R}. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.envelope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-a-permanent-source-face",
+      "request": {
+        "cardName": "Generic Flashback Source",
+        "typeLine": "Artifact Creature",
+        "manaCost": "{R}",
+        "oracleText": "Flashback {2}{R}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.source-context"
+          }
+        ]
+      }
+    }
+  ]
+}

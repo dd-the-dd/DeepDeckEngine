@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "fabled-passage/conditional-search-result-untap-is-primitive",
+  "cardName": "Fabled Passage",
+  "oracleId": "0c85b8f7-0bd0-4680-9ec5-d4b110460a54",
+  "expectedExecutable": true,
+  "rules": [{
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      { "kind": "shuffleZone", "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countPermanents",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Land" },
+            "excludeSource": false
+          },
+          "right": { "kind": "integer", "value": 4 }
+        },
+        "then": [{
+          "kind": "untapPermanents",
+          "objects": { "kind": "decisionResult", "decisionId": "searchedCards" }
+        }],
+        "else": []
+      }
+    ]
+  }]
+}

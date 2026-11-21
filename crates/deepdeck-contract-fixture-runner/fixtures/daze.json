@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "daze/native-alternative-return-and-counter-unless-rules-are-executable",
+  "cardName": "Daze",
+  "oracleId": "70486bee-6ee7-41ea-b834-8caf4699302b",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": {
+        "kind": "self"
+      },
+      "ability": {
+        "kind": "alternativeCost",
+        "costs": [
+          {
+            "kind": "returnPermanentToOwnersHand",
+            "where": {
+              "kind": "subtypeContains",
+              "value": "Island"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "targetSpell",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "spells"
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "tryPayCost",
+          "id": "resolutionPayment0",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "chosenTarget",
+              "id": "targetSpell"
+            }
+          },
+          "cost": {
+            "kind": "payMana",
+            "manaCost": "{1}"
+          }
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "costWasPaid",
+            "decisionId": "resolutionPayment0",
+            "value": false,
+            "required": true
+          },
+          "then": [
+            {
+              "kind": "counterStackObject",
+              "object": {
+                "kind": "chosenTarget",
+                "id": "targetSpell"
+              }
+            }
+          ],
+          "else": []
+        }
+      ]
+    }
+  ]
+}

@@ -102,6 +102,8 @@ struct CreateLocalDeckGameRequest {
     wait_timeout_ms: u64,
     #[serde(default)]
     human_decision_timeout_ms: Option<u64>,
+    #[serde(default)]
+    decision_clock: Option<crate::agent_protocol::DecisionClockConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -1937,13 +1939,16 @@ fn create_local_deck_game(body: &str) -> JsonResponse {
         analytics_deck_session_by_player_id,
         punching_bag_player_ids: Vec::new(),
         opening_hand_selection_pool_size_by_player_id: BTreeMap::new(),
+        fixed_opening_hand_definition_ids_by_player_id: BTreeMap::new(),
         training_anchor_deadline_round_by_player_id: BTreeMap::new(),
+        start_with_sideboarding: false,
         hold_priority_player_ids: request.hold_priority_player_ids,
         mulligan_enabled: request.mulligan_enabled,
         free_mulligans: request.free_mulligans,
         max_mulligans: request.max_mulligans,
         wait_timeout_ms: request.wait_timeout_ms,
         human_decision_timeout_ms: request.human_decision_timeout_ms,
+        decision_clock: request.decision_clock,
     }) {
         Ok(session) => session,
         Err(error) => return session_error_response(error),
@@ -2800,7 +2805,10 @@ pub fn serve(addr: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
 
@@ -3001,6 +3009,7 @@ mod tests {
             revision: 1,
             state: crate::engine::GameState {
                 schema_version: "mtg-game/v1".to_string(),
+                battlefield_incarnation_sequence: 0,
                 game_mode: GameMode::Free,
                 status: crate::engine::GameStatus::InProgress,
                 turn_number: 1,

@@ -1,0 +1,288 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/additional-land-play",
+  "cases": [
+    {
+      "id": "exact-exploration",
+      "request": {
+        "cardName": "Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "You may play an additional land on each of your turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/kind",
+                "equals": "inZone"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "additionalLandPlay"
+              },
+              {
+                "pointer": "/modifiers/0/player/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/modifiers/0/count/kind",
+                "equals": "integer"
+              },
+              {
+                "pointer": "/modifiers/0/count/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-azusa-two-lands",
+      "request": {
+        "cardName": "Azusa, Lost but Seeking",
+        "typeLine": "Legendary Creature — Human Monk",
+        "manaCost": "{2}{G}",
+        "oracleText": "You may play two additional lands on each of your turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "additionalLandPlay"
+              },
+              {
+                "pointer": "/modifiers/0/count/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "variant-vanguard-the-explorer",
+      "request": {
+        "cardName": "The Explorer",
+        "typeLine": "Vanguard",
+        "manaCost": null,
+        "oracleText": "You may play an additional land on each of your turns.",
+        "layout": "vanguard",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "additionalLandPlay"
+              },
+              {
+                "pointer": "/modifiers/0/count/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-temporary-duration",
+      "request": {
+        "cardName": "Temporary Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "You may play an additional land this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed",
+            "abilityType": "unclassifiedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shared-player",
+      "request": {
+        "cardName": "Shared Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Each player may play an additional land on each of their turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "unclaimed",
+            "abilityType": "unclassifiedAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-number-agreement",
+      "request": {
+        "cardName": "Agreement Near Miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "You may play two additional land on each of your turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-additional-land-play",
+            "state": "modifier.additional-land-play.land",
+            "expectedContains": "lands",
+            "found": "land"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-count-without-declaration",
+      "request": {
+        "cardName": "Variable Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "You may play X additional lands on each of your turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-additional-land-play",
+            "state": "modifier.additional-land-play.lower.count",
+            "expectedContains": "positive i32 literal additional-land count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-count-overflow",
+      "request": {
+        "cardName": "Overflow Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "You may play 2147483648 additional lands on each of your turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "staticAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-additional-land-play",
+            "state": "modifier.additional-land-play.lower.count",
+            "expectedContains": "positive i32 literal additional-land count"
+          }
+        ]
+      }
+    }
+  ]
+}

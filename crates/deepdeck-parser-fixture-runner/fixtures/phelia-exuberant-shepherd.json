@@ -1,0 +1,294 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "phelia-exuberant-shepherd/attack-delayed-return-counter",
+  "cardName": "Phelia, Exuberant Shepherd",
+  "oracleId": "5d86a59a-ba1f-45f7-b829-dca6f9f3e624",
+  "cases": [
+    {
+      "id": "exact-phelia-exuberant-shepherd",
+      "request": {
+        "cardName": "Phelia, Exuberant Shepherd",
+        "typeLine": "Legendary Creature — Dog",
+        "manaCost": "{1}{W}",
+        "oracleText": "Flash\nWhenever Phelia attacks, exile up to one other target nonland permanent. At the beginning of the next end step, return that card to the battlefield under its owner's control. If it entered under your control, put a +1/+1 counter on Phelia.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flash"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "declaredAttacker",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      },
+                      "excludeSource": true
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "exilePermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "bind": "delayedExiledPermanent"
+                },
+                {
+                  "kind": "conditionalEffect",
+                  "condition": {
+                    "kind": "bindingNotEmpty",
+                    "binding": "delayedExiledPermanent"
+                  },
+                  "then": [
+                    {
+                      "kind": "bind",
+                      "id": "delayedExiledOwner",
+                      "value": {
+                        "kind": "ownerOf",
+                        "object": {
+                          "kind": "singleBoundObject",
+                          "binding": "delayedExiledPermanent"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "installDelayedStepTrigger",
+                      "step": "endStep",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "captureBindings": [
+                        "delayedExiledPermanent",
+                        "delayedExiledOwner"
+                      ],
+                      "effects": [
+                        {
+                          "kind": "moveCards",
+                          "cards": {
+                            "kind": "boundObjects",
+                            "binding": "delayedExiledPermanent"
+                          },
+                          "from": {
+                            "kind": "exile",
+                            "player": {
+                              "kind": "boundValue",
+                              "id": "delayedExiledOwner"
+                            }
+                          },
+                          "to": {
+                            "kind": "battlefield",
+                            "player": {
+                              "kind": "boundValue",
+                              "id": "delayedExiledOwner"
+                            },
+                            "tapped": false
+                          },
+                          "bind": "delayedReturnedPermanent"
+                        },
+                        {
+                          "kind": "conditionalEffect",
+                          "condition": {
+                            "kind": "playersEqual",
+                            "left": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "singleBoundObject",
+                                "binding": "delayedReturnedPermanent"
+                              }
+                            },
+                            "right": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            }
+                          },
+                          "then": [
+                            {
+                              "kind": "putCounters",
+                              "permanent": {
+                                "kind": "self"
+                              },
+                              "counter": "+1/+1",
+                              "count": {
+                                "kind": "integer",
+                                "value": 1
+                              }
+                            }
+                          ],
+                          "else": []
+                        }
+                      ]
+                    }
+                  ],
+                  "else": []
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generalized-artifact-creature-charge-counter-sibling",
+      "request": {
+        "cardName": "Generalized Vessel",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{3}",
+        "oracleText": "Whenever this artifact attacks, exile up to one other target creature. At the beginning of the next end step, return that card to the battlefield under its owner's control. If it entered under your control, put two charge counters on this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "declaredAttacker"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 1
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/1/then/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/then/1/effects/0/from/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/1/then/1/effects/1/then/0/counter",
+                "equals": "charge"
+              },
+              {
+                "pointer": "/effects/1/then/1/effects/1/then/0/count/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-delayed-step-near-miss",
+      "request": {
+        "cardName": "Phelia, Exuberant Shepherd",
+        "typeLine": "Legendary Creature — Dog",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever Phelia attacks, exile up to one other target nonland permanent. At the beginning of the next combat, return that card to the battlefield under its owner's control. If it entered under your control, put a +1/+1 counter on Phelia.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "effect.start",
+            "expected": "a supported effect subject",
+            "found": "At",
+            "tokenIndex": 13
+          },
+          {
+            "abilityIndex": 0,
+            "code": "oracle_candidate_machine_failure",
+            "automaton": "attack-delayed-return-counter",
+            "state": "duration.next-step.step",
+            "expectedContains": "end",
+            "found": "combat",
+            "traceContainsState": "trigger.attack-delayed-return.delayed-timing"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/7549656b-359f-467e-90ab-6b21d93c26b9",
+  "cardName": "Sell-Sword Brute",
+  "oracleId": "7549656b-359f-467e-90ab-6b21d93c26b9",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "db513835-af5a-4ff3-8cf8-31936732a4db",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Sell-Sword Brute",
+      "typeLine": "Creature — Human Mercenary",
+      "manaCost": "{1}{R}",
+      "oracleText": "When this creature dies, it deals 2 damage to you.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

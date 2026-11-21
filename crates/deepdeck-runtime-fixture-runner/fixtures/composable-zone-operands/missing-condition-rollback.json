@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "zone-applicability/missing-condition-producer-rolls-back",
+  "seed": 19,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "left": {
+            "kind": "boundValue",
+            "id": "missingCondition"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "integer",
+            "value": 0
+          }
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "abilityController"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 99
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "abilityController"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 7
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "boundValue",
+                        "id": "missingCondition"
+                      },
+                      "operator": "==",
+                      "right": {
+                        "kind": "integer",
+                        "value": 0
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "gainLife",
+                        "player": {
+                          "kind": "abilityController"
+                        },
+                        "amount": {
+                          "kind": "integer",
+                          "value": 99
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "kind": "gainLife",
+                        "player": {
+                          "kind": "abilityController"
+                        },
+                        "amount": {
+                          "kind": "integer",
+                          "value": 7
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-library",
+            "name": "p0-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "p1-library",
+            "name": "p1-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "p1-grave",
+            "name": "p1-grave",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "execution": {
+          "controllerId": "p0",
+          "sourceDefinitionId": "source",
+          "targets": {}
+        },
+        "rule": {
+          "kind": "spellAbility",
+          "source": {
+            "kind": "self"
+          },
+          "effects": [
+            {
+              "kind": "gainLife",
+              "player": {
+                "kind": "abilityController"
+              },
+              "amount": {
+                "kind": "integer",
+                "value": 2
+              }
+            },
+            {
+              "kind": "conditional",
+              "condition": {
+                "kind": "compare",
+                "left": {
+                  "kind": "boundValue",
+                  "id": "missingCondition"
+                },
+                "operator": "==",
+                "right": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              },
+              "then": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "abilityController"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 99
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "abilityController"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 7
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expectedErrorContains": "unresolved or invalid numeric expression"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 0
+    }
+  ]
+}

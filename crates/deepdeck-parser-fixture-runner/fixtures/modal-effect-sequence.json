@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "modal-effect-sequence/generic-exact-cardinality-parent",
+  "cardName": "Modal Effect Sequence",
+  "cases": [
+    {
+      "id": "abrade-exact",
+      "request": {
+        "cardName": "Abrade",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/kind", "equals": "chooseModes" },
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/maximum/value", "equals": 1 },
+            { "pointer": "/declaration/decisions/0/allowRepeated", "equals": false },
+            { "pointer": "/declaration/decisions/1/id", "equals": "mode1:targetPermanent" },
+            { "pointer": "/declaration/decisions/1/condition/value", "equals": "mode1" },
+            { "pointer": "/declaration/decisions/2/id", "equals": "mode2:targetPermanent" },
+            { "pointer": "/declaration/decisions/2/condition/value", "equals": "mode2" },
+            { "pointer": "/effects/0/then/0/kind", "equals": "dealDamage" },
+            { "pointer": "/effects/0/then/0/recipient/id", "equals": "mode1:targetPermanent" },
+            { "pointer": "/effects/1/then/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/1/then/0/permanent/id", "equals": "mode2:targetPermanent" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "austere-command-exact",
+      "request": {
+        "cardName": "Austere Command",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Choose two —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures with mana value 3 or less.\n• Destroy all creatures with mana value 4 or greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 2 },
+            { "pointer": "/declaration/decisions/0/maximum/value", "equals": 2 },
+            { "pointer": "/declaration/decisions/0/options/3", "equals": "mode4" },
+            { "pointer": "/declaration/decisions/0/allowRepeated", "equals": false },
+            { "pointer": "/effects/0/condition/value", "equals": "mode1" },
+            { "pointer": "/effects/0/then/0/permanent/kind", "equals": "eachPermanent" },
+            { "pointer": "/effects/1/condition/value", "equals": "mode2" },
+            { "pointer": "/effects/2/then/0/permanent/where/kind", "equals": "and" },
+            { "pointer": "/effects/3/condition/value", "equals": "mode4" },
+            { "pointer": "/effects/3/then/0/kind", "equals": "destroyPermanent" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "literal-three-sibling",
+      "request": {
+        "cardName": "Triune Verdict",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{W}",
+        "oracleText": "Choose three —\n• Destroy all artifacts.\n• Destroy all enchantments.\n• Destroy all creatures.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/0/minimum", "equals": 3 },
+            { "pointer": "/declaration/decisions/0/maximum/value", "equals": 3 },
+            { "pointer": "/declaration/decisions/0/options/2", "equals": "mode3" },
+            { "pointer": "/effects/2/condition/value", "equals": "mode3" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "external-x-namespace-sibling",
+      "request": {
+        "cardName": "Variable Verdict",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Choose one —\n• Variable Verdict deals X damage to target creature.\n• Draw a card.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/declaration/decisions/1/id", "equals": "mode1:targetPermanent" },
+            { "pointer": "/declaration/decisions/1/condition/value", "equals": "mode1" },
+            { "pointer": "/effects/0/then/0/amount/decisionId", "equals": "xValue" },
+            { "pointer": "/effects/0/then/0/recipient/id", "equals": "mode1:targetPermanent" },
+            { "pointer": "/effects/1/then/0/kind", "equals": "drawCards" },
+            { "pointer": "/effects/1/condition/value", "equals": "mode2" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "unbound-x-context-near-miss",
+      "request": {
+        "cardName": "Broken Variable Verdict",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Choose one —\n• Broken Variable Verdict deals X damage to target creature.\n• Draw a card.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_context_binding_failure",
+          "automaton": "card-context-binding",
+          "state": "binding.x-value.source",
+          "found": "{R}"
+        }]
+      }
+    },
+    {
+      "id": "trailing-action-near-miss",
+      "request": {
+        "cardName": "Broken Verdict",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Choose one —\n• Destroy all artifacts. Sing.\n• Destroy all creatures.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "modal-effect-sequence-mode",
+          "found": "Sing"
+        }]
+      }
+    }
+  ]
+}

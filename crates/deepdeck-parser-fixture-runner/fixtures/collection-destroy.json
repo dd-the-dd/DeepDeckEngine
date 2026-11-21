@@ -1,0 +1,439 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "spell/collection-destroy",
+  "cases": [
+    {
+      "id": "exact-ruinous-ultimatum-opponents-nonland-permanents",
+      "request": {
+        "cardName": "Ruinous Ultimatum",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}{R}{W}{W}{W}{B}{B}",
+        "oracleText": "Destroy all nonland permanents your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "rule": {
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": {
+                "kind": "eachPermanent",
+                "where": {
+                  "kind": "not",
+                  "operand": { "kind": "cardTypeContains", "value": "Land" }
+                },
+                "player": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": { "kind": "self" }
+                  }
+                }
+              }
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "exact-supreme-verdict-keeps-independent-static-modifier",
+      "request": {
+        "cardName": "Supreme Verdict",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}{W}{U}",
+        "oracleText": "This spell can't be countered.\nDestroy all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "cantBeCountered" },
+              { "pointer": "/modifiers/0/object/kind", "equals": "self" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "effects": [{
+                "kind": "destroyPermanent",
+                "permanent": {
+                  "kind": "eachPermanent",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unbounded-union-shares-opponent-controller-scope",
+      "request": {
+        "cardName": "Generalized Ruin",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Destroy all artifacts, enchantments, creatures, and planeswalkers your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/effects/0/permanent/kind", "equals": "eachPermanent" },
+            { "pointer": "/effects/0/permanent/player/kind", "equals": "opponentsOf" },
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "or" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "sibling-each-noncreature-permanent-controller-scope",
+      "request": {
+        "cardName": "Selective Collapse",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy each noncreature permanent you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/player/kind", "equals": "controllerOf" },
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "not" },
+            { "pointer": "/effects/0/permanent/where/operand/value", "equals": "Creature" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "sibling-hexproof-is-a-filter-not-a-target-declaration",
+      "request": {
+        "cardName": "Untargeted Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all creatures with hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "and" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "exact-punishment-shares-x-across-three-types",
+      "request": {
+        "cardName": "Punishment",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{B}{G}",
+        "oracleText": "Destroy each artifact, creature, and enchantment with mana value X.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "and" },
+            { "pointer": "/effects/0/permanent/where/operands/0/kind", "equals": "or" },
+            { "pointer": "/effects/0/permanent/where/operands/0/operands/2/value", "equals": "Enchantment" },
+            { "pointer": "/effects/0/permanent/where/operands/1/kind", "equals": "compare" },
+            { "pointer": "/effects/0/permanent/where/operands/1/operator", "equals": "==" },
+            { "pointer": "/effects/0/permanent/where/operands/1/right/decisionId", "equals": "xValue" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-earlier-branch-qualifier-stays-local",
+      "request": {
+        "cardName": "Asymmetric Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all artifacts with flying and creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "or" },
+            { "pointer": "/effects/0/permanent/where/operands/0/kind", "equals": "and" },
+            { "pointer": "/effects/0/permanent/where/operands/0/operands/1/kind", "equals": "hasKeyword" },
+            { "pointer": "/effects/0/permanent/where/operands/1/kind", "equals": "cardTypeContains" },
+            { "pointer": "/effects/0/permanent/where/operands/1/value", "equals": "Creature" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "sibling-two-qualified-branches-keep-local-thresholds",
+      "request": {
+        "cardName": "Split Threshold Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all artifacts with mana value 1 and creatures with mana value 3.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/permanent/where/kind", "equals": "or" },
+            { "pointer": "/effects/0/permanent/where/operands/0/kind", "equals": "and" },
+            { "pointer": "/effects/0/permanent/where/operands/0/operands/1/right/value", "equals": 1 },
+            { "pointer": "/effects/0/permanent/where/operands/1/kind", "equals": "and" },
+            { "pointer": "/effects/0/permanent/where/operands/1/operands/1/right/value", "equals": 3 }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-intermediate-controller-does-not-leak-across-branches",
+      "request": {
+        "cardName": "Malformed Scoped Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all artifacts you control and creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure"
+        }]
+      }
+    },
+    {
+      "id": "sequence-preserves-target-declaration-of-independent-sibling",
+      "request": {
+        "cardName": "Collapse and Rally",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}",
+        "oracleText": "Destroy all creatures. Target creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "spellAbility",
+          "ruleAssertions": [
+            { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetPermanent" },
+            { "pointer": "/effects/1/kind", "equals": "modifyPowerToughness" },
+            { "pointer": "/effects/1/object/id", "equals": "targetPermanent" }
+          ]
+        }]
+      }
+    },
+    {
+      "id": "near-miss-card-zone-is-not-a-permanent-collection",
+      "request": {
+        "cardName": "Malformed Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy all cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "destroy.collection.permanent-domain",
+          "expectedContains": "battlefield-permanent"
+        }]
+      }
+    },
+    {
+      "id": "near-miss-unsupported-every-quantifier",
+      "request": {
+        "cardName": "Malformed Quantified Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy every creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "target-list.slot.start",
+            "expectedContains": "`any target`, `target`, a cardinalized target, or a determined target noun",
+            "found": "every"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-ownership-is-not-control",
+      "request": {
+        "cardName": "Malformed Ownership Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy all creatures your opponents own.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "selector.controller-qualifier.relation-or-negation",
+          "expectedContains": "control",
+          "found": "own"
+        }]
+      }
+    },
+    {
+      "id": "near-miss-source-zone-cards-are-not-battlefield-permanents",
+      "request": {
+        "cardName": "Malformed Graveyard Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy all creature cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "spellAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "contextual-effect-program",
+          "state": "destroy.collection.permanent-domain",
+          "expectedContains": "battlefield-permanent",
+          "found": "in"
+        }]
+      }
+    }
+  ]
+}

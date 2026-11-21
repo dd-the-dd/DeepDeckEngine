@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "arcane-denial/counter-and-captured-controller-delayed-draw-are-executable",
+  "cardName": "Arcane Denial",
+  "oracleId": "ab1cc360-b9de-48d9-9983-4dfe4a7d2a37",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "candidates": { "kind": "spells" },
+        "minimum": 1,
+        "maximum": 1
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "counteredSpellController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetSpell" }
+        }
+      },
+      {
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "upkeep",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "captureBindings": ["counteredSpellController"],
+        "effects": [
+          {
+            "kind": "chooseNumber",
+            "id": "delayedDrawCount",
+            "player": { "kind": "boundValue", "id": "counteredSpellController" },
+            "minimum": { "kind": "integer", "value": 0 },
+            "maximum": { "kind": "integer", "value": 2 }
+          },
+          {
+            "kind": "drawCards",
+            "player": { "kind": "boundValue", "id": "counteredSpellController" },
+            "count": { "kind": "decisionResult", "decisionId": "delayedDrawCount" }
+          }
+        ]
+      }
+    ]
+  }
+}

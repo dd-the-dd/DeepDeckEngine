@@ -1,0 +1,251 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "plural-destruction/reckless-nonblack-and-life-sequence",
+  "seed": 1901,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 2,
+          "maximum": 2,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "colorContains",
+                    "value": "Black"
+                  }
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        }
+      },
+      {
+        "kind": "loseLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 5
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "C",
+          "B",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "tested-spell",
+            "name": "Reckless Spite",
+            "typeLine": "Instant",
+            "manaCost": "{1}{B}{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 2,
+                      "maximum": 2,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "not",
+                              "operand": {
+                                "kind": "colorContains",
+                                "value": "Black"
+                              }
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTargets",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  {
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 5
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "nonblack-one",
+            "name": "nonblack-one",
+            "typeLine": "Creature - Test",
+            "manaCost": "{G}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "nonblack-two",
+            "name": "nonblack-two",
+            "typeLine": "Creature - Test",
+            "manaCost": "{U}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "excluded-black",
+            "name": "excluded-black",
+            "typeLine": "Creature - Test",
+            "manaCost": "{B}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "tested-spell",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:nonblack-one:0"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:nonblack-two:1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "tested-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "nonblack-one",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "nonblack-two",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "excluded-black",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 15
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 2
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ghostly-prison/attack-tax-is-executable",
+  "cardName": "Ghostly Prison",
+  "oracleId": "e828b189-0e8f-43b8-b909-4c23e742e028",
+  "expectedExecutable": true,
+  "rules": [{
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  }]
+}

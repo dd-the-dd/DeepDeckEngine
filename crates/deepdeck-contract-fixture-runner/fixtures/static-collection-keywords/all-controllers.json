@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "static-collection-keywords/all-controllers",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": {
+        "kind": "self"
+      },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "keyword": "reach"
+        }
+      ]
+    }
+  ]
+}

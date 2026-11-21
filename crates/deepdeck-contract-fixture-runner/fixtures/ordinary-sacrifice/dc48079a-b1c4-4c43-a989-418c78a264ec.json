@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/dc48079a-b1c4-4c43-a989-418c78a264ec",
+  "cardName": "Planar Engineering",
+  "oracleId": "dc48079a-b1c4-4c43-a989-418c78a264ec",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c83b96a3-ddfd-4d11-8a85-5bf62087cbb9",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Planar Engineering",
+      "typeLine": "Sorcery",
+      "manaCost": "{3}{G}",
+      "oracleText": "Sacrifice two lands. Search your library for four basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

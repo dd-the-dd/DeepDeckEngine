@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "blood-artist-observes-every-death-from-one-damage-batch",
+  "seed": 310,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "oneOf",
+      "events": [
+        { "kind": "permanentDied", "object": { "kind": "self" } },
+        { "kind": "permanentDied", "where": { "kind": "cardTypeContains", "value": "Creature" }, "excludeSource": true }
+      ]
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPlayer",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "players" }
+      }]
+    },
+    "effects": [
+      { "kind": "loseLife", "player": { "kind": "chosenTarget", "id": "targetPlayer" }, "amount": { "kind": "integer", "value": 1 } },
+      { "kind": "gainLife", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "amount": { "kind": "integer", "value": 1 } }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Artist controller",
+        "battlefield": [
+          {
+            "id": "blood-artist",
+            "name": "Blood Artist",
+            "typeLine": "Creature - Vampire",
+            "power": "0",
+            "toughness": "1",
+            "rules": [{
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  { "kind": "permanentDied", "object": { "kind": "self" } },
+                  { "kind": "permanentDied", "where": { "kind": "cardTypeContains", "value": "Creature" }, "excludeSource": true }
+                ]
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPlayer",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": { "kind": "players" }
+                }]
+              },
+              "effects": [
+                { "kind": "loseLife", "player": { "kind": "chosenTarget", "id": "targetPlayer" }, "amount": { "kind": "integer", "value": 1 } },
+                { "kind": "gainLife", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "amount": { "kind": "integer", "value": 1 } }
+              ]
+            }]
+          },
+          {
+            "id": "damage-batch-victim",
+            "name": "Damage Batch Victim",
+            "typeLine": "Creature - Test",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          }
+        ],
+        "hand": [{
+          "id": "damage-batch-spell",
+          "name": "Damage Batch Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 1 },
+              "recipient": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Target player" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "damage-batch-spell" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 1 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "blood-artist", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "damage-batch-victim", "equals": true },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 22 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 18 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 2 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

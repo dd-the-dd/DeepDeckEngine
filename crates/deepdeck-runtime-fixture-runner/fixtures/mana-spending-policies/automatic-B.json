@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mana-policy/automatic-B",
+  "seed": 1066,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "chooseColor",
+          "amount": 1
+        },
+        "spendRestriction": {
+          "kind": "castSpell",
+          "where": {
+            "kind": "isLegendary"
+          },
+          "cantBeCountered": true
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "producer-B",
+            "name": "Delighted Halfling",
+            "typeLine": "Creature — Halfling Citizen",
+            "manaCost": "{G}",
+            "power": "1",
+            "toughness": "2",
+            "summoningSick": false,
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{C}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "chooseColor",
+                      "amount": 1
+                    },
+                    "spendRestriction": {
+                      "kind": "castSpell",
+                      "where": {
+                        "kind": "isLegendary"
+                      },
+                      "cantBeCountered": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "legend-B",
+            "name": "legend-B",
+            "typeLine": "Legendary Instant",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "filler0",
+            "name": "Filler",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": [
+          {
+            "id": "counter",
+            "name": "Counter",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "object",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "counterStackObject",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "object"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "filler1",
+            "name": "Filler",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "legend-B"
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p1",
+      "sourceDefinitionId": "counter",
+      "targets": {
+        "object": {
+          "kind": "stackObjectDefinition",
+          "definitionId": "legend-B"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "counterPrevented",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "producer-B",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

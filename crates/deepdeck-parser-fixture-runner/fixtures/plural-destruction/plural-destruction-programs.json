@@ -1,0 +1,457 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/plural-destruction-programs",
+  "cases": [
+    {
+      "id": "exact-real-force-of-vigor",
+      "request": {
+        "cardName": "Force of Vigor",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "If it's not your turn, you may exile a green card from your hand rather than pay this spell's mana cost.\nDestroy up to two target artifacts and/or enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "ability": {
+                "condition": {
+                  "kind": "notYourTurn"
+                },
+                "costs": [
+                  {
+                    "kind": "exileCard",
+                    "where": {
+                      "kind": "colorContains",
+                      "value": "green"
+                    },
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "kind": "alternativeCost"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTargets",
+                    "id": "targetPermanent"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-real-hex",
+      "request": {
+        "cardName": "Hex",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Destroy six target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 6,
+                    "maximum": 6,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTargets",
+                    "id": "targetPermanent"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-real-reckless-spite",
+      "request": {
+        "cardName": "Reckless Spite",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Destroy two target nonblack creatures. You lose 5 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 2,
+                    "maximum": 2,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "colorContains",
+                              "value": "Black"
+                            }
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTargets",
+                    "id": "targetPermanent"
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 5
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "scalar-destroy-preserves-chosen-target",
+      "request": {
+        "cardName": "Synthetic scalar destroy regression",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-non-destroy-collection",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Exile up to two target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-negative-type-missing-domain",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy two target noncreature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-change.target.validation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-misplaced-color-qualifier",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy two target creatures with red.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-singular-controller-after-collection",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy two target creatures. Its controller creates a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-singular-regeneration-after-collection",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy two target creatures. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.destroy-regeneration.object-anaphor"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-relative-other-after-earlier-target",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy target creature. Destroy two other target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.zone-change.another-target-relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-conditional-envelope-not-atomic",
+      "request": {
+        "cardName": "Synthetic plural destroy near miss",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "If you control an artifact, destroy up to two target enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

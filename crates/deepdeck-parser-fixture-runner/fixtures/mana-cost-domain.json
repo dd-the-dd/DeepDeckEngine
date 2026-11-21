@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "ordinary-discard/correct-mana-domain-caps",
+  "cases": [
+    {
+      "id": "hand-source-is-a-backend-cap-not-a-library-fact",
+      "request": {
+        "cardName": "Hand Source Mana Discard",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Discard this card: Add {G}, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "program.mana.backend-cost-context"
+          }
+        ]
+      }
+    }
+  ]
+}

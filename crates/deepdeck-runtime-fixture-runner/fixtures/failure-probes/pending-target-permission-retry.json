@@ -1,0 +1,193 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "failure-probes/actual-etb-target-then-permission-restores-and-retries",
+  "seed": 10901,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "missingArtifact",
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            }
+          },
+          "minimum": 1,
+          "maximum": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "abilityController"
+        },
+        "effects": [
+          {
+            "kind": "destroyPermanent",
+            "permanent": {
+              "kind": "chosenTarget",
+              "id": "missingArtifact"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "hand": [
+          {
+            "id": "trigger-source",
+            "name": "Trigger Source",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "missingArtifact",
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      },
+                      "minimum": 1,
+                      "maximum": 1
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "effects": [
+                      {
+                        "kind": "destroyPermanent",
+                        "permanent": {
+                          "kind": "chosenTarget",
+                          "id": "missingArtifact"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Other",
+        "battlefield": [
+          {
+            "id": "artifact-a",
+            "name": "Artifact A",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "artifact-b",
+            "name": "Artifact B",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "trigger-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "DATA synthetic permission failure",
+      "providerError": {
+        "atDecision": 2,
+        "message": "DATA synthetic permission failure",
+        "method": "chooseOption",
+        "playerId": "player-0"
+      },
+      "retry": true
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 4
+    }
+  ]
+}

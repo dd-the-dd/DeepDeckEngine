@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "additional-discard/Big-Score-exact-oracle",
+  "cardName": "Big Score",
+  "oracleId": "a5cbd257-c836-493e-bb1a-76242619dea2",
+  "cases": [
+    {
+      "id": "exact-all-oracle-with-token-reminder",
+      "request": {
+        "cardName": "Big Score",
+        "typeLine": "Instant",
+        "manaCost": "{3}{R}",
+        "oracleText": "As an additional cost to cast this spell, discard a card.\nDraw two cards and create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "additionalCostCard",
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": null
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "additionalCosts": [
+                  {
+                    "kind": "discardCard",
+                    "card": {
+                      "kind": "chosenObject",
+                      "id": "additionalCostCard"
+                    }
+                  }
+                ]
+              },
+              "effects": []
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Treasure"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

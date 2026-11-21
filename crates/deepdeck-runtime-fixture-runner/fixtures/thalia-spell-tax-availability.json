@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "thalia-spell-tax-applies-to-each-players-noncreature-spells-only",
+  "seed": 91301,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "additionalCastingCost",
+      "players": { "kind": "eachPlayer" },
+      "where": {
+        "kind": "not",
+        "operand": { "kind": "cardTypeContains", "value": "Creature" }
+      },
+      "cost": { "kind": "payMana", "manaCost": "{1}" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Thalia controller",
+        "manaPool": ["C"],
+        "hand": [
+          {
+            "id": "controller-sorcery",
+            "name": "Controller Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "controller-creature",
+            "name": "Controller Creature",
+            "typeLine": "Creature — Test",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "thalia",
+            "name": "Thalia, Guardian of Thraben",
+            "typeLine": "Legendary Creature — Human Soldier",
+            "manaCost": "{1}{W}",
+            "power": "2",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "firstStrike" }
+              },
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [{
+                  "kind": "additionalCastingCost",
+                  "players": { "kind": "eachPlayer" },
+                  "where": {
+                    "kind": "not",
+                    "operand": { "kind": "cardTypeContains", "value": "Creature" }
+                  },
+                  "cost": { "kind": "payMana", "manaCost": "{1}" }
+                }]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["C"],
+        "hand": [
+          {
+            "id": "opponent-instant",
+            "name": "Opponent Instant",
+            "typeLine": "Instant",
+            "manaCost": "{1}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "controller-sorcery", "equals": false },
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "controller-creature", "equals": true },
+    { "kind": "spellCastAvailable", "controllerId": "player-1", "sourceDefinitionId": "opponent-instant", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "thalia", "equals": true },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

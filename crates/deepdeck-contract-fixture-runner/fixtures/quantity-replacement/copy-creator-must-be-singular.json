@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-negative/copy-creator-must-be-singular",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "createTokenCopyOfPermanent",
+        "object": {
+          "kind": "self"
+        },
+        "exileAtNextEndStep": false,
+        "controller": {
+          "kind": "eachPlayer"
+        }
+      }
+    ]
+  }
+}

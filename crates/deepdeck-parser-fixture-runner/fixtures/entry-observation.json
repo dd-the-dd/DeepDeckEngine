@@ -1,0 +1,597 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "entry-state-and-observed-event-object",
+  "oracleId": "dba16032-66c1-4ccb-9d65-d41ac550d182",
+  "cases": [
+    {
+      "id": "real-amulet-complete",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters tapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "entryState": {
+                  "tapped": true
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-untapped-observation",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters untapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "entryState": {
+                  "tapped": false
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-entering-object-no-state",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-creature-observed-reference",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a creature you control enters tapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "entryState": {
+                  "tapped": true
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-observation-then-independent-action",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters tapped, untap it. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "entryState": {
+                  "tapped": true
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "dying-object-is-not-entering-reference",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a creature you control dies, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.untap-target.reference"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-singular-pronoun",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters tapped, untap them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "entry-state-does-not-eat-extra-tail",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters tapped unexpectedly, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-entry-states-are-not-one",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a permanent you control enters tapped untapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-or-filtered-entry-state",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever this artifact or a creature enters tapped, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "enterBattlefield",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "entryState": {
+                      "tapped": true
+                    }
+                  },
+                  {
+                    "kind": "permanentEntered",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "anyController": true,
+                    "entryState": {
+                      "tapped": true
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-or-filtered-observed-object-is-one-occurrence",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever this artifact or a creature enters tapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "enterBattlefield",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "entryState": {
+                      "tapped": true
+                    }
+                  },
+                  {
+                    "kind": "permanentEntered",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "anyController": true,
+                    "entryState": {
+                      "tapped": true
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-entry-observed-object",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "When this artifact enters, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "overlapping-source-and-filtered-branches-one-object",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever this artifact or an artifact enters tapped, untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "enterBattlefield",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "entryState": {
+                      "tapped": true
+                    }
+                  },
+                  {
+                    "kind": "permanentEntered",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "anyController": true,
+                    "entryState": {
+                      "tapped": true
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shuffle-zone-keeps-excluded-selected-cards-out-of-the-shuffle",
+  "seed": 148,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "excludedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 3,
+        "maximum": 3,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": null
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "excludeCards": { "kind": "decisionResult", "decisionId": "excludedCards" }
+      },
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Shuffle exclusion pilot",
+        "battlefield": [
+          { "id": "shuffle-source", "name": "Shuffle Source", "typeLine": "Artifact" }
+        ],
+        "library": [
+          { "id": "bottom-card", "name": "Bottom Card", "typeLine": "Land" },
+          { "id": "middle-card", "name": "Middle Card", "typeLine": "Creature" },
+          { "id": "top-card", "name": "Top Card", "typeLine": "Instant" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "shuffle-source"
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "bottom-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "top-card", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "middle-card", "equals": true },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

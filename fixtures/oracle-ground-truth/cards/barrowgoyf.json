@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "fcf0c46b-a37c-4475-99a1-bff6bc0cf2db",
+  "oracleId": "74c0164c-130f-4572-9066-626c77f6e2ff",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Barrowgoyf",
+    "setCode": "plst",
+    "collectorNumber": "M3C-102",
+    "typeLine": "Creature — Lhurgoyf",
+    "manaCost": "{2}{B}",
+    "oracleText": "Deathtouch, lifelink\nBarrowgoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.\nWhenever this creature deals combat damage to a player, you may mill that many cards. If you do, you may put a creature card from among them into your hand."
+  },
+  "abilities": [
+    {
+      "id": "barrowgoyf:ability:1",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Deathtouch, lifelink",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "keywordAbilityGroup",
+        "source": { "kind": "self" },
+        "abilities": [
+          { "kind": "deathtouch" },
+          { "kind": "lifelink" }
+        ]
+      }
+    },
+    {
+      "id": "barrowgoyf:ability:2",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Barrowgoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
+        "lineStart": 1,
+        "lineEnd": 1
+      },
+      "expectedRule": {
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+          "kind": "inZone",
+          "object": { "kind": "self" },
+          "zone": { "kind": "battlefield" }
+        },
+        "modifiers": [{
+          "kind": "setBasePowerToughness",
+          "objects": { "kind": "self" },
+          "power": {
+            "kind": "countDistinctCardTypes",
+            "zone": { "kind": "anyGraveyard" }
+          },
+          "toughness": {
+            "kind": "add",
+            "left": {
+              "kind": "countDistinctCardTypes",
+              "zone": { "kind": "anyGraveyard" }
+            },
+            "right": { "kind": "integer", "value": 1 }
+          }
+        }]
+      }
+    },
+    {
+      "id": "barrowgoyf:ability:3",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "Whenever this creature deals combat damage to a player, you may mill that many cards. If you do, you may put a creature card from among them into your hand.",
+        "lineStart": 2,
+        "lineEnd": 2
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "combatDamageToPlayer",
+          "source": { "kind": "self" }
+        },
+        "effects": [{
+          "kind": "optionalAction",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "action": {
+            "kind": "mill",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": { "kind": "decisionResult", "decisionId": "damageAmount" },
+            "bind": "milledCards"
+          },
+          "onPerformed": [
+            {
+              "kind": "chooseCards",
+              "id": "milledCardForHand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "from": { "kind": "boundObjects", "binding": "milledCards" },
+              "where": { "kind": "cardTypeContains", "value": "Creature" },
+              "minimum": { "kind": "integer", "value": 0 },
+              "maximum": { "kind": "integer", "value": 1 }
+            },
+            {
+              "kind": "moveCards",
+              "cards": { "kind": "decisionResult", "decisionId": "milledCardForHand" },
+              "to": {
+                "kind": "hand",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }
+            }
+          ]
+        }]
+      }
+    }
+  ]
+}

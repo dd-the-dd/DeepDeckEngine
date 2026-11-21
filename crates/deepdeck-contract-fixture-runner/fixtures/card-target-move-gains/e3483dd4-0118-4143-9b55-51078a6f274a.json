@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/e3483dd4-0118-4143-9b55-51078a6f274a",
+  "cardName": "Epitaph Golem",
+  "oracleId": "e3483dd4-0118-4143-9b55-51078a6f274a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "202125f5-9182-436f-86df-701cdc7e60ce",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "5",
+    "oracle": {
+      "cardName": "Epitaph Golem",
+      "typeLine": "Artifact Creature — Golem",
+      "manaCost": "{5}",
+      "oracleText": "{2}: Put target card from your graveyard on the bottom of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

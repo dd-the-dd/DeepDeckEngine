@@ -1,0 +1,60 @@
+{
+  "asOf": "2026-11-12",
+  "mode": "NativeOnly",
+  "scope": {
+    "setTypes": ["expansion", "core", "masters", "draft_innovation"],
+    "digital": false,
+    "releasedOnOrBefore": "2026-11-12",
+    "setCount": 10,
+    "note": "Parser-native recognition only; not individual runtime certification."
+  },
+  "provenance": {
+    "cardSnapshotUpdatedAt": "2026-11-09T10:06:40.990Z",
+    "cardSnapshotSha256": "56EF03C42D72E906EE6B683D9C12E14A195019FE894F24FCEE8A8368C220E770",
+    "setIndexSha256": "6ACD357205353F19130548087F70B8681115A2A80D8EA311E4726A086485B81D",
+    "extractionValidationSha256": "ADBABA8BF02A4C7A18E5C5BB1AE4578AD86CF2F4369FEA2D4E7573ED7088ADB2",
+    "analyzerSha256": "3E4A72043EA8088E6F1F9386AB4B19A9A617C197EC1382C734F6958941DD8DC1",
+    "detailedReportSha256": "6151865E7034BFB098DC44C1131F238FA3B70D45C17F69930C01DF9E17C55818",
+    "archivedDetailedReportSha256": "CAD7DB5C279EA5DAACC26C89822FC85EF80ADB2D56C343EFF39F65F2CB613EBC",
+    "independentVerificationSha256": "1C847AD6EDD359A2214DDA48B685BC30C488E00412A2C43E2D7694A5937D6F98",
+    "independentVerificationPassed": true,
+    "multiFaceCardsPreserved": 99,
+    "excludedNullOracleIdWrappers": 5
+  },
+  "occurrencesBySet": {
+    "uniqueOracleIds": 2323,
+    "completeNonzero": 194,
+    "completeVanilla": 3,
+    "overallCompletePercent": 8.48,
+    "partial": 860,
+    "noNativeCanonical": 1266,
+    "nativeAbilities": 1295,
+    "totalAbilities": 4697,
+    "nativeAbilityPercent": 27.57,
+    "analyzerSeconds": 2.992,
+    "wallSeconds": 10.206
+  },
+  "interSetUnion": {
+    "uniqueOracleIds": 2279,
+    "completeNonzero": 151,
+    "completeVanilla": 3,
+    "overallCompletePercent": 6.76,
+    "partial": 859,
+    "noNativeCanonical": 1266,
+    "nativeAbilities": 1251,
+    "totalAbilities": 4652,
+    "nativeAbilityPercent": 26.89
+  },
+  "sets": [
+    {"code":"mbc","name":"Mystery Booster Commander Edition","releaseDate":"2026-10-19","uniqueOracleIds":80,"completeNonzero":8,"completeVanilla":0,"overallCompletePercent":10.00,"partial":15,"noNativeCanonical":57,"nativeAbilities":26,"totalAbilities":181,"nativeAbilityPercent":14.36,"analyzerSeconds":0.141,"wallSeconds":1.024},
+    {"code":"fra","name":"Reality Fracture","releaseDate":"2026-10-02","uniqueOracleIds":285,"completeNonzero":33,"completeVanilla":2,"overallCompletePercent":12.28,"partial":108,"noNativeCanonical":142,"nativeAbilities":176,"totalAbilities":562,"nativeAbilityPercent":31.32,"analyzerSeconds":0.365,"wallSeconds":1.020},
+    {"code":"hob","name":"The Hobbit","releaseDate":"2026-08-14","uniqueOracleIds":193,"completeNonzero":10,"completeVanilla":1,"overallCompletePercent":5.70,"partial":79,"noNativeCanonical":103,"nativeAbilities":100,"totalAbilities":387,"nativeAbilityPercent":25.84,"analyzerSeconds":0.199,"wallSeconds":1.017},
+    {"code":"msh","name":"Marvel Super Heroes","releaseDate":"2026-06-26","uniqueOracleIds":281,"completeNonzero":16,"completeVanilla":0,"overallCompletePercent":5.69,"partial":140,"noNativeCanonical":125,"nativeAbilities":192,"totalAbilities":590,"nativeAbilityPercent":32.54,"analyzerSeconds":0.287,"wallSeconds":1.016},
+    {"code":"sos","name":"Secrets of Strixhaven","releaseDate":"2026-04-24","uniqueOracleIds":271,"completeNonzero":31,"completeVanilla":0,"overallCompletePercent":11.44,"partial":99,"noNativeCanonical":141,"nativeAbilities":172,"totalAbilities":506,"nativeAbilityPercent":33.99,"analyzerSeconds":0.289,"wallSeconds":1.023},
+    {"code":"tmt","name":"Teenage Mutant Ninja Turtles","releaseDate":"2026-03-06","uniqueOracleIds":195,"completeNonzero":14,"completeVanilla":0,"overallCompletePercent":7.18,"partial":78,"noNativeCanonical":103,"nativeAbilities":105,"totalAbilities":408,"nativeAbilityPercent":25.74,"analyzerSeconds":0.202,"wallSeconds":1.024},
+    {"code":"ecl","name":"Lorwyn Eclipsed","releaseDate":"2026-01-23","uniqueOracleIds":273,"completeNonzero":20,"completeVanilla":0,"overallCompletePercent":7.33,"partial":80,"noNativeCanonical":173,"nativeAbilities":120,"totalAbilities":540,"nativeAbilityPercent":22.22,"analyzerSeconds":0.313,"wallSeconds":1.025},
+    {"code":"tla","name":"Avatar: The Last Airbender","releaseDate":"2025-11-21","uniqueOracleIds":286,"completeNonzero":30,"completeVanilla":0,"overallCompletePercent":10.49,"partial":94,"noNativeCanonical":162,"nativeAbilities":169,"totalAbilities":604,"nativeAbilityPercent":27.98,"analyzerSeconds":0.510,"wallSeconds":1.015},
+    {"code":"spm","name":"Marvel's Spider-Man","releaseDate":"2025-09-26","uniqueOracleIds":193,"completeNonzero":13,"completeVanilla":0,"overallCompletePercent":6.74,"partial":86,"noNativeCanonical":94,"nativeAbilities":113,"totalAbilities":400,"nativeAbilityPercent":28.25,"analyzerSeconds":0.228,"wallSeconds":1.017},
+    {"code":"eoe","name":"Edge of Eternities","releaseDate":"2025-08-01","uniqueOracleIds":266,"completeNonzero":19,"completeVanilla":0,"overallCompletePercent":7.14,"partial":81,"noNativeCanonical":166,"nativeAbilities":122,"totalAbilities":519,"nativeAbilityPercent":23.51,"analyzerSeconds":0.458,"wallSeconds":1.025}
+  ]
+}

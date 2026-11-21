@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/6c0f6673-bc24-4c84-b4e7-736283ffd60e",
+  "cardName": "Wanderwine Distracter",
+  "oracleId": "6c0f6673-bc24-4c84-b4e7-736283ffd60e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cbf593a7-d4ae-4771-926a-3c1b2c8c901a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Wanderwine Distracter",
+      "typeLine": "Creature — Merfolk Wizard",
+      "manaCost": "{3}{U}",
+      "oracleText": "Whenever this creature becomes tapped, target creature an opponent controls gets -3/-0 until end of turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

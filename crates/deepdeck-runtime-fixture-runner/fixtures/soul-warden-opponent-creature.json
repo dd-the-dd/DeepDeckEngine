@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "soul-warden-triggers-for-an-opponents-creature",
+  "seed": 101003,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "where": { "kind": "cardTypeContains", "value": "Creature" },
+      "anyController": true,
+      "excludeSource": true
+    },
+    "effects": [{
+      "kind": "gainLife",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Warden controller",
+        "battlefield": [{
+          "id": "soul-warden",
+          "name": "Soul Warden",
+          "typeLine": "Creature - Human Cleric",
+          "power": "1",
+          "toughness": "1",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "where": { "kind": "cardTypeContains", "value": "Creature" },
+              "anyController": true,
+              "excludeSource": true
+            },
+            "effects": [{
+              "kind": "gainLife",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["R"],
+        "hand": [{
+          "id": "opponent-creature",
+          "name": "Opponent Creature",
+          "typeLine": "Creature - Goblin",
+          "manaCost": "{R}",
+          "power": "1",
+          "toughness": "1",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "opponent-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 21 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 20 },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "opponent-creature", "equals": true },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

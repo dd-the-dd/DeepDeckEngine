@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0972d46e-423b-454e-87c7-a2d40fb6fb6d",
+  "cardName": "Katara, the Fearless",
+  "oracleId": "0972d46e-423b-454e-87c7-a2d40fb6fb6d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b0a18f8b-7364-4375-b2e1-e2f15978517f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Katara, the Fearless",
+      "typeLine": "Legendary Creature — Human Warrior Ally",
+      "manaCost": "{G}{W}{U}",
+      "oracleText": "If a triggered ability of an Ally you control triggers, that ability triggers an additional time.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

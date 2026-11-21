@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "restless-reef/temporary-source-animation-is-executable",
+  "cardName": "Restless Reef",
+  "oracleId": "df20f85b-5f81-4ee4-8487-55d90109ac36",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+    "effects": [
+      {
+        "kind": "becomeCreature",
+        "object": { "kind": "self" },
+        "addTypes": ["Creature"],
+        "addSubtypes": ["Shark"],
+        "addColors": ["U", "B"],
+        "basePower": { "kind": "integer", "value": 4 },
+        "baseToughness": { "kind": "integer", "value": 4 },
+        "retainExistingTypes": true,
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": { "kind": "self" },
+        "keyword": "deathtouch",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  }
+}

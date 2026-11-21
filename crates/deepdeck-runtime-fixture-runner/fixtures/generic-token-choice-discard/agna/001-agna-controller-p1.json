@@ -1,0 +1,286 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-discard/exact-agna-controller-p1",
+  "seed": 942,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{2}{U}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "discardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p1",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0"
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": [
+          {
+            "id": "agna",
+            "name": "Agna Qel'a",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{U}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{2}{U}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "discardCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "discard-me",
+            "name": "discard-me",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "drawn-card",
+            "name": "drawn-card",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "manaPool": [
+          "C",
+          "C",
+          "U"
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "agna",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p1",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "hand",
+      "definitionId": "drawn-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "definitionId": "discard-me",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDiscarded",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ],
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p1",
+      "sourceDefinitionId": "agna",
+      "abilityRuleIndex": 2
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ]
+}

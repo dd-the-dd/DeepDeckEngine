@@ -1,0 +1,261 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Synthetic-optional-draw/period-followup-required-when-draw-declined",
+  "seed": 1601,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentDied",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Last controller",
+        "hand": [
+          {
+            "id": "removal",
+            "name": "Removal fixture helper",
+            "typeLine": "Instant",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "victim",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "victim"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "draw-one",
+            "name": "Draw One",
+            "typeLine": "Instant",
+            "rules": []
+          },
+          {
+            "id": "draw-two",
+            "name": "Draw Two",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "solemn",
+            "name": "Synthetic optional draw source",
+            "typeLine": "Artifact Creature — Golem",
+            "manaCost": "{4}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentDied",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "effects": [
+                      {
+                        "kind": "drawCards",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Owner when stolen",
+        "library": [
+          {
+            "id": "owner-top",
+            "name": "Owner Top",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ],
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "removal",
+      "declarationDecisions": {
+        "victim": [
+          {
+            "permanent": {
+              "instanceId": "player-0:solemn:3"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ]
+}

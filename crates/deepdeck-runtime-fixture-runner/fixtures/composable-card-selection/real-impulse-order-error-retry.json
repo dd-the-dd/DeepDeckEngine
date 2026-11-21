@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "real-impulse-order-error-restores-resolution-and-clean-retry",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 4
+        },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "lookedCards"
+        },
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 1
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "boundObjects",
+                "binding": "lookedCards"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForHand"
+        },
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "remainderOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "objects": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "lookedCards"
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "cardsForHand"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "remainderOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "bottom"
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "remainderOrder"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "3ec50625-5e14-4fd0-9a96-86f195342695",
+            "name": "Impulse",
+            "typeLine": "Instant",
+            "manaCost": "{1}{U}",
+            "power": null,
+            "toughness": null
+          }
+        ],
+        "library": [
+          {
+            "id": "impulse-0",
+            "name": "Impulse 0",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "impulse-1",
+            "name": "Impulse 1",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "impulse-2",
+            "name": "Impulse 2",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "impulse-3",
+            "name": "Impulse 3",
+            "typeLine": "Artifact"
+          }
+        ],
+        "manaPool": [
+          "C",
+          "U"
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "unrelated-opponent-card",
+            "name": "Unrelated Opponent Card",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "3ec50625-5e14-4fd0-9a96-86f195342695"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "selection-order-provider-sentinel",
+      "providerError": {
+        "atDecision": 2,
+        "message": "selection-order-provider-sentinel",
+        "method": "chooseCardInstanceIds",
+        "playerId": "p0"
+      },
+      "retry": true
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    },
+    {
+      "kind": "orderCards",
+      "order": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "3ec50625-5e14-4fd0-9a96-86f195342695",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsRevealed",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 4
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

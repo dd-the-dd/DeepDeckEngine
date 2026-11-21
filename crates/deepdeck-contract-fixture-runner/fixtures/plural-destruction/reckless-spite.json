@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "plural-destruction/Reckless Spite",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "kind": "chooseTargets",
+            "id": "targetPermanent",
+            "minimum": 2,
+            "maximum": 2,
+            "candidates": {
+              "kind": "permanents",
+              "where": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "not",
+                    "operand": {
+                      "kind": "colorContains",
+                      "value": "Black"
+                    }
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "chosenTargets",
+            "id": "targetPermanent"
+          }
+        },
+        {
+          "kind": "loseLife",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "amount": {
+            "kind": "integer",
+            "value": 5
+          }
+        }
+      ]
+    }
+  ]
+}

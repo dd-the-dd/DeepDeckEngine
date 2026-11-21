@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ancient-tomb/fixed-mana-followup-damage-is-executable",
+  "cardName": "Ancient Tomb",
+  "oracleId": "23467047-6dba-4498-b783-1ebc4f74b8c2",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}{C}"
+      },
+      {
+        "kind": "dealDamage",
+        "source": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 2 },
+        "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }
+    ]
+  }
+}

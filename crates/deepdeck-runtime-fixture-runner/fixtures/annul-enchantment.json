@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "annul-counters-enchantment-spell",
+  "seed": 87,
+  "rule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [{
+            "id": "targetSpell",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "spells",
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Artifact" },
+                  { "kind": "cardTypeContains", "value": "Enchantment" }
+                ]
+              }
+            }
+          }]
+        },
+        "effects": [{
+          "kind": "counterSpell",
+          "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+        }]
+      },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Annul pilot",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "annul",
+          "name": "Annul",
+          "typeLine": "Instant",
+          "manaCost": "{U}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["C"],
+        "hand": [{
+          "id": "opponent-enchantment",
+          "name": "Opponent Enchantment",
+          "typeLine": "Enchantment",
+          "manaCost": "{1}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-enchantment"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "annul"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-enchantment",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "annul",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

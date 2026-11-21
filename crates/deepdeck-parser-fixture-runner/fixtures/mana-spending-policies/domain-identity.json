@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "mana-policy-domain-identity",
+  "cases": [
+    {
+      "id": "bare-spell-universal",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Add {G}. Spend this mana only to cast spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{G}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": null
+                  }
+                }
+              ],
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "filtered-or-preserved",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Add {G}. Spend this mana only to cast creature spells or artifact spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{G}",
+                  "spendRestriction": {
+                    "kind": "castSpell",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-right-branch-refused",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Add {G}. Spend this mana only to cast artifact spells or spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "universal-left-branch-refused",
+      "request": {
+        "cardName": "Mana Policy Sibling",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Add {G}. Spend this mana only to cast spells or artifact spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "restless-reef-enters-the-battlefield-tapped",
+  "seed": 7001,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "landToPut",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": { "kind": "integer", "value": 1 },
+        "maximum": { "kind": "integer", "value": 1 },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": { "kind": "cardTypeContains", "value": "Land" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "landToPut" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Restless Reef controller",
+        "hand": [
+          {
+            "id": "entry-driver",
+            "name": "Entry Driver",
+            "typeLine": "Sorcery",
+            "manaCost": ""
+          },
+          {
+            "id": "restless-reef",
+            "name": "Restless Reef",
+            "typeLine": "Land",
+            "rules": [{
+              "kind": "replacementEffect",
+              "source": { "kind": "self" },
+              "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+              "replacement": [{
+                "kind": "setEnteringState",
+                "object": { "kind": "self" },
+                "tapped": true
+              }]
+            }]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "entry-driver"
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "restless-reef", "equals": true },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "restless-reef", "equals": true },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

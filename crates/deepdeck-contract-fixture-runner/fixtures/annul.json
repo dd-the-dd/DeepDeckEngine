@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "annul/type-union-counter-is-executable",
+  "cardName": "Annul",
+  "oracleId": "d08e9784-75f7-4164-ac48-d06160f8c56b",
+  "expectedExecutable": true,
+  "rule": {
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [{
+            "id": "targetSpell",
+            "kind": "chooseTargets",
+            "minimum": 1,
+            "maximum": 1,
+            "candidates": {
+              "kind": "spells",
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Artifact" },
+                  { "kind": "cardTypeContains", "value": "Enchantment" }
+                ]
+              }
+            }
+          }]
+        },
+        "effects": [{
+          "kind": "counterSpell",
+          "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+        }]
+      }
+}

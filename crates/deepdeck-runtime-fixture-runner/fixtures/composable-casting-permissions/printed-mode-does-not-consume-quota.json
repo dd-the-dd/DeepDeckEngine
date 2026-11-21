@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "review/printed-mode-does-not-consume-free-permission-quota",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 3
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "permission-B",
+            "name": "Synthetic Mode Permission",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "castingPermission",
+                    "players": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "sourceZone": "hand",
+                    "where": null,
+                    "withoutPayingManaCost": true,
+                    "asThoughFlash": false,
+                    "onceEachTurn": true
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "permitted-spell",
+            "name": "Permitted Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{G}"
+          },
+          {
+            "id": "second-spell",
+            "name": "Second Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{5}"
+          }
+        ],
+        "manaPool": [
+          "G"
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "permitted-spell",
+      "declarationDecisions": {
+        "withoutPayingManaCost": false
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "second-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 26
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "permitted-spell",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "second-spell",
+      "equals": true
+    }
+  ]
+}

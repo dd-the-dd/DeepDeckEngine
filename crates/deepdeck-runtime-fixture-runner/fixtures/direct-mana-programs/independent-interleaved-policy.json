@@ -1,0 +1,369 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "independent/interleaved-draw-and-production-local-instant-policy",
+  "seed": 151151,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{G}"
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": "{U}",
+        "spendRestriction": {
+          "kind": "castSpell",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Instant"
+          },
+          "cantBeCountered": true
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "production-spell",
+            "name": "Independent Interleaved Mana Policy",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{G}"
+                  },
+                  {
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{U}",
+                    "spendRestriction": {
+                      "kind": "castSpell",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Instant"
+                      },
+                      "cantBeCountered": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "creature-G",
+            "name": "Independent Green Creature",
+            "typeLine": "Creature - Bear",
+            "manaCost": "{G}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          },
+          {
+            "id": "instant-U",
+            "name": "Independent Blue Instant",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "invalid-creature-U",
+            "name": "Independent Invalid Blue Creature",
+            "typeLine": "Creature - Bear",
+            "manaCost": "{U}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "drawn-proof",
+            "name": "Drawn Proof Card",
+            "typeLine": "Artifact",
+            "manaCost": "{7}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "counter",
+            "name": "Generic Counter Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{0}"
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "object",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "spells"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "counterStackObject",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "object"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "filler1",
+            "name": "Filler",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "production-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "castSpell",
+        "controllerId": "p0",
+        "sourceDefinitionId": "invalid-creature-U"
+      },
+      "expectedErrorContains": "canonical spell cast is not currently legal"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "creature-G"
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p1",
+      "sourceDefinitionId": "counter",
+      "targets": {
+        "object": {
+          "kind": "stackObjectDefinition",
+          "definitionId": "creature-G"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "instant-U"
+    },
+    {
+      "kind": "activateAbility",
+      "controllerId": "p1",
+      "sourceDefinitionId": "counter",
+      "targets": {
+        "object": {
+          "kind": "stackObjectDefinition",
+          "definitionId": "instant-U"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCountered",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "counterPrevented",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "production-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "creature-G",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "instant-U",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "invalid-creature-U",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "hand",
+      "definitionId": "drawn-proof",
+      "equals": true
+    }
+  ]
+}

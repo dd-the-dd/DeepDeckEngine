@@ -1,0 +1,219 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lazy-entry-presence/unordered-good-first",
+  "seed": 151115,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "wouldEnterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "controlsPermanent",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "subtypeContains",
+          "value": "Island"
+        }
+      }
+    },
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": {
+          "kind": "self"
+        },
+        "tapped": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "lazy-entry-probe",
+            "name": "Lazy Entry Probe",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "replacementEffect",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "condition": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "controlsPermanent",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "subtypeContains",
+                      "value": "Island"
+                    }
+                  }
+                },
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "good",
+            "name": "Proved Island",
+            "typeLine": "Land - Island",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "witness",
+            "name": "Witness",
+            "typeLine": "Land - Plains",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "grant-Island",
+            "name": "Grant Island",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "setLandSubtype",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "nameEquals",
+                        "value": "Witness"
+                      }
+                    },
+                    "subtype": "Island"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "grant-Mountain",
+            "name": "Grant Mountain",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "setLandSubtype",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "nameEquals",
+                        "value": "Witness"
+                      }
+                    },
+                    "subtype": "Mountain"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "p0",
+      "sourceDefinitionId": "lazy-entry-probe"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "lazy-entry-probe",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "lazy-entry-probe",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

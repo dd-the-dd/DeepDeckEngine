@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shared-cost-query-peer/valid-empty-zero",
+  "seed": 603,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "cardsInZone",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Instant"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Sorcery"
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Actor",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": []
+      },
+      {
+        "id": "p1",
+        "name": "Other holder",
+        "graveyard": []
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "executor"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "sunbillow-verge-red-is-unavailable-without-a-controlled-mountain-or-plains",
+  "seed": 12304,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "activationCondition": {
+      "kind": "controlsPermanent",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "subtypeContains", "value": "Mountain" },
+          { "kind": "subtypeContains", "value": "Plains" }
+        ]
+      }
+    },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{R}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Sunbillow Verge pilot",
+        "battlefield": [
+          { "id": "sunbillow-verge", "name": "Sunbillow Verge", "typeLine": "Land" },
+          { "id": "forest-only", "name": "Forest", "typeLine": "Basic Land — Forest" },
+          { "id": "misleading-mountain-name", "name": "Mountain", "typeLine": "Artifact" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          { "id": "opponent-mountain", "name": "Mountain", "typeLine": "Basic Land — Mountain" }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "sunbillow-verge",
+      "manaSymbols": ["R"],
+      "equals": false
+    },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "sunbillow-verge", "equals": false },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

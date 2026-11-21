@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/4fd6d9af-4d53-4e10-bc23-672454803099",
+  "cardName": "Copper Gnomes",
+  "oracleId": "4fd6d9af-4d53-4e10-bc23-672454803099",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d5e326b7-6f6a-4249-a315-c5f017931c73",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Copper Gnomes",
+      "typeLine": "Artifact Creature — Gnome",
+      "manaCost": "{2}",
+      "oracleText": "{4}, Sacrifice this creature: You may put an artifact card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/ebb3e2ff-2214-4e11-88fb-e0fa84288cf1",
+  "cardName": "Forlorn Flats",
+  "oracleId": "ebb3e2ff-2214-4e11-88fb-e0fa84288cf1",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "963c100e-4e12-438f-b5ae-14391406dff6",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Forlorn Flats",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {W} or {B}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

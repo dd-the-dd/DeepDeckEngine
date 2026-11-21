@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "player-subject-sequence/real-sign-cast-opponent",
+  "seed": 8801,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "players"
+          },
+          "id": "targetPlayer",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "drawCards",
+        "player": {
+          "id": "targetPlayer",
+          "kind": "chosenTarget"
+        }
+      },
+      {
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "loseLife",
+        "player": {
+          "id": "targetPlayer",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player0",
+        "life": 20,
+        "manaPool": [
+          "B",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "b89d9372-8682-4a61-a003-8bccfbb6cbb4",
+            "name": "Sign in Blood",
+            "typeLine": "Sorcery",
+            "manaCost": "{B}{B}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "players"
+                      },
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "id": "targetPlayer",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  {
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "loseLife",
+                    "player": {
+                      "id": "targetPlayer",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-filler-1",
+            "name": "Filler0/1",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "p0-filler-2",
+            "name": "Filler0/2",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "p0-filler-3",
+            "name": "Filler0/3",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Player1",
+        "life": 20,
+        "manaPool": [],
+        "hand": [],
+        "library": [
+          {
+            "id": "p1-filler-1",
+            "name": "Filler1/1",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "p1-filler-2",
+            "name": "Filler1/2",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "p1-filler-3",
+            "name": "Filler1/3",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "b89d9372-8682-4a61-a003-8bccfbb6cbb4",
+      "declarationDecisions": {
+        "targetPlayer": [
+          {
+            "player": {
+              "playerId": "player-1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeLost",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 18
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-1",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeLost",
+      "playerId": "player-1",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "p1-filler-3",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "p1-filler-2",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "b89d9372-8682-4a61-a003-8bccfbb6cbb4",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

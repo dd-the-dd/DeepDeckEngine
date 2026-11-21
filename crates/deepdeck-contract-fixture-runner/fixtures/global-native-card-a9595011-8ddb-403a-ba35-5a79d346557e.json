@@ -1,0 +1,48 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/a9595011-8ddb-403a-ba35-5a79d346557e/complete-rule-set",
+    "cardName":  "Tranquil Path",
+    "oracleId":  "a9595011-8ddb-403a-ba35-5a79d346557e",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Enchantment"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  },
+                  {
+                      "effects":  [
+                                      {
+                                          "count":  {
+                                                        "kind":  "integer",
+                                                        "value":  1
+                                                    },
+                                          "kind":  "drawCards",
+                                          "player":  {
+                                                         "kind":  "controllerOf",
+                                                         "object":  {
+                                                                        "kind":  "self"
+                                                                    }
+                                                     }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

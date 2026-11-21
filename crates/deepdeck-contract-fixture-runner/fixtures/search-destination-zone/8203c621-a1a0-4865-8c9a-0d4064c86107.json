@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "search-zone-gain/8203c621-a1a0-4865-8c9a-0d4064c86107",
+  "cardName": "Buried Alive",
+  "oracleId": "8203c621-a1a0-4865-8c9a-0d4064c86107",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "76878b19-2916-4f3f-bee5-20846bc9e2db",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Buried Alive",
+      "typeLine": "Sorcery",
+      "manaCost": "{2}{B}",
+      "oracleText": "Search your library for up to three creature cards, put them into your graveyard, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

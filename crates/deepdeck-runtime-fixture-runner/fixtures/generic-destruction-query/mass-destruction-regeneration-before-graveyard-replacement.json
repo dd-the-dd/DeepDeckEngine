@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "numeric-query/regeneration-replaces-destruction-before-a-graveyard-destination-replacement",
+  "seed": 603,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "<=",
+                "right": {
+                  "kind": "integer",
+                  "value": 100
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Regeneration controller",
+        "manaPool": [
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "regeneration-batch-destroy",
+            "name": "Regeneration Batch Destroy",
+            "typeLine": "Sorcery",
+            "manaCost": ""
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "batch-regenerating-creature",
+            "name": "Batch Regenerating Creature",
+            "typeLine": "Creature - Beast",
+            "power": "3",
+            "toughness": "3",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{G}"
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "installRegenerationShield",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "batch-rip",
+            "name": "Batch Graveyard Replacement",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceGraveyardDestination",
+                    "graveyardOwners": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "to": {
+                      "kind": "exile"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "batch-regenerating-creature"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "regeneration-batch-destroy"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "batch-regenerating-creature",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "batch-regenerating-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "batch-regenerating-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "batch-regenerating-creature",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentRegenerated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDied",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

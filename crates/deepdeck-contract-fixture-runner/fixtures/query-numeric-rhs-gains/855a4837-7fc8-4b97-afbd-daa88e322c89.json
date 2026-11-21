@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/855a4837-7fc8-4b97-afbd-daa88e322c89",
+  "cardName": "Walking Atlas",
+  "oracleId": "855a4837-7fc8-4b97-afbd-daa88e322c89",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "53515042-e729-4a7c-ac3b-36ef70dbbe8d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Walking Atlas",
+      "typeLine": "Artifact Creature — Construct",
+      "manaCost": "{2}",
+      "oracleText": "{T}: You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "cost-query-preservation/0ad27d0e-b6c3-4c3f-a389-285d889b6a65",
+  "cardName": "Ballyrush Banneret",
+  "oracleId": "0ad27d0e-b6c3-4c3f-a389-285d889b6a65",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b18a7daa-a112-4728-9123-594366694915",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Ballyrush Banneret",
+      "typeLine": "Creature — Kithkin Soldier",
+      "manaCost": "{1}{W}",
+      "oracleText": "Kithkin spells and Soldier spells you cast cost {1} less to cast.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

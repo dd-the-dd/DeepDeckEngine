@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "damn-normal-cast-bypasses-regeneration-through-composed-overload-rule",
+  "seed": 14101,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "mode": "overload",
+      "costs": [{ "kind": "payMana", "manaCost": "{2}{W}{W}" }]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Damn pilot",
+        "manaPool": ["G", "C", "C", "W", "W"],
+        "hand": [{
+          "id": "damn",
+          "name": "Damn",
+          "typeLine": "Sorcery",
+          "manaCost": "{B}{B}",
+          "rules": [
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "condition": {
+                    "kind": "not",
+                    "operand": { "kind": "wasCastWithAlternativeCost", "mode": "overload" }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "conditionalEffect",
+                "condition": { "kind": "wasCastWithAlternativeCost", "mode": "overload" },
+                "then": [{
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": { "kind": "cardTypeContains", "value": "Creature" }
+                  },
+                  "cannotRegenerate": true
+                }],
+                "else": [{
+                  "kind": "destroyPermanent",
+                  "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+                  "cannotRegenerate": true
+                }]
+              }]
+            },
+            {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": {
+                "kind": "alternativeCost",
+                "mode": "overload",
+                "costs": [{ "kind": "payMana", "manaCost": "{2}{W}{W}" }]
+              }
+            }
+          ]
+        }],
+        "battlefield": [{
+          "id": "shielded-creature",
+          "name": "Shielded Creature",
+          "typeLine": "Creature — Beast",
+          "manaCost": "{2}{G}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "payMana", "manaCost": "{G}" }],
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "installRegenerationShield",
+              "object": { "kind": "self" },
+              "duration": { "kind": "untilEndOfCurrentTurn" }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "opponent-creature",
+          "name": "Opponent Creature",
+          "typeLine": "Creature — Soldier",
+          "manaCost": "{1}{W}",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "activateAbility", "controllerId": "player-0", "sourceDefinitionId": "shielded-creature" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "damn", "useAlternativeCost": true },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "shielded-creature", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "shielded-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "opponent-creature", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentRegenerated", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

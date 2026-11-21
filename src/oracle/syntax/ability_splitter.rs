@@ -1,3 +1,4 @@
+use super::super::card_structure::CardStructurePlan;
 use super::super::model::{AbilitySource, OracleCardParseRequest};
 use super::normalize::normalize_oracle_encoding;
 
@@ -8,30 +9,32 @@ pub(crate) struct OracleDocument<'a> {
     oracle_text: &'a str,
 }
 
-pub(crate) fn documents(request: &OracleCardParseRequest) -> Vec<OracleDocument<'_>> {
-    if request.faces.is_empty() {
-        return request
-            .oracle_text
-            .as_deref()
-            .map(|oracle_text| {
-                vec![OracleDocument {
+pub(crate) fn documents<'a>(
+    request: &'a OracleCardParseRequest,
+    structure: &CardStructurePlan,
+) -> Vec<OracleDocument<'a>> {
+    structure
+        .parts
+        .iter()
+        .filter_map(|part| match part.face_index {
+            Some(index) => {
+                let face = &request.faces[index];
+                Some(OracleDocument {
+                    face_id: Some(face.id.as_str()),
+                    face_name: &face.name,
+                    face_type_line: &face.type_line,
+                    oracle_text: &face.oracle_text,
+                })
+            }
+            None => request
+                .oracle_text
+                .as_deref()
+                .map(|oracle_text| OracleDocument {
                     face_id: None,
                     face_name: &request.card_name,
                     face_type_line: &request.type_line,
                     oracle_text,
-                }]
-            })
-            .unwrap_or_default();
-    }
-
-    request
-        .faces
-        .iter()
-        .map(|face| OracleDocument {
-            face_id: Some(face.id.as_str()),
-            face_name: &face.name,
-            face_type_line: &face.type_line,
-            oracle_text: &face.oracle_text,
+                }),
         })
         .collect()
 }
@@ -39,6 +42,33 @@ pub(crate) fn documents(request: &OracleCardParseRequest) -> Vec<OracleDocument<
 fn is_continuation_line(line: &str) -> bool {
     let trimmed = line.trim_start();
     trimmed.starts_with('\u{2022}') || trimmed.starts_with("+ ")
+}
+
+/// CR 207.2: reminder text has no rules meaning. A line that is exactly one
+/// balanced parenthetical therefore carries no ability of its own. Text that
+/// follows real ability text is not covered: it stays with that ability.
+pub(crate) fn is_reminder_only_line(text: &str) -> bool {
+    let text = text.trim();
+    if !text.starts_with('(') || !text.ends_with(')') {
+        return false;
+    }
+    let mut depth = 0_usize;
+    for (index, ch) in text.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => {
+                depth = match depth.checked_sub(1) {
+                    Some(depth) => depth,
+                    None => return false,
+                };
+                if depth == 0 && index + ch.len_utf8() != text.len() {
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+    depth == 0
 }
 
 pub(crate) fn split_abilities(document: &OracleDocument<'_>) -> Vec<AbilitySource> {

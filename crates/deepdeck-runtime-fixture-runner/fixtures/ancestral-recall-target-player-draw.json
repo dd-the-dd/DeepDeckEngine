@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ancestral-recall-draws-three-for-the-chosen-player",
+  "seed": 12702,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPlayer",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": { "kind": "players" }
+      }]
+    },
+    "effects": [{
+      "kind": "drawCards",
+      "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+      "count": { "kind": "integer", "value": 3 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Emeritus controller",
+        "hand": [{ "id": "ancestral-recall", "name": "Ancestral Recall", "typeLine": "Instant", "manaCost": "{U}" }]
+      },
+      {
+        "id": "player-1",
+        "name": "Draw recipient",
+        "library": [
+          { "id": "draw-1", "name": "Draw 1", "typeLine": "Instant" },
+          { "id": "draw-2", "name": "Draw 2", "typeLine": "Sorcery" },
+          { "id": "draw-3", "name": "Draw 3", "typeLine": "Creature" }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "ancestral-recall",
+    "targets": { "targetPlayer": { "player": { "playerId": "player-1" } } }
+  },
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "library", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "hand", "equals": 3 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-1", "equals": 3 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

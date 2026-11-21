@@ -1,0 +1,584 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "composable-zone-operands",
+  "cases": [
+    {
+      "id": "whole-real-card",
+      "request": {
+        "cardName": "Bojuka Bog",
+        "typeLine": "Land",
+        "oracleText": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "chosenTarget",
+                        "id": "targetZonePlayer"
+                      }
+                    }
+                  },
+                  "to": {
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "candidate"
+                      }
+                    },
+                    "faceDown": false
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetZonePlayer",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  }
+                ]
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{B}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "self-zone-independent-draw",
+      "request": {
+        "cardName": "Shared Zone Contract",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile your graveyard. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "to": {
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "candidate"
+                      }
+                    },
+                    "faceDown": false
+                  }
+                },
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opponent-zone-shared-predicate",
+      "request": {
+        "cardName": "Shared Zone Contract",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile all instant or sorcery cards in target opponent's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "chosenTarget",
+                        "id": "targetZonePlayer"
+                      }
+                    },
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Instant"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Sorcery"
+                        }
+                      ]
+                    }
+                  },
+                  "to": {
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "candidate"
+                      }
+                    },
+                    "faceDown": false
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetZonePlayer",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players",
+                      "where": {
+                        "kind": "isOpponentOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "zone-operand-different-destination",
+      "request": {
+        "cardName": "Shared Zone Contract",
+        "typeLine": "Sorcery",
+        "oracleText": "Put your graveyard into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "zone-operand-independent-reveal",
+      "request": {
+        "cardName": "Shared Zone Contract",
+        "typeLine": "Sorcery",
+        "oracleText": "Reveal your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-owner-targets",
+      "request": {
+        "cardName": "Shared Zone Contract",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile target player's graveyard. Target player gains 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "chosenTarget",
+                        "id": "targetZonePlayer"
+                      }
+                    }
+                  },
+                  "to": {
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "candidate"
+                      }
+                    },
+                    "faceDown": false
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetZonePlayer",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  },
+                  {
+                    "id": "targetPlayer",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-zone",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile target player's unknown.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-owner",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-suffix",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile target player's graveyard unless they pay {2}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "non-card-predicate",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile all creatures in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-library-collection",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

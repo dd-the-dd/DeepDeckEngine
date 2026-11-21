@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/79e69a91-d580-47fb-be76-1e32c50d2fa0",
+  "cardName": "Great Divide Guide",
+  "oracleId": "79e69a91-d580-47fb-be76-1e32c50d2fa0",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cc3063ec-5ea6-46c1-8331-c740cbaf6c76",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Great Divide Guide",
+      "typeLine": "Creature — Human Scout Ally",
+      "manaCost": "{1}{G}",
+      "oracleText": "Each land and Ally you control has \"{T}: Add one mana of any color.\"",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

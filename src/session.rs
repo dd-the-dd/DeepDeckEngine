@@ -1,5 +1,6 @@
 use crate::agent_protocol::{
-    WebSocketAgent, is_registered_agent_controller, validate_registered_agent_assignment,
+    DecisionClockConfig, WebSocketAgent, is_registered_agent_controller,
+    validate_registered_agent_assignment,
 };
 use crate::analytics::{
     DeckAnalyticsService, ObservedDecisionProvider, PLAYER_MATCH_ANALYTICS_CONTEXT,
@@ -173,6 +174,13 @@ fn session_run_error<T>(run: impl FnOnce() -> Result<T, EngineError>) -> Option<
     }
 }
 
+fn clock_expired_player(error: &str) -> Option<&str> {
+    error
+        .strip_prefix("agent clock expired for player ")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateGameSessionRequest {
@@ -205,7 +213,11 @@ pub struct CreateGameSessionRequest {
     #[serde(default)]
     pub opening_hand_selection_pool_size_by_player_id: BTreeMap<String, usize>,
     #[serde(default)]
+    pub fixed_opening_hand_definition_ids_by_player_id: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
     pub training_anchor_deadline_round_by_player_id: BTreeMap<String, u32>,
+    #[serde(default)]
+    pub start_with_sideboarding: bool,
     #[serde(default)]
     pub hold_priority_player_ids: Vec<String>,
     #[serde(default)]
@@ -218,6 +230,8 @@ pub struct CreateGameSessionRequest {
     pub wait_timeout_ms: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub human_decision_timeout_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decision_clock: Option<DecisionClockConfig>,
 }
 
 pub(crate) fn resolve_session_best_of(
@@ -690,6 +704,10 @@ struct InteractiveDecisionProvider {
 }
 
 impl InteractiveDecisionProvider {
+    fn agent_clock_expired(error: &EngineError) -> bool {
+        clock_expired_player(&error.to_string()).is_some()
+    }
+
     fn player_seed(&self, player_id: &str) -> u64 {
         player_id
             .as_bytes()
@@ -745,6 +763,7 @@ impl DecisionProvider for InteractiveDecisionProvider {
             let observation = project_ai_state(state.clone(), &request.player_id);
             match agent.choose(&observation, request) {
                 Ok(choice) => return Ok(choice),
+                Err(error) if Self::agent_clock_expired(&error) => return Err(error),
                 Err(error) => eprintln!(
                     "external agent failed decision {}; using deterministic random fallback: {}",
                     request.id, error
@@ -792,6 +811,7 @@ impl DecisionProvider for InteractiveDecisionProvider {
             let observation = project_ai_state(state.clone(), &request.player_id);
             match agent.choose_number(&observation, request) {
                 Ok(choice) => return Ok(choice),
+                Err(error) if Self::agent_clock_expired(&error) => return Err(error),
                 Err(error) => eprintln!(
                     "external agent failed numeric decision {}; using deterministic random fallback: {}",
                     request.id, error
@@ -855,6 +875,7 @@ impl DecisionProvider for InteractiveDecisionProvider {
             let observation = project_ai_state(state.clone(), &request.player_id);
             match agent.choose_card_instance_ids(&observation, request) {
                 Ok(choice) => return Ok(choice),
+                Err(error) if Self::agent_clock_expired(&error) => return Err(error),
                 Err(error) => eprintln!(
                     "external agent failed card selection {}; using deterministic random fallback: {}",
                     request.id, error
@@ -1234,6 +1255,11 @@ impl GameSessionManager {
         for player_id in request
             .opening_hand_selection_pool_size_by_player_id
             .keys()
+            .chain(
+                request
+                    .fixed_opening_hand_definition_ids_by_player_id
+                    .keys(),
+            )
             .chain(request.training_anchor_deadline_round_by_player_id.keys())
         {
             if !player_ids.contains(player_id.as_str()) {
@@ -1241,6 +1267,19 @@ impl GameSessionManager {
                     "unknown training configuration player: {player_id}"
                 )));
             }
+        }
+        if let Some(player_id) = request
+            .fixed_opening_hand_definition_ids_by_player_id
+            .keys()
+            .find(|player_id| {
+                request
+                    .opening_hand_selection_pool_size_by_player_id
+                    .contains_key(*player_id)
+            })
+        {
+            return Err(GameSessionError::new(format!(
+                "player {player_id} cannot use both fixed and selectable opening hands"
+            )));
         }
         if let Some(unknown) = request
             .hold_priority_player_ids
@@ -1306,6 +1345,11 @@ impl GameSessionManager {
         let analytics_deck_session_by_player_id =
             request.analytics_deck_session_by_player_id.clone();
         let game_mode = request.game_mode;
+        if request.start_with_sideboarding && game_mode != GameMode::Legacy {
+            return Err(GameSessionError::new(
+                "startWithSideboarding requires legacy game mode",
+            ));
+        }
         let wait_timeout = Duration::from_millis(request.wait_timeout_ms.clamp(1_000, 600_000));
         let human_decision_timeout = request
             .human_decision_timeout_ms
@@ -1320,6 +1364,11 @@ impl GameSessionManager {
         for (player_id, deadline_round) in &request.training_anchor_deadline_round_by_player_id {
             engine
                 .configure_training_anchor(player_id, *deadline_round)
+                .map_err(|error| GameSessionError::new(error.to_string()))?;
+        }
+        for (player_id, definition_ids) in &request.fixed_opening_hand_definition_ids_by_player_id {
+            engine
+                .configure_fixed_opening_hand(player_id, definition_ids)
                 .map_err(|error| GameSessionError::new(error.to_string()))?;
         }
         let session_id = format!(
@@ -1406,6 +1455,7 @@ impl GameSessionManager {
                     player_id.clone(),
                     known_deck,
                     history.clone(),
+                    request.decision_clock,
                 )
                 .map(|client| (player_id.clone(), client))
                 .map_err(|error| GameSessionError::new(error.to_string()))
@@ -1477,6 +1527,7 @@ impl GameSessionManager {
         };
         let ai_seed = request.seed ^ 0xD1B5_4A32_D192_ED03;
         let opening_hand_selections = request.opening_hand_selection_pool_size_by_player_id;
+        let start_with_sideboarding = request.start_with_sideboarding;
         let wait_shared = Arc::clone(&shared);
         thread::Builder::new()
             .name("mtg-game-session".to_string())
@@ -1503,6 +1554,28 @@ impl GameSessionManager {
                     .iter()
                     .map(|player| (player.id.clone(), 0_u32))
                     .collect::<BTreeMap<_, _>>();
+                if start_with_sideboarding {
+                    shared.publish_match_state(GameMatchState {
+                        game_number,
+                        games_to_win,
+                        phase: "sideboarding".to_string(),
+                        wins_by_player_id: wins_by_player_id.clone(),
+                        winner_player_id: None,
+                    });
+                    if let Err(error) =
+                        apply_sideboarding(&mut match_setup, engine.state(), &mut provider, 0)
+                    {
+                        shared.publish_completion(engine.state(), Some(error.to_string()));
+                        return;
+                    }
+                    match GameEngine::new_with_mode(match_setup.clone(), request.seed, game_mode) {
+                        Ok(sideboarded_engine) => engine = sideboarded_engine,
+                        Err(error) => {
+                            shared.publish_completion(engine.state(), Some(error.to_string()));
+                            return;
+                        }
+                    }
+                }
                 loop {
                     if game_mode == GameMode::Legacy {
                         shared.publish_match_state(GameMatchState {
@@ -1542,6 +1615,10 @@ impl GameSessionManager {
                         };
                         engine = checkpoint;
                         provider.restore_analytics_checkpoint(analytics_checkpoint);
+                        if let Some(player_id) = clock_expired_player(&attempt_error) {
+                            engine.forfeit_player(player_id, crate::engine::GameEndReason::Time);
+                            break;
+                        }
                         if provider.is_cancelled() {
                             error = Some(attempt_error);
                             break;
@@ -1577,6 +1654,13 @@ impl GameSessionManager {
                             };
                             engine = checkpoint.clone();
                             provider.restore_analytics_checkpoint(analytics_checkpoint);
+                            if let Some(player_id) = clock_expired_player(&attempt_error) {
+                                engine.forfeit_player(
+                                    player_id,
+                                    crate::engine::GameEndReason::Time,
+                                );
+                                break;
+                            }
                             if provider.is_cancelled() {
                                 error = Some(attempt_error);
                                 break;
@@ -1918,7 +2002,10 @@ impl GameSessionManager {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     #[test]
     fn legacy_analytics_default_is_preserved_but_caller_can_disable_it() {
@@ -1934,11 +2021,11 @@ mod tests {
     }
     use super::{
         CreateGameSessionRequest, GameSessionManager, analytics_pilot_for_ai_controller,
-        apply_sideboarding, session_run_error,
+        apply_sideboarding, clock_expired_player, session_run_error,
     };
     use crate::engine::{
         CardDefinition, DecisionChoice, DecisionProvider, EngineDecisionRequest, EngineError,
-        GameEngine, GameMode, GameSetup, GameState, PlayerDeck,
+        GameEndReason, GameEngine, GameMode, GameSetup, GameState, PlayerDeck,
     };
 
     struct SideboardProvider {
@@ -2005,6 +2092,38 @@ mod tests {
     }
 
     #[test]
+    fn decision_clock_expiry_identifies_the_player_and_ends_the_game() {
+        assert_eq!(
+            clock_expired_player("agent clock expired for player player-a"),
+            Some("player-a")
+        );
+        assert_eq!(clock_expired_player("agent timed out after 500 ms"), None);
+
+        let player = |id: &str| PlayerDeck {
+            id: id.to_string(),
+            name: id.to_string(),
+            starting_life: 20,
+            cards: Vec::new(),
+        };
+        let mut engine = GameEngine::new(
+            GameSetup {
+                players: vec![player("player-a"), player("player-b")],
+                opening_hand_size: 0,
+                starting_player: 0,
+            },
+            1,
+        )
+        .expect("minimal game starts");
+
+        engine.forfeit_player("player-a", GameEndReason::Time);
+
+        let outcome = engine.state().outcome.as_ref().expect("game ends on time");
+        assert_eq!(outcome.reason, GameEndReason::Time);
+        assert_eq!(outcome.winner.as_deref(), Some("player-b"));
+        assert_eq!(outcome.losers, vec!["player-a".to_string()]);
+    }
+
+    #[test]
     fn automated_session_returns_an_initial_view_for_polling() {
         let cards = |owner: &str| {
             (0..14)
@@ -2057,13 +2176,16 @@ mod tests {
                 analytics_deck_session_by_player_id: Default::default(),
                 punching_bag_player_ids: Vec::new(),
                 opening_hand_selection_pool_size_by_player_id: Default::default(),
+                fixed_opening_hand_definition_ids_by_player_id: Default::default(),
                 training_anchor_deadline_round_by_player_id: Default::default(),
+                start_with_sideboarding: false,
                 hold_priority_player_ids: Vec::new(),
                 mulligan_enabled: false,
                 free_mulligans: 0,
                 max_mulligans: None,
                 wait_timeout_ms: 10_000,
                 human_decision_timeout_ms: None,
+                decision_clock: None,
             })
             .expect("automated session starts in the background");
 

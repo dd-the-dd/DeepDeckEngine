@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "plural-destruction/Force of Vigor",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "ability": {
+        "condition": {
+          "kind": "notYourTurn"
+        },
+        "costs": [
+          {
+            "kind": "exileCard",
+            "where": {
+              "kind": "colorContains",
+              "value": "green"
+            },
+            "zone": {
+              "kind": "hand",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          }
+        ],
+        "kind": "alternativeCost"
+      },
+      "kind": "keywordAbility",
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "kind": "chooseTargets",
+            "id": "targetPermanent",
+            "minimum": 0,
+            "maximum": 2,
+            "candidates": {
+              "kind": "permanents",
+              "where": {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Enchantment"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "destroyPermanent",
+          "permanent": {
+            "kind": "chosenTargets",
+            "id": "targetPermanent"
+          }
+        }
+      ]
+    }
+  ]
+}

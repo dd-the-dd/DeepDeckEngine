@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ignoble-hierarch-exalted-does-not-buff-multiple-attackers",
+  "seed": 76,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": { "kind": "exalted" }
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Hierarch controller",
+        "life": 20,
+        "library": [
+          { "id": "pilot-draw", "name": "Pilot Draw", "typeLine": "Sorcery" }
+        ],
+        "battlefield": [
+          {
+            "id": "first-attacker",
+            "name": "First Attacker",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "second-attacker",
+            "name": "Second Attacker",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "ignoble-hierarch",
+            "name": "Ignoble Hierarch",
+            "typeLine": "Creature - Goblin Shaman",
+            "power": "0",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "exalted" }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Defender",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "runPostcombatMain", "maximumTurnNumber": 2 }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 1 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackDeclared", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "powerToughnessModified", "equals": 0 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 16 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "first-attacker", "power": 2, "toughness": 2 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "second-attacker", "power": 2, "toughness": 2 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 3 }
+  ]
+}

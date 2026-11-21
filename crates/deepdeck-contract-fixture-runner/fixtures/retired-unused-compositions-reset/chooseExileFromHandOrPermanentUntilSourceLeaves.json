@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/chooseExileFromHandOrPermanentUntilSourceLeaves",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseExileFromHandOrPermanentUntilSourceLeaves",
+        "player": {
+          "kind": "abilityController"
+        },
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "permanent"
+        },
+        "handWhere": null,
+        "optional": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "murktide-regent-two-matching-cards-leaving-create-two-triggers",
+  "seed": 9801,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "cardsLeftGraveyard",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "cardTypeContains", "value": "Instant" },
+          { "kind": "cardTypeContains", "value": "Sorcery" }
+        ]
+      },
+      "aggregation": "perCard"
+    },
+    "effects": [{
+      "kind": "putCounters",
+      "permanent": { "kind": "self" },
+      "counter": "+1/+1",
+      "count": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Murktide pilot",
+        "hand": [{
+          "id": "graveyard-exiler",
+          "name": "Graveyard Exiler",
+          "typeLine": "Sorcery",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "exileCards",
+              "count": { "kind": "integer", "value": 2 },
+              "from": {
+                "kind": "graveyard",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              }
+            }]
+          }]
+        }],
+        "battlefield": [{
+          "id": "murktide-regent",
+          "name": "Murktide Regent",
+          "typeLine": "Creature - Dragon",
+          "manaCost": "{5}{U}{U}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "cardsLeftGraveyard",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "cardTypeContains", "value": "Instant" },
+                  { "kind": "cardTypeContains", "value": "Sorcery" }
+                ]
+              },
+              "aggregation": "perCard"
+            },
+            "effects": [{
+              "kind": "putCounters",
+              "permanent": { "kind": "self" },
+              "counter": "+1/+1",
+              "count": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }],
+        "graveyard": [
+          { "id": "leaving-instant", "name": "Leaving Instant", "typeLine": "Instant" },
+          { "id": "leaving-sorcery", "name": "Leaving Sorcery", "typeLine": "Sorcery" },
+          { "id": "remaining-creature", "name": "Remaining Creature", "typeLine": "Creature" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "graveyard-exiler"
+    },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "selectCards", "count": 2, "take": "forward" }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "leaving-instant", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "leaving-sorcery", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "remaining-creature", "equals": true },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "murktide-regent", "counter": "+1/+1", "equals": 2 },
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "murktide-regent", "power": 5, "toughness": 5 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

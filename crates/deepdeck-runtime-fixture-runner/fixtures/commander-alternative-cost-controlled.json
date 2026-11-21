@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "commander-alternative-cost-replaces-base-mana-but-preserves-additional-cost-and-target",
+  "seed": 201,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "costs": [],
+      "condition": {
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+          "kind": "countPermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": { "kind": "isCommander" },
+          "excludeSource": false
+        },
+        "right": { "kind": "integer", "value": 1 }
+      }
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Alternative-cost pilot",
+        "manaPool": ["C"],
+        "battlefield": [
+          { "id": "designated-leader", "name": "Designated Leader", "typeLine": "Creature", "power": "2", "toughness": "2", "isCommander": true }
+        ],
+        "hand": [
+          {
+            "id": "sentinel-intercession",
+            "name": "Sentinel Intercession",
+            "typeLine": "Instant",
+            "manaCost": "{3}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [],
+                  "condition": {
+                    "kind": "compare",
+                    "operator": ">=",
+                    "left": {
+                      "kind": "countPermanents",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                      "where": { "kind": "isCommander" },
+                      "excludeSource": false
+                    },
+                    "right": { "kind": "integer", "value": 1 }
+                  }
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": { "kind": "self" },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetSpell",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": { "kind": "spells", "where": null }
+                    }
+                  ],
+                  "additionalCosts": [
+                    { "kind": "payMana", "manaCost": "{1}" }
+                  ]
+                },
+                "effects": [
+                  { "kind": "counterSpell", "spell": { "kind": "chosenTarget", "id": "targetSpell" } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["R"],
+        "hand": [
+          {
+            "id": "opponent-action",
+            "name": "Opponent Action",
+            "typeLine": "Sorcery",
+            "manaCost": "{R}",
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "opponent-action" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "sentinel-intercession", "useAlternativeCost": true },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "opponent-action", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "sentinel-intercession", "equals": true },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

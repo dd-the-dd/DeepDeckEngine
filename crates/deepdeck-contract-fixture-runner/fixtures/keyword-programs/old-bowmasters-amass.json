@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-keyword/old-bowmasters-amass",
+  "expectedExecutable": false,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "anyTarget"
+          },
+          "id": "triggerDamageTarget",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "dealDamage",
+        "recipient": {
+          "id": "triggerDamageTarget",
+          "kind": "chosenTarget"
+        },
+        "source": {
+          "kind": "self"
+        }
+      },
+      {
+        "armySubtype": "Orc",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "amass",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "self"
+          }
+        },
+        {
+          "exceptFirstInDrawStep": true,
+          "kind": "cardDrawn",
+          "opponentOfSourceController": true
+        }
+      ],
+      "kind": "oneOf"
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

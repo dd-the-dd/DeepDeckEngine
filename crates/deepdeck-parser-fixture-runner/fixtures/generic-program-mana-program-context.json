@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic-mana-program-context",
+  "cardName": "Blood Pet",
+  "oracleId": "e05c6c80-a91a-45e0-b991-0014fd5a6472",
+  "cases": [
+    {
+      "id": "exact-blood-pet",
+      "request": {
+        "cardName": "Blood Pet",
+        "typeLine": "Creature — Thrull",
+        "manaCost": "{B}",
+        "oracleText": "Sacrifice this creature: Add {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{B}"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-library-moving-program-uses-the-stack",
+      "request": {
+        "cardName": "Generic Library Moving Source",
+        "typeLine": "Creature — Thrull",
+        "manaCost": "{B}",
+        "oracleText": "Sacrifice this creature: Add {B}. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": "{B}"
+                },
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

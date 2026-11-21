@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "static-collection-keywords/three-collection-heads",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": {
+        "kind": "self"
+      },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              ]
+            },
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "keyword": "flying"
+        },
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              ]
+            },
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "keyword": "vigilance"
+        },
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              ]
+            },
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "keyword": "haste"
+        }
+      ]
+    }
+  ]
+}

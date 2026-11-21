@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/3792763c-7aa0-4055-b8a1-3257e0443ef1",
+  "cardName": "Skeleton Archer",
+  "oracleId": "3792763c-7aa0-4055-b8a1-3257e0443ef1",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "7a959048-0d8a-41bb-8a33-52264e525085",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Skeleton Archer",
+      "typeLine": "Creature — Skeleton Archer",
+      "manaCost": "{3}{B}",
+      "oracleText": "When this creature enters, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

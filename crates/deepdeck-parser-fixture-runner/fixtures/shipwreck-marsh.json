@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shipwreck-marsh/controlled-permanent-count-entry",
+  "cardName": "Shipwreck Marsh",
+  "oracleId": "5f42b67f-87fd-4f98-a0e8-0c8313f4bbc8",
+  "cases": [
+    {
+      "id": "exact-shipwreck-marsh",
+      "request": {
+        "cardName": "Shipwreck Marsh",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or more other lands.\n{T}: Add {U} or {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              { "pointer": "/condition/kind", "equals": "not" },
+              { "pointer": "/condition/operand/operator", "equals": ">=" },
+              { "pointer": "/condition/operand/left/kind", "equals": "countPermanents" },
+              { "pointer": "/condition/operand/left/where/value", "equals": "Land" },
+              { "pointer": "/condition/operand/right/value", "equals": 2 },
+              { "pointer": "/replacement/0/kind", "equals": "setEnteringState" },
+              { "pointer": "/replacement/0/tapped", "equals": true }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              { "pointer": "/costs/0/kind", "equals": "tap" },
+              { "pointer": "/effects/0/kind", "equals": "addMana" },
+              { "pointer": "/effects/0/mana/kind", "equals": "chooseOne" },
+              { "pointer": "/effects/0/mana/options/0", "equals": "{U}" },
+              { "pointer": "/effects/0/mana/options/1", "equals": "{B}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "artifact-threshold-and-color-sibling",
+      "request": {
+        "cardName": "Generalized Harbor",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control three or more other artifacts.\n{T}: Add {R} or {G}.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              { "pointer": "/condition/operand/operator", "equals": ">=" },
+              { "pointer": "/condition/operand/left/where/value", "equals": "Artifact" },
+              { "pointer": "/condition/operand/right/value", "equals": 3 }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/mana/options/0", "equals": "{R}" },
+              { "pointer": "/effects/0/mana/options/1", "equals": "{G}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-other-near-miss",
+      "request": {
+        "cardName": "Malformed Harbor",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or more lands.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "controlled-count-entry",
+          "state": "condition.controlled-permanent-count.complete",
+          "found": "."
+        }]
+      }
+    }
+  ]
+}

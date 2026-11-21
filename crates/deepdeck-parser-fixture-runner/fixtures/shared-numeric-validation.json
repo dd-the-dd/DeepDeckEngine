@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-numeric-validation",
+  "cases": [
+    {
+      "id": "shared-gain-nested-arithmetic-unchanged",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "You gain 1 plus 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "discard-nested-bound-same-face-x",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Discard twice X plus 1 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "discardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "xValue"
+                      }
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "nested-literal-out-of-range",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard 1 plus 2147483648 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "constant-intermediate-out-of-range",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard 2147483647 plus 1 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "trigger-no-external-x",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Whenever a land you control enters, discard X plus 1 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spell-missing-x-producer",
+      "request": {
+        "cardName": "Shared Numeric Validation Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard twice X plus 1 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    }
+  ]
+}

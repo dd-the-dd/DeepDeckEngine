@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/36508a8a-d1a4-400e-bfda-09436bc4d5d4",
+  "cardName": "Lonely Arroyo",
+  "oracleId": "36508a8a-d1a4-400e-bfda-09436bc4d5d4",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4b778b63-e5fc-4d63-a93b-4372f32cade2",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Lonely Arroyo",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {W} or {U}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

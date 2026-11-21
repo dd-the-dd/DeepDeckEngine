@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "faerie-macabre/all-native-rules-are-primitive-and-executable",
+  "cardName": "Faerie Macabre",
+  "oracleId": "c7d8beb6-472c-4758-9876-e8cbf98f4f72",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flying" }
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "activationZone": "hand",
+      "costs": [
+        { "kind": "discardCard", "card": { "kind": "self" } }
+      ],
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [
+          {
+            "id": "targetGraveyardCard",
+            "kind": "chooseTargets",
+            "minimum": 0,
+            "maximum": 2,
+            "candidates": {
+              "kind": "cards",
+              "zone": { "kind": "anyGraveyard" },
+              "where": null
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "kind": "exileTargetCards",
+          "cards": {
+            "kind": "chosenTargets",
+            "id": "targetGraveyardCard"
+          }
+        }
+      ]
+    }
+  ]
+}

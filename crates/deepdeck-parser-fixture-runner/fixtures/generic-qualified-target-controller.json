@@ -1,0 +1,405 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/qualified-controller-reference",
+  "cases": [
+    {
+      "id": "real-rapid-hybridization",
+      "request": {
+        "cardName": "Rapid Hybridization",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. It can't be regenerated. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "bind",
+                  "id": "changedPermanentController",
+                  "value": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "cannotRegenerate": true
+                },
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "boundValue",
+                    "id": "changedPermanentController"
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "types": [
+                      "Creature"
+                    ],
+                    "subtypes": [
+                      "Frog",
+                      "Lizard"
+                    ],
+                    "power": 3,
+                    "toughness": 3,
+                    "abilities": []
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed-permanent-union-sibling",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature or artifact. That permanent's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "artifact-reference-sibling",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target artifact. That artifact's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unicode-uppercase-nominal-sibling",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. It can't be regenerated. THAT CREATURE’S controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "bind",
+                  "id": "changedPermanentController",
+                  "value": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "cannotRegenerate": true
+                },
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "boundValue",
+                    "id": "changedPermanentController"
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "types": [
+                      "Creature"
+                    ],
+                    "subtypes": [
+                      "Frog",
+                      "Lizard"
+                    ],
+                    "power": 3,
+                    "toughness": 3,
+                    "abilities": []
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "historic-its-same-ir",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature. It can't be regenerated. Its controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "bind",
+                  "id": "changedPermanentController",
+                  "value": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "cannotRegenerate": true
+                },
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "boundValue",
+                    "id": "changedPermanentController"
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "colors": [
+                      "Green"
+                    ],
+                    "types": [
+                      "Creature"
+                    ],
+                    "subtypes": [
+                      "Frog",
+                      "Lizard"
+                    ],
+                    "power": 3,
+                    "toughness": 3,
+                    "abilities": []
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "nominal-mismatch",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target artifact. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "sequence.zone-change-token.controller-nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nominal-not-guaranteed-across-union",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Destroy target creature or artifact. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "sequence.zone-change-token.controller-nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-binding",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "That creature's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unproved-generic-program-stays-capped",
+      "request": {
+        "cardName": "Synthetic Qualified Controller",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card. Destroy target creature. That creature's controller creates a 3/3 green Frog Lizard creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

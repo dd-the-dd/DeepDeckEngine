@@ -1,0 +1,233 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "token-options/ant-man-army-own-entry-food",
+  "seed": 11315,
+  "rule": {
+    "effects": [
+      {
+        "kind": "chooseOneEffect",
+        "options": [
+          {
+            "effects": [
+              {
+                "controller": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "createTokens",
+                "quantity": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "token": {
+                  "kind": "namedToken",
+                  "name": "Food"
+                }
+              }
+            ],
+            "label": "Create 1 Food token"
+          },
+          {
+            "effects": [
+              {
+                "controller": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "createTokens",
+                "quantity": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "token": {
+                  "kind": "namedToken",
+                  "name": "Treasure"
+                }
+              }
+            ],
+            "label": "Create 1 Treasure token"
+          }
+        ],
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "manaPool": [
+          "C",
+          "C",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "executor",
+            "name": "Ant-Man's Army",
+            "typeLine": "Creature — Insect",
+            "manaCost": "{2}{G}",
+            "power": "3",
+            "toughness": "2",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "kind": "chooseOneEffect",
+                    "options": [
+                      {
+                        "effects": [
+                          {
+                            "controller": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "kind": "createTokens",
+                            "quantity": {
+                              "kind": "integer",
+                              "value": 1
+                            },
+                            "token": {
+                              "kind": "namedToken",
+                              "name": "Food"
+                            }
+                          }
+                        ],
+                        "label": "Create 1 Food token"
+                      },
+                      {
+                        "effects": [
+                          {
+                            "controller": {
+                              "kind": "controllerOf",
+                              "object": {
+                                "kind": "self"
+                              }
+                            },
+                            "kind": "createTokens",
+                            "quantity": {
+                              "kind": "integer",
+                              "value": 1
+                            },
+                            "token": {
+                              "kind": "namedToken",
+                              "name": "Treasure"
+                            }
+                          }
+                        ],
+                        "label": "Create 1 Treasure token"
+                      }
+                    ],
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "executor"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 1
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "token:food",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "token:treasure",
+      "equals": false
+    }
+  ]
+}

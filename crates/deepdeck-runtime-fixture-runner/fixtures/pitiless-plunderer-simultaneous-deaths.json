@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "pitiless-plunderer-observes-another-creature-in-its-death-batch",
+  "seed": 309,
+  "rule": {
+    "kind": "triggeredAbility", "source": { "kind": "self" },
+    "event": { "kind": "permanentDied", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "where": { "kind": "cardTypeContains", "value": "Creature" }, "excludeSource": true },
+    "effects": [{ "kind": "createTokens", "controller": { "kind": "controllerOf", "object": { "kind": "self" } }, "quantity": { "kind": "integer", "value": 1 }, "token": { "kind": "namedToken", "name": "Treasure" } }]
+  },
+  "initialState": { "activePlayerId": "player-0", "players": [
+    {
+      "id": "player-0", "name": "Plunderer controller",
+      "battlefield": [
+        { "id": "pitiless-plunderer", "name": "Pitiless Plunderer", "typeLine": "Creature - Human Pirate", "power": "1", "toughness": "4", "counters": { "-1/-1": 4 }, "rules": [{
+          "kind": "triggeredAbility", "source": { "kind": "self" },
+          "event": { "kind": "permanentDied", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "where": { "kind": "cardTypeContains", "value": "Creature" }, "excludeSource": true },
+          "effects": [{ "kind": "createTokens", "controller": { "kind": "controllerOf", "object": { "kind": "self" } }, "quantity": { "kind": "integer", "value": 1 }, "token": { "kind": "namedToken", "name": "Treasure" } }]
+        }] },
+        { "id": "plunderer-batch-victim", "name": "Plunderer Batch Victim", "typeLine": "Creature - Test", "power": "1", "toughness": "1", "counters": { "-1/-1": 1 }, "rules": [] }
+      ],
+      "hand": [{ "id": "checkpoint-spell", "name": "Checkpoint Spell", "typeLine": "Instant", "manaCost": "", "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [{ "kind": "gainLife", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "amount": { "kind": "integer", "value": 1 } }] }] }]
+    },
+    { "id": "player-1", "name": "Opponent" }
+  ] },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "checkpoint-spell" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "pitiless-plunderer", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "plunderer-batch-victim", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 21 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "tokenCreated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/33017203-233e-498e-806e-94b1dccf5c35/part-0",
+  "cardName": "Eidolon of Rhetoric",
+  "oracleId": "33017203-233e-498e-806e-94b1dccf5c35",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c3bc8b9e-4d22-41ba-b593-d383fd301ef9",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Eidolon of Rhetoric",
+      "typeLine": "Enchantment Creature — Spirit",
+      "manaCost": "{2}{W}",
+      "oracleText": "Each player can't cast more than one spell each turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

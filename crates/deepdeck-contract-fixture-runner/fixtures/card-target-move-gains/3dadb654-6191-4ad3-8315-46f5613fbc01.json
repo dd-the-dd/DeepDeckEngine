@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/3dadb654-6191-4ad3-8315-46f5613fbc01",
+  "cardName": "Biblioplex Assistant",
+  "oracleId": "3dadb654-6191-4ad3-8315-46f5613fbc01",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d74e1117-0196-4268-be97-a1e81b5dc90e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Biblioplex Assistant",
+      "typeLine": "Artifact Creature — Gargoyle",
+      "manaCost": "{4}",
+      "oracleText": "Flying\nWhen this creature enters, put up to one target instant or sorcery card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

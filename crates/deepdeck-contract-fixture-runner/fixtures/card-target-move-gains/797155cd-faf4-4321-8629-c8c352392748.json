@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/797155cd-faf4-4321-8629-c8c352392748",
+  "cardName": "Reclaim",
+  "oracleId": "797155cd-faf4-4321-8629-c8c352392748",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "88f3c600-66f1-4a5e-ba4f-61e9f7f7a1d9",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Reclaim",
+      "typeLine": "Instant",
+      "manaCost": "{G}",
+      "oracleText": "Put target card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

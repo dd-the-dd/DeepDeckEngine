@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "blooming-marsh/controlled-permanent-count-entry",
+  "cardName": "Blooming Marsh",
+  "oracleId": "66fa2326-1b5d-41fb-b919-83bf9f383577",
+  "cases": [
+    {
+      "id": "exact-blooming-marsh",
+      "request": {
+        "cardName": "Blooming Marsh",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or fewer other lands.\n{T}: Add {B} or {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": { "kind": "self" },
+              "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "countPermanents",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "cardTypeContains", "value": "Land" }
+                  },
+                  "right": { "kind": "integer", "value": 2 }
+                }
+              },
+              "replacement": [{ "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+              "effects": [{
+                "kind": "addMana",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "mana": { "kind": "chooseOne", "options": ["{B}", "{G}"] }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "four-or-fewer-other-lands-sibling",
+      "request": {
+        "cardName": "Generalized Marsh",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control four or fewer other lands.\n{T}: Add {R} or {W}.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              { "pointer": "/condition/operand/operator", "equals": "<=" },
+              { "pointer": "/condition/operand/left/where/value", "equals": "Land" },
+              { "pointer": "/condition/operand/right/value", "equals": 4 },
+              { "pointer": "/replacement/0/tapped", "equals": true }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "addMana" },
+              { "pointer": "/effects/0/mana/options/0", "equals": "{R}" },
+              { "pointer": "/effects/0/mana/options/1", "equals": "{W}" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-comparison-near-miss",
+      "request": {
+        "cardName": "Malformed Marsh",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control two or exactly other lands.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "controlled-count-entry",
+          "state": "condition.controlled-permanent-count.comparator-direction",
+          "expectedContains": "fewer",
+          "found": "exactly",
+          "traceContainsState": "replacement.controlled-count-entry.count-query"
+        }]
+      }
+    }
+  ]
+}

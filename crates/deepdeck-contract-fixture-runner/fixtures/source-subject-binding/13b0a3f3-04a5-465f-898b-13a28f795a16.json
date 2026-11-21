@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/13b0a3f3-04a5-465f-898b-13a28f795a16",
+  "cardName": "Pyre Spawn",
+  "oracleId": "13b0a3f3-04a5-465f-898b-13a28f795a16",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "80255777-de00-4ffa-a8a0-f522bf4198fb",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "6",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Pyre Spawn",
+      "typeLine": "Creature — Elemental",
+      "manaCost": "{4}{R}{R}",
+      "oracleText": "When this creature dies, it deals 3 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

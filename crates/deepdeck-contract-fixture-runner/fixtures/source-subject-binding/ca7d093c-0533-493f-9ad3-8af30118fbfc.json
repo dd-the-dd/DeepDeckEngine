@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/ca7d093c-0533-493f-9ad3-8af30118fbfc",
+  "cardName": "Abraded Bluffs",
+  "oracleId": "ca7d093c-0533-493f-9ad3-8af30118fbfc",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "19e96521-b4ce-4a36-a887-200e05ccc804",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Abraded Bluffs",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {R} or {W}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

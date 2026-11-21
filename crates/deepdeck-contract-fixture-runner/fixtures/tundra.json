@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "tundra/native-mana-choice-is-executable",
+  "cardName": "Tundra",
+  "oracleId": "02418479-9455-417f-a6a1-004356faff37",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{W}", "{U}"] }
+    }]
+  }
+}

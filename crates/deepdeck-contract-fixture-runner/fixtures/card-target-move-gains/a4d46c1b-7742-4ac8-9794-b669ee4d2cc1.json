@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/a4d46c1b-7742-4ac8-9794-b669ee4d2cc1",
+  "cardName": "Strongarm Thug",
+  "oracleId": "a4d46c1b-7742-4ac8-9794-b669ee4d2cc1",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "20aa9108-470c-484d-908a-c31cf6935765",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Strongarm Thug",
+      "typeLine": "Creature — Human Mercenary",
+      "manaCost": "{2}{B}",
+      "oracleText": "When this creature enters, you may return target Mercenary card from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

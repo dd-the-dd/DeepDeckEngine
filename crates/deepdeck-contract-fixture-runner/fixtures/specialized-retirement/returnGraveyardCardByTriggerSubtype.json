@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/returnGraveyardCardByTriggerSubtype",
+  "cardName": "Specialized effect retention audit batch02",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "returnGraveyardCardByTriggerSubtype",
+        "card": {
+          "kind": "chosenTarget",
+          "id": "card"
+        },
+        "triggeringPermanent": {
+          "kind": "triggeringPermanent"
+        },
+        "subtype": "Dragon",
+        "defaultDestination": "hand",
+        "matchingDestination": "battlefield",
+        "controller": {
+          "kind": "abilityController"
+        }
+      }
+    ]
+  }
+}

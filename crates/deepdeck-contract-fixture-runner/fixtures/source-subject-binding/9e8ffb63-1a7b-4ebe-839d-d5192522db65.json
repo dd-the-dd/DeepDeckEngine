@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/9e8ffb63-1a7b-4ebe-839d-d5192522db65",
+  "cardName": "Wakandan Tusker",
+  "oracleId": "9e8ffb63-1a7b-4ebe-839d-d5192522db65",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5c390e05-2f69-45af-9646-eded19d45dd8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Wakandan Tusker",
+      "typeLine": "Creature — Elephant",
+      "manaCost": "{1}{G/W}",
+      "oracleText": "Whenever this creature becomes tapped, you gain 1 life and scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

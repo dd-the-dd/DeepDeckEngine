@@ -1,0 +1,290 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain/effective-subtype-gained-then-lost",
+  "seed": 492515,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              },
+              {
+                "kind": "subtypeContains",
+                "value": "Ally"
+              }
+            ]
+          }
+        },
+        "ability": {
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "mana": {
+                "amount": 1,
+                "kind": "chooseColor"
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          ],
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "provider",
+            "name": "Synthetic provider",
+            "typeLine": "Creature — Ally",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "value": "Ally"
+                          }
+                        ]
+                      }
+                    },
+                    "ability": {
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "mana": {
+                            "amount": 1,
+                            "kind": "chooseColor"
+                          },
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "changing-holder",
+            "name": "Synthetic changing-holder",
+            "typeLine": "Artifact",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "addSubtype",
+                    "objects": {
+                      "kind": "self"
+                    },
+                    "subtype": "Ally"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": []
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "changing-holder",
+      "manaSymbols": [
+        "U"
+      ]
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "changing-holder"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "untapPermanent",
+            "permanent": {
+              "kind": "self"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "changing-holder"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "loseAllAbilitiesPermanently",
+            "object": {
+              "kind": "self"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": [
+        "U"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "changing-holder",
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "changing-holder",
+      "manaSymbols": [
+        "U"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

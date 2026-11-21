@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "earthbender-ascension-empty-counter-placement-does-not-create-reflexive",
+  "seed": 14106,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "cardTypeContains", "value": "Land" }
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "self" },
+        "counter": "quest",
+        "count": { "kind": "integer", "value": 1 },
+        "bind": "antecedentCountersPlaced"
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "compare",
+          "operator": ">",
+          "left": { "kind": "boundValue", "id": "antecedentCountersPlaced" },
+          "right": { "kind": "integer", "value": 0 }
+        },
+        "then": [{
+          "kind": "createReflexiveTrigger",
+          "source": { "kind": "self" },
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "ability": {
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": { "kind": "reflexiveTriggerCreated", "object": { "kind": "self" } },
+            "condition": {
+              "kind": "compare",
+              "operator": ">=",
+              "left": { "kind": "countCounters", "object": { "kind": "self" }, "counter": "quest" },
+              "right": { "kind": "integer", "value": 4 }
+            },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "candidates": {
+                  "kind": "permanents",
+                  "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                },
+                "minimum": 1,
+                "maximum": 1
+              }]
+            },
+            "effects": [
+              {
+                "kind": "putCounters",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "counter": "+1/+1",
+                "count": { "kind": "integer", "value": 1 }
+              },
+              {
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "trample",
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }
+            ]
+          }
+        }],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Earthbender controller",
+        "graveyard": [
+          { "id": "earthbender-ascension", "name": "Earthbender Ascension", "typeLine": "Enchantment" }
+        ],
+        "battlefield": [
+          { "id": "reward-creature", "name": "Reward Creature", "typeLine": "Creature - Ally", "power": "2", "toughness": "2" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "earthbender-ascension"
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "earthbender-ascension", "equals": true },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "reward-creature", "counter": "+1/+1", "equals": 0 },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "reward-creature", "keyword": "trample", "equals": false },
+    { "kind": "eventCount", "eventKind": "reflexiveTriggeredAbilityPutOnStack", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

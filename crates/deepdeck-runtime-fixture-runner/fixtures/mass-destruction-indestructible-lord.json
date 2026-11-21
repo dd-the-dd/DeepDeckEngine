@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mass-destruction-freezes-indestructible-before-removing-the-lord",
+  "seed": 501,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": { "kind": "cardTypeContains", "value": "Creature" }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Verdict caster",
+        "hand": [{
+          "id": "mass-destruction-spell",
+          "name": "Mass Destruction Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": {
+                "kind": "eachPermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Lord controller",
+        "battlefield": [
+          {
+            "id": "indestructible-lord",
+            "name": "Indestructible Lord",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+              "modifiers": [{
+                "kind": "grantKeyword",
+                "objects": {
+                  "kind": "permanents",
+                  "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" },
+                  "excludeSource": true
+                },
+                "keyword": "indestructible"
+              }]
+            }]
+          },
+          {
+            "id": "lord-protected-creature",
+            "name": "Lord-Protected Creature",
+            "typeLine": "Creature - Test",
+            "power": "3",
+            "toughness": "3",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "mass-destruction-spell" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "indestructible-lord", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "lord-protected-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "lord-protected-creature", "equals": false },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

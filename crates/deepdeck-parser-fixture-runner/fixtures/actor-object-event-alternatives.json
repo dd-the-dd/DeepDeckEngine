@@ -1,0 +1,607 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-actor-object-event-alternatives",
+  "cases": [
+    {
+      "id": "real-mirkwood-complete",
+      "request": {
+        "cardName": "Mirkwood Bats",
+        "typeLine": "Creature — Bat",
+        "manaCost": "{3}{B}",
+        "oracleText": "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "flying"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "tokenCreated",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isToken"
+                    }
+                  },
+                  {
+                    "kind": "permanentSacrificed",
+                    "where": {
+                      "kind": "isToken"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-creation-child",
+      "request": {
+        "cardName": "Shared Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create a token, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "tokenCreated",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "isToken"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-sacrifice-stable-token",
+      "request": {
+        "cardName": "Shared Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you sacrifice a token, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentSacrificed",
+                "where": {
+                  "kind": "isToken"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reversed-actions",
+      "request": {
+        "cardName": "Shared Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you sacrifice or create a token, each opponent loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "permanentSacrificed",
+                    "where": {
+                      "kind": "isToken"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "tokenCreated",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isToken"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-actions-with-duplicate-preserves-one-occurrence",
+      "request": {
+        "cardName": "Shared Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create, sacrifice, or create a token, draw a card. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "oneOf",
+                "events": [
+                  {
+                    "kind": "tokenCreated",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isToken"
+                    }
+                  },
+                  {
+                    "kind": "permanentSacrificed",
+                    "where": {
+                      "kind": "isToken"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "tokenCreated",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isToken"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "old-single-bare-permanent-ir",
+      "request": {
+        "cardName": "Shared Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you sacrifice a permanent, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentSacrificed",
+                "where": null,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "and-not-or",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create and sacrifice a token, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "batch-not-per-object",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create one or more tokens, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "independent-subjects-not-shared",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create a token or sacrifice an artifact, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unrepresented-object-controller",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create or sacrifice a token an opponent controls, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "creation-any-player-unproved",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player creates or sacrifices a token, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.creation.actor-scope-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "creation-another-unproved",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create another token, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.creation.source-exclusion-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "characteristics-need-effective-snapshot",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you create or sacrifice a red token, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.sacrifice.characteristic-snapshot-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sacrifice-numeric-snapshot-cap-preserved",
+      "request": {
+        "cardName": "Unsupported Event Composition",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you sacrifice a creature with power 2 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

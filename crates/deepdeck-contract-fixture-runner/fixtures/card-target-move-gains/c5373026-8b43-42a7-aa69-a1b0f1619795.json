@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/c5373026-8b43-42a7-aa69-a1b0f1619795",
+  "cardName": "Pull from the Grave",
+  "oracleId": "c5373026-8b43-42a7-aa69-a1b0f1619795",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d73612fe-8992-4650-a7e3-c7b662da6a03",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Pull from the Grave",
+      "typeLine": "Sorcery",
+      "manaCost": "{2}{B}",
+      "oracleText": "Return up to two target creature cards from your graveyard to your hand. You gain 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

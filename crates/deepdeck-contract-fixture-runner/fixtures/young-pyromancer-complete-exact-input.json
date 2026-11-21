@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "young-pyromancer/complete-exact-input",
+  "cardName": "Young Pyromancer",
+  "oracleId": "5fac139a-07d3-4e6c-98e3-d98b199f7a6f",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "c0d74ecd-a595-4012-81b4-083264b40c94",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Young Pyromancer",
+      "typeLine": "Creature — Human Shaman",
+      "manaCost": "{1}{R}",
+      "oracleText": "Whenever you cast an instant or sorcery spell, create a 1/1 red Elemental creature token.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

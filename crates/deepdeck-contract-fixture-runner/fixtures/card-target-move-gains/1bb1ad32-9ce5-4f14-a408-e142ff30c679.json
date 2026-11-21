@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/1bb1ad32-9ce5-4f14-a408-e142ff30c679",
+  "cardName": "Scholar of the Ages",
+  "oracleId": "1bb1ad32-9ce5-4f14-a408-e142ff30c679",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "8bfa31b5-8a4f-4766-9606-648cb8ee2916",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Scholar of the Ages",
+      "typeLine": "Creature — Human Wizard",
+      "manaCost": "{5}{U}{U}",
+      "oracleText": "When this creature enters, return up to two target instant and/or sorcery cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

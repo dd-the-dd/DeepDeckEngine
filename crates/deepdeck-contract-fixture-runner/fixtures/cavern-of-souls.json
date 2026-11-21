@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "cavern-of-souls/all-native-rules-are-executable",
+  "cardName": "Cavern of Souls",
+  "oracleId": "89ca686a-7c72-4d8f-9290-e89635624a83",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "decisions": [{ "id": "chosenCreatureType", "kind": "chooseCreatureType" }],
+      "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCreatureType" }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": {
+          "kind": "chooseColor",
+          "amount": 1,
+          "spendRestriction": {
+            "kind": "castSpell",
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+            "chosenCreatureTypeFromSource": true,
+            "cantBeCountered": true
+          }
+        }
+      }]
+    }
+  ]
+}

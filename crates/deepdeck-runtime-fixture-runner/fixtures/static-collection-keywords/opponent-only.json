@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "static-collection-keywords/opponent-only",
+  "seed": 1617,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "controller": {
+            "kind": "opponentsOf",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "keyword": "reach"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "collection-source",
+            "name": "collection source",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "keyword": "reach"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "own-creature",
+            "name": "own creature",
+            "typeLine": "Creature — Scout",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "own-artifact",
+            "name": "own artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "entering-land",
+            "name": "entering land",
+            "typeLine": "Land",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-creature",
+            "name": "opponent creature",
+            "typeLine": "Creature — Soldier",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "opponent-artifact",
+            "name": "opponent artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "entering-land"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "own-creature",
+      "keyword": "reach",
+      "equals": false
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-1",
+      "definitionId": "opponent-creature",
+      "keyword": "reach",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "own-artifact",
+      "keyword": "reach",
+      "equals": false
+    }
+  ]
+}

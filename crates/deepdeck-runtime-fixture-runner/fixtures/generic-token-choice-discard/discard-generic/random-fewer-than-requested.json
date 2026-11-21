@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-discard/random-fewer-than-requested",
+  "seed": 942,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "effect0:discardSelection",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 3
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 3
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": null
+        },
+        "selection": {
+          "kind": "random"
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "effect0:discardSelection"
+        },
+        "selectionProvenance": {
+          "kind": "random",
+          "decisionId": "effect0:discardSelection"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "only-card",
+            "name": "only-card",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "library": []
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "executor"
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDiscarded",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

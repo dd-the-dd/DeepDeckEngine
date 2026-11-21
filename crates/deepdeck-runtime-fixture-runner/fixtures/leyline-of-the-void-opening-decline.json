@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "leyline-of-the-void-opening-hand-offer-is-declined",
+  "seed": 14402,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": {
+      "kind": "self"
+    },
+    "ability": {
+      "kind": "openingHandBattlefield"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Leyline controller",
+        "hand": [
+          {
+            "id": "leyline-of-the-void",
+            "name": "Leyline of the Void",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{B}{B}",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "openingHandBattlefield"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "graveyardOwners": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "kind": "replaceGraveyardDestination",
+                    "to": {
+                      "kind": "exile"
+                    },
+                    "where": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "isToken"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "runMulligans",
+      "freeMulligans": 0,
+      "maximumMulligans": 0
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 0
+    },
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "leyline-of-the-void",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "leyline-of-the-void",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "openingHandKept",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "openingHandFinalized",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "openingHandPermanentEntered",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 3
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

@@ -157,7 +157,10 @@ pub fn training_pilots() -> impl Iterator<Item = &'static PilotDefinition> {
         .filter(|definition| definition.capabilities.training)
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
 

@@ -1,0 +1,217 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "reflecting-pool-public-g",
+  "seed": 651,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "mana": {
+          "amount": 1,
+          "kind": "manaTypesLandsYouControlCouldProduce"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pool pilot",
+        "battlefield": [
+          {
+            "id": "67f43ac6-2a58-4b53-b5d7-0330e2a252e2",
+            "name": "Reflecting Pool",
+            "typeLine": "Land",
+            "tapped": false,
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "amount": 1,
+                      "kind": "manaTypesLandsYouControlCouldProduce"
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "manaCost": ""
+          },
+          {
+            "id": "tapped-anchor",
+            "name": "Generic tapped anchor",
+            "typeLine": "Land",
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{G}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opposing-red",
+            "name": "Generic opposing producer",
+            "typeLine": "Land",
+            "tapped": false,
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": "{R}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "67f43ac6-2a58-4b53-b5d7-0330e2a252e2",
+      "manaSymbols": [
+        "G"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "G"
+      ]
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "67f43ac6-2a58-4b53-b5d7-0330e2a252e2",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "tapped-anchor",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "opposing-red",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAdded",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

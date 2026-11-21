@@ -1,0 +1,244 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic-trigger/event-envelope",
+  "cases": [
+    {
+      "id": "source-entry",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "When this creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-entry",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "controlled-entry",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever a creature enters under your control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-death",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever another creature you control dies, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-combat",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever this creature deals combat damage to a player, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-attack",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever this creature attacks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "step",
+      "request": {
+        "cardName": "Generic Observer",
+        "typeLine": "Creature ? Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "At the beginning of your upkeep, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "composable-selection/impulse/complete-real-source",
+  "cardName": "Impulse",
+  "oracleId": "f6bd2902-7f8b-419e-bbc7-bcab0c1b7e01",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3ec50625-5e14-4fd0-9a96-86f195342695",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Impulse",
+      "typeLine": "Instant",
+      "manaCost": "{1}{U}",
+      "oracleText": "Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

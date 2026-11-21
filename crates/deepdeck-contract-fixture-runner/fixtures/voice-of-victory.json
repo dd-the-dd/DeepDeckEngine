@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "voice-of-victory/all-native-rules-are-primitive-and-executable",
+  "cardName": "Voice of Victory",
+  "oracleId": "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "declaredAttacker",
+        "object": { "kind": "self" }
+      },
+      "effects": [
+        {
+          "kind": "createTokens",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "quantity": { "kind": "integer", "value": 2 },
+          "tapped": true,
+          "attacking": true,
+          "token": {
+            "types": ["Creature"],
+            "subtypes": ["Warrior"],
+            "colors": ["Red"],
+            "power": 1,
+            "toughness": 1
+          },
+          "bind": "mobilizeTokens"
+        },
+        {
+          "kind": "installDelayedStepTrigger",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "step": "endStep",
+          "captureBindings": ["mobilizeTokens"],
+          "effects": [
+            {
+              "kind": "sacrificePermanents",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "objects": { "kind": "boundObjects", "binding": "mobilizeTokens" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [
+        {
+          "kind": "prohibitCast",
+          "players": {
+            "kind": "opponentsOf",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "duringTurnOf": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    }
+  ]
+}

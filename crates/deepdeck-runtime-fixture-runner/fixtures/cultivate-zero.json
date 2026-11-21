@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cultivate-zero-matches-still-shuffles-and-records-search",
+  "seed": 20,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 2,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "typeLineContains", "value": "Basic" },
+              { "kind": "cardTypeContains", "value": "Land" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "revealCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "battlefieldCard",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "from": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "count": { "kind": "integer", "value": 1 }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "battlefieldCard" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": true
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "setDifference",
+          "left": { "kind": "decisionResult", "decisionId": "searchedCards" },
+          "right": { "kind": "decisionResult", "decisionId": "battlefieldCard" }
+        },
+        "to": {
+          "kind": "hand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cultivate pilot",
+        "manaPool": ["C", "C", "G"],
+        "hand": [{
+          "id": "cultivate",
+          "name": "Cultivate",
+          "typeLine": "Sorcery",
+          "manaCost": "{2}{G}"
+        }],
+        "library": [
+          { "id": "nonbasic-land", "name": "Nonbasic Land", "typeLine": "Land" },
+          { "id": "nonland-card", "name": "Nonland Card", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "cultivate" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 2 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "cultivate", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardsRevealed", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

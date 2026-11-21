@@ -1,0 +1,217 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "return-domain/sink-own-permanent-and-opponent-land-rejected",
+  "seed": 19701,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "kind": "union",
+            "sets": [
+              {
+                "controller": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "kind": "spells"
+              },
+              {
+                "controller": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "kind": "permanents",
+                "where": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              }
+            ]
+          },
+          "id": "targetObject",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "returnToOwnersHand",
+        "object": {
+          "id": "targetObject",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Return caster",
+        "life": 20,
+        "manaPool": [
+          "U",
+          "U",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "source",
+            "name": "Sink into Stupor",
+            "typeLine": "Instant",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "union",
+                        "sets": [
+                          {
+                            "controller": {
+                              "kind": "opponentsOf",
+                              "player": {
+                                "kind": "controllerOf",
+                                "object": {
+                                  "kind": "self"
+                                }
+                              }
+                            },
+                            "kind": "spells"
+                          },
+                          {
+                            "controller": {
+                              "kind": "opponentsOf",
+                              "player": {
+                                "kind": "controllerOf",
+                                "object": {
+                                  "kind": "self"
+                                }
+                              }
+                            },
+                            "kind": "permanents",
+                            "where": {
+                              "kind": "not",
+                              "operand": {
+                                "kind": "cardTypeContains",
+                                "value": "Land"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "id": "targetObject",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": {
+                      "id": "targetObject",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "manaCost": "{1}{U}{U}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "own-permanent",
+            "name": "Own creature",
+            "typeLine": "Creature - Test",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "life": 20,
+        "manaPool": [
+          "C"
+        ],
+        "hand": [],
+        "battlefield": [
+          {
+            "id": "opponent-land",
+            "name": "Opponent land",
+            "typeLine": "Land",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "source",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellReturned",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentReturned",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opponent-land",
+      "equals": true
+    }
+  ]
+}

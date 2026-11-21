@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-sacrifice/negated-creature",
+  "seed": 7721,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "victim",
+            "name": "victim",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "bear",
+            "name": "bear",
+            "typeLine": "Creature",
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "library": [
+          {
+            "id": "filler",
+            "name": "filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "other",
+            "name": "other",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "source"
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1
+    }
+  ]
+}

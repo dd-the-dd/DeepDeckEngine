@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "failure-probes/actual-etb-rewritten-top-restores-and-retries",
+  "seed": 10901,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "abilityController"
+        },
+        "effects": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "abilityController"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "hand": [
+          {
+            "id": "trigger-source",
+            "name": "Trigger Source",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "optionalEffects",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "effects": [
+                      {
+                        "kind": "gainLife",
+                        "player": {
+                          "kind": "abilityController"
+                        },
+                        "amount": {
+                          "kind": "integer",
+                          "value": 2
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "missingArtifact",
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      },
+                      "minimum": 1,
+                      "maximum": 1
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Other"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "trigger-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "resolveTopStack"
+      },
+      "expectedErrorContains": "DATA synthetic permission failure",
+      "providerError": {
+        "atDecision": 1,
+        "message": "DATA synthetic permission failure",
+        "method": "chooseOption",
+        "playerId": "player-0"
+      },
+      "retry": true
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityFizzled",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    }
+  ]
+}

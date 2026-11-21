@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-sulfur-falls",
+  "cardName": "Sulfur Falls",
+  "oracleId": "6a6c5e17-6465-4a1f-9d63-8a3ce2edc522",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9ea843a3-3bed-4d34-ab23-967d8ff5b584",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Sulfur Falls",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "This land enters tapped unless you control an Island or a Mountain.\n{T}: Add {U} or {R}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

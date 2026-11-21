@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "source-trigger-program/solemn-died",
+  "cardName": "Solemn Simulacrum",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentDied",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "effects": [
+      {
+        "kind": "optionalEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "effects": [
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "oracleId": "00c0543c-2a1f-4425-8283-4062d74a1637"
+}

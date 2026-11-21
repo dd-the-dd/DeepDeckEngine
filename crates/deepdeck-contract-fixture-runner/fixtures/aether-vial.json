@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs/complete-real-aether-vial",
+  "cardName": "Aether Vial",
+  "oracleId": "fc148e1e-dff0-448e-9f16-625341754356",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "11e8d2fd-b132-4807-9410-8edeffa519ed",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Aether Vial",
+      "typeLine": "Artifact",
+      "manaCost": "{1}",
+      "oracleText": "At the beginning of your upkeep, you may put a charge counter on this artifact.\n{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

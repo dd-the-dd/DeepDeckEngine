@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5e78e6e0-60f0-4c3c-b8dd-bd673f5152b8",
+  "cardName": "Viashino Pyromancer",
+  "oracleId": "5e78e6e0-60f0-4c3c-b8dd-bd673f5152b8",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9f52ada2-cabc-46a3-99df-271833a86909",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Viashino Pyromancer",
+      "typeLine": "Creature — Lizard Wizard",
+      "manaCost": "{1}{R}",
+      "oracleText": "When this creature enters, it deals 2 damage to target player or planeswalker.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

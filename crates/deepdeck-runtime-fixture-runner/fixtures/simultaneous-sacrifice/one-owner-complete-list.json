@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/one-owner-complete-list",
+  "seed": 1895,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "eachPlayer"
+        },
+        "objects": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player 0",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Player 1",
+        "battlefield": [
+          {
+            "id": "observer",
+            "name": "observer",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "cardsEnteredGraveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "victim-a",
+            "name": "victim-a",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "victim-b",
+            "name": "victim-b",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source"
+  },
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsEnteredGraveyard",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "playerId": "player-1",
+      "equals": 1
+    }
+  ]
+}

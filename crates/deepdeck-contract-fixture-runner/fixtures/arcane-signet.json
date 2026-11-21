@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "arcane-signet/commander-identity-mana-is-executable",
+  "cardName": "Arcane Signet",
+  "oracleId": "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": {
+          "kind": "chooseCommanderColor",
+          "amount": 1
+        }
+      }
+    ]
+  }
+}

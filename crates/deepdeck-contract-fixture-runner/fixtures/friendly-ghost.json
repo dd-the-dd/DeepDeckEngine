@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "friendly-ghost/source-entry-targeted-modifier-is-executable",
+  "cardName": "Friendly Ghost",
+  "oracleId": "e6a93240-8578-479e-b5e7-73f51b141cc8",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flying" }
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "enterBattlefield",
+        "object": { "kind": "self" }
+      },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "modifyPowerToughness",
+        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+        "power": { "kind": "integer", "value": 2 },
+        "toughness": { "kind": "integer", "value": 4 },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }]
+    }
+  ]
+}

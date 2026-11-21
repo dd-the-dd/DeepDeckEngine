@@ -1,0 +1,304 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/spell-cast-any-player-filter-addendum",
+  "cases": [
+    {
+      "id": "exact-real-niv-mizzet-partial-ability-positive",
+      "request": {
+        "cardName": "Niv-Mizzet, Parun",
+        "typeLine": "Legendary Creature — Dragon Wizard",
+        "manaCost": "{U}{U}{U}{R}{R}{R}",
+        "oracleText": "This spell can't be countered.\nFlying\nWhenever you draw a card, Niv-Mizzet deals 1 damage to any target.\nWhenever a player casts an instant or sorcery spell, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stack"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "kind": "cantBeCountered",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "ability": {
+                "kind": "flying"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": { "kind": "self" },
+              "event": {
+                "kind": "cardDrawn",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetDamageable",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": { "kind": "anyTarget" }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": { "kind": "self" },
+                  "recipient": { "kind": "chosenTarget", "id": "targetDamageable" },
+                  "amount": { "kind": "integer", "value": 1 }
+                }
+              ]
+            }
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "anyPlayer": true,
+                "where": {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Instant"
+                    },
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Sorcery"
+                    }
+                  ]
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-real-dragons-claw-unsupported-optional-body",
+      "request": {
+        "cardName": "Dragon's Claw",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a player casts a red spell, you may gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "amount": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "gainLife",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "anyPlayer": true,
+                "kind": "spellCast",
+                "where": {
+                  "kind": "colorContains",
+                  "value": "Red"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-any-player-creature",
+      "request": {
+        "cardName": "Synthetic any-player creature watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever a player casts a creature spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "anyPlayer": true,
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-mana-x-source-does-not-prove-observed-spell-context",
+      "request": {
+        "cardName": "Synthetic stack characteristic watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{X}{G}",
+        "oracleText": "Whenever you cast a spell with mana value 4 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.spell-cast.numeric-stack-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-any-player-power-context",
+      "request": {
+        "cardName": "Synthetic stack characteristic watcher",
+        "typeLine": "Enchantment",
+        "manaCost": "{G}",
+        "oracleText": "Whenever a player casts a creature spell with power 4 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.spell-cast.numeric-stack-context"
+          }
+        ]
+      }
+    }
+  ]
+}

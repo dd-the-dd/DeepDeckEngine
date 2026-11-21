@@ -1,0 +1,830 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/collection-keywords",
+  "cases": [
+    {
+      "id": "exact-complete-temur-ascendancy",
+      "request": {
+        "cardName": "Temur Ascendancy",
+        "typeLine": "Enchantment",
+        "oracleText": "Creatures you control have haste.\nWhenever a creature you control with power 4 or greater enters, you may draw a card.",
+        "manaCost": "{G}{U}{R}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "haste"
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "permanentEntered",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "powerOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "operator": ">=",
+                      "right": {
+                        "kind": "integer",
+                        "value": 4
+                      }
+                    }
+                  ]
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "coordinated-or-and-keywords",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Artifacts or creatures you control have flying and vigilance.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "flying"
+                },
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "vigilance"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "three-heads-and-three-keywords",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Artifacts, enchantments, and creatures you control have flying, vigilance, and haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Enchantment"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "flying"
+                },
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Enchantment"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "vigilance"
+                },
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Enchantment"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "haste"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "intersection-negated-type",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Noncreature artifacts you control have hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "not",
+                          "operand": {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "hexproof"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "all-controllers-no-relation",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures have reach.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "keyword": "reach"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opponent-controller-relation",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures an opponent controls have reach.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "keyword": "reach"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "multiword-keyword",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have first strike and vigilance.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "firstStrike"
+                },
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "vigilance"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-prefix-is-not-unconditional",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "If you control an Island, creatures you control have flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "unsupported_oracle_ability"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-suffix-is-not-unconditional",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have flying as long as you control an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.connector",
+            "found": "as"
+          }
+        ]
+      }
+    },
+    {
+      "id": "temporary-suffix-is-not-persistent",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.connector",
+            "found": "until"
+          }
+        ]
+      }
+    },
+    {
+      "id": "keyword-alternatives-are-not-conjunction",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have flying or vigilance.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.connector",
+            "found": "or"
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-sentence-is-not-dropped",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have haste. You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.complete",
+            "found": "You"
+          }
+        ]
+      }
+    },
+    {
+      "id": "instant-is-not-a-battlefield-source",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "effect.start",
+            "found": "Creatures"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dangling-keyword-conjunction",
+      "request": {
+        "cardName": "Synthetic Collection Grant",
+        "typeLine": "Enchantment",
+        "manaCost": "{0}",
+        "oracleText": "Creatures you control have haste and.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-collection-keyword",
+            "state": "keyword-list.item",
+            "found": "."
+          }
+        ]
+      }
+    }
+  ]
+}

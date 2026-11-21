@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "casting-x/alternative-cost-containing-x-is-resolved-and-paid",
+  "seed": 210,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Alternative X payer",
+        "manaPool": ["C", "C", "C", "B"],
+        "hand": [
+          {
+            "id": "paid-alternative-x-spell",
+            "name": "Paid Alternative X Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [{ "kind": "payMana", "manaCost": "{X}{B}" }]
+                }
+              },
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "paid-alternative-x-spell",
+      "useAlternativeCost": true,
+      "declarationDecisions": { "xValue": 3 }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "paid-alternative-x-spell", "equals": true },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

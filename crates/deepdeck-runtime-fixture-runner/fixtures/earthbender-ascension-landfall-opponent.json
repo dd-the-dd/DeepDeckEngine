@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "earthbender-ascension-ignores-an-opponents-land-entry",
+  "seed": 14105,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "cardTypeContains", "value": "Land" }
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": { "kind": "self" },
+        "counter": "quest",
+        "count": { "kind": "integer", "value": 1 },
+        "bind": "antecedentCountersPlaced"
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "compare",
+          "operator": ">",
+          "left": { "kind": "boundValue", "id": "antecedentCountersPlaced" },
+          "right": { "kind": "integer", "value": 0 }
+        },
+        "then": [{
+          "kind": "createReflexiveTrigger",
+          "source": { "kind": "self" },
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "ability": {
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": { "kind": "reflexiveTriggerCreated", "object": { "kind": "self" } },
+            "condition": {
+              "kind": "compare",
+              "operator": ">=",
+              "left": { "kind": "countCounters", "object": { "kind": "self" }, "counter": "quest" },
+              "right": { "kind": "integer", "value": 4 }
+            },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "candidates": {
+                  "kind": "permanents",
+                  "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                },
+                "minimum": 1,
+                "maximum": 1
+              }]
+            },
+            "effects": [
+              {
+                "kind": "putCounters",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "counter": "+1/+1",
+                "count": { "kind": "integer", "value": 1 }
+              },
+              {
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "trample",
+                "duration": { "kind": "untilEndOfCurrentTurn" }
+              }
+            ]
+          }
+        }],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Earthbender controller",
+        "battlefield": [{
+          "id": "earthbender-ascension",
+          "name": "Earthbender Ascension",
+          "typeLine": "Enchantment",
+          "counters": { "quest": 3 },
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            "effects": [
+              {
+                "kind": "putCounters",
+                "permanent": { "kind": "self" },
+                "counter": "quest",
+                "count": { "kind": "integer", "value": 1 },
+                "bind": "antecedentCountersPlaced"
+              },
+              {
+                "kind": "conditionalEffect",
+                "condition": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": { "kind": "boundValue", "id": "antecedentCountersPlaced" },
+                  "right": { "kind": "integer", "value": 0 }
+                },
+                "then": [{
+                  "kind": "createReflexiveTrigger",
+                  "source": { "kind": "self" },
+                  "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "ability": {
+                    "kind": "triggeredAbility",
+                    "source": { "kind": "self" },
+                    "event": { "kind": "reflexiveTriggerCreated", "object": { "kind": "self" } },
+                    "condition": {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": { "kind": "countCounters", "object": { "kind": "self" }, "counter": "quest" },
+                      "right": { "kind": "integer", "value": 4 }
+                    },
+                    "declaration": {
+                      "kind": "castingDeclaration",
+                      "decisions": [{
+                        "id": "targetPermanent",
+                        "kind": "chooseTargets",
+                        "candidates": {
+                          "kind": "permanents",
+                          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                          "where": { "kind": "cardTypeContains", "value": "Creature" }
+                        },
+                        "minimum": 1,
+                        "maximum": 1
+                      }]
+                    },
+                    "effects": [
+                      {
+                        "kind": "putCounters",
+                        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+                        "counter": "+1/+1",
+                        "count": { "kind": "integer", "value": 1 }
+                      },
+                      {
+                        "kind": "grantKeyword",
+                        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                        "keyword": "trample",
+                        "duration": { "kind": "untilEndOfCurrentTurn" }
+                      }
+                    ]
+                  }
+                }],
+                "else": []
+              }
+            ]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "hand": [
+          { "id": "opponent-land", "name": "Opponent Land", "typeLine": "Land" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "playLand", "playerId": "player-1", "sourceDefinitionId": "opponent-land" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "opponent-land", "equals": true },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "earthbender-ascension", "counter": "quest", "equals": 3 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "reflexiveTriggeredAbilityPutOnStack", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

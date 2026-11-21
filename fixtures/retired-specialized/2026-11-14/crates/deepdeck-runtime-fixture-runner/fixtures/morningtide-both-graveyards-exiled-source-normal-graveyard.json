@@ -1,0 +1,286 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Morningtide/exiles-initial-both-graveyards-source-itself-goes-to-graveyard-after-resolution",
+  "seed": 1516,
+  "rule": {
+    "effects": [
+      {
+        "kind": "exileAllGraveyards"
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Morningtide caster",
+        "manaPool": [
+          "C",
+          "W"
+        ],
+        "hand": [
+          {
+            "id": "morningtide",
+            "name": "Morningtide",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{W}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "kind": "exileAllGraveyards"
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "own-held-card",
+            "name": "own-held-card",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "own-library-card",
+            "name": "own-library-card",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "own-grave-creature",
+            "name": "own-grave-creature",
+            "typeLine": "Creature",
+            "rules": []
+          },
+          {
+            "id": "own-grave-land",
+            "name": "own-grave-land",
+            "typeLine": "Land",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "hand": [
+          {
+            "id": "opponent-held-card",
+            "name": "opponent-held-card",
+            "typeLine": "Artifact",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "opponent-library-card",
+            "name": "opponent-library-card",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "opponent-grave-artifact",
+            "name": "opponent-grave-artifact",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "opponent-grave-instant",
+            "name": "opponent-grave-instant",
+            "typeLine": "Instant",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "morningtide"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "morningtide",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "morningtide",
+      "equals": false
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "exile",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "exile",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "own-grave-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "own-grave-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "own-grave-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "own-grave-land",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opponent-grave-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-grave-artifact",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "opponent-grave-instant",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "opponent-grave-instant",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "own-held-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "own-library-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "hand",
+      "definitionId": "opponent-held-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "opponent-library-card",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

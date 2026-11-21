@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-missing-observation-rolls-back-prior-action",
+  "seed": 183,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentEntered",
+      "where": null,
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "entryState": {
+        "tapped": true
+      }
+    },
+    "effects": [
+      {
+        "kind": "untapPermanent",
+        "permanent": {
+          "kind": "observedEventObject",
+          "event": "permanentEntered"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "turnNumber": 1,
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "amulet-of-vigor",
+            "name": "Amulet of Vigor",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "power": null,
+            "toughness": null,
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "where": null,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "entryState": {
+                    "tapped": true
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "observedEventObject",
+                      "event": "permanentEntered"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "executeRule",
+        "rule": {
+          "kind": "triggeredAbility",
+          "source": {
+            "kind": "self"
+          },
+          "event": {
+            "kind": "permanentEntered",
+            "where": null,
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "entryState": {
+              "tapped": true
+            }
+          },
+          "effects": [
+            {
+              "kind": "gainLife",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "amount": {
+                "kind": "integer",
+                "value": 2
+              }
+            },
+            {
+              "kind": "untapPermanent",
+              "permanent": {
+                "kind": "observedEventObject",
+                "event": "permanentEntered"
+              }
+            }
+          ]
+        },
+        "execution": {
+          "controllerId": "player-0",
+          "sourceDefinitionId": "amulet-of-vigor",
+          "targets": {}
+        }
+      },
+      "expectedErrorContains": "missing observed event-object capture"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

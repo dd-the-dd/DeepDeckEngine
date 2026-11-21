@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "talisman-of-progress-adds-colorless-without-damage",
+  "seed": 68,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{C}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Progress pilot",
+        "battlefield": [{
+          "id": "talisman-of-progress",
+          "name": "Talisman of Progress",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "talisman-of-progress",
+    "manaSymbols": ["C"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C"] },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 0 },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "talisman-of-progress",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

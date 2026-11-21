@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "voice-of-victory/mobilize-lowers-to-captured-token-cleanup",
+  "cardName": "Voice of Victory",
+  "oracleId": "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "declaredAttacker",
+      "object": { "kind": "self" }
+    },
+    "effects": [
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 2 },
+        "tapped": true,
+        "attacking": true,
+        "bind": "mobilizeTokens",
+        "token": {
+          "types": ["Creature"],
+          "subtypes": ["Warrior"],
+          "colors": ["Red"],
+          "power": 1,
+          "toughness": 1
+        }
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "endStep",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "captureBindings": ["mobilizeTokens"],
+        "effects": [{
+          "kind": "sacrificePermanents",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "objects": { "kind": "boundObjects", "binding": "mobilizeTokens" }
+        }]
+      }
+    ]
+  }
+}

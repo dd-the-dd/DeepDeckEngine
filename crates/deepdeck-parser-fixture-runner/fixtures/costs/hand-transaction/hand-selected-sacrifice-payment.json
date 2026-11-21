@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "activation/hand-selected-sacrifice-payment",
+  "cases": [
+    {
+      "id": "synthetic-hand-cost/pay-life-and-sacrifice-before-resolution",
+      "request": {
+        "cardName": "Synthetic Hand Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Discard this card, Pay 1 life, Sacrifice a creature: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activationZone": "hand",
+              "costs": [
+                {
+                  "kind": "discardCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "kind": "payLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent2"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent2",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-hand-cost/same-x-pays-pool-and-constrains-sacrifice",
+      "request": {
+        "cardName": "Synthetic Hand Source",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{X}, Discard this card, Sacrifice a creature with power X or less: You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{X}"
+                },
+                {
+                  "kind": "discardCard",
+                  "card": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostPermanent2"
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseNumber",
+                    "id": "xValue",
+                    "minimum": 0
+                  },
+                  {
+                    "kind": "chooseObjects",
+                    "id": "activationCostPermanent2",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "compare",
+                            "operator": "<=",
+                            "left": {
+                              "kind": "powerOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "right": {
+                              "kind": "decisionResult",
+                              "decisionId": "xValue"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "activationZone": "hand"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

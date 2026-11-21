@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/d8177d08-a603-42e9-9350-890eac05e184",
+  "cardName": "Foul Spirit",
+  "oracleId": "d8177d08-a603-42e9-9350-890eac05e184",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "77afc87e-83ad-463a-8483-30d2f90577ce",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Foul Spirit",
+      "typeLine": "Creature — Spirit",
+      "manaCost": "{2}{B}",
+      "oracleText": "Flying\nWhen this creature enters, sacrifice a land.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

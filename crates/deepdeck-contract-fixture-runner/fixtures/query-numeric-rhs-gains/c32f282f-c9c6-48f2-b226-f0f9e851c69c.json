@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/c32f282f-c9c6-48f2-b226-f0f9e851c69c",
+  "cardName": "Timmy, Power Gamer",
+  "oracleId": "c32f282f-c9c6-48f2-b226-f0f9e851c69c",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3fa57822-8bca-4cdd-916f-261dae494228",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Timmy, Power Gamer",
+      "typeLine": "Legendary Creature — Human Gamer",
+      "manaCost": "{2}{G}{G}",
+      "oracleText": "{4}: You may put a creature card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

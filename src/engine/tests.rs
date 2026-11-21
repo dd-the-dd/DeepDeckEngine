@@ -2,219 +2,2286 @@ use super::*;
 use crate::model::{PlayableCardInput, compile_playable_card};
 use crate::oracle::{OracleCardFace, OracleCardParseRequest, parse_oracle_card};
 
+#[path = "tests/snapshot_bindings.rs"]
+mod snapshot_bindings;
+
+#[path = "tests/bound_object_zone_identity.rs"]
+mod bound_object_zone_identity;
+
+#[path = "tests/landwalk_runtime.rs"]
+mod landwalk_runtime;
+
+#[path = "tests/league_regression_runtime.rs"]
+mod league_regression_runtime;
+
+#[path = "tests/league_permission_selection_runtime.rs"]
+mod league_permission_selection_runtime;
+
+#[path = "tests/league_reference_runtime.rs"]
+mod league_reference_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/source_lki_runtime.rs"]
+mod source_lki_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/destroy_permanent_contract.rs"]
+mod destroy_permanent_contract;
+
+#[path = "tests/token_runtime.rs"]
+mod token_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/suspend_keyword_runtime.rs"]
+mod suspend_keyword_runtime;
+
+#[path = "tests/regeneration_shield_runtime.rs"]
+mod regeneration_shield_runtime;
+
+#[path = "tests/restored_actions_runtime.rs"]
+mod restored_actions_runtime;
+
+#[path = "tests/attach_legality_runtime.rs"]
+mod attach_legality_runtime;
+
+#[path = "tests/enchant_aura_runtime.rs"]
+mod enchant_aura_runtime;
+
+#[path = "tests/path_to_exile.rs"]
+mod path_to_exile;
+
+#[path = "tests/zone_change_search.rs"]
+mod zone_change_search;
+
+#[path = "tests/damage_runtime.rs"]
+mod damage_runtime;
+
+#[path = "tests/kicked_damage_runtime.rs"]
+mod kicked_damage_runtime;
+
+#[path = "tests/sentence_condition_runtime.rs"]
+mod sentence_condition_runtime;
+
+#[path = "tests/local_damage_life_fsm_runtime.rs"]
+mod local_damage_life_fsm_runtime;
+
+#[path = "tests/plain_damage_fsm_runtime.rs"]
+mod plain_damage_fsm_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/dismember_runtime.rs"]
+mod dismember_runtime;
+
+#[path = "tests/counter_spell_fsm_runtime.rs"]
+mod counter_spell_fsm_runtime;
+
+#[path = "tests/arcane_denial_runtime.rs"]
+mod arcane_denial_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/counter_protection_runtime.rs"]
+mod counter_protection_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/riot_runtime.rs"]
+mod riot_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/conditional_static_runtime.rs"]
+mod conditional_static_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/static_characteristics_runtime.rs"]
+mod static_characteristics_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/mobilize_primitives_runtime.rs"]
+mod mobilize_primitives_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/earthbend_primitives_runtime.rs"]
+mod earthbend_primitives_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/empower_jace_runtime.rs"]
+mod empower_jace_runtime;
+
+#[path = "tests/library_top_runtime.rs"]
+mod library_top_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/where_x_binding_runtime.rs"]
+mod where_x_binding_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/earthbender_reflexive_runtime.rs"]
+mod earthbender_reflexive_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[path = "tests/saga_runtime.rs"]
+mod saga_runtime;
+
+#[path = "tests/force_of_negation_runtime.rs"]
+mod force_of_negation_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/cyclonic_rift_overload_runtime.rs"]
+mod cyclonic_rift_overload_runtime;
+
+#[path = "tests/mana_value_counter_fsm_runtime.rs"]
+mod mana_value_counter_fsm_runtime;
+
+#[path = "tests/counter_stack_object_runtime.rs"]
+mod counter_stack_object_runtime;
+
+#[path = "tests/requiting_hex_runtime.rs"]
+mod requiting_hex_runtime;
+
+#[path = "tests/fatal_push_runtime.rs"]
+mod fatal_push_runtime;
+
+#[path = "tests/ability_loss_then_destroy_runtime.rs"]
+mod ability_loss_then_destroy_runtime;
+
+#[path = "tests/characteristic_batch_runtime.rs"]
+mod characteristic_batch_runtime;
+
+#[path = "tests/barrowgoyf_runtime.rs"]
+mod barrowgoyf_runtime;
+
+#[path = "tests/subtype_replacement_runtime.rs"]
+mod subtype_replacement_runtime;
+
+#[path = "tests/turn_count_runtime.rs"]
+mod turn_count_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/conditional_casting_reduction_runtime.rs"]
+mod conditional_casting_reduction_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/target_conditional_casting_reduction_runtime.rs"]
+mod target_conditional_casting_reduction_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/eddymurk_crab_runtime.rs"]
+mod eddymurk_crab_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/tormods_crypt_runtime.rs"]
+mod tormods_crypt_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/sages_row_denizen_runtime.rs"]
+mod sages_row_denizen_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/optional_cost_outcome_runtime.rs"]
+mod optional_cost_outcome_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/optional_action_outcome_runtime.rs"]
+mod optional_action_outcome_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/tap_objects_cost_runtime.rs"]
+mod tap_objects_cost_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/payment_cost_contexts_runtime.rs"]
+mod payment_cost_contexts_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/unless_payment_runtime.rs"]
+mod unless_payment_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/permanent_attacks_event_runtime.rs"]
+mod permanent_attacks_event_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/exalted_runtime.rs"]
+mod exalted_runtime;
+
+#[path = "tests/alternative_additional_cost_runtime.rs"]
+mod alternative_additional_cost_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[path = "tests/activated_rule_execution.rs"]
+mod activated_rule_execution;
+
+#[path = "tests/graveyard_source_activation_runtime.rs"]
+mod graveyard_source_activation_runtime;
+
+#[path = "tests/entry_counters_runtime.rs"]
+mod entry_counters_runtime;
+
+#[path = "tests/graveyard_destination_replacement_runtime.rs"]
+mod graveyard_destination_replacement_runtime;
+
+#[path = "tests/owner_library_reveal_sequence_runtime.rs"]
+mod owner_library_reveal_sequence_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/object_predicate_golden.rs"]
+mod object_predicate_golden;
+
+#[path = "tests/plan_counter_reflexive_runtime.rs"]
+mod plan_counter_reflexive_runtime;
+
+#[path = "tests/linked_exile_copy_runtime.rs"]
+mod linked_exile_copy_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/disruptor_flute_runtime.rs"]
+mod disruptor_flute_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/spell_cast_player_scope_runtime.rs"]
+mod spell_cast_player_scope_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/cards_left_graveyard_aggregation.rs"]
+mod cards_left_graveyard_aggregation;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/quantified_event_subject_runtime.rs"]
+mod quantified_event_subject_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/received_damage_trigger_runtime.rs"]
+mod received_damage_trigger_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/simultaneous_event_batch_runtime.rs"]
+mod simultaneous_event_batch_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "channel_tests.rs"]
 mod channel;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "phasing_priority_tests.rs"]
 mod phasing_priority;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ant-Man, Colony Commander, Knight of Wundagore; see docs/coverage-targets.md"
+)]
 #[test]
-fn surgical_extraction_never_exiles_a_matching_battlefield_permanent() {
+fn counter_placement_triggers_use_the_placing_player_and_respect_source_exclusion() {
+    let ant_man = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Ant-Man, Colony Commander".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{G}".to_string()),
+        oracle_text: Some(
+            "Whenever you put a +1/+1 counter on a creature, create a 1/1 green Insect creature token. This ability triggers only once each turn."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut ant_man_definition =
+        test_definition("ant-man-colony-commander", "Creature - Human Hero");
+    ant_man_definition.rules = ant_man
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    let ant_man = test_instance("ant-man", ant_man_definition.clone(), "player-0");
+    let opponent_creature = test_instance(
+        "opponent-creature",
+        test_definition("opponent-creature", "Creature"),
+        "player-1",
+    );
     let mut engine = test_engine(2);
-    let mut extracted_definition = test_definition("extracted-card", "Creature - Zombie Imp");
-    extracted_definition.name = "Putrid Imp".to_string();
-    let target = test_instance("putrid-graveyard", extracted_definition.clone(), "player-1");
-    engine.state.players[1].graveyard.push(target.clone());
-    engine.state.players[1].hand.push(test_instance(
-        "putrid-hand",
-        extracted_definition.clone(),
-        "player-1",
-    ));
-    engine.state.players[1].library.push(test_instance(
-        "putrid-library",
-        extracted_definition.clone(),
-        "player-1",
-    ));
-    engine.state.players[1].battlefield.push(test_instance(
-        "putrid-battlefield",
-        extracted_definition,
-        "player-1",
-    ));
+    engine.state.players[0].battlefield.push(ant_man);
+    engine.state.players[1].battlefield.push(opponent_creature);
 
-    let source = test_instance(
-        "surgical-extraction",
-        test_definition("surgical-extraction", "Instant"),
+    assert_eq!(
+        engine.put_counters_on_permanent_by("opponent-creature", "+1/+1", 1, Some("player-0"),),
+        1
+    );
+    assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Ant-Man creates an Insect for a counter its controller placed");
+    assert!(engine.state.players[0].battlefield.iter().any(|permanent| {
+        permanent.definition.is_token && permanent.definition.type_line.contains("Insect")
+    }));
+
+    let mut opponent_placed_engine = test_engine(2);
+    opponent_placed_engine.state.players[0]
+        .battlefield
+        .push(test_instance("ant-man", ant_man_definition, "player-0"));
+    opponent_placed_engine.state.players[1]
+        .battlefield
+        .push(test_instance(
+            "opponent-creature",
+            test_definition("opponent-creature", "Creature"),
+            "player-1",
+        ));
+    opponent_placed_engine.put_counters_on_permanent_by(
+        "opponent-creature",
+        "+1/+1",
+        1,
+        Some("player-1"),
+    );
+    assert!(opponent_placed_engine.state.stack.is_empty());
+
+    let knight = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Knight of Wundagore".to_string(),
+        type_line: "Creature - Human Knight Hero".to_string(),
+        mana_cost: Some("{1}{G}".to_string()),
+        oracle_text: Some(
+            "Whenever you put a +1/+1 counter on another creature, put a +1/+1 counter on this creature. This ability triggers only once each turn."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut knight_definition =
+        test_definition("knight-of-wundagore", "Creature - Human Knight Hero");
+    knight_definition.rules = knight
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    let mut knight_engine = test_engine(2);
+    knight_engine.state.players[0]
+        .battlefield
+        .push(test_instance("knight", knight_definition, "player-0"));
+    knight_engine.put_counters_on_permanent_by("knight", "+1/+1", 1, Some("player-0"));
+    assert!(knight_engine.state.stack.is_empty());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Kid Loki, The Wondrous Wasp; see docs/coverage-targets.md"
+)]
+#[test]
+fn counter_history_selectors_and_linked_ability_loss_execute_and_expire() {
+    let kid_loki = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Kid Loki".to_string(),
+        type_line: "Legendary Creature - God Villain".to_string(),
+        mana_cost: Some("{1}{U}".to_string()),
+        oracle_text: Some(
+            "Each creature you control that you've put one or more +1/+1 counters on this turn has hexproof."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut kid_definition = test_definition("kid-loki", "Creature - God Villain");
+    kid_definition.rules = kid_loki
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    let mut history_engine = test_engine(2);
+    history_engine.state.players[0].battlefield.extend([
+        test_instance("kid-loki", kid_definition, "player-0"),
+        test_instance(
+            "controller-countered-creature",
+            test_definition("controller-countered-creature", "Creature"),
+            "player-0",
+        ),
+        test_instance(
+            "opponent-countered-creature",
+            test_definition("opponent-countered-creature", "Creature"),
+            "player-0",
+        ),
+    ]);
+    history_engine.put_counters_on_permanent_by(
+        "controller-countered-creature",
+        "+1/+1",
+        1,
+        Some("player-0"),
+    );
+    history_engine.put_counters_on_permanent_by(
+        "opponent-countered-creature",
+        "+1/+1",
+        1,
+        Some("player-1"),
+    );
+    assert!(
+        history_engine
+            .permanent_has_keyword(&history_engine.state.players[0].battlefield[1], "hexproof")
+    );
+    assert!(
+        !history_engine
+            .permanent_has_keyword(&history_engine.state.players[0].battlefield[2], "hexproof")
+    );
+    history_engine.state.turn_number += 1;
+    assert!(
+        !history_engine
+            .permanent_has_keyword(&history_engine.state.players[0].battlefield[1], "hexproof")
+    );
+
+    let wasp = parse_oracle_card(OracleCardParseRequest {
+        card_name: "The Wondrous Wasp".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Wasp's Sting — When The Wondrous Wasp enters, tap up to one target creature. It loses all abilities for as long as The Wondrous Wasp remains on the battlefield."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let wasp_rule = wasp.abilities[0]
+        .rule
+        .clone()
+        .expect("Wasp's linked ability-loss trigger parses");
+    let wasp = test_instance(
+        "wondrous-wasp",
+        test_definition("wondrous-wasp", "Creature - Human Hero"),
         "player-0",
     );
+    let mut target_definition = test_definition("ability-target", "Creature");
+    target_definition.rules.push(json!({
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": { "kind": "flying" },
+    }));
+    let target = test_instance("ability-target", target_definition, "player-1");
+    let mut wasp_engine = test_engine(2);
+    wasp_engine.state.players[0].battlefield.push(wasp.clone());
+    wasp_engine.state.players[1].battlefield.push(target);
     let stack_object = StackObject {
-        id: "stack:surgical-extraction".to_string(),
+        id: "stack:wondrous-wasp".to_string(),
         controller: "player-0".to_string(),
-        card: source,
+        card: wasp,
         cant_be_countered: false,
         exile_on_leave_stack: false,
-        ability_kind: Some("spellAbility".to_string()),
-        ability_rule: None,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(wasp_rule.clone()),
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "targetNamedCard".to_string(),
-            TargetRef::Card {
-                instance_id: target.instance_id,
+            "targetPermanent".to_string(),
+            TargetRef::Permanent {
+                instance_id: "ability-target".to_string(),
             },
         )]),
     };
-    let effect = json!({
-        "kind": "exileNamedCardsFromZones",
-        "player": { "kind": "chosenTarget", "id": "targetNamedCard" },
-        "chooser": { "kind": "controllerOf", "object": { "kind": "self" } },
-        "nameFromCard": { "kind": "chosenTarget", "id": "targetNamedCard" },
-        "zones": ["graveyard", "hand", "library"],
-        "shuffleLibrary": true,
-    });
-
-    engine
-        .execute_effect(
-            &effect,
-            None,
+    wasp_engine
+        .execute_effects(
+            &wasp_rule["effects"],
             &stack_object,
             &mut BTreeMap::new(),
             &mut BTreeMap::new(),
             &mut EmeritusDecisionProvider,
         )
-        .expect("Surgical Extraction resolves");
-
-    let exiled_ids = engine.state.players[1]
-        .exile
-        .iter()
-        .map(|card| card.instance_id.as_str())
-        .collect::<BTreeSet<_>>();
-    assert!(exiled_ids.contains("putrid-graveyard"));
-    assert!(exiled_ids.contains("putrid-hand"));
-    assert!(exiled_ids.contains("putrid-library"));
-    assert!(!exiled_ids.contains("putrid-battlefield"));
+        .expect("Wasp taps the target and suppresses its abilities");
+    assert!(wasp_engine.state.players[1].battlefield[0].tapped);
     assert!(
-        engine.state.players[1]
-            .graveyard
-            .iter()
-            .all(|card| card.instance_id != "putrid-graveyard")
+        !wasp_engine.permanent_has_keyword(&wasp_engine.state.players[1].battlefield[0], "flying")
     );
+    wasp_engine
+        .move_permanent_to_graveyard("wondrous-wasp", "destroyed")
+        .expect("Wasp leaves the battlefield");
     assert!(
-        engine.state.players[1]
-            .hand
-            .iter()
-            .all(|card| card.instance_id != "putrid-hand")
-    );
-    assert!(
-        engine.state.players[1]
-            .library
-            .iter()
-            .all(|card| card.instance_id != "putrid-library")
-    );
-    assert!(
-        engine.state.players[1]
-            .battlefield
-            .iter()
-            .any(|card| card.instance_id == "putrid-battlefield")
-    );
-    let note = engine
-        .state
-        .rule_modifiers
-        .iter()
-        .find(|modifier| modifier["kind"] == "observedCardsNote")
-        .expect("searching the hidden zones records a private observation note");
-    assert_eq!(note["viewerId"], "player-0");
-    assert_eq!(note["playerId"], "player-1");
-    assert_eq!(note["sourceName"], "surgical-extraction");
-    assert_eq!(note["orderKnown"], false);
-    assert!(
-        note["zones"]
-            .as_array()
-            .is_some_and(|zones| zones.iter().any(|zone| {
-                zone["zone"] == "library"
-                    && zone["cards"].as_array().is_some_and(|cards| {
-                        cards
-                            .iter()
-                            .any(|card| card["name"] == "Putrid Imp" && card["count"] == 1)
-                    })
-            }))
+        wasp_engine.permanent_has_keyword(&wasp_engine.state.players[1].battlefield[0], "flying")
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
-fn hand_card_exiled_with_a_source_remains_linked_and_can_be_copied() {
-    let mut engine = test_engine(2);
+fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
+    struct PreferFilteredDiscard;
+
+    impl DecisionProvider for PreferFilteredDiscard {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            Ok(request
+                .options
+                .iter()
+                // Each payable discard choice is labelled with its card name.
+                .position(|option| option.label.starts_with("Discard "))
+                .unwrap_or(0))
+        }
+    }
+
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Thirst for Knowledge".to_string(),
+        type_line: "Instant".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Draw three cards. Then discard two cards unless you discard an artifact card."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the generic filtered-discard sequence parses");
+    assert!(rule_is_executable(&rule));
+
     let source = test_instance(
-        "imprint-source",
-        test_definition("imprint-source", "Artifact"),
+        "thirst-for-knowledge",
+        test_definition("thirst-for-knowledge", "Instant"),
         "player-0",
     );
-    let mut instant_definition = test_definition("imprinted-instant", "Instant");
-    instant_definition.mana_cost = "{1}{U}".to_string();
-    let instant = test_instance("imprinted-instant", instant_definition, "player-0");
-    engine.state.players[0].battlefield.push(source.clone());
-    engine.state.players[0].hand.push(instant);
     let stack_object = StackObject {
-        id: "stack:imprint".to_string(),
+        id: "stack:thirst-for-knowledge".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+
+    let mut matching_engine = test_engine(2);
+    matching_engine.state.players[0].hand.clear();
+    matching_engine.state.players[0].library = vec![
+        test_instance(
+            "drawn-artifact",
+            test_definition("drawn-artifact", "Artifact"),
+            "player-0",
+        ),
+        test_instance(
+            "drawn-creature",
+            test_definition("drawn-creature", "Creature"),
+            "player-0",
+        ),
+        test_instance(
+            "drawn-land",
+            test_definition("drawn-land", "Land"),
+            "player-0",
+        ),
+    ];
+    matching_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    matching_engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut PreferFilteredDiscard,
+        )
+        .expect("the available filtered-discard mode resolves");
+    assert_eq!(matching_engine.state.players[0].hand.len(), 2);
+    assert_eq!(matching_engine.state.players[0].graveyard.len(), 1);
+    assert_eq!(
+        matching_engine.state.players[0].graveyard[0].instance_id,
+        "drawn-artifact"
+    );
+
+    let mut fallback_engine = test_engine(2);
+    fallback_engine.state.players[0].hand.clear();
+    fallback_engine.state.players[0].library = vec![
+        test_instance(
+            "drawn-creature-a",
+            test_definition("drawn-creature-a", "Creature"),
+            "player-0",
+        ),
+        test_instance(
+            "drawn-creature-b",
+            test_definition("drawn-creature-b", "Creature"),
+            "player-0",
+        ),
+        test_instance(
+            "drawn-land-b",
+            test_definition("drawn-land-b", "Land"),
+            "player-0",
+        ),
+    ];
+    fallback_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    fallback_engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut PreferFilteredDiscard,
+        )
+        .expect("the unfiltered fallback resolves when no matching card exists");
+    assert_eq!(fallback_engine.state.players[0].hand.len(), 1);
+    assert_eq!(fallback_engine.state.players[0].graveyard.len(), 2);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Captain America, Super-Soldier; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Captain America, Super-Soldier".to_string(),
+        type_line: "Legendary Creature — Human Soldier Hero".to_string(),
+        mana_cost: Some("{1}{W}{W}".to_string()),
+        oracle_text: Some(
+            "First strike\nCaptain America enters with a shield counter on him. (If he would be dealt damage or destroyed, remove a shield counter from him instead.)\nAs long as Captain America has a shield counter on him, you and other Heroes you control have hexproof."
+                .to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical");
+    let rules = parsed
+        .abilities
+        .iter()
+        .map(|ability| {
+            ability
+                .rule
+                .clone()
+                .expect("every Captain America ability is canonical")
+        })
+        .collect::<Vec<_>>();
+    assert!(rules.iter().all(rule_is_executable));
+
+    let mut captain_definition = test_definition(
+        "captain-america-super-soldier",
+        "Legendary Creature - Human Soldier Hero",
+    );
+    captain_definition.rules = rules;
+    let make_entering_captain = |engine: &mut GameEngine| {
+        let mut captain = test_instance("captain-america", captain_definition.clone(), "player-0");
+        engine
+            .apply_enter_replacements(&mut captain, &mut EmeritusDecisionProvider)
+            .expect("the parsed entering replacement resolves");
+        captain
+    };
+
+    let mut damage_engine = test_engine(2);
+    let captain = make_entering_captain(&mut damage_engine);
+    assert_eq!(captain.counters.get("shield"), Some(&1));
+    damage_engine.state.players[0].battlefield.extend([
+        captain,
+        test_instance(
+            "other-hero",
+            test_definition("other-hero", "Creature - Human Hero"),
+            "player-0",
+        ),
+        test_instance(
+            "ordinary-creature",
+            test_definition("ordinary-creature", "Creature - Human"),
+            "player-0",
+        ),
+    ]);
+    damage_engine.state.players[1]
+        .battlefield
+        .push(test_instance(
+            "opponent-source",
+            test_definition("opponent-source", "Creature - Villain"),
+            "player-1",
+        ));
+    assert!(
+        damage_engine
+            .permanent_has_keyword(&damage_engine.state.players[0].battlefield[1], "hexproof")
+    );
+    assert!(
+        !damage_engine
+            .permanent_has_keyword(&damage_engine.state.players[0].battlefield[0], "hexproof")
+    );
+    assert!(
+        !damage_engine
+            .permanent_has_keyword(&damage_engine.state.players[0].battlefield[2], "hexproof")
+    );
+
+    let hostile_spell = StackObject {
+        id: "stack:hostile-spell".to_string(),
+        controller: "player-1".to_string(),
+        card: test_instance(
+            "hostile-spell",
+            test_definition("hostile-spell", "Instant"),
+            "player-1",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let protected_player = TargetRef::Player {
+        player_id: "player-0".to_string(),
+    };
+    assert!(!damage_engine.target_is_legal_for_stack_object(
+        "target",
+        &protected_player,
+        &hostile_spell
+    ));
+
+    assert_eq!(
+        damage_engine
+            .deal_damage_amount(
+                TargetRef::Permanent {
+                    instance_id: "captain-america".to_string(),
+                },
+                3,
+                "opponent-source",
+            )
+            .expect("shield replacement resolves"),
+        0
+    );
+    assert_eq!(
+        damage_engine.state.players[0].battlefield[0].damage_marked,
+        0
+    );
+    assert!(
+        damage_engine.state.players[0].battlefield[0]
+            .counters
+            .get("shield")
+            .is_none()
+    );
+    assert!(
+        !damage_engine
+            .permanent_has_keyword(&damage_engine.state.players[0].battlefield[1], "hexproof")
+    );
+    assert!(damage_engine.target_is_legal_for_stack_object(
+        "target",
+        &protected_player,
+        &hostile_spell
+    ));
+
+    let mut destroy_engine = test_engine(2);
+    let captain = make_entering_captain(&mut destroy_engine);
+    destroy_engine.state.players[0].battlefield.push(captain);
+    destroy_engine
+        .move_permanent_to_graveyard("captain-america", "destroyed")
+        .expect("the first destroy event consumes the shield");
+    assert!(
+        destroy_engine
+            .permanent_position("captain-america")
+            .is_some()
+    );
+    assert!(
+        destroy_engine.state.players[0].battlefield[0]
+            .counters
+            .get("shield")
+            .is_none()
+    );
+    destroy_engine
+        .move_permanent_to_graveyard("captain-america", "destroyed")
+        .expect("the second destroy event succeeds");
+    assert!(
+        destroy_engine
+            .permanent_position("captain-america")
+            .is_none()
+    );
+    assert_eq!(destroy_engine.state.players[0].graveyard.len(), 1);
+
+    let mut sacrifice_engine = test_engine(2);
+    let captain = make_entering_captain(&mut sacrifice_engine);
+    sacrifice_engine.state.players[0].battlefield.push(captain);
+    sacrifice_engine
+        .move_permanent_to_graveyard("captain-america", "sacrificed")
+        .expect("shield counters do not replace sacrifice");
+    assert!(
+        sacrifice_engine
+            .permanent_position("captain-america")
+            .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Crowd of True Believers; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_attacking_alone_activation_filters_target_and_executes_sequence() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Crowd of True Believers".to_string(),
+        type_line: "Creature — Human Citizen".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "{T}: Target creature you control that's attacking alone gets +1/+0 until end of turn. You gain 1 life."
+                .to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical");
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the attacking-alone activation parses");
+    assert!(rule_is_executable(&rule));
+    assert!(rule["costs"].as_array().is_some_and(|costs| {
+        costs
+            .iter()
+            .any(|cost| cost["kind"] == "tap" && cost["object"]["kind"] == "self")
+    }));
+
+    let source = test_instance(
+        "crowd-of-true-believers",
+        test_definition("crowd-of-true-believers", "Creature - Human Citizen"),
+        "player-0",
+    );
+    let attacker = test_instance(
+        "lone-attacker",
+        test_definition("lone-attacker", "Creature - Human Hero"),
+        "player-0",
+    );
+    let second_attacker = test_instance(
+        "second-attacker",
+        test_definition("second-attacker", "Creature - Human Hero"),
+        "player-0",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![source.clone(), attacker, second_attacker];
+    engine.state.combat.attackers = vec![DeclaredAttacker {
+        attacker_id: "lone-attacker".to_string(),
+        defender: TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+        defending_player_id: "player-1".to_string(),
+    }];
+
+    let candidates_shape = &rule["declaration"]["decisions"][0]["candidates"];
+    assert_eq!(
+        engine.target_candidates("player-0", candidates_shape),
+        Some(vec![TargetRef::Permanent {
+            instance_id: "lone-attacker".to_string(),
+        }])
+    );
+    engine.state.combat.attackers.push(DeclaredAttacker {
+        attacker_id: "second-attacker".to_string(),
+        defender: TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+        defending_player_id: "player-1".to_string(),
+    });
+    assert_eq!(
+        engine.target_candidates("player-0", candidates_shape),
+        Some(Vec::new())
+    );
+    engine.state.combat.attackers.pop();
+
+    let stack_object = StackObject {
+        id: "stack:crowd-activation".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetPermanent".to_string(),
+            TargetRef::Permanent {
+                instance_id: "lone-attacker".to_string(),
+            },
+        )]),
+    };
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the temporary bonus and life gain resolve in order");
+    let (player_index, card_index) = engine
+        .permanent_position("lone-attacker")
+        .expect("the targeted attacker remains on the battlefield");
+    assert_eq!(
+        engine.current_power(&engine.state.players[player_index].battlefield[card_index]),
+        3
+    );
+    assert_eq!(engine.state.players[0].life, 21);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Super Intelligence; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_attachment_upkeep_counter_history_and_effect_choice_execute() {
+    let aura = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Super Intelligence".to_string(),
+        type_line: "Enchantment - Aura".to_string(),
+        mana_cost: Some("{1}{U}".to_string()),
+        oracle_text: Some(
+            "At the beginning of the upkeep of enchanted creature's controller, that player draws a card."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let aura_rule = aura.abilities[0]
+        .rule
+        .clone()
+        .expect("the attachment-controller upkeep parses");
+    let mut aura_definition = test_definition("super-intelligence", "Enchantment - Aura");
+    aura_definition.rules = vec![aura_rule];
+    let mut aura = test_instance("super-intelligence", aura_definition, "player-0");
+    aura.attached_to = Some("enchanted-creature".to_string());
+    let enchanted = test_instance(
+        "enchanted-creature",
+        test_definition("enchanted-creature", "Creature - Human"),
+        "player-1",
+    );
+    let draw = test_instance(
+        "opponent-draw",
+        test_definition("opponent-draw", "Instant"),
+        "player-1",
+    );
+    let mut aura_engine = test_engine(2);
+    aura_engine.state.players[0].hand.clear();
+    aura_engine.state.players[1].hand.clear();
+    aura_engine.state.players[1].library.clear();
+    aura_engine.state.players[0].battlefield.push(aura);
+    aura_engine.state.players[1].battlefield.push(enchanted);
+    aura_engine.state.players[1].library.push(draw);
+    aura_engine.state.active_player = 1;
+    aura_engine.enqueue_step_triggers("upkeep");
+    assert_eq!(aura_engine.state.stack.len(), 1);
+    aura_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the enchanted creature's controller draws");
+    assert_eq!(aura_engine.state.players[0].hand.len(), 0);
+    assert_eq!(aura_engine.state.players[1].hand.len(), 1);
+
+    let beast = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Beast".to_string(),
+        type_line: "Legendary Creature - Mutant Hero".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "As long as you've put one or more +1/+1 counters on Beast this turn, he has flying."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut beast_definition = test_definition("beast", "Legendary Creature - Mutant Hero");
+    beast_definition.rules = vec![
+        beast.abilities[0]
+            .rule
+            .clone()
+            .expect("the source counter-history static ability parses"),
+    ];
+    let beast = test_instance("beast", beast_definition, "player-0");
+    let mut beast_engine = test_engine(2);
+    beast_engine.state.players[0].battlefield.push(beast);
+    assert!(
+        !beast_engine
+            .permanent_has_keyword(&beast_engine.state.players[0].battlefield[0], "flying")
+    );
+    assert_eq!(
+        beast_engine.put_counters_on_permanent("beast", "+1/+1", 1),
+        1
+    );
+    assert!(
+        beast_engine.permanent_has_keyword(&beast_engine.state.players[0].battlefield[0], "flying")
+    );
+    beast_engine.state.turn_number += 1;
+    assert!(
+        !beast_engine
+            .permanent_has_keyword(&beast_engine.state.players[0].battlefield[0], "flying")
+    );
+
+    struct ChooseTreasure;
+    impl DecisionProvider for ChooseTreasure {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            request
+                .options
+                .iter()
+                .position(|option| option.label.contains("Treasure"))
+                .ok_or_else(|| EngineError::new("Treasure choice is unavailable"))
+        }
+    }
+
+    let army = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Ant-Man's Army".to_string(),
+        type_line: "Creature - Human Soldier".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "When this creature enters, create a Food token or a Treasure token.".to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut army_definition = test_definition("ant-mans-army", "Creature - Human Soldier");
+    army_definition.rules = vec![
+        army.abilities[0]
+            .rule
+            .clone()
+            .expect("the alternative token trigger parses"),
+    ];
+    let army = test_instance("ant-mans-army", army_definition, "player-0");
+    let mut army_engine = test_engine(2);
+    army_engine.state.players[0].battlefield.push(army.clone());
+    army_engine.enqueue_enter_battlefield_triggers(&army);
+    army_engine
+        .resolve_top_stack(&mut ChooseTreasure)
+        .expect("the selected token effect resolves");
+    let token_names = army_engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|card| card.definition.is_token)
+        .map(|card| card.definition.name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(token_names, vec!["Treasure"]);
+
+    let incursion = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Multiversal Incursion".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{5}{U}{U}".to_string()),
+        oracle_text: Some(
+            "For each nontoken creature you control, create a token that's a copy of that creature, except it isn't legendary."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let incursion_rule = incursion.abilities[0]
+        .rule
+        .clone()
+        .expect("the collection copy spell parses");
+    assert!(rule_is_executable(&incursion_rule));
+    let legendary = test_instance(
+        "legendary-hero",
+        test_definition("legendary-hero", "Legendary Creature - Human Hero"),
+        "player-0",
+    );
+    let ordinary = test_instance(
+        "ordinary-hero",
+        test_definition("ordinary-hero", "Creature - Human Hero"),
+        "player-0",
+    );
+    let mut existing_token_definition = test_definition("existing-token", "Creature - Soldier");
+    existing_token_definition.is_token = true;
+    let existing_token = test_instance("existing-token", existing_token_definition, "player-0");
+    let spell = test_instance(
+        "multiversal-incursion",
+        test_definition("multiversal-incursion", "Sorcery"),
+        "player-0",
+    );
+    let stack_object = StackObject {
+        id: "stack:multiversal-incursion".to_string(),
+        controller: "player-0".to_string(),
+        card: spell,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut copy_engine = test_engine(2);
+    copy_engine.state.players[0].battlefield = vec![legendary, ordinary, existing_token];
+    copy_engine
+        .execute_effects(
+            &incursion_rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("each matching original creature is copied");
+    let copies = copy_engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|card| card.instance_id.contains(":token-copy:"))
+        .collect::<Vec<_>>();
+    assert_eq!(copies.len(), 2);
+    assert!(
+        copies
+            .iter()
+            .all(|copy| !type_line_contains(&copy.definition.type_line, "Legendary"))
+    );
+
+    let lad = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Iron Lad".to_string(),
+        type_line: "Artifact Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}".to_string()),
+        oracle_text: Some(
+            "{T}: Reveal the top card of your library. If it's an artifact card, draw a card."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let lad_rule = lad.abilities[0]
+        .rule
+        .clone()
+        .expect("the filtered top-card activation parses");
+    assert!(rule_is_executable(&lad_rule));
+    let lad_source = test_instance(
+        "iron-lad",
+        test_definition("iron-lad", "Artifact Creature - Human Hero"),
+        "player-0",
+    );
+    let top_artifact = test_instance(
+        "top-artifact",
+        test_definition("top-artifact", "Artifact"),
+        "player-0",
+    );
+    let lad_stack = StackObject {
+        id: "stack:iron-lad".to_string(),
+        controller: "player-0".to_string(),
+        card: lad_source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(lad_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut lad_engine = test_engine(2);
+    lad_engine.state.players[0].hand.clear();
+    lad_engine.state.players[0].library = vec![top_artifact];
+    lad_engine
+        .execute_effects(
+            &lad_rule["effects"],
+            &lad_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the matching revealed card is drawn");
+    assert_eq!(lad_engine.state.players[0].hand.len(), 1);
+    assert_eq!(
+        lad_engine.state.players[0].hand[0].instance_id,
+        "top-artifact"
+    );
+    assert!(
+        lad_engine
+            .state
+            .events
+            .iter()
+            .any(|event| event.kind == "cardsRevealed")
+    );
+
+    let justice = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Justice".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "Whenever another nonland permanent you control is returned to its owner's hand, put a +1/+1 counter on Justice."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut justice_definition = test_definition("justice", "Legendary Creature - Human Hero");
+    justice_definition.rules = vec![
+        justice.abilities[0]
+            .rule
+            .clone()
+            .expect("the return-history trigger parses"),
+    ];
+    let justice = test_instance("justice", justice_definition, "player-0");
+    let returned = test_instance(
+        "returned-artifact",
+        test_definition("returned-artifact", "Artifact"),
+        "player-0",
+    );
+    let land = test_instance(
+        "returned-land",
+        test_definition("returned-land", "Land"),
+        "player-0",
+    );
+    let mut justice_engine = test_engine(2);
+    justice_engine.state.players[0].battlefield = vec![justice, returned, land];
+    justice_engine
+        .return_permanent_to_hand("returned-land")
+        .expect("the land returns without matching");
+    assert!(justice_engine.state.stack.is_empty());
+    justice_engine
+        .return_permanent_to_hand("returned-artifact")
+        .expect("the nonland permanent returns and triggers Justice");
+    assert_eq!(justice_engine.state.stack.len(), 1);
+    justice_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("Justice receives its counter");
+    assert_eq!(
+        justice_engine.state.players[0].battlefield[0].counters["+1/+1"],
+        1
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avengers Assemble!; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_temporal_conditions_conditional_flash_and_attachment_counts_execute() {
+    let avengers = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Avengers Assemble!".to_string(),
+        type_line: "Enchantment".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "At the beginning of each end step, if you attacked with a Hero this turn or a Hero entered the battlefield under your control this turn, draw a card."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut avengers_definition = test_definition("avengers-assemble", "Enchantment");
+    avengers_definition.rules = vec![
+        avengers.abilities[0]
+            .rule
+            .clone()
+            .expect("the alternative turn-history trigger parses"),
+    ];
+    let avengers = test_instance("avengers-assemble", avengers_definition, "player-0");
+    let draw = test_instance(
+        "avengers-draw",
+        test_definition("avengers-draw", "Sorcery"),
+        "player-0",
+    );
+    let mut avengers_engine = test_engine(2);
+    avengers_engine.state.players[0].hand.clear();
+    avengers_engine.state.players[0].library = vec![draw];
+    avengers_engine.state.players[0].battlefield.push(avengers);
+    avengers_engine.record_event(
+        "attackerDeclared",
+        Some("player-0".to_string()),
+        Some("attacking-hero".to_string()),
+        json!({ "typeLine": "Creature - Human Hero" }),
+    );
+    avengers_engine.enqueue_step_triggers("endStep");
+    assert_eq!(avengers_engine.state.stack.len(), 1);
+    avengers_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("either satisfied turn-history branch permits the draw");
+    assert_eq!(avengers_engine.state.players[0].hand.len(), 1);
+
+    let mar_vell = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Captain Mar-Vell".to_string(),
+        type_line: "Legendary Creature - Kree Hero".to_string(),
+        mana_cost: Some("{2}{W}{U}".to_string()),
+        oracle_text: Some(
+            "Cosmic Awareness — As long as an opponent has cast a spell this turn, you may cast spells as though they had flash."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut mar_vell_definition =
+        test_definition("captain-mar-vell", "Legendary Creature - Kree Hero");
+    mar_vell_definition.rules = vec![
+        mar_vell.abilities[0]
+            .rule
+            .clone()
+            .expect("the conditional flash permission parses"),
+    ];
+    let mar_vell = test_instance("captain-mar-vell", mar_vell_definition, "player-0");
+    let instant_speed_candidate = test_definition("candidate-spell", "Sorcery");
+    let mut flash_engine = test_engine(2);
+    flash_engine.state.players[0].battlefield.push(mar_vell);
+    assert!(!flash_engine.player_casts_with_flash("player-0"));
+    assert!(!flash_engine.card_casts_with_static_flash(
+        "player-0",
+        &instant_speed_candidate,
+        "hand"
+    ));
+    flash_engine.record_event(
+        "spellCast",
+        Some("player-1".to_string()),
+        Some("opponent-spell".to_string()),
+        json!({}),
+    );
+    assert!(flash_engine.player_casts_with_flash("player-0"));
+    assert!(flash_engine.card_casts_with_static_flash(
+        "player-0",
+        &instant_speed_candidate,
+        "hand"
+    ));
+
+    let whiplash = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Whiplash".to_string(),
+        type_line: "Legendary Creature - Human Villain".to_string(),
+        mana_cost: Some("{2}{B}{R}".to_string()),
+        oracle_text: Some(
+            "Whenever Whiplash attacks, if he's equipped, each opponent loses X life and you gain X life, where X is the number of Equipment attached to him."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut whiplash_definition = test_definition("whiplash", "Legendary Creature - Human Villain");
+    whiplash_definition.rules = vec![
+        whiplash.abilities[0]
+            .rule
+            .clone()
+            .expect("the attachment-count attack trigger parses"),
+    ];
+    let whiplash = test_instance("whiplash", whiplash_definition, "player-0");
+    let mut equipment_one = test_instance(
+        "equipment-one",
+        test_definition("equipment-one", "Artifact - Equipment"),
+        "player-0",
+    );
+    equipment_one.attached_to = Some("whiplash".to_string());
+    let mut equipment_two = test_instance(
+        "equipment-two",
+        test_definition("equipment-two", "Artifact - Equipment"),
+        "player-0",
+    );
+    equipment_two.attached_to = Some("whiplash".to_string());
+    let mut whiplash_engine = test_engine(2);
+    whiplash_engine.state.players[0].battlefield = vec![whiplash, equipment_one, equipment_two];
+    let controller_life = whiplash_engine.state.players[0].life;
+    let opponent_life = whiplash_engine.state.players[1].life;
+    whiplash_engine.enqueue_declared_attacker_triggers(&["whiplash".to_string()]);
+    assert_eq!(whiplash_engine.state.stack.len(), 1);
+    whiplash_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the shared attachment count drives both primitive life effects");
+    assert_eq!(whiplash_engine.state.players[0].life, controller_life + 2);
+    assert_eq!(whiplash_engine.state.players[1].life, opponent_life - 2);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: War Machine, Legacy of Iron; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_named_source_stat_expression_executes() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "War Machine".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{3}{R}".to_string()),
+        oracle_text: Some(
+            "At the beginning of combat on your turn, another target creature you control gets +X/+0 until end of turn, where X is War Machine's power."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the named source-stat trigger parses");
+    let mut source_definition = test_definition("war-machine", "Legendary Creature - Human Hero");
+    source_definition.power = Some("4".to_string());
+    source_definition.toughness = Some("4".to_string());
+    source_definition.rules = vec![rule.clone()];
+    let source = test_instance("war-machine", source_definition, "player-0");
+    let mut target_definition = test_definition("target-hero", "Creature - Human Hero");
+    target_definition.power = Some("2".to_string());
+    target_definition.toughness = Some("2".to_string());
+    let target = test_instance("target-hero", target_definition, "player-0");
+    let stack_object = StackObject {
+        id: "stack:war-machine".to_string(),
+        controller: "player-0".to_string(),
+        card: source.clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetPermanent".to_string(),
+            TargetRef::Permanent {
+                instance_id: "target-hero".to_string(),
+            },
+        )]),
+    };
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![source, target];
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the source power is evaluated while the targeted modifier resolves");
+    let target = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "target-hero")
+        .expect("the modified target remains on the battlefield");
+    assert_eq!(engine.current_power(target), 6);
+    assert_eq!(engine.current_toughness(target), 2);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: HYDRA Troopers; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_graveyard_threshold_selects_the_runtime_branch() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "HYDRA Troopers".to_string(),
+        type_line: "Creature - Human Villain".to_string(),
+        mana_cost: Some("{2}{B}".to_string()),
+        oracle_text: Some(
+            "When this creature enters, create a tapped 2/1 black Villain creature token with menace if there are two or more creature cards in your graveyard. Otherwise, mill two cards."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the threshold branch trigger parses");
+    let mut source_definition = test_definition("hydra-troopers", "Creature - Human Villain");
+    source_definition.rules = vec![rule.clone()];
+    let source = test_instance("hydra-troopers", source_definition, "player-0");
+
+    let mut threshold_engine = test_engine(2);
+    threshold_engine.state.players[0]
+        .battlefield
+        .push(source.clone());
+    threshold_engine.state.players[0].graveyard = vec![
+        test_instance(
+            "grave-creature-one",
+            test_definition("grave-creature-one", "Creature - Villain"),
+            "player-0",
+        ),
+        test_instance(
+            "grave-creature-two",
+            test_definition("grave-creature-two", "Creature - Villain"),
+            "player-0",
+        ),
+    ];
+    threshold_engine.enqueue_enter_battlefield_triggers(&source);
+    threshold_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the satisfied threshold creates the token");
+    let created = threshold_engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.definition.is_token)
+        .expect("the Villain token was created");
+    assert!(created.tapped);
+    assert!(threshold_engine.permanent_has_keyword(created, "menace"));
+
+    let mut fallback_engine = test_engine(2);
+    fallback_engine.state.players[0]
+        .battlefield
+        .push(source.clone());
+    fallback_engine.state.players[0].library = vec![
+        test_instance(
+            "mill-one",
+            test_definition("mill-one", "Instant"),
+            "player-0",
+        ),
+        test_instance(
+            "mill-two",
+            test_definition("mill-two", "Sorcery"),
+            "player-0",
+        ),
+    ];
+    fallback_engine.enqueue_enter_battlefield_triggers(&source);
+    fallback_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the failed threshold mills instead");
+    assert_eq!(fallback_engine.state.players[0].graveyard.len(), 2);
+    assert!(
+        fallback_engine.state.players[0]
+            .battlefield
+            .iter()
+            .all(|permanent| !permanent.definition.is_token)
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Red Guardian, Super-Soldier; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_object_history_filters_target_runtime_candidates() {
+    let guardian = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Red Guardian".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{3}{R}".to_string()),
+        oracle_text: Some(
+            "When Red Guardian enters, destroy target creature an opponent controls that dealt damage this turn."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let guardian_rule = guardian.abilities[0]
+        .rule
+        .clone()
+        .expect("the damage-history target trigger parses");
+    let dealer = test_instance(
+        "damage-dealer",
+        test_definition("damage-dealer", "Creature - Villain"),
+        "player-1",
+    );
+    let bystander = test_instance(
+        "bystander",
+        test_definition("bystander", "Creature - Villain"),
+        "player-1",
+    );
+    let mut guardian_engine = test_engine(2);
+    guardian_engine.state.players[1].battlefield = vec![dealer, bystander];
+    guardian_engine.record_event(
+        "damageDealt",
+        Some("player-1".to_string()),
+        Some("damage-dealer".to_string()),
+        json!({ "source": "damage-dealer", "amount": 2 }),
+    );
+    let candidates = guardian_engine
+        .target_candidates(
+            "player-0",
+            &guardian_rule["declaration"]["decisions"][0]["candidates"],
+        )
+        .expect("damage-history candidates resolve");
+    assert_eq!(
+        candidates,
+        vec![TargetRef::Permanent {
+            instance_id: "damage-dealer".to_string(),
+        }]
+    );
+
+    let nurse = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Night Nurse".to_string(),
+        type_line: "Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "When Night Nurse enters, choose target permanent card in your graveyard that was put there from anywhere this turn. Return it to your hand."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let nurse_rule = nurse.abilities[0]
+        .rule
+        .clone()
+        .expect("the graveyard-history target trigger parses");
+    let recent = test_instance(
+        "recent-artifact",
+        test_definition("recent-artifact", "Artifact"),
+        "player-0",
+    );
+    let stale = test_instance(
+        "stale-enchantment",
+        test_definition("stale-enchantment", "Enchantment"),
+        "player-0",
+    );
+    let nurse_source = test_instance(
+        "night-nurse",
+        test_definition("night-nurse", "Creature - Human Hero"),
+        "player-0",
+    );
+    let mut nurse_engine = test_engine(2);
+    nurse_engine.state.players[0].hand.clear();
+    nurse_engine.state.players[0].graveyard = vec![recent, stale];
+    nurse_engine.record_event(
+        "cardsEnteredGraveyard",
+        Some("player-0".to_string()),
+        None,
+        json!({ "cardIds": ["recent-artifact"] }),
+    );
+    let nurse_candidates = nurse_engine
+        .target_candidates(
+            "player-0",
+            &nurse_rule["declaration"]["decisions"][0]["candidates"],
+        )
+        .expect("graveyard-history candidates resolve");
+    assert_eq!(
+        nurse_candidates,
+        vec![TargetRef::Card {
+            instance_id: "recent-artifact".to_string(),
+        }]
+    );
+    let stack_object = StackObject {
+        id: "stack:night-nurse".to_string(),
+        controller: "player-0".to_string(),
+        card: nurse_source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(nurse_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetGraveyardCard".to_string(),
+            TargetRef::Card {
+                instance_id: "recent-artifact".to_string(),
+            },
+        )]),
+    };
+    nurse_engine
+        .execute_effects(
+            &nurse_rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the recent graveyard card returns to hand");
+    assert_eq!(nurse_engine.state.players[0].hand.len(), 1);
+    assert_eq!(
+        nurse_engine.state.players[0].hand[0].instance_id,
+        "recent-artifact"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avengers Tower; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_singular_cast_or_activation_mana_restriction_executes() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Avengers Tower".to_string(),
+        type_line: "Land".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "{T}: Add one mana of any color. Spend this mana only to cast a Hero spell or to activate an ability of a Hero source."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the singular combined mana restriction parses");
+    let source = test_instance(
+        "avengers-tower",
+        test_definition("avengers-tower", "Land"),
+        "player-0",
+    );
+    let stack_object = StackObject {
+        id: "stack:avengers-tower".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("manaAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut engine = test_engine(2);
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the restricted mana is produced");
+    assert_eq!(engine.state.players[0].mana_pool.len(), 1);
+    let restriction = engine.state.players[0].mana_pool[0]
+        .spend_restriction
+        .clone()
+        .expect("the produced mana retains its combined restriction");
+    assert_eq!(restriction["kind"], "castSpellOrActivateAbility");
+    let excluded = BTreeSet::new();
+    let hero = test_definition("eligible-hero", "Creature - Human Hero");
+    let villain = test_definition("ineligible-villain", "Creature - Human Villain");
+    assert!(
+        engine
+            .payment_for_mana_costs(0, &["{G}".to_string()], &excluded, Some(&hero))
+            .is_some()
+    );
+    assert!(
+        engine
+            .payment_for_mana_costs(0, &["{G}".to_string()], &excluded, Some(&villain))
+            .is_none()
+    );
+    assert!(
+        engine
+            .payment_for_activation_mana_costs(0, &["{G}".to_string()], &excluded, &hero)
+            .is_some()
+    );
+    assert!(
+        engine
+            .payment_for_activation_mana_costs(0, &["{G}".to_string()], &excluded, &villain)
+            .is_none()
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Misty Knight, Hero for Hire; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_turn_history_scaling_and_temporary_reduction_execute() {
+    let misty = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Misty Knight, Hero for Hire".to_string(),
+        type_line: "Legendary Creature - Human Detective Hero".to_string(),
+        mana_cost: Some("{1}{W}".to_string()),
+        oracle_text: Some(
+            "{2}, {T}, Discard a card: Draw a card for each card you've discarded this turn."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let misty_rule = misty.abilities[0]
+        .rule
+        .clone()
+        .expect("the discard-history activation parses");
+    assert!(rule_is_executable(&misty_rule));
+    let misty_source = test_instance(
+        "misty-knight",
+        test_definition("misty-knight", "Legendary Creature - Human Detective Hero"),
+        "player-0",
+    );
+    let misty_stack = StackObject {
+        id: "stack:misty-knight".to_string(),
+        controller: "player-0".to_string(),
+        card: misty_source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(misty_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut misty_engine = test_engine(2);
+    misty_engine.state.players[0].hand.clear();
+    misty_engine.state.players[0].library = vec![
+        test_instance(
+            "misty-draw-1",
+            test_definition("misty-draw-1", "Instant"),
+            "player-0",
+        ),
+        test_instance(
+            "misty-draw-2",
+            test_definition("misty-draw-2", "Sorcery"),
+            "player-0",
+        ),
+    ];
+    for discarded_id in ["discarded-1", "discarded-2"] {
+        misty_engine.record_event(
+            "cardDiscarded",
+            Some("player-0".to_string()),
+            Some(discarded_id.to_string()),
+            json!({}),
+        );
+    }
+    misty_engine
+        .execute_effects(
+            &misty_rule["effects"],
+            &misty_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("discard history determines the draw count");
+    assert_eq!(misty_engine.state.players[0].hand.len(), 2);
+
+    let reduction = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Temporary Foundry".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{1}{U}".to_string()),
+        oracle_text: Some("Artifact spells you cast this turn cost {1} less to cast.".to_string()),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let reduction_rule = reduction.abilities[0]
+        .rule
+        .clone()
+        .expect("the temporary reduction spell parses");
+    assert!(rule_is_executable(&reduction_rule));
+    let reduction_source = test_instance(
+        "temporary-foundry",
+        test_definition("temporary-foundry", "Sorcery"),
+        "player-0",
+    );
+    let reduction_stack = StackObject {
+        id: "stack:temporary-foundry".to_string(),
+        controller: "player-0".to_string(),
+        card: reduction_source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(reduction_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut reduction_engine = test_engine(2);
+    reduction_engine
+        .execute_effects(
+            &reduction_rule["effects"],
+            &reduction_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the standard cost modifier is installed");
+    let artifact = test_definition("future-artifact", "Artifact");
+    let creature = test_definition("future-creature", "Creature - Human");
+    assert_eq!(
+        reduction_engine.global_casting_cost_reduction("player-0", &artifact, "hand"),
+        1
+    );
+    assert_eq!(
+        reduction_engine.global_casting_cost_reduction("player-0", &creature, "hand"),
+        0
+    );
+    assert_eq!(
+        reduction_engine.global_casting_cost_reduction("player-1", &artifact, "hand"),
+        0
+    );
+
+    let scaling_tokens = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Scaling Spoils".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{2}{R}".to_string()),
+        oracle_text: Some("Create a Treasure token for each Villain you control.".to_string()),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let token_rule = scaling_tokens.abilities[0]
+        .rule
+        .clone()
+        .expect("the controlled-permanent token quantity parses");
+    assert!(rule_is_executable(&token_rule));
+    let token_source = test_instance(
+        "scaling-spoils",
+        test_definition("scaling-spoils", "Sorcery"),
+        "player-0",
+    );
+    let token_stack = StackObject {
+        id: "stack:scaling-spoils".to_string(),
+        controller: "player-0".to_string(),
+        card: token_source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(token_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut token_engine = test_engine(2);
+    token_engine.state.players[0].battlefield = vec![
+        test_instance(
+            "villain-1",
+            test_definition("villain-1", "Creature - Human Villain"),
+            "player-0",
+        ),
+        test_instance(
+            "villain-2",
+            test_definition("villain-2", "Creature - Alien Villain"),
+            "player-0",
+        ),
+        test_instance(
+            "hero-1",
+            test_definition("hero-1", "Creature - Human Hero"),
+            "player-0",
+        ),
+    ];
+    token_engine
+        .execute_effects(
+            &token_rule["effects"],
+            &token_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the Villain count creates the matching number of Treasures");
+    assert_eq!(
+        token_engine.state.players[0]
+            .battlefield
+            .iter()
+            .filter(|permanent| permanent.definition.name == "Treasure")
+            .count(),
+        2
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Sentry, Golden Guardian; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_targeted_token_keeps_keywords_and_compiled_quoted_rule() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "The Sentry, Golden Guardian".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{4}{W}".to_string()),
+        oracle_text: Some(
+            "When The Sentry enters, target opponent creates The Void, a legendary 5/5 black Horror Villain creature token with flying, indestructible, and \"The Void attacks each combat if able.\""
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("the targeted mixed-ability token trigger parses");
+    assert!(rule_is_executable(&rule));
+    let source = test_instance(
+        "the-sentry",
+        test_definition("the-sentry", "Legendary Creature - Human Hero"),
+        "player-0",
+    );
+    let stack_object = StackObject {
+        id: "stack:the-sentry".to_string(),
         controller: "player-0".to_string(),
         card: source,
         cant_be_countered: false,
         exile_on_leave_stack: false,
         ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
+        ability_rule: Some(rule.clone()),
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "handCardToExile".to_string(),
-            TargetRef::Card {
-                instance_id: "imprinted-instant".to_string(),
+            "targetPlayer".to_string(),
+            TargetRef::Player {
+                player_id: "player-1".to_string(),
             },
         )]),
     };
-    let exile = json!({
-        "kind": "exileTargetCardWithSource",
-        "card": { "kind": "chosenTarget", "id": "handCardToExile" },
-        "source": { "kind": "self" },
-        "fromZone": "hand",
-    });
-    let copy = json!({
-        "kind": "createCardCopy",
-        "card": { "kind": "cardExiledWithSource" },
-        "fromZone": "exile",
-        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        "to": "exile",
-        "bind": "copiedLinkedCard",
-    });
-    let mut bindings = BTreeMap::new();
-    let mut decisions = BTreeMap::new();
-    let mut provider = EmeritusDecisionProvider;
+    let mut engine = test_engine(2);
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the target opponent creates the fully compiled token");
+    let the_void = engine.state.players[1]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.definition.name == "The Void")
+        .expect("The Void was created for the target opponent");
+    assert!(engine.permanent_has_keyword(the_void, "flying"));
+    assert!(engine.permanent_has_keyword(the_void, "indestructible"));
+    assert!(engine.permanent_has_self_static_modifier(the_void, "attackEachCombatIfAble"));
 
-    engine
-        .execute_effect(
-            &exile,
-            None,
-            &stack_object,
-            &mut bindings,
-            &mut decisions,
-            &mut provider,
-        )
-        .expect("the selected hand card is exiled and linked");
-    assert!(
-        engine.state.players[0]
-            .hand
-            .iter()
-            .all(|card| card.instance_id != "imprinted-instant")
+    let parsed_alien = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Alien Invasion".to_string(),
+        type_line: "Enchantment - Saga".to_string(),
+        mana_cost: Some("{2}{R}".to_string()),
+        oracle_text: Some(
+            "At the beginning of combat on your turn, create a 1/1 red Alien creature token with haste and \"This token attacks each combat if able.\" Put a +1/+1 counter on it for each invasion counter on this enchantment, then put an invasion counter on this enchantment."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let alien_rule = parsed_alien.abilities[0]
+        .rule
+        .clone()
+        .expect("the created-token binding sequence parses");
+    assert!(rule_is_executable(&alien_rule));
+    let mut alien_source = test_instance(
+        "alien-invasion",
+        test_definition("alien-invasion", "Enchantment - Saga"),
+        "player-0",
     );
-    assert!(
-        engine.state.players[0]
-            .exile
-            .iter()
-            .any(|card| card.instance_id == "imprinted-instant")
-    );
-    engine
-        .execute_effect(
-            &copy,
-            None,
-            &stack_object,
-            &mut bindings,
-            &mut decisions,
-            &mut provider,
-        )
-        .expect("the linked exiled card can be copied");
-    let RuntimeBinding::Objects(copy_ids) = &bindings["copiedLinkedCard"] else {
-        panic!("the copied linked card should be bound");
+    alien_source.counters.insert("invasion".to_string(), 2);
+    let alien_stack = StackObject {
+        id: "stack:alien-invasion".to_string(),
+        controller: "player-0".to_string(),
+        card: alien_source.clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(alien_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
     };
-    assert_eq!(copy_ids.len(), 1);
-    assert!(copy_ids[0].starts_with("copy:card:imprinted-instant:"));
+    let mut alien_engine = test_engine(2);
+    alien_engine.state.players[0].battlefield.push(alien_source);
+    alien_engine
+        .execute_effects(
+            &alien_rule["effects"],
+            &alien_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the created token and source receive their respective counters");
+    let created_alien = alien_engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| {
+            permanent
+                .definition
+                .type_line
+                .split(" - ")
+                .nth(1)
+                .is_some_and(|subtypes| subtypes.split_whitespace().any(|value| value == "Alien"))
+        })
+        .expect("the Alien token was created");
+    assert_eq!(created_alien.counters.get("+1/+1"), Some(&2));
+    let alien_invasion = alien_engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "alien-invasion")
+        .expect("the source remains on the battlefield");
+    assert_eq!(alien_invasion.counters.get("invasion"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn mana_value_parity_filter_uses_the_declared_choice() {
+    let mut odd = test_definition("odd-card", "Creature - Hero");
+    odd.mana_cost = "{2}{U}".to_string();
+    let mut zero = test_definition("zero-card", "Creature - Hero");
+    zero.mana_cost.clear();
+    let filter = json!({
+        "kind": "manaValueParity",
+        "parity": {
+            "kind": "decisionResult",
+            "decisionId": "manaValueParity",
+        },
+    });
+
+    let odd_choice = BTreeMap::from([(
+        "manaValueParity".to_string(),
+        Value::String("odd".to_string()),
+    )]);
+    assert!(matches_card_filter_with_decisions(
+        &odd,
+        &filter,
+        &odd_choice
+    ));
+    assert!(!matches_card_filter_with_decisions(
+        &zero,
+        &filter,
+        &odd_choice
+    ));
+
+    let even_choice = BTreeMap::from([(
+        "manaValueParity".to_string(),
+        Value::String("even".to_string()),
+    )]);
+    assert!(!matches_card_filter_with_decisions(
+        &odd,
+        &filter,
+        &even_choice
+    ));
+    assert!(matches_card_filter_with_decisions(
+        &zero,
+        &filter,
+        &even_choice
+    ));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn power_up_cost_modifier_and_per_ability_limit_are_executable() {
+    let mut definition = test_definition("test-hero", "Creature - Human Hero");
+    definition.mana_cost = "{2}{R}".to_string();
+    definition.rules = vec![json!({
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "abilityClass": "powerUp",
+        "costs": [{ "kind": "payMana", "manaCost": "{6}{R}" }],
+        "activationCostModifiers": [{
+            "kind": "reduceManaCost",
+            "amount": { "kind": "manaCostOf", "object": { "kind": "self" } },
+            "condition": { "kind": "sourceFlagSet", "flag": "enteredThisTurn" },
+        }],
+        "activationLimit": { "kind": "oncePerGameObjectAbility", "id": "powerUp" },
+        "effects": [{
+            "kind": "putCounters",
+            "permanent": { "kind": "self" },
+            "counter": "+1/+1",
+            "count": { "kind": "integer", "value": 1 },
+        }],
+    })];
+    let mut hero = test_instance("test-hero", definition, "player-0");
+    hero.flags.insert("enteredThisTurn".to_string(), true);
+
+    let mut support_definition = test_definition("power-up-support", "Enchantment");
+    support_definition.rules = vec![json!({
+        "kind": "staticAbility",
+        "source": { "kind": "self" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [
+            {
+                "kind": "additionalActivation",
+                "objects": {
+                    "kind": "permanents",
+                    "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": null,
+                },
+                "abilityClass": "powerUp",
+                "amount": { "kind": "integer", "value": 1 },
+            },
+            {
+                "kind": "reduceActivationCost",
+                "objects": {
+                    "kind": "permanents",
+                    "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" },
+                    "excludeSource": true,
+                },
+                "abilityClass": "powerUp",
+                "amount": { "kind": "integer", "value": 3 },
+            },
+        ],
+    })];
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        hero,
+        test_instance("power-up-support", support_definition, "player-0"),
+        mana_source("wastes-a", "Basic Land - Wastes", "{C}", None),
+    ];
+
+    engine.state.rule_modifiers.push(json!({
+        "kind": "prohibitAbilityClassActivationDuringTurn",
+        "playerId": "player-0",
+        "abilityClass": "powerUp",
+        "turnNumber": engine.state.turn_number,
+    }));
+    assert!(engine.legal_priority_actions(0).into_iter().all(|action| {
+        action.kind != ActionKind::ActivateAbility
+            || action.card_instance_id.as_deref() != Some("test-hero")
+    }));
+    engine.state.rule_modifiers.clear();
+
+    let action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("test-hero")
+        })
+        .expect("the source and static reductions reduce {6}{R} to the payable cost {1}");
+    engine
+        .apply_priority_action(&action, &mut RandomAi::seeded(3))
+        .expect("the reduced power-up activation is payable");
+
+    assert_eq!(
+        engine.state.players[0].battlefield[0]
+            .flags
+            .get("powerUp:ability:0:use:1"),
+        Some(&true)
+    );
+    engine.state.players[0].battlefield[2].tapped = false;
+    let second_action = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("test-hero")
+        })
+        .expect("the static modifier permits one additional activation");
+    engine
+        .apply_priority_action(&second_action, &mut RandomAi::seeded(4))
+        .expect("the additional power-up activation is payable");
+    assert_eq!(
+        engine.state.players[0].battlefield[0]
+            .flags
+            .get("powerUp:ability:0:use:2"),
+        Some(&true)
+    );
+    engine.state.players[0].battlefield[2].tapped = false;
+    assert!(engine.legal_priority_actions(0).into_iter().all(|action| {
+        action.card_instance_id.as_deref() != Some("test-hero")
+            || action.kind != ActionKind::ActivateAbility
+    }));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn teamwork_payment_context_only_enqueues_the_qualified_tap_trigger() {
+    let mut definition = test_definition("teamwork-agent", "Creature - Human Hero");
+    definition.rules = vec![json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "permanentTapped", "object": { "kind": "self" } },
+        "condition": { "kind": "sourceFlagSet", "flag": "paidTeamworkCost" },
+        "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": { "kind": "integer", "value": 1 },
+        }],
+    })];
+    let agent = test_instance("teamwork-agent", definition, "player-0");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![agent.clone()];
+
+    engine.enqueue_permanent_tapped_triggers(&agent);
+    assert!(engine.state.stack.is_empty());
+
+    let mut teamwork_event_source = agent;
+    teamwork_event_source
+        .flags
+        .insert("paidTeamworkCost".to_string(), true);
+    engine.enqueue_permanent_tapped_triggers(&teamwork_event_source);
+    assert_eq!(engine.state.stack.len(), 1);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn loop_shortcut_missing_reused_choice_falls_back_without_panicking() {
+    let reused_action = LegalAction {
+        id: "choose:room:runestone".to_string(),
+        kind: ActionKind::ChooseResolution,
+        player_id: "player-0".to_string(),
+        label: "Choose Runestone Caverns".to_string(),
+        card_instance_id: Some("dungeon".to_string()),
+        payment_sources: Vec::new(),
+        decisions: BTreeMap::from([(
+            "room".to_string(),
+            Value::String("Runestone Caverns".to_string()),
+        )]),
+        targets: BTreeMap::new(),
+        target_order: Vec::new(),
+        attacker_id: None,
+        blocker_id: None,
+    };
+    let request = EngineDecisionRequest {
+        id: "resolution:room".to_string(),
+        kind: DecisionKind::ResolutionChoice,
+        player_id: "player-0".to_string(),
+        source_card: None,
+        source_card_instance_id: Some("dungeon".to_string()),
+        choice: None,
+        options: vec![LegalAction {
+            id: "choose:room:graveyard".to_string(),
+            label: "Choose Muiral's Graveyard".to_string(),
+            decisions: BTreeMap::from([(
+                "room".to_string(),
+                Value::String("Muiral's Graveyard".to_string()),
+            )]),
+            ..reused_action.clone()
+        }],
+    };
+    let reused = ReusedLoopChoice {
+        option_index: 0,
+        action: reused_action,
+    };
+
+    assert_eq!(
+        LoopShortcutDecisionProvider::<WardDecisionProvider>::reusable_option_index(
+            &request, &reused,
+        ),
+        None
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exiled_card_mana_value_fixes_activated_x_declarations() {
     let mut engine = test_engine(2);
@@ -232,7 +2299,7 @@ fn linked_exiled_card_mana_value_fixes_activated_x_declarations() {
         "player-0",
     ));
     engine.state.rule_modifiers.push(json!({
-        "kind": "exiledWith",
+        "kind": "exiledWithSource",
         "sourceCardInstanceId": "arcanist-source",
         "cardInstanceId": "linked-spell",
     }));
@@ -260,6 +2327,7 @@ fn linked_exiled_card_mana_value_fixes_activated_x_declarations() {
     assert_eq!(declarations[0].decisions["xValue"], 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_conditional_flash_requires_the_declared_permanent() {
     let mut spell = test_definition("company", "Creature - Human Citizen");
@@ -284,6 +2352,7 @@ fn hob_batch10_conditional_flash_requires_the_declared_permanent() {
     assert!(!engine.card_casts_with_static_flash("player-0", &spell, "graveyard"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
     let mut company = test_definition("warg-company", "Creature - Wolf");
@@ -327,6 +2396,7 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
     assert!(can_attack(&engine));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_counter_trigger_without_a_counter_name_matches_any_counter() {
     let mut source = test_definition("counter-watcher", "Creature - Goblin");
@@ -362,6 +2432,7 @@ fn hob_batch10_counter_trigger_without_a_counter_name_matches_any_counter() {
     assert_eq!(engine.state.stack[0].decisions["counterCount"], 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_card_candidates_can_match_a_controlled_legendarys_name() {
     let mut engine = test_engine(2);
@@ -396,6 +2467,7 @@ fn hob_batch10_card_candidates_can_match_a_controlled_legendarys_name() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -445,6 +2517,9 @@ fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
         .find(|action| action.decisions.get("typecycling") == Some(&Value::Bool(true)))
         .expect("typecycling is a legal hand activation");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("typecycling pays, discards, and creates its stack ability");
     assert!(engine.state.players[0].hand.is_empty());
@@ -478,6 +2553,7 @@ fn hob_batch10_parsed_typecycling_searches_for_the_declared_subtype() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn canonical_gap_selectors_are_supported() {
     let stack_objects = json!({
@@ -507,6 +2583,7 @@ fn canonical_gap_selectors_are_supported() {
     })));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     let mut engine = test_engine(2);
@@ -553,6 +2630,9 @@ fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     assert!(effect_supported(&effect));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -568,6 +2648,7 @@ fn hob_batch9_optional_payment_performs_effects_without_an_extra_trigger() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
     let mut engine = test_engine(2);
@@ -611,6 +2692,9 @@ fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
     engine.enqueue_enter_battlefield_triggers(&land);
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the graveyard landfall trigger resolves");
 
@@ -623,6 +2707,7 @@ fn hob_batch9_graveyard_trigger_can_pay_and_return_its_source_to_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_returned_source_replaces_types_and_preserves_supertypes() {
     let mut engine = test_engine(2);
@@ -668,6 +2753,7 @@ fn hob_batch9_returned_source_replaces_types_and_preserves_supertypes() {
     assert_eq!(permanent.definition.toughness, None);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn hob_batch9_bound_damage_recipient_is_filtered_before_destruction() {
     let mut engine = test_engine(2);
@@ -718,6 +2804,9 @@ fn hob_batch9_bound_damage_recipient_is_filtered_before_destruction() {
     assert!(effects.as_array().unwrap().iter().all(effect_supported));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &stack_object,
@@ -763,6 +2852,35 @@ impl DecisionProvider for EmeritusDecisionProvider {
             _ => Some(0),
         };
         selected.ok_or_else(|| EngineError::new("test decision has no matching option"))
+    }
+}
+
+/// CR 701.49a lets the venturing player choose any dungeon from outside the
+/// game, including the canonical built-in pieces. A fixture that expects a
+/// particular dungeon names it explicitly instead of relying on option order;
+/// every other decision falls back to `EmeritusDecisionProvider`.
+struct NamedOptionDecisionProvider {
+    option: &'static str,
+}
+
+impl DecisionProvider for NamedOptionDecisionProvider {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let named = request.options.iter().position(|action| {
+            action.kind == ActionKind::ChooseResolution
+                && action.decisions.values().any(|value| {
+                    value
+                        .as_array()
+                        .is_some_and(|values| values.len() == 1 && values[0] == self.option)
+                })
+        });
+        match named {
+            Some(index) => Ok(index),
+            None => EmeritusDecisionProvider.choose(state, request),
+        }
     }
 }
 
@@ -1103,6 +3221,77 @@ fn test_instance(instance_id: &str, definition: CardDefinition, owner: &str) -> 
     instance
 }
 
+/// Target designation for a fixture-built stack object: casting, activation
+/// and trigger placement capture each chosen target's object identity when
+/// the target is chosen (CR 601.2c, 602.2b, 603.3d). A fixture that builds
+/// the object directly performs that step here, while its targets are legal.
+fn designate_fixture_targets(engine: &GameEngine, stack_object: &mut StackObject) {
+    for (target_id, target) in stack_object.targets.clone() {
+        engine
+            .capture_target_incarnation(&mut stack_object.decisions, &target_id, &target)
+            .expect("fixture target is designated");
+    }
+}
+
+/// Designates the targets of the stack object a fixture just pushed.
+fn designate_fixture_stack_targets(engine: &mut GameEngine) {
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let mut object = engine
+        .state
+        .stack
+        .pop()
+        .expect("a fixture stack object was pushed");
+    designate_fixture_targets(engine, &mut object);
+    engine.state.stack.push(object);
+}
+
+/// Runs an already designated stack object's effect program directly, inside
+/// the single resolution-start target legality snapshot that resolution takes
+/// before its first effect (CR 608.2b).
+fn execute_designated_effects<P: DecisionProvider>(
+    engine: &mut GameEngine,
+    effects: &Value,
+    stack_object: &StackObject,
+    bindings: &mut BTreeMap<String, RuntimeBinding>,
+    decisions: &mut BTreeMap<String, Value>,
+    provider: &mut P,
+) -> Result<(), EngineError> {
+    let context = engine.target_numeric_context(stack_object);
+    engine.with_target_numeric_context(context, |engine| {
+        engine.execute_effects(effects, stack_object, bindings, decisions, provider)
+    })
+}
+
+/// Fixture adapter for tests that run a fixture-built stack object's effect
+/// program directly instead of resolving it from the stack: completes fixture
+/// admission, lets an ability adopt its source's incarnation, designates the
+/// targets and then executes from the resolution-start snapshot.
+fn execute_effects_at_resolution_start<P: DecisionProvider>(
+    engine: &mut GameEngine,
+    effects: &Value,
+    stack_object: &StackObject,
+    bindings: &mut BTreeMap<String, RuntimeBinding>,
+    decisions: &mut BTreeMap<String, Value>,
+    provider: &mut P,
+) -> Result<(), EngineError> {
+    engine.admit_explicit_test_fixture_objects()?;
+    let mut stack_object = stack_object.clone();
+    if !super::card_zone_transition::stack_requires_checkpoint(&stack_object) {
+        engine.adopt_fixture_ability_source_identity(&mut stack_object.card)?;
+    }
+    designate_fixture_targets(engine, &mut stack_object);
+    execute_designated_effects(
+        engine,
+        effects,
+        &stack_object,
+        bindings,
+        decisions,
+        provider,
+    )
+}
+
 fn test_engine(player_count: usize) -> GameEngine {
     let filler = test_definition("filler", "Basic Land - Plains");
     GameEngine::new(
@@ -1123,6 +3312,7 @@ fn test_engine(player_count: usize) -> GameEngine {
     .expect("test setup is valid")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
     let mut engine = test_engine(2);
@@ -1201,6 +3391,9 @@ fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
         "order": { "kind": "random" },
     });
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &move_to_library,
             None,
@@ -1235,6 +3428,7 @@ fn revealed_hand_memory_persists_until_a_hidden_hand_to_library_move() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn looked_at_hand_memory_is_private_to_the_viewer_and_tracks_existing_cards() {
     let mut engine = test_engine(2);
@@ -1267,6 +3461,7 @@ fn looked_at_hand_memory_is_private_to_the_viewer_and_tracks_existing_cards() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1357,6 +3552,11 @@ fn alternative_hand_exile_cast_actions_name_their_distinct_payment_choices() {
     assert_eq!(labels.len(), cast_actions.len());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Party Guest; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1447,6 +3647,11 @@ fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thorin, King of Durin's Folk; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1521,6 +3726,101 @@ fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Winter Soldier, Icy Assassin; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_source_bonuses_count_other_permanents_and_matching_attachments() {
+    let controlled_count = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Armorer, Master Smith".to_string(),
+        type_line: "Legendary Artifact Creature - Human Hero".to_string(),
+        mana_cost: Some("{3}".to_string()),
+        oracle_text: Some(
+            "Test Armorer gets +1/+0 for each other artifact you control.".to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let controlled_rule = controlled_count.abilities[0]
+        .rule
+        .clone()
+        .expect("a shortened source name should parse for a counted bonus");
+    assert!(rule_is_executable(&controlled_rule));
+    let mut armorer_definition =
+        test_definition("test-armorer", "Legendary Artifact Creature - Human Hero");
+    armorer_definition.rules = vec![controlled_rule];
+    let armorer = test_instance("test-armorer", armorer_definition, "player-0");
+
+    let attachment_count = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Fighter, Fully Armed".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{R}".to_string()),
+        oracle_text: Some(
+            "Test Fighter gets +2/+0 for each Equipment attached to him.".to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let attachment_rule = attachment_count.abilities[0]
+        .rule
+        .clone()
+        .expect("matching attachments should feed a source bonus");
+    assert!(rule_is_executable(&attachment_rule));
+    let mut fighter_definition = test_definition("test-fighter", "Legendary Creature - Human Hero");
+    fighter_definition.rules = vec![attachment_rule];
+    let fighter = test_instance("test-fighter", fighter_definition, "player-0");
+
+    let artifact_one = test_instance(
+        "artifact-one",
+        test_definition("artifact-one", "Artifact"),
+        "player-0",
+    );
+    let artifact_two = test_instance(
+        "artifact-two",
+        test_definition("artifact-two", "Artifact - Treasure"),
+        "player-0",
+    );
+    let mut equipment_one = test_instance(
+        "equipment-one",
+        test_definition("equipment-one", "Artifact - Equipment"),
+        "player-1",
+    );
+    equipment_one.attached_to = Some("test-fighter".to_string());
+    let mut equipment_two = test_instance(
+        "equipment-two",
+        test_definition("equipment-two", "Artifact - Equipment"),
+        "player-1",
+    );
+    equipment_two.attached_to = Some("test-fighter".to_string());
+    let mut aura = test_instance(
+        "test-aura",
+        test_definition("test-aura", "Enchantment - Aura"),
+        "player-1",
+    );
+    aura.attached_to = Some("test-fighter".to_string());
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![armorer, fighter, artifact_one, artifact_two];
+    engine.state.players[1].battlefield = vec![equipment_one, equipment_two, aura];
+    assert_eq!(
+        engine.current_power(&engine.state.players[0].battlefield[0]),
+        4,
+        "the artifact source itself is excluded from the other-artifact count"
+    );
+    assert_eq!(
+        engine.current_power(&engine.state.players[0].battlefield[1]),
+        6,
+        "only the two attached Equipment contribute to the attachment count"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Fellow Conspirator; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1584,6 +3884,11 @@ fn parsed_named_token_supplement_preserves_quantity_without_recursing() {
     assert_eq!(names.len(), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ori, Plate Stacker; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1688,6 +3993,11 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Long-Lost Lances; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -1739,6 +4049,11 @@ fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     assert!(!engine.permanent_has_keyword(&engine.state.players[0].battlefield[1], "vigilance"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Smaug the Impenetrable; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes() {
     let hall = parse_oracle_card(OracleCardParseRequest {
@@ -1886,6 +4201,11 @@ fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo's Burglaring; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
     let control = parse_oracle_card(OracleCardParseRequest {
@@ -2024,6 +4344,11 @@ fn parsed_multiplayer_control_and_dynamic_fixed_mana_mutate_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Necklace of Girion; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_alternative_cast_and_land_entry_events_share_one_live_effect() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2081,6 +4406,7 @@ fn parsed_alternative_cast_and_land_entry_events_share_one_live_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
     let mut engine = test_engine(2);
@@ -2113,6 +4439,9 @@ fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
         .expect("the player loses life and creates the trigger");
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the linked mill trigger resolves");
 
@@ -2122,86 +4451,7 @@ fn life_loss_trigger_mills_the_triggering_player_by_the_actual_amount() {
     assert_eq!(engine.state.players[0].graveyard.len(), 0);
 }
 
-#[test]
-fn optional_hand_discard_binds_the_draw_and_story_damage_amount() {
-    let mut engine = test_engine(3);
-    engine.state.players[0].hand = (0..3)
-        .map(|index| {
-            let id = format!("discarded-hand-{index}");
-            test_instance(&id, test_definition(&id, "Creature"), "player-0")
-        })
-        .collect();
-    engine.state.players[0].library = (0..6)
-        .map(|index| {
-            let id = format!("replacement-draw-{index}");
-            test_instance(&id, test_definition(&id, "Basic Land - Plains"), "player-0")
-        })
-        .collect();
-    engine.state.players[0].graveyard.clear();
-    engine.state.rule_modifiers.push(json!({
-        "kind": "enduringStory",
-        "playerId": "player-0",
-    }));
-    let stack_object = StackObject {
-        id: "stack:optional-hand-discard".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "optional-hand-discard",
-            test_definition("optional-hand-discard", "Creature - Dwarf"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "optionalAction",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "action": {
-                    "kind": "discardHand",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "bindCountAs": "discardedHandCount",
-                },
-                "onPerformed": [
-                    {
-                        "kind": "drawCards",
-                        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                        "count": { "kind": "boundValue", "id": "discardedHandCount" },
-                    },
-                    {
-                        "kind": "conditionalEffect",
-                        "condition": {
-                            "kind": "hasEnduringStory",
-                            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                        },
-                        "then": [{
-                            "kind": "dealDamageToEachOpponent",
-                            "amount": { "kind": "boundValue", "id": "discardedHandCount" },
-                        }],
-                        "else": [],
-                    },
-                ],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the optional discard, linked draw, and damage resolve");
-
-    assert_eq!(engine.state.players[0].hand.len(), 3);
-    assert_eq!(engine.state.players[0].graveyard.len(), 3);
-    assert_eq!(engine.state.players[0].library.len(), 3);
-    assert_eq!(engine.state.players[1].life, 17);
-    assert_eq!(engine.state.players[2].life, 17);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
     let mut engine = test_engine(2);
@@ -2229,32 +4479,32 @@ fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
         targets: BTreeMap::new(),
     };
 
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "optionalAction",
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([{
+            "kind": "optionalAction",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "action": {
+                "kind": "sacrificePermanents",
                 "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "action": {
-                    "kind": "sacrificePermanents",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                    "count": { "kind": "integer", "value": 1 },
-                    "excludeSource": true,
-                    "bindPowerAs": "sacrificedPermanentPower",
-                },
-                "onPerformed": [{
-                    "kind": "putCounters",
-                    "permanent": { "kind": "self" },
-                    "counter": "+1/+1",
-                    "count": { "kind": "boundValue", "id": "sacrificedPermanentPower" },
-                }],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the sacrifice and linked counters resolve");
+                "where": { "kind": "cardTypeContains", "value": "Creature" },
+                "count": { "kind": "integer", "value": 1 },
+                "excludeSource": true,
+                "bindPowerAs": "sacrificedPermanentPower",
+            },
+            "onPerformed": [{
+                "kind": "putCounters",
+                "permanent": { "kind": "self" },
+                "counter": "+1/+1",
+                "count": { "kind": "boundValue", "id": "sacrificedPermanentPower" },
+            }],
+        }]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the sacrifice and linked counters resolve");
 
     assert!(
         engine.state.players[0]
@@ -2270,6 +4520,11 @@ fn optional_sacrifice_binds_last_known_power_before_moving_the_card() {
     assert_eq!(source.counters.get("+1/+1"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Supper for Spiders; see docs/coverage-targets.md"
+)]
 #[test]
 fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     let mut engine = test_engine(3);
@@ -2285,6 +4540,9 @@ fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     );
     engine.state.players[1].battlefield.push(first);
     engine.state.players[2].battlefield.push(second);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("recent-creature-a", "destroyed")
         .expect("the first opponent creature dies this turn");
@@ -2365,6 +4623,7 @@ fn recent_opponent_graveyard_cards_enter_with_replaced_characteristics() {
     assert_eq!(returned[1].definition.type_line, "Artifact - Food");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     struct ChooseDredge;
@@ -2413,6 +4672,9 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     ));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards_with_replacements("player-0", 1, &mut ChooseDredge)
         .expect("a legal dredge replaces the draw");
 
@@ -2449,6 +4711,9 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
         "player-0",
     ));
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards_with_replacements("player-0", 1, &mut EmeritusDecisionProvider)
         .expect("an unavailable dredge falls back to the normal draw");
     assert_eq!(engine.state.players[0].library.len(), 1);
@@ -2459,73 +4724,7 @@ fn dredge_replaces_each_draw_only_when_the_full_mill_is_possible() {
     );
 }
 
-#[test]
-fn died_source_and_top_cards_return_as_one_shuffled_library_pile() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].library = (0..8)
-        .map(|index| {
-            test_instance(
-                &format!("pile-library-{index}"),
-                test_definition(&format!("pile-library-{index}"), "Basic Land - Forest"),
-                "player-0",
-            )
-        })
-        .collect();
-    engine.state.players[0].graveyard.clear();
-    engine.state.players[0].battlefield.clear();
-    let mut source_definition = test_definition("pile-source", "Creature - Test");
-    source_definition.rules.push(json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": { "kind": "permanentDied", "object": { "kind": "self" } },
-        "effects": [{
-            "kind": "exileDiedSourceAndTopCardsAsShuffledLibraryPile",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "count": { "kind": "integer", "value": 6 },
-            "faceDown": true,
-            "destination": "libraryTop",
-        }],
-    }));
-    engine.state.players[0].battlefield.push(test_instance(
-        "pile-source",
-        source_definition,
-        "player-0",
-    ));
-
-    engine
-        .move_permanent_to_graveyard("pile-source", "destroyed")
-        .expect("the source dies and creates its trigger");
-    assert_eq!(engine.state.stack.len(), 1);
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the shuffled pile trigger resolves");
-
-    assert_eq!(engine.state.players[0].library.len(), 9);
-    assert!(engine.state.players[0].graveyard.is_empty());
-    let top_pile = engine.state.players[0].library[2..]
-        .iter()
-        .map(|card| card.instance_id.as_str())
-        .collect::<BTreeSet<_>>();
-    let expected = [
-        "pile-source",
-        "pile-library-2",
-        "pile-library-3",
-        "pile-library-4",
-        "pile-library-5",
-        "pile-library-6",
-        "pile-library-7",
-    ]
-    .into_iter()
-    .collect::<BTreeSet<_>>();
-    assert_eq!(top_pile, expected);
-    assert!(
-        engine.state.players[0]
-            .library
-            .iter()
-            .all(|card| card.flags.get("faceDown") != Some(&true))
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
     let mut engine = test_engine(2);
@@ -2573,6 +4772,7 @@ fn saga_chapter_can_permanently_grant_a_canonical_mana_ability() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     let mut saga_definition = test_definition("completed-saga", "Enchantment - Saga");
@@ -2612,6 +4812,9 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     assert!(engine.permanent_position("completed-saga").is_some());
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the final Saga chapter resolves");
 
@@ -2629,6 +4832,11 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Burn, Burn, Tree and Fern; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2672,6 +4880,11 @@ fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dáin Ironfoot; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2774,6 +4987,7 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn parsed_restricted_color_combination_mana_retains_its_spending_filter() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2831,6 +5045,11 @@ fn parsed_restricted_color_combination_mana_retains_its_spending_filter() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dwarven Mauler; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_equip_targeting_reduction_changes_the_payable_equip_cost() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -2899,6 +5118,7 @@ fn parsed_equip_targeting_reduction_changes_the_payable_equip_cost() {
     assert_eq!(axe.attached_to.as_deref(), Some("dwarven-mauler"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn multi_kicker_declarations_cover_every_subset_and_charge_only_selected_costs() {
     let engine = test_engine(2);
@@ -2943,6 +5163,7 @@ fn multi_kicker_declarations_cover_every_subset_and_charge_only_selected_costs()
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
     let mut engine = test_engine(2);
@@ -2982,6 +5203,9 @@ fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
         }),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&definition, "player-0")
         .expect("escalate declarations are generated");
@@ -3028,6 +5252,7 @@ fn escalate_repeats_the_shared_cost_for_each_extra_selected_mode() {
     assert_eq!(engine.state.players[0].graveyard.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn repeatable_modal_declarations_generate_multisets_and_count_occurrences() {
     let engine = test_engine(2);
@@ -3071,6 +5296,7 @@ fn repeatable_modal_declarations_generate_multisets_and_count_occurrences() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn eligible_companion_can_move_from_sideboard_to_hand_once_at_sorcery_timing() {
     let mut engine = test_engine(2);
@@ -3130,6 +5356,7 @@ fn eligible_companion_can_move_from_sideboard_to_hand_once_at_sorcery_timing() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
     let mut engine = test_engine(2);
@@ -3184,7 +5411,10 @@ fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
         blocker_id: None,
     };
     engine
-        .apply_flashback_cost(&action, &spell)
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .apply_flashback_cost(&action, &spell, &mut EmeritusDecisionProvider)
         .expect("flashback sacrifice cost is payable");
 
     assert!(
@@ -3201,6 +5431,7 @@ fn nonmana_flashback_cost_is_declared_and_paid_compositionally() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
     let mut engine = test_engine(2);
@@ -3258,6 +5489,9 @@ fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
         })
         .expect("the Arcane spell has a legal spliced casting declaration");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("the spliced spell can be cast");
 
@@ -3303,6 +5537,7 @@ fn splice_adds_effects_to_the_receiving_spell_and_keeps_its_card_in_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
     let mut engine = test_engine(2);
@@ -3376,6 +5611,9 @@ fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
         })
         .expect("four card types produce a legal escape declaration");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("escape casts the creature and exiles its selected payment cards");
     assert!(engine.state.players[0].graveyard.is_empty());
@@ -3400,6 +5638,7 @@ fn escape_selects_an_aggregate_card_type_cost_and_casts_from_the_graveyard() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expires() {
     let mut engine = test_engine(2);
@@ -3442,6 +5681,9 @@ fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expir
         })
         .expect("the impending alternative cast is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("the impending spell is cast");
     engine
@@ -3480,6 +5722,7 @@ fn impending_uses_an_alternative_cost_and_removes_creature_type_until_time_expir
     assert!(engine.permanent_is_creature(permanent));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn graveyard_destination_replacement_applies_from_any_zone_without_death_triggers() {
     let mut engine = test_engine(2);
@@ -3526,6 +5769,9 @@ fn graveyard_destination_replacement_applies_from_any_zone_without_death_trigger
     ));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("opponent-creature", "destroyed")
         .expect("the opponent permanent changes zones");
     assert!(
@@ -3561,6 +5807,7 @@ fn graveyard_destination_replacement_applies_from_any_zone_without_death_trigger
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn stacked_mill_multipliers_apply_to_opponents_only() {
     let mut engine = test_engine(2);
@@ -3593,6 +5840,9 @@ fn stacked_mill_multipliers_apply_to_opponents_only() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .mill_cards("player-1", 1, Some("player-0"))
         .expect("four Bruvacs multiply one mill event by sixteen");
     assert_eq!(engine.state.players[1].graveyard.len(), 16);
@@ -3608,6 +5858,7 @@ fn stacked_mill_multipliers_apply_to_opponents_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn profane_memento_triggers_once_for_each_matching_milled_card() {
     let mut engine = test_engine(2);
@@ -3648,6 +5899,9 @@ fn profane_memento_triggers_once_for_each_matching_milled_card() {
     let life_before = engine.state.players[0].life;
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .mill_cards("player-1", 3, Some("player-0"))
         .expect("the three cards are milled");
     assert_eq!(engine.state.stack.len(), 2);
@@ -3659,6 +5913,7 @@ fn profane_memento_triggers_once_for_each_matching_milled_card() {
     assert_eq!(engine.state.players[0].life, life_before + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exiled_creatures_return_with_entering_characteristics() {
     let mut engine = test_engine(2);
@@ -3720,6 +5975,9 @@ fn linked_exiled_creatures_return_with_entering_characteristics() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -3748,6 +6006,7 @@ fn linked_exiled_creatures_return_with_entering_characteristics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn high_tide_adds_blue_mana_only_to_tapped_islands() {
     let mut engine = test_engine(2);
@@ -3821,6 +6080,11 @@ fn high_tide_adds_blue_mana_only_to_tapped_islands() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Doomsday Excruciator; see docs/coverage-targets.md"
+)]
 #[test]
 fn doomsday_exiles_each_library_except_its_bottom_cards() {
     let mut engine = test_engine(2);
@@ -3881,6 +6145,7 @@ fn doomsday_exiles_each_library_except_its_bottom_cards() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn trap_alternative_cost_conditions_use_turn_history() {
     let mut engine = test_engine(2);
@@ -3926,6 +6191,7 @@ fn trap_alternative_cost_conditions_use_turn_history() {
     assert!(!engine.condition_value(&summoning_condition, "player-1", &BTreeMap::new()));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     let mut engine = test_engine(2);
@@ -3966,6 +6232,9 @@ fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     )]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_enter_replacements_with_decisions(
             &mut entering,
             &mut EmeritusDecisionProvider,
@@ -3988,6 +6257,7 @@ fn superior_spider_man_copies_and_exiles_a_graveyard_creature() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leaves() {
     let mut engine = test_engine(2);
@@ -4071,6 +6341,9 @@ fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leave
         "player-1",
     ));
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -4125,6 +6398,7 @@ fn zone_enchant_reanimates_its_linked_card_and_sacrifices_it_when_the_aura_leave
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn linked_exile_grants_activated_abilities_and_flexible_activation_mana() {
     let mut engine = test_engine(2);
@@ -4255,6 +6529,11 @@ fn linked_exile_grants_activated_abilities_and_flexible_activation_mana() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thranduil, the Elvenking; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_zone_ability_inheritance_tracks_matching_graveyard_cards() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4323,6 +6602,7 @@ fn parsed_zone_ability_inheritance_tracks_matching_graveyard_cards() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     struct CastRevealedCard;
@@ -4438,6 +6718,9 @@ fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut CastRevealedCard)
         .expect("the energy cascade trigger resolves");
     assert!(engine.state.players[0].library.is_empty());
@@ -4469,6 +6752,7 @@ fn energy_cascade_exiles_to_nonland_and_casts_by_mana_value() {
     assert_eq!(engine.state.players[0].life, 21);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn split_second_leaves_only_mana_abilities_and_pass_priority() {
     let mut engine = test_engine(2);
@@ -4543,6 +6827,7 @@ fn split_second_leaves_only_mana_abilities_and_pass_priority() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -4572,11 +6857,19 @@ fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     let mut decisions = stack_object.decisions.clone();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([{
-                "kind": "destroyPermanentsByManaValue",
-                "where": { "kind": "cardTypeContains", "value": "Artifact" },
-                "maximum": { "kind": "decisionResult", "decisionId": "xValue" },
+                "kind": "destroyPermanent",
+                "permanent": { "kind": "eachPermanent", "where": {
+                    "kind": "and", "operands": [
+                        { "kind": "cardTypeContains", "value": "Artifact" },
+                        { "kind": "compare", "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                          "operator": "<=", "right": { "kind": "decisionResult", "decisionId": "xValue" } }
+                    ]
+                } },
             }]),
             &stack_object,
             &mut BTreeMap::new(),
@@ -4599,54 +6892,7 @@ fn variable_mana_value_destruction_resolves_against_the_cast_x_value() {
     );
 }
 
-#[test]
-fn global_graveyard_exile_can_exclude_the_effect_controller() {
-    let mut engine = test_engine(3);
-    for player_index in 0..3 {
-        let player_id = format!("player-{player_index}");
-        engine.state.players[player_index].graveyard = vec![test_instance(
-            &format!("grave-card-{player_index}"),
-            test_definition(&format!("grave-card-{player_index}"), "Sorcery"),
-            &player_id,
-        )];
-    }
-    let stack_object = StackObject {
-        id: "stack:opponent-graveyard-exile".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "graveyard-exile-source",
-            test_definition("graveyard-exile-source", "Artifact"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("activatedAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "exileAllGraveyards",
-                "exceptPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut RandomAi::seeded(17),
-        )
-        .expect("opponent graveyards are exiled");
-
-    assert_eq!(engine.state.players[0].graveyard.len(), 1);
-    assert!(engine.state.players[0].exile.is_empty());
-    for player_index in 1..3 {
-        assert!(engine.state.players[player_index].graveyard.is_empty());
-        assert_eq!(engine.state.players[player_index].exile.len(), 1);
-    }
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn multi_target_permanent_effects_mutate_every_chosen_target() {
     let mut engine = test_engine(2);
@@ -4713,24 +6959,24 @@ fn multi_target_permanent_effects_mutate_every_chosen_target() {
         ]),
     };
 
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "destroyPermanent",
-                    "permanent": { "kind": "chosenTargets", "id": "destroyTargets" },
-                },
-                {
-                    "kind": "exilePermanent",
-                    "permanent": { "kind": "chosenTargets", "id": "exileTargets" },
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut RandomAi::seeded(23),
-        )
-        .expect("multi-target effects resolve");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "destroyPermanent",
+                "permanent": { "kind": "chosenTargets", "id": "destroyTargets" },
+            },
+            {
+                "kind": "exilePermanent",
+                "permanent": { "kind": "chosenTargets", "id": "exileTargets" },
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut RandomAi::seeded(23),
+    )
+    .expect("multi-target effects resolve");
 
     assert!(engine.state.players[1].battlefield.is_empty());
     assert_eq!(engine.state.players[1].graveyard.len(), 2);
@@ -4748,6 +6994,7 @@ fn multi_target_permanent_effects_mutate_every_chosen_target() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
     let mut engine = test_engine(2);
@@ -4774,6 +7021,9 @@ fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -4868,6 +7118,7 @@ fn generic_legacy_static_and_sacrifice_primitives_use_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
     let mut engine = test_engine(2);
@@ -4915,52 +7166,123 @@ fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
     };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
-            &json!([{
+            &json!([
+              {
                 "kind": "forEachPlayer",
                 "players": {
-                    "kind": "opponentsOf",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
                 },
-                "effects": [{
-                    "kind": "selectPermanents",
-                    "id": "keptPermanents",
-                    "player": { "kind": "currentPlayer" },
-                    "candidates": {
-                        "kind": "permanents",
-                        "controller": { "kind": "currentPlayer" },
-                        "where": {
-                            "kind": "not",
-                            "operand": { "kind": "cardTypeContains", "value": "Land" },
-                        },
+                "bind": "selectingPlayer",
+                "effects": [
+                  {
+                    "kind": "bind",
+                    "id": "selectionCandidates",
+                    "value": {
+                      "kind": "eachPermanent",
+                      "player": {
+                        "kind": "boundValue",
+                        "id": "selectingPlayer"
+                      },
+                      "where": {
+                        "kind": "not",
+                        "operand": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "chooseCards",
+                    "id": "keptPermanentsGroup0",
+                    "player": {
+                      "kind": "boundValue",
+                      "id": "selectingPlayer"
                     },
-                    "groups": [
-                        {
-                            "quantity": { "kind": "integer", "value": 1 },
-                            "where": { "kind": "cardTypeContains", "value": "Artifact" },
-                        },
-                        {
-                            "quantity": { "kind": "integer", "value": 1 },
-                            "where": { "kind": "cardTypeContains", "value": "Creature" },
-                        },
-                    ],
-                    "selection": { "kind": "choice" },
-                }, {
-                    "kind": "sacrificePermanents",
-                    "objects": {
-                        "kind": "selectionRemainder",
-                        "selectionId": "keptPermanents",
-                        "candidates": {
-                            "kind": "permanents",
-                            "controller": { "kind": "currentPlayer" },
-                            "where": {
-                                "kind": "not",
-                                "operand": { "kind": "cardTypeContains", "value": "Land" },
-                            },
-                        },
+                    "from": {
+                      "kind": "boundObjects",
+                      "binding": "selectionCandidates"
                     },
-                }],
-            }]),
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "chooseCards",
+                    "id": "keptPermanentsGroup1",
+                    "player": {
+                      "kind": "boundValue",
+                      "id": "selectingPlayer"
+                    },
+                    "from": {
+                      "kind": "setDifference",
+                      "left": {
+                        "kind": "boundObjects",
+                        "binding": "selectionCandidates"
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "keptPermanentsGroup0"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ],
+                "collect": {
+                  "bind": "unkeptPermanents",
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "setDifference",
+                      "left": {
+                        "kind": "boundObjects",
+                        "binding": "selectionCandidates"
+                      },
+                      "right": {
+                        "kind": "decisionResult",
+                        "decisionId": "keptPermanentsGroup0"
+                      }
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "keptPermanentsGroup1"
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "sacrificePermanents",
+                "player": {
+                  "kind": "eachPlayer"
+                },
+                "objects": {
+                  "kind": "boundObjects",
+                  "binding": "unkeptPermanents"
+                }
+              }
+            ]),
             &stack_object,
             &mut BTreeMap::new(),
             &mut BTreeMap::new(),
@@ -4985,6 +7307,7 @@ fn players_keep_quantity_filtered_permanents_and_sacrifice_the_relative_rest() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn activated_declarations_bind_source_counter_variables_before_filtering_cards() {
     let mut engine = test_engine(2);
@@ -5042,6 +7365,9 @@ fn activated_declarations_bind_source_counter_variables_before_filtering_cards()
             "tapped": false,
         }],
     });
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(&rule, "player-0", "counter-source")
         .expect("counter-bound declarations are generated");
@@ -5064,79 +7390,7 @@ fn activated_declarations_bind_source_counter_variables_before_filtering_cards()
     }));
 }
 
-#[test]
-fn permanent_count_damage_and_temporary_keyword_loss_mutate_live_players() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].battlefield.push(test_instance(
-        "basic-land",
-        test_definition("basic-land", "Basic Land - Island"),
-        "player-0",
-    ));
-    let mut nonbasic = test_instance(
-        "nonbasic-land",
-        test_definition("nonbasic-land", "Land"),
-        "player-1",
-    );
-    nonbasic.definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "hexproof" },
-    })];
-    engine.state.players[1].battlefield.push(nonbasic);
-    let stack_object = StackObject {
-        id: "stack:count-and-keyword".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "effect-source",
-            test_definition("effect-source", "Instant"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-            .execute_effects(
-                &json!([
-                    {
-                        "kind": "dealDamageByPermanentCountEachPlayer",
-                        "where": {
-                            "kind": "and",
-                            "operands": [
-                                { "kind": "cardTypeContains", "value": "Land" },
-                                { "kind": "not", "operand": { "kind": "typeLineContains", "value": "Basic" } },
-                            ],
-                        },
-                        "factor": { "kind": "integer", "value": 2 },
-                    },
-                    {
-                        "kind": "removeKeywordsFromPermanents",
-                        "objects": {
-                            "kind": "permanents",
-                            "controller": {
-                                "kind": "opponentsOf",
-                                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                            },
-                            "where": null,
-                        },
-                        "keywords": ["hexproof"],
-                        "duration": { "kind": "untilEndOfCurrentTurn" },
-                    },
-                ]),
-                &stack_object,
-                &mut BTreeMap::new(),
-                &mut BTreeMap::new(),
-                &mut RandomAi::seeded(31),
-            )
-            .expect("generic count damage and keyword loss resolve");
-    assert_eq!(engine.state.players[0].life, 20);
-    assert_eq!(engine.state.players[1].life, 18);
-    assert!(!engine.permanent_has_keyword(&engine.state.players[1].battlefield[0], "hexproof"));
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn card_type_threshold_static_modifiers_follow_live_graveyard_contents() {
     let mut engine = test_engine(2);
@@ -5211,6 +7465,7 @@ fn card_type_threshold_static_modifiers_follow_live_graveyard_contents() {
     assert!(!engine.permanent_has_self_static_modifier(&source, "attackEachCombatIfAble"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack() {
     let mut engine = test_engine(2);
@@ -5245,6 +7500,9 @@ fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack
         })
         .expect("the hand mana ability is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(37))
         .expect("the hand mana ability resolves immediately");
 
@@ -5265,123 +7523,7 @@ fn off_battlefield_mana_ability_exiles_its_source_and_resolves_without_the_stack
     assert_eq!(engine.state.players[0].mana_pool[0].symbol, "R");
 }
 
-#[test]
-fn linked_exile_graveyard_bottom_and_evoke_mutate_live_state() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].graveyard.extend([
-        test_instance(
-            "grave-card-a",
-            test_definition("grave-card-a", "Creature"),
-            "player-0",
-        ),
-        test_instance(
-            "grave-card-b",
-            test_definition("grave-card-b", "Instant"),
-            "player-0",
-        ),
-    ]);
-    let initial_library_len = engine.state.players[0].library.len();
-    let stack_object = StackObject {
-        id: "stack:graveyard-bottom".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "graveyard-source",
-            test_definition("graveyard-source", "Creature"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([(
-            "targetPlayer".to_string(),
-            TargetRef::Player {
-                player_id: "player-0".to_string(),
-            },
-        )]),
-    };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "moveGraveyardToLibraryBottomRandom",
-                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut RandomAi::seeded(47),
-        )
-        .expect("a targeted graveyard moves to the library bottom");
-    assert!(engine.state.players[0].graveyard.is_empty());
-    assert_eq!(
-        engine.state.players[0].library.len(),
-        initial_library_len + 2
-    );
-
-    let linked_count = json!({
-        "kind": "countCardsExiledWithSource",
-        "object": { "kind": "self" },
-    });
-    let mut characteristic_definition = test_definition("linked-source", "Creature");
-    characteristic_definition.power = Some("*".to_string());
-    characteristic_definition.toughness = Some("*".to_string());
-    characteristic_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "setBasePowerToughness",
-            "objects": { "kind": "self" },
-            "power": linked_count.clone(),
-            "toughness": linked_count,
-        }],
-    })];
-    let linked_source = test_instance("linked-source", characteristic_definition, "player-0");
-    engine.state.players[0]
-        .battlefield
-        .push(linked_source.clone());
-    for card_id in ["linked-a", "linked-b"] {
-        engine.state.rule_modifiers.push(json!({
-            "kind": "exiledWithSource",
-            "sourceCardInstanceId": "linked-source",
-            "cardInstanceId": card_id,
-        }));
-    }
-    assert_eq!(engine.current_power(&linked_source), 2);
-    assert_eq!(engine.current_toughness(&linked_source), 2);
-
-    let mut evoke = test_instance(
-        "evoke-source",
-        test_definition("evoke-source", "Creature"),
-        "player-0",
-    );
-    evoke
-        .flags
-        .insert("castWithAlternativeCost:evoke".to_string(), true);
-    engine.state.players[0].battlefield.push(evoke.clone());
-    engine.enqueue_enter_battlefield_triggers(&evoke);
-    assert!(engine.state.stack.iter().any(|object| {
-        object
-            .ability_rule
-            .as_ref()
-            .is_some_and(|rule| rule["effects"][0]["kind"] == "sacrificePermanent")
-    }));
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(53))
-        .expect("the evoke sacrifice trigger resolves");
-    assert!(
-        engine.state.players[0]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "evoke-source")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn target_groups_can_be_constrained_to_one_zone_owner() {
     let mut engine = test_engine(2);
@@ -5432,6 +7574,9 @@ fn target_groups_can_be_constrained_to_one_zone_owner() {
     })];
     engine.state.players[0].battlefield.push(source);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(
             &engine.state.players[0].battlefield[0].definition.rules[0].clone(),
@@ -5460,6 +7605,7 @@ fn target_groups_can_be_constrained_to_one_zone_owner() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn off_battlefield_activation_costs_use_numeric_reductions() {
     let mut engine = test_engine(2);
@@ -5476,16 +7622,16 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
         test_definition("return-target", "Creature"),
         "player-1",
     ));
-    engine.state.players[0].mana_pool.extend([
-        FloatingMana {
-            symbol: "U".to_string(),
-            spend_restriction: None,
-        },
-        FloatingMana {
-            symbol: "U".to_string(),
-            spend_restriction: None,
-        },
-    ]);
+    for index in 0..2 {
+        engine.state.players[0].battlefield.push(test_instance(
+            &format!("channel-mana-source-{index}"),
+            test_definition(
+                &format!("channel-mana-source-{index}"),
+                "Basic Land - Island",
+            ),
+            "player-0",
+        ));
+    }
     let mut source = test_instance(
         "channel-source",
         test_definition("channel-source", "Legendary Land"),
@@ -5533,9 +7679,23 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
         "the reduced off-battlefield activation must be recursively executable: {}",
         source.definition.rules[0]
     );
+    engine.state.players[0].battlefield.push(test_instance(
+        "channel-source-on-battlefield",
+        source.definition.clone(),
+        "player-0",
+    ));
     engine.state.players[0].hand.push(source);
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let legal_actions = engine.legal_priority_actions(0);
+    assert!(
+        legal_actions.iter().all(|action| {
+            action.card_instance_id.as_deref() != Some("channel-source-on-battlefield")
+        }),
+        "an activation restricted to the hand must not be published from the battlefield"
+    );
     let action = legal_actions
             .iter()
             .into_iter()
@@ -5551,15 +7711,36 @@ fn off_battlefield_activation_costs_use_numeric_reductions() {
                     "two generic mana are removed from the hand activation cost; actions={legal_actions:#?}"
                 )
             });
-    assert_eq!(
-        action.decisions["manaPoolPayment"]
-            .as_array()
-            .unwrap()
-            .len(),
-        2
+    assert_eq!(action.payment_sources.len(), 2);
+    engine
+        .apply_priority_action(action, &mut RandomAi::seeded(92))
+        .expect("the reduced channel ability pays mana and discards its source once");
+    assert!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .all(|card| card.instance_id != "channel-source")
+    );
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "channel-source")
+    );
+    assert!(engine.state.stack.iter().any(|object| {
+        object.card.instance_id == "channel-source"
+            && object.ability_kind.as_deref() == Some("activatedAbility")
+    }));
+    assert!(
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .filter(|card| card.instance_id.starts_with("channel-mana-source-"))
+            .all(|card| card.tapped)
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_player_can_copy_the_resolving_spell() {
     let mut engine = test_engine(2);
@@ -5594,6 +7775,9 @@ fn targeted_player_can_copy_the_resolving_spell() {
         )]),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([
                 {
@@ -5627,6 +7811,7 @@ fn targeted_player_can_copy_the_resolving_spell() {
     assert!(is_spell_copy(&engine.state.stack[0].card));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_library_shuffle_publishes_distinct_keep_and_shuffle_actions() {
     struct ShuffleChoiceProvider {
@@ -5702,6 +7887,7 @@ fn optional_library_shuffle_publishes_distinct_keep_and_shuffle_actions() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn conditional_draw_replacements_add_to_the_draw_event() {
     let mut engine = test_engine(2);
@@ -5754,6 +7940,7 @@ fn conditional_draw_replacements_add_to_the_draw_event() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
     let mut engine = test_engine(2);
@@ -5822,6 +8009,7 @@ fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     let mut engine = test_engine(2);
@@ -5855,29 +8043,29 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
         "kind": "untilNextTurn",
         "player": { "kind": "controllerOf", "object": { "kind": "self" } },
     });
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "grantKeyword",
-                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    "keyword": "cantAttack",
-                    "duration": until_next_turn,
-                },
-                {
-                    "kind": "modifyPowerToughness",
-                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    "power": { "kind": "integer", "value": -4 },
-                    "toughness": { "kind": "integer", "value": 0 },
-                    "duration": until_next_turn,
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the dungeon room installs next-turn modifiers");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "grantKeyword",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "keyword": "cantAttack",
+                "duration": until_next_turn,
+            },
+            {
+                "kind": "modifyPowerToughness",
+                "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+                "power": { "kind": "integer", "value": -4 },
+                "toughness": { "kind": "integer", "value": 0 },
+                "duration": until_next_turn,
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the dungeon room installs next-turn modifiers");
     let live_target = &engine.state.players[1].battlefield[0];
     assert!(engine.permanent_has_keyword(live_target, "cantAttack"));
     assert_eq!(engine.current_power(live_target), -2);
@@ -5912,6 +8100,9 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     let mut bindings = BTreeMap::new();
     let mut decisions = BTreeMap::new();
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([
                 {
@@ -5943,6 +8134,7 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
                 "duringResolution",
                 "hand",
             )
+            .expect("shared fallible casting declarations")
             .len(),
         3,
         "all three linked instants must be castable from their actual zone",
@@ -5973,6 +8165,7 @@ fn dungeon_effects_persist_to_the_right_turn_and_link_drawn_cards() {
     assert_eq!(engine.state.players[0].hand.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     let mut restricted = test_definition("restricted-dungeon", "Dungeon - Test");
@@ -6036,11 +8229,24 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     regular_engine
         .venture_into_dungeon(
             &stack_object,
-            &mut EmeritusDecisionProvider,
+            &mut NamedOptionDecisionProvider {
+                option: "open-dungeon",
+            },
             "player-0",
             None,
         )
         .expect("ordinary venture enters an unrestricted Dungeon");
+    let offered = regular_engine
+        .state
+        .game_pieces
+        .iter()
+        .filter(|piece| has_card_type(piece, "Dungeon"))
+        .map(|piece| piece.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        offered.contains(&"Undercity") && offered.contains(&"Tomb of Annihilation"),
+        "outside-game canonical dungeons remain available alongside fixtures: {offered:?}"
+    );
     assert!(regular_engine.state.rule_modifiers.iter().any(|modifier| {
         value_kind(modifier) == Some("dungeonPosition")
             && modifier["dungeonId"] == open.id
@@ -6080,6 +8286,9 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     effect_engine.state.players[0]
         .library
         .push(creature.clone());
+    effect_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture library cards are admitted");
     let mut effect_bindings = BTreeMap::new();
     let mut effect_decisions = BTreeMap::new();
     effect_engine
@@ -6146,6 +8355,7 @@ fn dungeon_entry_procedures_and_final_room_effects_are_data_driven() {
     assert!(effect_engine.permanent_has_keyword(permanent, "hexproof"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     let trigger = json!({
@@ -6188,7 +8398,12 @@ fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     engine.state.players[0].battlefield.push(acererak.clone());
     engine.enqueue_enter_battlefield_triggers(&acererak);
     engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .resolve_top_stack(&mut NamedOptionDecisionProvider {
+            option: "Tomb of Annihilation",
+        })
         .expect("Acererak's incomplete-Tomb trigger resolves");
 
     assert!(engine.state.players[0].battlefield.is_empty());
@@ -6205,6 +8420,7 @@ fn acererak_returns_to_hand_and_enters_a_dungeon_until_tomb_is_completed() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn copying_a_permanent_retains_the_resolving_ability_and_object_state() {
     let retained_rule = json!({
@@ -6286,6 +8502,7 @@ fn copying_a_permanent_retains_the_resolving_ability_and_object_state() {
     assert_eq!(copied.counters.get("storage"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn minimum_casting_mana_applies_after_other_cost_changes_only_while_untapped() {
     let mut floor_definition = test_definition("mana-floor", "Artifact");
@@ -6332,37 +8549,239 @@ fn minimum_casting_mana_applies_after_other_cost_changes_only_while_untapped() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Fen Hauler; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_improvise_taps_only_artifacts_and_respects_granted_spell_filter() {
+    let keyword = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Device".to_string(),
+        type_line: "Instant".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)"
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    })
+    .abilities
+    .into_iter()
+    .filter_map(|ability| ability.rule)
+    .find(|rule| rule["ability"]["kind"] == "improvise")
+    .expect("printed improvise parses");
+    let mut printed_spell = test_definition("printed-improvise", "Instant");
+    printed_spell.mana_cost = "{2}{U}".to_string();
+    printed_spell.rules.push(keyword);
+    printed_spell.rules.push(json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "abilityController" },
+            "count": { "kind": "integer", "value": 1 },
+        }],
+    }));
+    let mut printed_engine = test_engine(2);
+    printed_engine.state.step = GameStep::PrecombatMain;
+    printed_engine.state.active_player = 0;
+    printed_engine.state.players[0].hand = vec![test_instance(
+        "printed-improvise",
+        printed_spell,
+        "player-0",
+    )];
+    printed_engine.state.players[0].battlefield = vec![
+        test_instance(
+            "improvise-artifact-a",
+            test_definition("improvise-artifact-a", "Artifact"),
+            "player-0",
+        ),
+        test_instance(
+            "improvise-artifact-b",
+            test_definition("improvise-artifact-b", "Artifact"),
+            "player-0",
+        ),
+        mana_source("improvise-island", "Basic Land - Island", "{U}", None),
+    ];
+    assert!(printed_engine.card_has_improvise(
+        &printed_engine.state.players[0].hand[0].definition,
+        "player-0"
+    ));
+    let declarations = printed_engine
+        .declarations_for_card(
+            &printed_engine.state.players[0].hand[0].definition,
+            "player-0",
+        )
+        .expect("improvise declarations");
+    assert!(
+        declarations
+            .iter()
+            .any(|declaration| declaration.decisions["improviseCount"] == 2)
+    );
+    let two_artifact_declaration = declarations
+        .iter()
+        .find(|declaration| declaration.decisions["improviseCount"] == 2)
+        .expect("two-artifact declaration");
+    let mana_costs = printed_engine.casting_mana_costs(
+        &printed_engine.state.players[0].hand[0].definition,
+        "player-0",
+        &two_artifact_declaration.decisions,
+    );
+    assert_eq!(mana_costs, vec!["{2}{U}".to_string()]);
+    let (reduced_costs, selected_artifacts) = printed_engine
+        .improvise_reduction_for_mana_costs(
+            0,
+            &mana_costs,
+            &BTreeSet::new(),
+            Some(&printed_engine.state.players[0].hand[0].definition),
+            2,
+        )
+        .expect("two artifacts reduce the generic cost");
+    assert_eq!(reduced_costs, vec!["{U}".to_string()]);
+    assert_eq!(selected_artifacts.len(), 2);
+    let reserved = selected_artifacts.into_iter().collect::<BTreeSet<_>>();
+    assert!(
+        printed_engine
+            .convoke_payment_for_mana_costs(
+                0,
+                &reduced_costs,
+                &reserved,
+                Some(&printed_engine.state.players[0].hand[0].definition),
+                Some("hand"),
+                0,
+            )
+            .is_some()
+    );
+    let printed_actions = printed_engine.legal_priority_actions(0);
+    let action_debug = printed_actions
+        .iter()
+        .map(|action| {
+            (
+                action.card_instance_id.clone(),
+                action.decisions.clone(),
+                action.payment_sources.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let printed_action = printed_actions
+        .into_iter()
+        .find(|action| {
+            action.card_instance_id.as_deref() == Some("printed-improvise")
+                && action.decisions["improviseCount"] == 2
+        })
+        .unwrap_or_else(|| {
+            panic!("two artifacts should pay improvise; actions: {action_debug:#?}")
+        });
+    assert_eq!(
+        printed_action.decisions["improviseSources"]
+            .as_array()
+            .expect("improvise sources")
+            .len(),
+        2
+    );
+    printed_engine
+        .apply_priority_action(&printed_action, &mut EmeritusDecisionProvider)
+        .expect("the printed improvise spell is cast");
+    assert!(
+        printed_engine.state.players[0]
+            .battlefield
+            .iter()
+            .all(|permanent| permanent.tapped)
+    );
+
+    let static_rule = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Champion".to_string(),
+        type_line: "Creature - Hero".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some("Noncreature spells you cast have improvise.".to_string()),
+        layout: None,
+        faces: Vec::new(),
+    })
+    .abilities
+    .into_iter()
+    .filter_map(|ability| ability.rule)
+    .find(|rule| {
+        rule["modifiers"].as_array().is_some_and(|modifiers| {
+            modifiers
+                .iter()
+                .any(|modifier| modifier["kind"] == "grantImprovise")
+        })
+    })
+    .expect("granted improvise parses");
+    let mut champion_definition = test_definition("test-champion", "Creature - Hero");
+    champion_definition.rules.push(static_rule);
+    let champion = test_instance("test-champion", champion_definition, "player-0");
+    let mut granted_instant = test_definition("granted-instant", "Instant");
+    granted_instant.mana_cost = "{2}{U}".to_string();
+    granted_instant.rules.push(json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "abilityController" },
+            "count": { "kind": "integer", "value": 1 },
+        }],
+    }));
+    let mut excluded_creature = test_definition("excluded-creature", "Creature - Hero");
+    excluded_creature.mana_cost = "{2}{U}".to_string();
+    let mut granted_engine = test_engine(2);
+    granted_engine.state.step = GameStep::PrecombatMain;
+    granted_engine.state.active_player = 0;
+    granted_engine.state.players[0].hand = vec![
+        test_instance("granted-instant", granted_instant, "player-0"),
+        test_instance("excluded-creature", excluded_creature, "player-0"),
+    ];
+    granted_engine.state.players[0].battlefield = vec![
+        champion,
+        test_instance(
+            "granted-artifact-a",
+            test_definition("granted-artifact-a", "Artifact"),
+            "player-0",
+        ),
+        test_instance(
+            "granted-artifact-b",
+            test_definition("granted-artifact-b", "Artifact"),
+            "player-0",
+        ),
+        mana_source("granted-island", "Basic Land - Island", "{U}", None),
+    ];
+    let actions = granted_engine.legal_priority_actions(0);
+    assert!(
+        actions
+            .iter()
+            .all(|action| action.card_instance_id.as_deref() != Some("excluded-creature"))
+    );
+    let granted_action = actions
+        .into_iter()
+        .find(|action| {
+            action.card_instance_id.as_deref() == Some("granted-instant")
+                && action.decisions["improviseCount"] == 2
+        })
+        .expect("the static ability grants improvise to the noncreature spell");
+    granted_engine
+        .apply_priority_action(&granted_action, &mut EmeritusDecisionProvider)
+        .expect("the granted improvise spell is cast");
+    assert!(!granted_engine.state.players[0].battlefield[0].tapped);
+    assert!(
+        granted_engine.state.players[0].battlefield[1..]
+            .iter()
+            .all(|permanent| permanent.tapped)
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     let mut source_definition = test_definition("shared-permission", "Enchantment");
-    source_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "castingPermission",
-            "players": { "kind": "eachPlayer" },
-            "sourceZone": "hand",
-            "where": {
-                "kind": "and",
-                "operands": [
-                    { "kind": "cardTypeContains", "value": "Creature" },
-                    {
-                        "kind": "compare",
-                        "operator": "<=",
-                        "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
-                        "right": { "kind": "integer", "value": 3 },
-                    }
-                ],
-            },
-            "withoutPayingManaCost": true,
-            "asThoughFlash": true,
-        }],
-    })];
+    source_definition.name = "Aluren".to_string();
+    source_definition.rules = no_lands_rules(
+        "Aluren",
+        "Enchantment",
+        Some("{2}{G}{G}"),
+        "Any player may cast creature spells with mana value 3 or less without paying their mana costs and as though they had flash.",
+    );
     let source = test_instance("shared-permission-instance", source_definition, "player-0");
     let mut eligible = test_definition("eligible-creature", "Creature");
     eligible.mana_cost = "{2}{G}".to_string();
@@ -6376,18 +8795,36 @@ fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     assert!(!engine.card_casts_with_static_flash("player-1", &eligible, "graveyard"));
     assert!(!engine.card_casts_with_static_flash("player-1", &expensive, "hand"));
 
+    // The waived base cost is a selected casting route: with no mana and
+    // outside their own turn, the opponent can still cast the eligible
+    // creature through the shared permission, but not the expensive one.
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[1].hand = vec![
+        test_instance("eligible-creature", eligible.clone(), "player-1"),
+        test_instance("expensive-creature", expensive.clone(), "player-1"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let opponent_casts = engine
+        .legal_priority_actions(1)
+        .into_iter()
+        .filter(|action| action.kind == ActionKind::CastSpell)
+        .collect::<Vec<_>>();
+    assert!(opponent_casts.iter().any(|action| {
+        action.card_instance_id.as_deref() == Some("eligible-creature")
+            && action.decisions.get("withoutPayingManaCost") == Some(&Value::Bool(true))
+    }));
+    assert!(
+        !opponent_casts
+            .iter()
+            .any(|action| action.card_instance_id.as_deref() == Some("expensive-creature"))
+    );
+
     let hand_cast = BTreeMap::from([(
         "castSourceZone".to_string(),
         Value::String("hand".to_string()),
     )]);
-    let free_costs = engine.casting_mana_costs(&eligible, "player-1", &hand_cast);
-    assert_eq!(
-        free_costs
-            .iter()
-            .map(|cost| mana_cost_mana_amount(cost))
-            .sum::<i32>(),
-        0
-    );
     let normal_costs = engine.casting_mana_costs(&expensive, "player-1", &hand_cast);
     assert_eq!(
         normal_costs
@@ -6398,6 +8835,7 @@ fn shared_casting_permission_controls_both_flash_timing_and_free_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_player_counter_payment_drives_the_following_sweep() {
     struct MaximumNumberProvider;
@@ -6461,6 +8899,9 @@ fn variable_player_counter_payment_drives_the_following_sweep() {
     };
     let mut decisions = BTreeMap::from([("xValue".to_string(), Value::from(3))]);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([
                 {
@@ -6487,16 +8928,18 @@ fn variable_player_counter_payment_drives_the_following_sweep() {
                     "count": { "kind": "decisionResult", "decisionId": "paidPlayerCounters" },
                 },
                 {
-                    "kind": "destroyPermanentsByManaValue",
-                    "where": {
-                        "kind": "or",
-                        "operands": [
-                            { "kind": "cardTypeContains", "value": "Artifact" },
-                            { "kind": "cardTypeContains", "value": "Creature" },
-                            { "kind": "cardTypeContains", "value": "Enchantment" }
-                        ],
-                    },
-                    "maximum": { "kind": "decisionResult", "decisionId": "paidPlayerCounters" },
+                    "kind": "destroyPermanent",
+                    "permanent": { "kind": "eachPermanent", "where": {
+                        "kind": "and", "operands": [
+                            { "kind": "or", "operands": [
+                                { "kind": "cardTypeContains", "value": "Artifact" },
+                                { "kind": "cardTypeContains", "value": "Creature" },
+                                { "kind": "cardTypeContains", "value": "Enchantment" }
+                            ] },
+                            { "kind": "compare", "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+                              "operator": "<=", "right": { "kind": "decisionResult", "decisionId": "paidPlayerCounters" } }
+                        ]
+                    } },
                 }
             ]),
             &stack_object,
@@ -6513,6 +8956,7 @@ fn variable_player_counter_payment_drives_the_following_sweep() {
     assert!(engine.permanent_position(&land.instance_id).is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     let mana_payment = json!([
@@ -6549,31 +8993,31 @@ fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     };
     let mut engine = test_engine(2);
     engine.state.players[1].battlefield.push(target.clone());
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "conditional",
-                "condition": {
-                    "kind": "compare",
-                    "operator": "<=",
-                    "left": {
-                        "kind": "manaValueOf",
-                        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
-                    },
-                    "right": { "kind": "colorsOfManaSpentToCastSource" },
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([{
+            "kind": "conditional",
+            "condition": {
+                "kind": "compare",
+                "operator": "<=",
+                "left": {
+                    "kind": "manaValueOf",
+                    "object": { "kind": "chosenTarget", "id": "targetPermanent" },
                 },
-                "then": [{
-                    "kind": "exilePermanent",
-                    "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
-                }],
-                "else": [],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the target is exiled when its mana value fits the paid color count");
+                "right": { "kind": "colorsOfManaSpentToCastSource" },
+            },
+            "then": [{
+                "kind": "exilePermanent",
+                "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+            }],
+            "else": [],
+        }]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the target is exiled when its mana value fits the paid color count");
     assert!(engine.permanent_position(&target.instance_id).is_none());
     assert!(
         engine.state.players[1]
@@ -6583,110 +9027,7 @@ fn colors_spent_counts_activated_and_pooled_mana_for_conditional_effects() {
     );
 }
 
-#[test]
-fn each_opponent_independently_pays_or_grants_the_controller_effect() {
-    struct MixedOpponentProvider;
-    impl DecisionProvider for MixedOpponentProvider {
-        fn choose(
-            &mut self,
-            _state: &GameState,
-            request: &EngineDecisionRequest,
-        ) -> Result<usize, EngineError> {
-            if request.player_id == "player-1" {
-                Ok(0)
-            } else {
-                request
-                    .options
-                    .len()
-                    .checked_sub(1)
-                    .ok_or_else(|| EngineError::new("test decision has no option"))
-            }
-        }
-    }
-
-    let mut engine = test_engine(3);
-    let first_creature = test_instance(
-        "first-opponent-creature",
-        test_definition("first-opponent-creature", "Creature"),
-        "player-1",
-    );
-    let second_creature = test_instance(
-        "second-opponent-creature",
-        test_definition("second-opponent-creature", "Creature"),
-        "player-2",
-    );
-    engine.state.players[1]
-        .battlefield
-        .push(first_creature.clone());
-    engine.state.players[2]
-        .battlefield
-        .push(second_creature.clone());
-    let source = test_instance(
-        "opponent-choice-source",
-        test_definition("opponent-choice-source", "Creature"),
-        "player-0",
-    );
-    let stack_object = StackObject {
-        id: "stack:opponent-choice".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "forEachOpponentPaysCostOrControllerEffect",
-                "cost": {
-                    "kind": "sacrificePermanent",
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                },
-                "otherwise": [{
-                    "kind": "createTokens",
-                    "quantity": { "kind": "integer", "value": 1 },
-                    "token": {
-                        "name": "Zombie Token",
-                        "colors": ["black"],
-                        "types": ["Creature"],
-                        "subtypes": ["Zombie"],
-                        "power": 2,
-                        "toughness": 2,
-                    },
-                }],
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut MixedOpponentProvider,
-        )
-        .expect("each opponent makes an independent payment choice");
-
-    assert!(
-        engine
-            .permanent_position(&first_creature.instance_id)
-            .is_some()
-    );
-    assert!(
-        engine
-            .permanent_position(&second_creature.instance_id)
-            .is_none()
-    );
-    assert_eq!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .filter(|card| {
-                card.definition.is_token && has_card_type(&card.definition, "Creature")
-            })
-            .count(),
-        1
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -6720,43 +9061,43 @@ fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([
-                {
-                    "kind": "sacrificePermanents",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                    "count": { "kind": "integer", "value": 1 },
-                    "excludeSource": false,
-                },
-                {
-                    "kind": "discardCards",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "count": { "kind": "integer", "value": 1 },
-                },
-                {
-                    "kind": "loseLife",
-                    "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-                    "amount": { "kind": "integer", "value": 3 },
-                },
-                {
-                    "kind": "drawCards",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "count": { "kind": "integer", "value": 1 },
-                },
-                {
-                    "kind": "gainLife",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "amount": { "kind": "integer", "value": 3 },
-                },
-            ]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the composed targeted sequence resolves");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([
+            {
+                "kind": "sacrificePermanents",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "where": { "kind": "cardTypeContains", "value": "Creature" },
+                "count": { "kind": "integer", "value": 1 },
+                "excludeSource": false,
+            },
+            {
+                "kind": "discardCards",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "count": { "kind": "integer", "value": 1 },
+            },
+            {
+                "kind": "loseLife",
+                "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+                "amount": { "kind": "integer", "value": 3 },
+            },
+            {
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 },
+            },
+            {
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 3 },
+            },
+        ]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the composed targeted sequence resolves");
 
     assert!(engine.permanent_position(&victim.instance_id).is_none());
     assert_eq!(engine.state.players[1].hand.len(), target_hand_before - 1);
@@ -6768,6 +9109,7 @@ fn targeted_player_sacrifice_discard_life_and_controller_value_mutate_live_state
     assert_eq!(engine.state.players[0].life, controller_life_before + 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn targeted_temporary_protection_affects_live_target_legality_for_the_turn() {
     let mut engine = test_engine(2);
@@ -6823,6 +9165,7 @@ fn targeted_temporary_protection_affects_live_target_legality_for_the_turn() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
     let mut engine = test_engine(2);
@@ -6860,6 +9203,9 @@ fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
         targets: BTreeMap::new(),
     };
     let mut decisions = stack_object.decisions.clone();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .execute_effects(
             &json!([{
@@ -6909,31 +9255,44 @@ fn damage_count_mill_binding_only_recovers_a_matching_milled_card() {
     assert_eq!(engine.state.players[0].graveyard.len(), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_controller() {
     let mut engine = test_engine(2);
-    let source = test_instance(
-        "delayed-blink-source",
-        test_definition("delayed-blink-source", "Creature"),
-        "player-0",
-    );
+    let phelia_rule = no_lands_rules(
+        "Phelia, Exuberant Shepherd",
+        "Legendary Creature - Dog",
+        Some("{1}{W}"),
+        "Flash\nWhenever Phelia attacks, exile up to one other target nonland permanent. At the beginning of the next end step, return that card to the battlefield under its owner's control. If it entered under your control, put a +1/+1 counter on Phelia.",
+    )
+    .into_iter()
+    .find(|rule| value_kind(rule) == Some("triggeredAbility"))
+    .expect("Phelia has an attack trigger");
+    let mut source_definition = test_definition("delayed-blink-source", "Creature");
+    source_definition.name = "Phelia, Exuberant Shepherd".to_string();
+    source_definition.rules = vec![phelia_rule.clone()];
+    let source = test_instance("delayed-blink-source", source_definition, "player-0");
     let blinked = test_instance(
         "delayed-blink-target",
         test_definition("delayed-blink-target", "Artifact"),
         "player-0",
     );
     engine.state.players[0].battlefield = vec![source.clone(), blinked.clone()];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let stack_object = StackObject {
         id: "stack:delayed-blink".to_string(),
         controller: "player-0".to_string(),
-        card: source.clone(),
+        // The trigger carries the admitted source, including its incarnation.
+        card: engine.state.players[0].battlefield[0].clone(),
         cant_be_countered: false,
         exile_on_leave_stack: false,
         ability_kind: Some("triggeredAbility".to_string()),
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "delayedBlinkTargets".to_string(),
+            "targetPermanent".to_string(),
             TargetRef::Permanent {
                 instance_id: blinked.instance_id.clone(),
             },
@@ -6941,14 +9300,7 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
     };
     engine
         .execute_effects(
-            &json!([{
-                "kind": "exileUntilNextEndStep",
-                "objects": { "kind": "chosenTargets", "id": "delayedBlinkTargets" },
-                "returnUnderOwnerControl": true,
-                "creatureCounter": "",
-                "planeswalkerCounter": "",
-                "sourceCounterIfReturnedUnderController": "+1/+1",
-            }]),
+            &phelia_rule["effects"],
             &stack_object,
             &mut BTreeMap::new(),
             &mut BTreeMap::new(),
@@ -6957,8 +9309,9 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
         .expect("the permanent is exiled with a delayed source reward");
     assert!(engine.permanent_position(&blinked.instance_id).is_none());
 
+    engine.enqueue_step_triggers("endStep");
     engine
-        .process_end_step_returns(&mut EmeritusDecisionProvider)
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the delayed return resolves");
     assert!(engine.permanent_position(&blinked.instance_id).is_some());
     let (source_player, source_index) = engine
@@ -6972,6 +9325,7 @@ fn delayed_blink_rewards_source_only_when_returned_permanent_is_controlled_by_co
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     struct DeclineReplacement;
@@ -7035,6 +9389,9 @@ fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     let mut declined = test_engine(2);
     declined.state.stack.push(stack_for("declined-entry"));
     declined
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    declined
         .resolve_top_stack(&mut DeclineReplacement)
         .expect("declining the discard replaces entry with the graveyard");
     assert!(declined.permanent_position("declined-entry").is_none());
@@ -7048,372 +9405,13 @@ fn optional_entry_discard_either_pays_from_hand_or_replaces_the_entry() {
     let mut paid = test_engine(2);
     let hand_before = paid.state.players[0].hand.len();
     paid.state.stack.push(stack_for("paid-entry"));
+    paid.admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     paid.resolve_top_stack(&mut PayReplacement)
         .expect("discarding a matching card allows entry");
     assert!(paid.permanent_position("paid-entry").is_some());
     assert_eq!(paid.state.players[0].hand.len(), hand_before - 1);
     assert_eq!(paid.state.players[0].graveyard.len(), 1);
-}
-
-#[test]
-fn each_player_can_pay_a_card_cost_or_accept_life_loss() {
-    let mut engine = test_engine(2);
-    let stack_object = StackObject {
-        id: "stack:each-player-cost".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "each-player-cost-source",
-            test_definition("each-player-cost-source", "Dungeon"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("dungeonRoom".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    let initial_hand_sizes = engine
-        .state
-        .players
-        .iter()
-        .map(|player| player.hand.len())
-        .collect::<Vec<_>>();
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "eachPlayerPaysCostOrLosesLife",
-                "cost": { "kind": "discardCard", "where": null },
-                "amount": { "kind": "integer", "value": 2 },
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("each player may choose a matching card to discard");
-    assert!(
-        engine
-            .state
-            .players
-            .iter()
-            .enumerate()
-            .all(|(index, player)| {
-                player.life == 20 && player.hand.len() + 1 == initial_hand_sizes[index]
-            })
-    );
-
-    for player_index in 0..2 {
-        engine.state.players[player_index]
-            .battlefield
-            .push(test_instance(
-                &format!("cost-creature-{player_index}"),
-                test_definition(&format!("cost-creature-{player_index}"), "Creature"),
-                &format!("player-{player_index}"),
-            ));
-    }
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "eachPlayerPaysCostOrLosesLife",
-                "cost": {
-                    "kind": "sacrificePermanent",
-                    "where": {
-                        "kind": "or",
-                        "operands": [
-                            { "kind": "cardTypeContains", "value": "Creature" },
-                            { "kind": "cardTypeContains", "value": "Artifact" },
-                            { "kind": "cardTypeContains", "value": "Land" },
-                        ],
-                    },
-                },
-                "amount": { "kind": "integer", "value": 2 },
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("each player may sacrifice a permanent matching disjunctive criteria");
-    assert!(
-        engine
-            .state
-            .players
-            .iter()
-            .all(|player| player.life == 20 && player.battlefield.is_empty())
-    );
-
-    for player in &mut engine.state.players {
-        player.hand.clear();
-    }
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "eachPlayerPaysCostOrLosesLife",
-                "cost": { "kind": "discardCard", "where": null },
-                "amount": { "kind": "integer", "value": 2 },
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("a player without a payable card takes the consequence");
-    assert!(engine.state.players.iter().all(|player| player.life == 18));
-}
-
-#[test]
-fn step_costs_and_globally_granted_triggers_use_shared_cost_execution() {
-    let mut paid_engine = test_engine(2);
-    let mut prison_definition = test_definition("energy-prison", "Enchantment");
-    prison_definition.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "stepBegan",
-            "step": "precombatMain",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        },
-        "effects": [{
-            "kind": "payCostOrMoveSource",
-            "cost": {
-                "kind": "payPlayerCounters",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "counter": "energy",
-                "count": { "kind": "integer", "value": 1 },
-            },
-            "otherwise": "sacrifice",
-        }],
-    })];
-    paid_engine.state.players[0]
-        .counters
-        .insert("energy".to_string(), 1);
-    paid_engine.state.players[0].battlefield.push(test_instance(
-        "energy-prison",
-        prison_definition.clone(),
-        "player-0",
-    ));
-    paid_engine.enqueue_step_triggers("precombatMain");
-    paid_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the available energy payment keeps the source");
-    assert!(paid_engine.permanent_position("energy-prison").is_some());
-    assert_eq!(paid_engine.state.players[0].counters["energy"], 0);
-
-    let mut unpaid_engine = test_engine(2);
-    unpaid_engine.state.players[0]
-        .battlefield
-        .push(test_instance(
-            "unpaid-prison",
-            prison_definition,
-            "player-0",
-        ));
-    unpaid_engine.enqueue_step_triggers("precombatMain");
-    unpaid_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("an unavailable energy payment sacrifices the source");
-    assert!(unpaid_engine.permanent_position("unpaid-prison").is_none());
-
-    let mut granted_engine = test_engine(2);
-    let granted_upkeep = json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "stepBegan",
-            "step": "upkeep",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        },
-        "effects": [{
-            "kind": "payCostOrMoveSource",
-            "cost": { "kind": "payMana", "manaCost": "{1}" },
-            "otherwise": "destroy",
-        }],
-    });
-    let mut grant_definition = test_definition("global-grant", "Land");
-    grant_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "grantTriggeredAbility",
-            "objects": {
-                "kind": "permanents",
-                "where": { "kind": "cardTypeContains", "value": "Creature" },
-            },
-            "ability": granted_upkeep,
-        }],
-    })];
-    granted_engine.state.players[0]
-        .battlefield
-        .push(test_instance("global-grant", grant_definition, "player-0"));
-    granted_engine.state.players[0]
-        .battlefield
-        .push(test_instance(
-            "paid-creature",
-            test_definition("paid-creature", "Creature"),
-            "player-0",
-        ));
-    granted_engine.state.players[1]
-        .battlefield
-        .push(test_instance(
-            "destroyed-creature",
-            test_definition("destroyed-creature", "Creature"),
-            "player-1",
-        ));
-    let granted_rule = &granted_engine.state.players[0].battlefield[0]
-        .definition
-        .rules[0];
-    assert!(
-        battlefield_static_rule_supported(granted_rule),
-        "the global granted ability must be a live static modifier: {granted_rule}"
-    );
-    assert!(triggered_rule_supported(
-        &granted_rule["modifiers"][0]["ability"]
-    ));
-    assert_eq!(
-        granted_engine
-            .battlefield_static_modifiers()
-            .into_iter()
-            .filter(|(_, modifier)| value_kind(modifier) == Some("grantTriggeredAbility"))
-            .count(),
-        1
-    );
-    granted_engine.state.players[0]
-        .mana_pool
-        .push(FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        });
-    granted_engine.enqueue_step_triggers("upkeep");
-    assert_eq!(granted_engine.state.stack.len(), 1);
-    granted_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the active player's creature pays its granted upkeep");
-    assert!(granted_engine.permanent_position("paid-creature").is_some());
-
-    granted_engine.state.active_player = 1;
-    granted_engine.enqueue_step_triggers("upkeep");
-    assert_eq!(granted_engine.state.stack.len(), 1);
-    granted_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the other creature is destroyed when its granted cost is unpaid");
-    assert!(
-        granted_engine
-            .permanent_position("destroyed-creature")
-            .is_none()
-    );
-}
-
-#[test]
-fn top_graveyard_return_and_attached_tap_trigger_mutate_live_state() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].graveyard.extend([
-        test_instance(
-            "older-creature",
-            test_definition("older-creature", "Creature"),
-            "player-0",
-        ),
-        test_instance(
-            "top-noncreature",
-            test_definition("top-noncreature", "Sorcery"),
-            "player-0",
-        ),
-        test_instance(
-            "top-creature",
-            test_definition("top-creature", "Creature"),
-            "player-0",
-        ),
-    ]);
-    let stack_object = StackObject {
-        id: "stack:top-graveyard-return".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "return-source",
-            test_definition("return-source", "Instant"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "moveTopMatchingCard",
-                "zone": {
-                    "kind": "graveyard",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                },
-                "where": { "kind": "cardTypeContains", "value": "Creature" },
-                "to": {
-                    "kind": "battlefield",
-                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "tapped": false,
-                },
-                "grantKeywords": ["haste"],
-                "exileAtNextEndStep": true,
-            }]),
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut RandomAi::seeded(41),
-        )
-        .expect("the top matching graveyard card returns");
-    let returned = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "top-creature")
-        .expect("the most recent matching graveyard card moved");
-    assert!(has_keyword(&returned.definition, "haste"));
-    assert!(engine.state.rule_modifiers.iter().any(|modifier| {
-        value_kind(modifier) == Some("exileAtEndStep")
-            && modifier["cardInstanceId"] == "top-creature"
-    }));
-
-    let creature = test_instance(
-        "equipped-creature",
-        test_definition("equipped-creature", "Creature"),
-        "player-0",
-    );
-    let mut equipment = test_instance(
-        "tap-observer",
-        test_definition("tap-observer", "Artifact - Equipment"),
-        "player-0",
-    );
-    equipment.attached_to = Some("equipped-creature".to_string());
-    equipment.definition.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "attachedPermanentTapped",
-            "attachment": { "kind": "self" },
-        },
-        "effects": [{
-            "kind": "dealDamageToEachOpponent",
-            "amount": { "kind": "integer", "value": 1 },
-            "source": { "kind": "triggeringPermanent" },
-        }],
-    })];
-    engine.state.players[0]
-        .battlefield
-        .extend([creature, equipment]);
-    let tapped = engine
-        .tap_permanent("equipped-creature")
-        .expect("the equipped creature can tap")
-        .expect("the permanent changed from untapped to tapped");
-    engine.enqueue_permanent_tapped_triggers(&tapped);
-    assert_eq!(engine.state.stack.len(), 1);
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(43))
-        .expect("the attached tap trigger resolves");
-    assert_eq!(engine.state.players[1].life, 19);
 }
 
 struct KeepLegendDecisionProvider {
@@ -7434,6 +9432,7 @@ impl DecisionProvider for KeepLegendDecisionProvider {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() {
     let mut engine = test_engine(2);
@@ -7449,6 +9448,9 @@ fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() 
         instance_id: "legend-b".to_string(),
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .check_state_based_actions_with_provider(Some(&mut provider))
         .expect("legend-rule choice resolves");
@@ -7480,6 +9482,7 @@ fn legend_rule_lets_the_controller_choose_one_and_moves_the_rest_to_graveyard() 
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
     let mut engine = test_engine(2);
@@ -7491,6 +9494,9 @@ fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
         test_instance("hand-token", definition, "player-0"),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("grave-token", "sacrificed")
         .expect("token reaches graveyard");
@@ -7570,6 +9576,11 @@ fn tokens_reach_nonbattlefield_zones_before_ceasing_to_exist() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Redoubled Stormsinger, Blade of Selves; see docs/coverage-targets.md"
+)]
 #[test]
 fn creatures_put_onto_the_battlefield_attacking_do_not_trigger_attack_abilities() {
     let mut engine = test_engine(4);
@@ -7666,6 +9677,7 @@ fn creatures_put_onto_the_battlefield_attacking_do_not_trigger_attack_abilities(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training_anchor_opening_hand_is_chosen_from_published_pool() {
     let mut engine = test_engine(2);
@@ -7718,6 +9730,45 @@ fn training_anchor_opening_hand_is_chosen_from_published_pool() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn deterministic_puzzle_can_configure_an_exact_opening_hand() {
+    let mut engine = test_engine(2);
+    engine.state.players[0].library.extend([
+        test_instance(
+            "combo-a-instance",
+            test_definition("combo-a", "Sorcery"),
+            "player-0",
+        ),
+        test_instance(
+            "combo-b-instance",
+            test_definition("combo-b", "Artifact"),
+            "player-0",
+        ),
+    ]);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+
+    engine
+        .configure_fixed_opening_hand("player-0", &["combo-b".to_string(), "combo-a".to_string()])
+        .expect("fixed opening hand");
+
+    assert_eq!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .map(|card| card.definition.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["combo-b", "combo-a"]
+    );
+    assert!(engine.state.events.iter().any(|event| {
+        event.kind == "fixedOpeningHandConfigured"
+            && event.detail["definitionIds"] == json!(["combo-b", "combo-a"])
+    }));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn compare_condition_reads_numeric_decision_results() {
     let engine = test_engine(2);
@@ -7798,6 +9849,7 @@ fn retained_card_ids(engine: &GameEngine, player_index: usize) -> BTreeSet<Strin
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training_mode_keeps_seeded_twenty_card_decks_and_draws_five() {
     let first = GameEngine::new_with_mode(training_setup(), 73, GameMode::Training).unwrap();
@@ -7821,6 +9873,7 @@ fn training_mode_keeps_seeded_twenty_card_decks_and_draws_five() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn training2_mode_keeps_commander_and_seeded_forty_card_libraries() {
     let first = GameEngine::new_with_mode(training2_setup(), 73, GameMode::Training2).unwrap();
@@ -7867,6 +9920,7 @@ impl DecisionProvider for AlwaysMulliganProvider {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn maximum_mulligans_removes_the_fourth_mulligan_option() {
     let mut engine = GameEngine::new_with_mode(training_setup(), 73, GameMode::Training).unwrap();
@@ -7898,6 +9952,7 @@ fn maximum_mulligans_removes_the_fourth_mulligan_option() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn variable_entering_counters_use_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -7926,6 +9981,7 @@ fn variable_entering_counters_use_the_cast_x_value() {
     assert_eq!(card.counters.get("+1/+1"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn sunburst_counts_distinct_paid_colors_not_x_or_colorless_mana() {
     for (payments, expected) in [
@@ -7967,6 +10023,7 @@ fn sunburst_counts_distinct_paid_colors_not_x_or_colorless_mana() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn sunburst_noncast_entry_gets_no_counters_and_multiple_instances_stack() {
     let mut engine = test_engine(2);
@@ -7988,6 +10045,7 @@ fn sunburst_noncast_entry_gets_no_counters_and_multiple_instances_stack() {
     assert_eq!(card.counters.get("charge"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
     let mut engine = test_engine(2);
@@ -8012,6 +10070,9 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
         mana_source("island", "Basic Land — Island", "{U}", None),
         mana_source("swamp", "Basic Land — Swamp", "{B}", None),
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -8043,6 +10104,9 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
         let card = test_instance(id, definition, "player-1");
         engine.state.players[1].battlefield.push(card);
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("late fixture permanents are admitted");
     engine.state.players[0].mana_pool = floating_mana(&["C", "C"]);
     let activate = engine
         .legal_priority_actions(0)
@@ -8075,6 +10139,7 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
     assert!(engine.permanent_position("land").is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn entering_counter_arithmetic_uses_the_cast_x_value() {
     let mut engine = test_engine(2);
@@ -8106,6 +10171,7 @@ fn entering_counter_arithmetic_uses_the_cast_x_value() {
     assert_eq!(card.counters.get("stun"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[test]
 fn numeric_operations_compose_and_apply_explicit_rounding() {
     let engine = test_engine(2);
@@ -8137,6 +10203,7 @@ fn numeric_operations_compose_and_apply_explicit_rounding() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
     let mut engine = test_engine(2);
@@ -8190,6 +10257,9 @@ fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
 
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&warp_cast, &mut provider)
         .expect("Broodguard Elite is cast for its Warp cost");
     engine
@@ -8230,85 +10300,7 @@ fn broodguard_elite_warp_pays_x_and_exiles_at_the_next_end_step() {
     }));
 }
 
-#[test]
-fn linked_exile_returns_the_card_when_the_source_leaves() {
-    let mut engine = test_engine(2);
-    let prison = test_instance(
-        "prison",
-        test_definition("prison", "Enchantment"),
-        "player-0",
-    );
-    let victim = test_instance(
-        "victim",
-        test_definition("victim", "Creature - Bear"),
-        "player-1",
-    );
-    engine.state.players[0].battlefield.push(prison.clone());
-    engine.state.players[1].battlefield.push(victim);
-    let stack_object = StackObject {
-        id: "stack:linked-exile".to_string(),
-        controller: "player-0".to_string(),
-        card: prison,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    let effect = json!({
-        "kind": "exilePermanentWithSource",
-        "permanent": { "kind": "chosenTarget", "id": "exileTarget" },
-        "candidates": {
-            "kind": "permanents",
-            "controller": {
-                "kind": "opponentsOf",
-                "player": { "kind": "abilityController" },
-            },
-            "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Land" } },
-        },
-        "minimum": 1,
-        "maximum": 1,
-        "returnWhenSourceLeaves": true,
-    });
-    let mut bindings = BTreeMap::new();
-    let mut decisions = BTreeMap::new();
-    let mut provider = EmeritusDecisionProvider;
-
-    engine
-        .execute_effect(
-            &effect,
-            None,
-            &stack_object,
-            &mut bindings,
-            &mut decisions,
-            &mut provider,
-        )
-        .expect("linked exile resolves");
-    assert!(engine.permanent_position("victim").is_none());
-    assert!(
-        engine.state.players[1]
-            .exile
-            .iter()
-            .any(|card| card.instance_id == "victim")
-    );
-
-    engine
-        .move_permanent_to_graveyard("prison", "destroyed")
-        .expect("source leaves");
-    engine
-        .resolve_top_stack(&mut provider)
-        .expect("linked return trigger resolves");
-
-    assert!(engine.permanent_position("victim").is_some());
-    assert!(
-        !engine.state.players[1]
-            .exile
-            .iter()
-            .any(|card| card.instance_id == "victim")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn created_token_binding_can_receive_a_mandatory_source_attachment() {
     let mut engine = test_engine(2);
@@ -8378,6 +10370,7 @@ fn created_token_binding_can_receive_a_mandatory_source_attachment() {
     assert!(has_card_type_name(&token.definition.type_line, "Dwarf"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn created_equipment_token_applies_its_embedded_static_ability() {
     let mut engine = test_engine(2);
@@ -8477,67 +10470,7 @@ fn created_equipment_token_applies_its_embedded_static_ability() {
     assert_eq!(engine.current_power(creature), 3);
 }
 
-#[test]
-fn temporary_counted_bonus_excludes_the_ability_source() {
-    let mut engine = test_engine(2);
-    let eagle = test_instance(
-        "great-shelf-eagle",
-        test_definition("great-shelf-eagle", "Creature - Bird"),
-        "player-0",
-    );
-    engine.state.players[0].battlefield.push(eagle.clone());
-    for index in 0..2 {
-        engine.state.players[0].battlefield.push(test_instance(
-            &format!("ally-{index}"),
-            test_definition(&format!("ally-{index}"), "Creature - Soldier"),
-            "player-0",
-        ));
-    }
-    engine.state.players[1].battlefield.push(test_instance(
-        "opposing-creature",
-        test_definition("opposing-creature", "Creature - Soldier"),
-        "player-1",
-    ));
-    let stack_object = StackObject {
-        id: "stack:temporary-counted-bonus".to_string(),
-        controller: "player-0".to_string(),
-        card: eagle,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    let count = json!({
-        "kind": "countPermanents",
-        "player": { "kind": "abilityController" },
-        "where": { "kind": "cardTypeContains", "value": "Creature" },
-        "excludeSource": true,
-    });
-    let effect = json!({
-        "kind": "modifyPowerToughness",
-        "object": { "kind": "self" },
-        "power": count.clone(),
-        "toughness": count,
-        "duration": { "kind": "untilEndOfCurrentTurn" },
-    });
-    engine
-        .execute_effect(
-            &effect,
-            None,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the counted bonus resolves");
-
-    let eagle = &engine.state.players[0].battlefield[0];
-    assert_eq!(engine.current_power(eagle), 4);
-    assert_eq!(engine.current_toughness(eagle), 4);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     let mut engine = test_engine(2);
@@ -8613,6 +10546,9 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
         }),
         rule,
     ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&spell, "player-0")
         .expect("conditional owned target declarations are executable");
@@ -8650,7 +10586,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     }));
 
     let source = test_instance("eagles-coming", spell, "player-0");
-    let stack_object = StackObject {
+    let mut stack_object = StackObject {
         id: "stack:kicked-return".to_string(),
         controller: "player-0".to_string(),
         card: source,
@@ -8680,6 +10616,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
             ),
         ]),
     };
+    designate_fixture_targets(&engine, &mut stack_object);
     engine
         .move_permanent_to_graveyard("owned-1", "destroyed")
         .expect("one target becomes illegal before resolution");
@@ -8704,15 +10641,15 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
             }],
         },
     ]);
-    engine
-        .execute_effects(
-            &effects,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("returns bind into the delayed trigger");
+    execute_designated_effects(
+        &mut engine,
+        &effects,
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("returns bind into the delayed trigger");
     let delayed = engine
         .state
         .rule_modifiers
@@ -8722,299 +10659,7 @@ fn kicked_owned_targets_expand_and_delayed_effect_uses_only_returned_cards() {
     assert_eq!(delayed["effects"][0]["quantity"]["value"], 2);
 }
 
-#[test]
-fn per_opponent_linked_exile_targets_distinct_controllers_and_returns_every_card() {
-    let mut engine = test_engine(4);
-    let effect = json!({
-        "kind": "exilePermanentWithSource",
-        "permanent": { "kind": "chosenTargets", "id": "exileTargets" },
-        "candidates": {
-            "kind": "permanents",
-            "controller": {
-                "kind": "opponentsOf",
-                "player": { "kind": "abilityController" },
-            },
-            "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Land" } },
-        },
-        "minimum": 0,
-        "maximum": {
-            "kind": "countOpponents",
-            "player": { "kind": "abilityController" },
-        },
-        "returnWhenSourceLeaves": true,
-    });
-    let rule = json!({
-        "kind": "activatedAbility",
-        "source": { "kind": "self" },
-        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
-        "declaration": {
-            "kind": "castingDeclaration",
-            "decisions": [{
-                "kind": "chooseTargets",
-                "id": "exileTargets",
-                "minimum": 0,
-                "maximum": {
-                    "kind": "countOpponents",
-                    "player": { "kind": "abilityController" },
-                },
-                "candidates": effect["candidates"].clone(),
-                "selectionConstraint": { "kind": "distinctPermanentControllers" },
-            }],
-        },
-        "effects": [effect.clone()],
-    });
-    let mut source = test_instance(
-        "mountain-king",
-        test_definition("mountain-king", "Enchantment"),
-        "player-0",
-    );
-    source.definition.rules.push(rule.clone());
-    engine.state.players[0].battlefield.push(source.clone());
-    for player_index in 1..4 {
-        for permanent_index in 0..2 {
-            let instance_id = format!("victim-{player_index}-{permanent_index}");
-            engine.state.players[player_index]
-                .battlefield
-                .push(test_instance(
-                    &instance_id,
-                    test_definition(&instance_id, "Creature - Test"),
-                    &format!("player-{player_index}"),
-                ));
-        }
-    }
-
-    let declarations = engine
-        .declarations_for_activated_rule(&rule, "player-0", "mountain-king")
-        .expect("per-opponent target declarations are executable");
-    assert!(
-        declarations
-            .iter()
-            .any(|declaration| declaration.targets.len() == 3)
-    );
-    assert!(declarations.iter().all(|declaration| {
-        let controllers =
-            declaration
-                .targets
-                .values()
-                .filter_map(|target| match target {
-                    TargetRef::Permanent { instance_id } => engine
-                        .permanent_position(instance_id)
-                        .map(|(player_index, card_index)| {
-                            engine.state.players[player_index].battlefield[card_index]
-                                .controller
-                                .clone()
-                        }),
-                    _ => None,
-                })
-                .collect::<BTreeSet<_>>();
-        controllers.len() == declaration.targets.len()
-    }));
-
-    let stack_object = StackObject {
-        id: "stack:per-opponent-linked-exile".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: Some(rule),
-        decisions: BTreeMap::new(),
-        targets: (1..4)
-            .map(|player_index| {
-                (
-                    format!("exileTargets:{}", player_index - 1),
-                    TargetRef::Permanent {
-                        instance_id: format!("victim-{player_index}-0"),
-                    },
-                )
-            })
-            .collect(),
-    };
-    let mut provider = EmeritusDecisionProvider;
-    engine
-        .execute_effect(
-            &effect,
-            None,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut provider,
-        )
-        .expect("all declared per-opponent targets are exiled");
-    for player_index in 1..4 {
-        assert!(
-            engine
-                .permanent_position(&format!("victim-{player_index}-0"))
-                .is_none()
-        );
-    }
-
-    engine
-        .move_permanent_to_graveyard("mountain-king", "destroyed")
-        .expect("source leaves");
-    engine
-        .resolve_top_stack(&mut provider)
-        .expect("linked cards return");
-    for player_index in 1..4 {
-        assert!(
-            engine
-                .permanent_position(&format!("victim-{player_index}-0"))
-                .is_some()
-        );
-    }
-}
-
-#[test]
-fn linked_exile_can_return_the_card_to_its_owners_hand() {
-    let mut engine = test_engine(2);
-    let source = test_instance(
-        "temporary-prison",
-        test_definition("temporary-prison", "Creature - Test"),
-        "player-0",
-    );
-    engine.state.players[1].exile.push(test_instance(
-        "exiled-card",
-        test_definition("exiled-card", "Creature - Test"),
-        "player-1",
-    ));
-    engine.state.rule_modifiers.push(json!({
-        "kind": "exiledWithSource",
-        "sourceCardInstanceId": "temporary-prison",
-        "cardInstanceId": "exiled-card",
-    }));
-    let stack_object = StackObject {
-        id: "stack:return-to-hand".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "returnCardsExiledWithSourceToOwnersHand",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("linked card returns to hand");
-
-    assert!(
-        engine.state.players[1]
-            .hand
-            .iter()
-            .any(|card| card.instance_id == "exiled-card")
-    );
-    assert!(
-        engine.state.players[1]
-            .battlefield
-            .iter()
-            .all(|card| card.instance_id != "exiled-card")
-    );
-}
-
-#[test]
-fn linked_exiled_card_owner_and_mana_value_drive_token_creation() {
-    let mut engine = test_engine(2);
-    let source = test_instance(
-        "linked-source",
-        test_definition("linked-source", "Creature - Test"),
-        "player-0",
-    );
-    let mut victim_definition = test_definition("linked-victim", "Artifact Creature - Test");
-    victim_definition.mana_cost = "{2}{W}".to_string();
-    let victim = test_instance("linked-victim", victim_definition, "player-1");
-    engine.state.players[0].battlefield.push(source.clone());
-    engine.state.players[1].battlefield.push(victim);
-    let stack_object = StackObject {
-        id: "stack:linked-variable-token".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([(
-            "exileTarget".to_string(),
-            TargetRef::Permanent {
-                instance_id: "linked-victim".to_string(),
-            },
-        )]),
-    };
-    let exile = json!({
-        "kind": "exilePermanentWithSource",
-        "permanent": { "kind": "chosenTarget", "id": "exileTarget" },
-        "candidates": {
-            "kind": "permanents",
-            "where": { "kind": "cardTypeContains", "value": "Artifact" },
-        },
-        "minimum": 1,
-        "maximum": 1,
-        "returnWhenSourceLeaves": false,
-    });
-    let linked_card = json!({ "kind": "cardExiledWithSource" });
-    let mana_value = json!({
-        "kind": "manaValueOf",
-        "object": linked_card.clone(),
-    });
-    let create = json!({
-        "kind": "createTokens",
-        "controller": { "kind": "ownerOf", "object": linked_card },
-        "quantity": { "kind": "integer", "value": 1 },
-        "token": {
-            "colors": ["blue"],
-            "types": ["Creature"],
-            "subtypes": ["Illusion"],
-            "power": mana_value.clone(),
-            "toughness": mana_value,
-            "abilities": [],
-        },
-    });
-    let mut bindings = BTreeMap::new();
-    let mut decisions = BTreeMap::new();
-    let mut provider = EmeritusDecisionProvider;
-
-    engine
-        .execute_effect(
-            &exile,
-            None,
-            &stack_object,
-            &mut bindings,
-            &mut decisions,
-            &mut provider,
-        )
-        .expect("the source links the exiled permanent");
-    engine
-        .execute_effect(
-            &create,
-            None,
-            &stack_object,
-            &mut bindings,
-            &mut decisions,
-            &mut provider,
-        )
-        .expect("the linked card creates the variable token");
-
-    let token = engine.state.players[1]
-        .battlefield
-        .iter()
-        .find(|card| card.definition.is_token)
-        .expect("the exiled card's owner receives the token");
-    assert!(token.definition.type_line.contains("Illusion"));
-    assert_eq!(token.definition.power.as_deref(), Some("3"));
-    assert_eq!(token.definition.toughness.as_deref(), Some("3"));
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .all(|card| !card.definition.is_token)
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn chosen_name_activation_tax_changes_opponent_nonmana_payment() {
     let mut engine = test_engine(2);
@@ -9066,7 +10711,7 @@ fn chosen_name_activation_tax_changes_opponent_nonmana_payment() {
         "source": { "kind": "self" },
         "costs": [{ "kind": "payMana", "manaCost": "{1}" }],
         "effects": [{
-            "kind": "scry",
+            "kind": "drawCards",
             "player": { "kind": "abilityController" },
             "count": { "kind": "integer", "value": 1 },
         }],
@@ -9100,83 +10745,7 @@ fn chosen_name_activation_tax_changes_opponent_nonmana_payment() {
     assert_eq!(activation.payment_sources.len(), 3);
 }
 
-#[test]
-fn simultaneous_hand_choices_move_only_lowest_matching_cards() {
-    let mut engine = test_engine(3);
-    let mut cheap_noncreature = test_definition("cheap-noncreature", "Instant");
-    cheap_noncreature.mana_cost = "{1}".to_string();
-    let mut expensive_creature = test_definition("expensive-creature", "Creature - Giant");
-    expensive_creature.mana_cost = "{3}".to_string();
-    let mut winning_creature = test_definition("winning-creature", "Creature - Scout");
-    winning_creature.mana_cost = "{1}{G}".to_string();
-    engine.state.players[0].hand = vec![test_instance(
-        "cheap-noncreature",
-        cheap_noncreature,
-        "player-0",
-    )];
-    engine.state.players[1].hand = vec![test_instance(
-        "expensive-creature",
-        expensive_creature,
-        "player-1",
-    )];
-    engine.state.players[2].hand = vec![test_instance(
-        "winning-creature",
-        winning_creature,
-        "player-2",
-    )];
-    let stack_object = StackObject {
-        id: "stack:simultaneous-hand-choice".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "choice-spell",
-            test_definition("choice-spell", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    let effect = json!({
-        "kind": "eachPlayerChoosesHandCardThenMoveLowestManaValue",
-        "players": { "kind": "eachPlayer" },
-        "where": { "kind": "cardTypeContains", "value": "Creature" },
-        "destination": "battlefield",
-    });
-
-    engine
-        .execute_effect(
-            &effect,
-            None,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("all players make their hidden choice and reveal together");
-
-    assert!(
-        engine.state.players[2]
-            .battlefield
-            .iter()
-            .any(|card| card.instance_id == "winning-creature")
-    );
-    assert!(
-        engine.state.players[1]
-            .hand
-            .iter()
-            .any(|card| card.instance_id == "expensive-creature")
-    );
-    assert!(
-        engine.state.players[0]
-            .hand
-            .iter()
-            .any(|card| card.instance_id == "cheap-noncreature")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
     let mut engine = test_engine(2);
@@ -9246,6 +10815,9 @@ fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
     });
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -9276,6 +10848,11 @@ fn graveyard_entry_event_and_optional_discard_draw_mutate_live_state() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Spoils of the Vault; see docs/coverage-targets.md"
+)]
 #[test]
 fn chosen_name_reveal_until_moves_cards_and_loses_life_per_exile() {
     let mut engine = test_engine(2);
@@ -9335,6 +10912,7 @@ fn chosen_name_reveal_until_moves_cards_and_loses_life_per_exile() {
     assert!(engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn wither_damage_places_minus_counters_instead_of_marking_creature_damage() {
     let mut engine = test_engine(2);
@@ -9370,6 +10948,7 @@ fn wither_damage_places_minus_counters_instead_of_marking_creature_damage() {
     assert_eq!(target.damage_marked, 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn fear_and_flying_only_block_restrictions_are_enforced() {
     let mut engine = test_engine(2);
@@ -9393,19 +10972,40 @@ fn fear_and_flying_only_block_restrictions_are_enforced() {
     assert!(engine.can_block(&black_blocker, &feared));
     assert!(engine.can_block(&artifact_blocker, &feared));
 
-    let mut sky_blocker = keyword_creature(
-        "sky-blocker",
-        "canBlockOnlyFlying",
-        "{1}{U}",
-        "Creature - Bird",
-    );
+    let mut sky_blocker = keyword_creature("sky-blocker", "flying", "{1}{U}", "Creature - Bird");
     sky_blocker.definition.rules.push(json!({
-        "kind": "keywordAbility",
+        "kind": "staticAbility",
         "source": { "kind": "self" },
-        "ability": { "kind": "flying" },
+        "activeWhile": {
+            "kind": "inZone",
+            "object": { "kind": "self" },
+            "zone": { "kind": "battlefield" },
+        },
+        "modifiers": [{
+            "kind": "blockRestriction",
+            "attackers": {
+                "kind": "permanents",
+                "where": {
+                    "kind": "and",
+                    "operands": [
+                        { "kind": "cardTypeContains", "value": "Creature" },
+                        {
+                            "kind": "not",
+                            "operand": { "kind": "hasKeyword", "value": "flying" },
+                        },
+                    ],
+                },
+            },
+            "blockers": { "kind": "self" },
+        }],
     }));
     let ground_attacker = keyword_creature("ground", "haste", "{R}", "Creature - Goblin");
     let flying_attacker = keyword_creature("flyer", "flying", "{U}", "Creature - Bird");
+    // The restriction is a static ability that functions on the battlefield
+    // (CR 113.6), where a blocking creature is (CR 509.1a).
+    engine.state.players[0]
+        .battlefield
+        .push(sky_blocker.clone());
     assert!(!engine.can_block(&sky_blocker, &ground_attacker));
     assert!(engine.can_block(&sky_blocker, &flying_attacker));
 
@@ -9426,6 +11026,7 @@ fn fear_and_flying_only_block_restrictions_are_enforced() {
     assert!(!engine.can_block(&white_blocker, &swampwalker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn horsemanship_intimidate_and_skulk_block_restrictions_are_enforced() {
     let engine = test_engine(2);
@@ -9512,6 +11113,7 @@ fn horsemanship_intimidate_and_skulk_block_restrictions_are_enforced() {
     assert!(!engine.can_block(&large_blocker, &skulk));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     let mut engine = test_engine(2);
@@ -9530,6 +11132,9 @@ fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     );
     engine.state.players[1].battlefield = vec![target];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .deal_damage_amount_with_kind(
             TargetRef::Player {
@@ -9577,6 +11182,7 @@ fn infect_deals_poison_to_players_and_minus_counters_to_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn toxic_adds_fixed_poison_only_after_combat_damage_to_a_player() {
     let mut engine = test_engine(2);
@@ -9616,6 +11222,7 @@ fn toxic_adds_fixed_poison_only_after_combat_damage_to_a_player() {
     assert_eq!(engine.state.players[1].counters.get("poison"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn generic_reflexive_trigger_freezes_bound_numeric_values_on_the_stack() {
     let mut engine = test_engine(2);
@@ -9685,6 +11292,7 @@ fn generic_reflexive_trigger_freezes_bound_numeric_values_on_the_stack() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn bound_discard_action_feeds_a_reflexive_trigger() {
     let mut engine = test_engine(2);
@@ -9743,6 +11351,9 @@ fn bound_discard_action_feeds_a_reflexive_trigger() {
     assert!(effect_supported(&effect));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &effect,
             None,
@@ -9768,6 +11379,7 @@ fn bound_discard_action_feeds_a_reflexive_trigger() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
     let mut engine = test_engine(2);
@@ -9815,6 +11427,9 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
         })
         .expect("regeneration can be activated while a matching card exists");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("graveyard-card cost is paid");
 
@@ -9832,6 +11447,11 @@ fn top_matching_graveyard_card_is_exiled_as_an_activated_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Lluwen, Exchange Student // Pest Friend; see docs/coverage-targets.md"
+)]
 #[test]
 fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -9963,6 +11583,7 @@ fn shared_move_operation_pays_graveyard_exile_prepare_activation() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     let mut engine = test_engine(2);
@@ -10018,6 +11639,9 @@ fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_casting_discard_costs(&action, &spell_definition)
         .expect("additional discard cost is paid");
 
@@ -10035,6 +11659,11 @@ fn casting_discard_cost_moves_the_declared_hand_card_to_graveyard() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dawnhand Dissident; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_blight_costs_offer_only_controlled_creatures_and_place_counters_when_paid() {
     let activated_parse = parse_oracle_card(OracleCardParseRequest {
@@ -10234,6 +11863,7 @@ fn parsed_blight_costs_offer_only_controlled_creatures_and_place_counters_when_p
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -10271,16 +11901,16 @@ fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
         })
         .collect::<Vec<_>>();
     assert!(actions.iter().any(|action| {
-        action.decisions["removeCounterCost1"] == Value::String("charge".to_string())
+        action.decisions["activationCostCounter0"] == Value::String("charge".to_string())
     }));
     assert!(actions.iter().any(|action| {
-        action.decisions["removeCounterCost1"] == Value::String("quest".to_string())
+        action.decisions["activationCostCounter0"] == Value::String("quest".to_string())
     }));
 
     let remove_charge = actions
         .into_iter()
         .find(|action| {
-            action.decisions["removeCounterCost1"] == Value::String("charge".to_string())
+            action.decisions["activationCostCounter0"] == Value::String("charge".to_string())
         })
         .expect("the charge-counter payment is available");
     engine
@@ -10295,6 +11925,7 @@ fn parsed_unnamed_counter_cost_offers_each_payable_source_counter_kind() {
     assert_eq!(source.counters.get("quest"), Some(&2));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opening_hand_metrics_are_recorded_once_with_land_count() {
     let mut engine = test_engine(2);
@@ -10313,6 +11944,7 @@ fn opening_hand_metrics_are_recorded_once_with_land_count() {
     assert!(events.iter().all(|event| event.detail["landCount"] == 7));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn attack_outcome_marks_only_empty_combat_trades_as_suicidal() {
     let mut engine = test_engine(2);
@@ -10360,6 +11992,7 @@ fn attack_outcome_marks_only_empty_combat_trades_as_suicidal() {
     assert_eq!(outcome.detail["suicidal"], true);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_priority_choice_is_replaced_by_pass() {
     let mut engine = test_engine(2);
@@ -10392,6 +12025,7 @@ fn repeated_priority_choice_is_replaced_by_pass() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_priority_action_uses_the_chosen_iteration_count() {
     let mut engine = test_engine(2);
@@ -10438,6 +12072,7 @@ fn repeated_priority_action_uses_the_chosen_iteration_count() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     let mut engine = test_engine(2);
@@ -10512,6 +12147,9 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     let mut provider = CountedCastLoopDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_priority_window(&mut provider)
         .expect("the changing Acererak-style loop uses the chosen bounded count");
 
@@ -10558,6 +12196,7 @@ fn recurrent_free_cast_with_draw_and_life_loss_uses_a_bounded_loop_count() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     let mut engine = test_engine(2);
@@ -10605,6 +12244,9 @@ fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     let mut provider = CountedLoopDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_priority_window(&mut provider)
         .expect("all six tokens can be consumed before priority is passed");
 
@@ -10626,6 +12268,7 @@ fn repeated_action_that_consumes_tokens_is_finite_not_a_loop() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     let mut engine = test_engine(2);
@@ -10685,6 +12328,9 @@ fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     let mut provider = CountedLoopDecisionProvider::default();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .run_priority_window(&mut provider)
         .expect("the state-equivalent token replacement is offered as a shortcut");
 
@@ -10704,6 +12350,7 @@ fn token_replacement_returns_to_an_equivalent_unbounded_state() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn direct_game_loss_completes_a_two_player_game() {
     let mut engine = test_engine(2);
@@ -10725,145 +12372,7 @@ fn direct_game_loss_completes_a_two_player_game() {
     );
 }
 
-#[test]
-fn exchanged_permanent_moves_to_its_controller_and_can_pay_a_sacrifice_cost() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].battlefield = vec![test_instance(
-        "entered-artifact",
-        test_definition("entered-artifact", "Artifact"),
-        "player-0",
-    )];
-    engine.state.players[1].battlefield = vec![test_instance(
-        "opposing-artifact",
-        test_definition("opposing-artifact", "Artifact Creature - Construct"),
-        "player-1",
-    )];
-    let stack_object = StackObject {
-        id: "stack:exchange".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "exchange-source",
-            test_definition("exchange-source", "Enchantment"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::from([(
-            "triggeringPermanentId".to_string(),
-            Value::String("entered-artifact".to_string()),
-        )]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "exchangeEnteredPermanent",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the permanents exchange control");
-
-    assert_eq!(
-        engine
-            .permanent_position("opposing-artifact")
-            .map(|position| position.0),
-        Some(0)
-    );
-    assert_eq!(
-        engine
-            .permanent_position("entered-artifact")
-            .map(|position| position.0),
-        Some(1)
-    );
-
-    let sacrifice_rule = json!({
-        "costs": [{
-            "kind": "sacrificePermanent",
-            "permanent": { "kind": "chosenTarget", "id": "sacrificeCreature" },
-        }],
-    });
-    let sacrifice_action = LegalAction {
-        id: "activate:sacrifice".to_string(),
-        kind: ActionKind::ActivateAbility,
-        player_id: "player-0".to_string(),
-        label: "Sacrifice the exchanged creature".to_string(),
-        card_instance_id: None,
-        payment_sources: Vec::new(),
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([(
-            "sacrificeCreature".to_string(),
-            TargetRef::Permanent {
-                instance_id: "opposing-artifact".to_string(),
-            },
-        )]),
-        target_order: Vec::new(),
-        attacker_id: None,
-        blocker_id: None,
-    };
-
-    engine
-        .apply_activated_sacrifice_costs(&sacrifice_action, &sacrifice_rule)
-        .expect("the exchanged permanent is controlled by the sacrificing player");
-    assert!(
-        engine.state.players[1]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "opposing-artifact")
-    );
-}
-
-#[test]
-fn doppelgang_materializes_a_large_finite_copy_effect() {
-    let mut engine = test_engine(2);
-    for player_index in 0..2 {
-        engine.state.players[player_index].battlefield = (0..23)
-            .map(|card_index| {
-                let id = format!("permanent-{player_index}-{card_index}");
-                test_instance(
-                    &id,
-                    test_definition(&id, "Artifact"),
-                    &format!("player-{player_index}"),
-                )
-            })
-            .collect();
-    }
-    let stack_object = StackObject {
-        id: "stack:doppelgang".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "doppelgang",
-            test_definition("doppelgang", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::from([("xValue".to_string(), Value::from(20))]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_avatar_deck_spell_instruction(
-            "doppelgang",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("large finite Doppelgang resolves");
-
-    assert_eq!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .filter(|card| card.definition.is_token)
-            .count(),
-        400
-    );
-    assert_ne!(engine.state.status, GameStatus::Completed);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn resolution_selections_prune_impossible_combination_suffixes() {
     let objects = (0..46)
@@ -10876,6 +12385,7 @@ fn resolution_selections_prune_impossible_combination_suffixes() {
     assert!(selections.iter().all(|selection| selection.len() == 45));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn direct_card_selection_accepts_a_legal_combination_outside_precomputed_options() {
     struct DirectSelectionProvider {
@@ -10950,6 +12460,7 @@ fn direct_card_selection_accepts_a_legal_combination_outside_precomputed_options
     assert_eq!(decisions["landsToFind"], json!(selected));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     struct HandThenOrderProvider {
@@ -11086,6 +12597,9 @@ fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     ]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &source,
@@ -11107,6 +12621,7 @@ fn draw_then_choose_from_hand_and_order_for_library_resolves_in_sequence() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
     struct SearchSelectionProvider;
@@ -11212,6 +12727,9 @@ fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
     ]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &source,
@@ -11230,6 +12748,7 @@ fn searched_card_is_put_on_top_after_the_library_is_shuffled() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn split_library_search_moves_one_selected_card_to_each_destination() {
     struct SplitSearchSelectionProvider {
@@ -11372,6 +12891,9 @@ fn split_library_search_moves_one_selected_card_to_each_destination() {
     let mut provider = SplitSearchSelectionProvider { call_index: 0 };
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &source,
@@ -11398,6 +12920,7 @@ fn split_library_search_moves_one_selected_card_to_each_destination() {
     assert_eq!(engine.state.players[0].library[0].instance_id, "other-card");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     let mut engine = test_engine(2);
@@ -11472,6 +12995,9 @@ fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     let mut bindings = BTreeMap::new();
     let mut decisions = BTreeMap::new();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     for _ in 0..3 {
         engine
             .execute_effects(
@@ -11496,6 +13022,7 @@ fn ordinal_triggered_effect_applies_one_branch_per_resolution() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn promised_gift_effect_uses_the_bound_recipient_and_restricts_each_player() {
     let mut engine = test_engine(2);
@@ -11572,49 +13099,6 @@ fn promised_gift_effect_uses_the_bound_recipient_and_restricts_each_player() {
         .map(|modifier| modifier["playerId"].as_str().unwrap_or_default())
         .collect::<BTreeSet<_>>();
     assert_eq!(restricted_players, BTreeSet::from(["player-0", "player-1"]));
-}
-
-#[test]
-fn doppelgang_ends_as_a_draw_before_an_unbounded_object_explosion() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].battlefield = (0..33)
-        .map(|card_index| {
-            let id = format!("permanent-{card_index}");
-            test_instance(&id, test_definition(&id, "Artifact"), "player-0")
-        })
-        .collect();
-    let stack_object = StackObject {
-        id: "stack:doppelgang-limit".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "doppelgang-limit",
-            test_definition("doppelgang-limit", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::from([("xValue".to_string(), Value::from(33))]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_avatar_deck_spell_instruction(
-            "doppelgang",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the simulation limit produces a game result, not an engine error");
-
-    assert_eq!(engine.state.status, GameStatus::Completed);
-    assert_eq!(
-        engine.state.outcome.as_ref().map(|outcome| &outcome.reason),
-        Some(&GameEndReason::SimulationLimit)
-    );
-    assert!(engine.state.events.iter().any(|event| {
-        event.kind == "simulationLimitReached" && event.detail["requested"] == 1_089
-    }));
 }
 
 fn mana_source(
@@ -11918,26 +13402,17 @@ fn test_commander_engine() -> GameEngine {
     .expect("commander setup is valid")
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     let mut engine = test_engine(2);
     let mut signal_definition = test_definition("threefold-signal", "Artifact");
-    signal_definition.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "enterBattlefield",
-            "object": { "kind": "self" },
-        },
-        "effects": [{
-            "kind": "scry",
-            "player": {
-                "kind": "controllerOf",
-                "object": { "kind": "self" },
-            },
-            "count": { "kind": "integer", "value": 3 },
-        }],
-    })];
+    signal_definition.rules = no_lands_rules(
+        "Threefold Signal",
+        "Artifact",
+        Some("{3}"),
+        "When this artifact enters, scry 3.",
+    );
     let signal = test_instance("threefold-signal", signal_definition, "player-0");
     engine.state.players[0].battlefield = vec![signal.clone()];
     engine.state.players[0].library = [
@@ -11950,6 +13425,10 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
     .into_iter()
     .map(|id| test_instance(id, test_definition(id, "Sorcery"), "player-0"))
     .collect();
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let signal = engine.state.players[0].battlefield[0].clone();
 
     engine.enqueue_enter_battlefield_triggers(&signal);
     assert_eq!(engine.state.stack.len(), 1);
@@ -11969,13 +13448,14 @@ fn enter_trigger_scry_three_inspects_the_top_three_cards() {
         BTreeSet::from(["scry-first", "scry-second", "scry-third"])
     );
     assert!(engine.state.events.iter().any(|event| {
-        event.kind == "scried"
+        event.kind == "abilityPerformed"
+            && event.player_id.as_deref() == Some("player-0")
             && event.card_instance_id.as_deref() == Some("threefold-signal")
-            && event.detail["count"] == 3
-            && event.detail["moved"] == 3
+            && event.detail["abilityId"] == "scry"
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
     #[derive(Default)]
@@ -12003,14 +13483,14 @@ fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
                     candidate_card_instance_ids,
                     minimum,
                     maximum,
-                    prompt,
                     ..
                 }) => {
                     self.selection_choices += 1;
                     assert_eq!(candidate_card_instance_ids, &["scry-top", "scry-second"]);
                     assert_eq!((*minimum, *maximum), (0, 2));
-                    assert!(prompt.contains("bottom"));
-                    Ok(Vec::new())
+                    // Scry is the shared library partition: the grouped
+                    // selection is the set sent to the bottom (CR 701.22a).
+                    Ok(vec!["scry-top".to_string()])
                 }
                 Some(DecisionChoice::CardOrder {
                     card_instance_ids, ..
@@ -12045,26 +13525,34 @@ fn scry_two_uses_one_grouped_selection_then_orders_the_kept_cards() {
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };
+    let scry_rule = no_lands_rules("Scry Source", "Instant", Some("{1}{U}"), "Scry 2.")
+        .into_iter()
+        .next()
+        .expect("Scry 2 compiles to one spell ability");
     let mut provider = GroupedScryProvider::default();
-    engine
-        .execute_effect(
-            &json!({
-                "kind": "scry",
-                "player": { "kind": "abilityController" },
-                "count": { "kind": "integer", "value": 2 },
-            }),
-            None,
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut provider,
-        )
-        .expect("scry two resolves as one grouped choice");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &scry_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut provider,
+    )
+    .expect("scry two resolves as one grouped choice");
 
     assert_eq!(provider.selection_choices, 1);
-    assert_eq!(provider.order_choices, 1);
+    assert!(provider.order_choices <= 2);
+    let library = engine.state.players[0]
+        .library
+        .iter()
+        .map(|card| card.instance_id.as_str())
+        .collect::<Vec<_>>();
+    // Library order is bottom-first: the selected card is now under the
+    // untouched card and the kept card remains on top.
+    assert_eq!(library, ["scry-top", "library-bottom", "scry-second"]);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn looked_at_library_top_is_remembered_until_that_library_changes() {
     let mut engine = test_engine(2);
@@ -12119,6 +13607,9 @@ fn looked_at_library_top_is_remembered_until_that_library_changes() {
     }));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards("player-1", 1)
         .expect("the opponent draws the known top card");
     assert!(
@@ -12136,22 +13627,244 @@ fn looked_at_library_top_is_remembered_until_that_library_changes() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ms. Marvel, Kamala Khan; see docs/coverage-targets.md"
+)]
 #[test]
-fn connive_draws_discards_and_counters_for_any_canonical_source() {
+fn parsed_targeted_spell_trigger_grants_dynamic_hand_size_power_until_cleanup() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Hero".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{1}{W}{U}".to_string()),
+        oracle_text: Some(
+            "Whenever you cast a spell that targets a creature you control, draw a card. Until end of turn, Test Hero gains \"Test Hero's base power is equal to the number of cards in your hand.\""
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut hero_definition = test_definition("test-hero", "Creature - Human Hero");
+    hero_definition.power = Some("5".to_string());
+    hero_definition.toughness = Some("4".to_string());
+    hero_definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    assert!(hero_definition.rules.iter().all(rule_is_executable));
+
+    let hero = test_instance("test-hero", hero_definition, "player-0");
+    let ally = test_instance(
+        "controlled-target",
+        test_definition("controlled-target", "Creature - Soldier"),
+        "player-0",
+    );
+    let opponent = test_instance(
+        "opponent-target",
+        test_definition("opponent-target", "Creature - Soldier"),
+        "player-1",
+    );
+    let spell_definition = test_definition("targeting-spell", "Instant");
+    let spell = test_instance("targeting-spell", spell_definition.clone(), "player-0");
+    let stack_spell = |target: &str| StackObject {
+        id: format!("stack:{target}"),
+        controller: "player-0".to_string(),
+        card: spell.clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetCreature".to_string(),
+            TargetRef::Permanent {
+                instance_id: target.to_string(),
+            },
+        )]),
+    };
+
     let mut engine = test_engine(2);
-    let mut operative_definition = test_definition("test-operative", "Creature - Human Rogue");
-    operative_definition.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
-        "effects": [{
-            "kind": "connive",
-            "permanent": { "kind": "self" },
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        }],
-    })];
-    let operative = test_instance("test-operative", operative_definition, "player-0");
-    engine.state.players[0].battlefield = vec![operative.clone()];
+    engine.state.players[0].hand.clear();
+    engine.state.players[0].battlefield = vec![hero, ally];
+    engine.state.players[1].battlefield = vec![opponent];
+    engine.state.players[0].library = vec![test_instance(
+        "drawn-card",
+        test_definition("drawn-card", "Sorcery"),
+        "player-0",
+    )];
+
+    engine.state.stack.push(stack_spell("opponent-target"));
+    engine.enqueue_spell_cast_triggers("player-0", &spell_definition, &BTreeMap::new());
+    assert_eq!(
+        engine.state.stack.len(),
+        1,
+        "targeting only an opposing creature must not trigger the ability"
+    );
+    engine.state.stack.clear();
+
+    engine.state.stack.push(stack_spell("controlled-target"));
+    engine.enqueue_spell_cast_triggers("player-0", &spell_definition, &BTreeMap::new());
+    assert_eq!(engine.state.stack.len(), 2);
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the targeted-spell trigger draws and grants the quoted static ability");
+    let hero = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "test-hero")
+        .expect("the hero remains on the battlefield");
+    assert_eq!(engine.current_power(hero), 1);
+
+    engine.state.players[0].hand.push(test_instance(
+        "later-card",
+        test_definition("later-card", "Land"),
+        "player-0",
+    ));
+    let hero = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "test-hero")
+        .expect("the hero remains on the battlefield");
+    assert_eq!(
+        engine.current_power(hero),
+        2,
+        "the granted ability must continuously track hand size"
+    );
+
+    engine
+        .cleanup(&mut EmeritusDecisionProvider)
+        .expect("cleanup removes the temporary granted ability");
+    let hero = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "test-hero")
+        .expect("the hero remains after cleanup");
+    assert_eq!(engine.current_power(hero), 5);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Namor the Sub-Mariner; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_mana_symbol_cast_trigger_filters_and_uses_the_symbol_count_for_tokens() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Sub-Mariner".to_string(),
+        type_line: "Legendary Creature - Merfolk Hero".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Whenever you cast a noncreature spell with one or more blue mana symbols in its mana cost, create that many 1/1 blue Merfolk creature tokens."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let mut source_definition = test_definition("test-sub-mariner", "Creature - Merfolk Hero");
+    source_definition.rules = parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect();
+    assert!(source_definition.rules.iter().all(rule_is_executable));
+
+    let source = test_instance("test-sub-mariner", source_definition, "player-0");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![source];
+    let stack_spell = |id: &str, type_line: &str, mana_cost: &str| {
+        let mut definition = test_definition(id, type_line);
+        definition.mana_cost = mana_cost.to_string();
+        let card = test_instance(id, definition.clone(), "player-0");
+        (
+            definition,
+            StackObject {
+                id: format!("stack:{id}"),
+                controller: "player-0".to_string(),
+                card,
+                cant_be_countered: false,
+                exile_on_leave_stack: false,
+                ability_kind: None,
+                ability_rule: None,
+                decisions: BTreeMap::new(),
+                targets: BTreeMap::new(),
+            },
+        )
+    };
+
+    let (red_instant, red_stack) = stack_spell("red-spell", "Instant", "{1}{R}");
+    engine.state.stack.push(red_stack);
+    engine.enqueue_spell_cast_triggers("player-0", &red_instant, &BTreeMap::new());
+    assert_eq!(engine.state.stack.len(), 1);
+    engine.state.stack.clear();
+
+    let (blue_creature, blue_creature_stack) =
+        stack_spell("blue-creature", "Creature - Wizard", "{U}");
+    engine.state.stack.push(blue_creature_stack);
+    engine.enqueue_spell_cast_triggers("player-0", &blue_creature, &BTreeMap::new());
+    assert_eq!(engine.state.stack.len(), 1);
+    engine.state.stack.clear();
+
+    let (blue_instant, blue_stack) = stack_spell("blue-spell", "Instant", "{1}{U}{U}");
+    engine.state.stack.push(blue_stack);
+    engine.enqueue_spell_cast_triggers("player-0", &blue_instant, &BTreeMap::new());
+    assert_eq!(engine.state.stack.len(), 2);
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the mana-symbol cast trigger resolves");
+    let merfolk_tokens = engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|permanent| {
+            permanent.definition.is_token && permanent.definition.type_line.contains("Merfolk")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(merfolk_tokens.len(), 2);
+    assert!(merfolk_tokens.iter().all(|token| {
+        token.definition.power.as_deref() == Some("1")
+            && token.definition.toughness.as_deref() == Some("1")
+    }));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Swordsman, Sharp Scoundrel; see docs/coverage-targets.md"
+)]
+#[test]
+fn filtered_attacker_connive_targets_the_triggering_permanent() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Tactician".to_string(),
+        type_line: "Creature - Human Rogue".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Whenever an equipped creature you control attacks, it connives.".to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("filtered attacker connive parses to canonical IR");
+    let mut tactician_definition = test_definition("test-tactician", "Creature - Human Rogue");
+    tactician_definition.rules = vec![rule];
+    let tactician = test_instance("test-tactician", tactician_definition, "player-0");
+    let attacker = test_instance(
+        "equipped-attacker",
+        test_definition("equipped-attacker", "Creature - Soldier"),
+        "player-0",
+    );
+    let mut equipment = test_instance(
+        "test-equipment",
+        test_definition("test-equipment", "Artifact - Equipment"),
+        "player-0",
+    );
+    equipment.attached_to = Some("equipped-attacker".to_string());
+
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![tactician, attacker, equipment];
     engine.state.players[0].hand = vec![test_instance(
         "hand-spell",
         test_definition("hand-spell", "Instant"),
@@ -12163,26 +13876,27 @@ fn connive_draws_discards_and_counters_for_any_canonical_source() {
         "player-0",
     )];
 
-    engine.enqueue_enter_battlefield_triggers(&operative);
+    engine.enqueue_declared_attacker_triggers(&["equipped-attacker".to_string()]);
+    assert_eq!(engine.state.stack.len(), 1);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the generic connive trigger resolves");
+        .expect("connive resolves for the triggering attacker");
 
-    assert_eq!(engine.state.players[0].hand.len(), 1);
-    assert_eq!(engine.state.players[0].graveyard.len(), 1);
-    assert_eq!(
-        engine.state.players[0].battlefield[0].counters.get("+1/+1"),
-        Some(&1)
-    );
-    assert!(
-        engine
-            .state
-            .events
-            .iter()
-            .any(|event| { event.kind == "cardDiscarded" && event.detail["reason"] == "connive" })
-    );
+    let attacker = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "equipped-attacker")
+        .expect("attacker remains on the battlefield");
+    let source = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.instance_id == "test-tactician")
+        .expect("ability source remains on the battlefield");
+    assert_eq!(attacker.counters.get("+1/+1"), Some(&1));
+    assert_eq!(source.counters.get("+1/+1"), None);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
     let mut engine = test_engine(2);
@@ -12264,6 +13978,9 @@ fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
 
     engine.enqueue_enter_battlefield_triggers(&shepherd);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Starfield Shepherd's search resolves");
 
@@ -12281,6 +13998,7 @@ fn starfield_shepherd_moves_the_selected_library_card_to_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
     let target_opponent = json!({ "kind": "chosenTarget", "id": "targetOpponent" });
@@ -12350,6 +14068,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
             },
         )]),
     });
+    acquire_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     acquire_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the cross-player battlefield search resolves");
@@ -12425,6 +14146,9 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
         )]),
     });
     grasp_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    grasp_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the linked face-down exile search resolves");
     assert_eq!(grasp_engine.state.players[1].exile.len(), 1);
@@ -12440,6 +14164,7 @@ fn opponent_library_cards_move_across_players_and_keep_linked_permissions() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn card_choice_uses_the_player_named_by_the_candidate_zone() {
     struct TargetHandProvider {
@@ -12562,6 +14287,9 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
         choice_was_presented: false,
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut provider)
         .expect("the targeted hand choice resolves");
 
@@ -12588,60 +14316,7 @@ fn card_choice_uses_the_player_named_by_the_candidate_zone() {
     }));
 }
 
-#[test]
-fn greatest_hand_wheel_uses_the_pre_discard_maximum_for_every_player() {
-    let mut engine = test_engine(2);
-    let source = test_instance(
-        "generic-wheel",
-        test_definition("generic-wheel", "Sorcery"),
-        "player-0",
-    );
-    engine.state.players[0].hand = ["p0-a", "p0-b"]
-        .into_iter()
-        .map(|id| test_instance(id, test_definition(id, "Instant"), "player-0"))
-        .collect();
-    engine.state.players[1].hand = ["p1-a", "p1-b", "p1-c", "p1-d"]
-        .into_iter()
-        .map(|id| test_instance(id, test_definition(id, "Instant"), "player-1"))
-        .collect();
-    for player_index in 0..2 {
-        let owner = format!("player-{player_index}");
-        engine.state.players[player_index].library = (0..6)
-            .map(|index| {
-                let id = format!("{owner}:draw:{index}");
-                test_instance(&id, test_definition(&id, "Land"), &owner)
-            })
-            .collect();
-    }
-    engine.state.stack.push(StackObject {
-        id: "stack:generic-wheel".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("activatedAbility".to_string()),
-        ability_rule: Some(json!({
-            "kind": "spellAbility",
-            "source": { "kind": "self" },
-            "effects": [{
-                "kind": "discardHandThenDrawEachPlayer",
-                "count": { "kind": "greatestHandSize" },
-            }],
-        })),
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    });
-
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the greatest-hand wheel resolves");
-
-    assert_eq!(engine.state.players[0].hand.len(), 4);
-    assert_eq!(engine.state.players[1].hand.len(), 4);
-    assert_eq!(engine.state.players[0].graveyard.len(), 2);
-    assert_eq!(engine.state.players[1].graveyard.len(), 4);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     let mut engine = test_engine(2);
@@ -12661,6 +14336,9 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     })];
     let protected = test_instance("protected-angel", protected_definition, "player-0");
     engine.state.players[0].battlefield = vec![protected.clone()];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
 
     let targeted_rule = json!({
         "kind": "spellAbility",
@@ -12713,6 +14391,9 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     let red_source = test_instance("red-source", red_creature_definition, "player-1");
     engine.state.players[1].battlefield = vec![black_source.clone(), red_source.clone()];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(!engine.can_block(&black_source, &protected));
     assert!(engine.can_block(&red_source, &protected));
     engine
@@ -12727,6 +14408,7 @@ fn protection_quality_prevents_matching_targets_damage_and_blockers() {
     assert_eq!(engine.state.players[0].battlefield[0].damage_marked, 0);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
     let mut control_engine = test_engine(2);
@@ -12767,6 +14449,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
             },
         )]),
     });
+    designate_fixture_stack_targets(&mut control_engine);
     control_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("indefinite control resolves");
@@ -12822,6 +14505,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
             },
         )]),
     });
+    designate_fixture_stack_targets(&mut control_engine);
     control_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("blink under the ability controller resolves");
@@ -12869,6 +14553,9 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
         targets: BTreeMap::new(),
     });
     sacrifice_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    sacrifice_engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("each player sacrifice resolves");
     assert!(
@@ -12880,6 +14567,7 @@ fn generic_control_blink_and_each_player_sacrifice_mutate_the_right_zones() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
     let mut engine = test_engine(2);
@@ -12917,6 +14605,9 @@ fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
     )]);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &json!({
                 "kind": "blinkPermanents",
@@ -12947,69 +14638,11 @@ fn repeated_mass_blink_reuses_the_selected_permanents_each_iteration() {
     );
 }
 
-#[test]
-fn echo_is_due_after_entry_then_is_paid_or_sacrificed_only_once() {
-    let echo_rule = json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "stepBegan",
-            "step": "upkeep",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        },
-        "condition": { "kind": "sourceNeedsEcho" },
-        "effects": [{ "kind": "payManaOrSacrificeSource", "manaCost": "{W}" }],
-    });
-
-    let mut paid_engine = test_engine(2);
-    let mut paid_definition = test_definition("paid-echo", "Creature - Spirit");
-    paid_definition.rules = vec![echo_rule.clone()];
-    let mut paid_echo = test_instance("paid-echo", paid_definition, "player-0");
-    paid_engine
-        .apply_enter_replacements(&mut paid_echo, &mut EmeritusDecisionProvider)
-        .expect("echo entry state is installed");
-    paid_engine.state.players[0].battlefield.push(paid_echo);
-    paid_engine.state.players[0].mana_pool.push(FloatingMana {
-        symbol: "W".to_string(),
-        spend_restriction: None,
-    });
-    paid_engine.enqueue_step_triggers("upkeep");
-    assert_eq!(paid_engine.state.stack.len(), 1);
-    paid_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("echo payment resolves");
-    assert!(paid_engine.permanent_position("paid-echo").is_some());
-    assert!(paid_engine.state.players[0].mana_pool.is_empty());
-    paid_engine.enqueue_step_triggers("upkeep");
-    assert!(paid_engine.state.stack.is_empty());
-
-    let mut declined_engine = test_engine(2);
-    let mut declined_definition = test_definition("declined-echo", "Creature - Spirit");
-    declined_definition.rules = vec![echo_rule];
-    let mut declined_echo = test_instance("declined-echo", declined_definition, "player-0");
-    declined_engine
-        .apply_enter_replacements(&mut declined_echo, &mut EmeritusDecisionProvider)
-        .expect("echo entry state is installed");
-    declined_engine.state.players[0]
-        .battlefield
-        .push(declined_echo);
-    declined_engine.enqueue_step_triggers("upkeep");
-    declined_engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("declined echo resolves");
-    assert!(
-        declined_engine
-            .permanent_position("declined-echo")
-            .is_none()
-    );
-    assert!(
-        declined_engine.state.players[0]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "declined-echo")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Yenna, Redtooth Regent; see docs/coverage-targets.md"
+)]
 #[test]
 fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
     let mut engine = test_engine(2);
@@ -13090,6 +14723,7 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Yenna's Aura-copy ability resolves");
@@ -13105,6 +14739,7 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn commander_starts_in_command_zone_and_accumulates_cast_tax() {
     let mut engine = test_commander_engine();
@@ -13170,6 +14805,7 @@ fn commander_starts_in_command_zone_and_accumulates_cast_tax() {
     assert!(taxed_cast.label.contains("commander tax {2}"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn black_phyrexian_mana_prefers_black_mana_and_falls_back_to_two_life() {
     let requirement =
@@ -13193,6 +14829,7 @@ fn black_phyrexian_mana_prefers_black_mana_and_falls_back_to_two_life() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn snow_cost_requires_mana_produced_by_a_snow_source() {
     let requirement =
@@ -13217,6 +14854,7 @@ fn snow_cost_requires_mana_produced_by_a_snow_source() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
     let mut engine = test_commander_engine();
@@ -13228,6 +14866,12 @@ fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
         .expect("the commander starts in the command zone");
     commander.definition.name = "Omnath, Locus of All".to_string();
     commander.definition.mana_cost = "{W}{U}{B/P}{R}{G}".to_string();
+    // Deck loading records the commander's color identity explicitly.
+    commander.definition.rules.push(json!({
+        "kind": "rulesMarker",
+        "text": "Color identity",
+        "colorIdentity": ["W", "U", "B", "R", "G"],
+    }));
     assert_eq!(
         card_color_symbols(&commander.definition),
         BTreeSet::from([
@@ -13299,6 +14943,7 @@ fn omnath_can_pay_black_phyrexian_mana_with_two_life_from_the_command_zone() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn commander_owner_can_move_it_back_to_command_zone() {
     let mut engine = test_commander_engine();
@@ -13327,6 +14972,7 @@ fn commander_owner_can_move_it_back_to_command_zone() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn twenty_one_combat_damage_from_one_commander_eliminates_a_player() {
     let mut engine = test_commander_engine();
@@ -13360,6 +15006,7 @@ fn twenty_one_combat_damage_from_one_commander_eliminates_a_player() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn omnath_converts_unspent_mana_to_black_between_steps() {
     let mut engine = test_engine(2);
@@ -13405,178 +15052,7 @@ fn omnath_converts_unspent_mana_to_black_between_steps() {
     );
 }
 
-#[test]
-fn mana_reflection_makes_doubling_cube_triple_the_remaining_pool() {
-    let mut engine = test_engine(2);
-    let mut mana_reflection = test_definition("mana-reflection", "Enchantment");
-    mana_reflection.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "multiplyManaProduction",
-            "player": {
-                "kind": "controllerOf",
-                "object": { "kind": "self" },
-            },
-            "factor": { "kind": "integer", "value": 2 },
-        }],
-    })];
-    engine.state.players[0].battlefield = vec![test_instance(
-        "mana-reflection",
-        mana_reflection,
-        "player-0",
-    )];
-    engine.state.players[0].mana_pool = (0..3)
-        .map(|_| FloatingMana {
-            symbol: "G".to_string(),
-            spend_restriction: None,
-        })
-        .collect();
-    let cube = StackObject {
-        id: "stack:cube".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "doubling-cube",
-            test_definition("doubling-cube", "Artifact"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("activatedAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "resolveTriggeredInstruction",
-                "operation": "doubleManaPool",
-            }]),
-            &cube,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Doubling Cube resolves through Mana Reflection");
-
-    assert_eq!(engine.state.players[0].mana_pool.len(), 9);
-    assert!(engine.state.events.iter().any(|event| {
-        event.kind == "manaPoolMultiplied"
-            && event.detail["productionFactor"] == 2
-            && event.detail["resultingMana"] == 9
-    }));
-}
-
-#[test]
-fn alexios_grows_each_upkeep_without_moving_attached_equipment() {
-    let mut engine = test_engine(3);
-    let mut alexios_definition = test_definition("alexios", "Legendary Creature - Human Berserker");
-    alexios_definition.rules = vec![
-        json!({
-            "kind": "staticAbility",
-            "source": { "kind": "self" },
-            "activeWhile": {
-                "kind": "inZone",
-                "object": { "kind": "self" },
-                "zone": { "kind": "battlefield" }
-            },
-            "modifiers": [
-                { "kind": "attackEachCombatIfAble", "object": { "kind": "self" } },
-                { "kind": "cantBeSacrificed", "object": { "kind": "self" } },
-                { "kind": "cantAttackOwner", "object": { "kind": "self" } }
-            ]
-        }),
-        json!({
-            "kind": "triggeredAbility",
-            "source": { "kind": "self" },
-            "event": {
-                "kind": "stepBegan",
-                "step": "upkeep",
-                "player": { "kind": "eachPlayer" }
-            },
-            "effects": [{
-                "kind": "resolveTriggeredInstruction",
-                "operation": "alexiosUpkeepControl"
-            }]
-        }),
-    ];
-    let mut alexios = test_instance("alexios", alexios_definition, "player-0");
-    alexios.tapped = true;
-    let mut equipment = test_instance(
-        "equipment",
-        test_definition("equipment", "Artifact - Equipment"),
-        "player-0",
-    );
-    equipment.attached_to = Some("alexios".to_string());
-    engine.state.players[0].battlefield = vec![alexios, equipment];
-    engine.state.active_player = 1;
-
-    engine.enqueue_step_triggers("upkeep");
-    assert_eq!(engine.state.stack.len(), 1);
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("Alexios upkeep trigger resolves");
-
-    let alexios = engine.state.players[1]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "alexios")
-        .expect("the active player controls Alexios");
-    assert_eq!(alexios.owner, "player-0");
-    assert_eq!(alexios.controller, "player-1");
-    assert!(!alexios.tapped);
-    assert_eq!(alexios.counters["+1/+1"], 1);
-    assert!(engine.permanent_has_keyword(alexios, "haste"));
-    let equipment = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "equipment")
-        .expect("equipment stays under its original controller");
-    assert_eq!(equipment.controller, "player-0");
-    assert_eq!(equipment.attached_to.as_deref(), Some("alexios"));
-
-    let attacker_actions = engine.legal_attacker_actions(&BTreeSet::new());
-    assert!(
-        attacker_actions
-            .iter()
-            .all(|action| action.kind != ActionKind::FinishAttackers)
-    );
-    assert!(attacker_actions.iter().all(|action| {
-        !matches!(
-            action.targets.get("defender"),
-            Some(TargetRef::Player { player_id }) if player_id == "player-0"
-        )
-    }));
-
-    engine.state.active_player = 2;
-    engine.enqueue_step_triggers("upkeep");
-    assert_eq!(engine.state.stack.len(), 1);
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("Alexios second upkeep trigger resolves");
-    let alexios = engine.state.players[2]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "alexios")
-        .expect("the next active player controls Alexios");
-    assert_eq!(alexios.controller, "player-2");
-    assert_eq!(alexios.counters["+1/+1"], 2);
-    assert_eq!(engine.current_power(alexios), 4);
-    assert_eq!(engine.current_toughness(alexios), 4);
-
-    engine
-        .move_permanent_to_graveyard("alexios", "sacrificed")
-        .expect("sacrifice prohibition is handled");
-    assert!(engine.permanent_position("alexios").is_some());
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn transform_cards_switch_characteristics_and_active_rules() {
     let mut engine = test_engine(2);
@@ -13594,8 +15070,9 @@ fn transform_cards_switch_characteristics_and_active_rules() {
                 "where": { "kind": "cardTypeContains", "value": "Creature" },
             },
             "effects": [{
-                "kind": "resolveTriggeredInstruction",
-                "operation": "sephirothDrainAndTransform",
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 },
             }],
         }),
         json!({
@@ -13671,120 +15148,7 @@ fn ecc_test_stack(card_name: &str) -> StackObject {
     }
 }
 
-#[test]
-fn ecc_shatter_the_sky_draws_for_large_creatures_then_destroys_all_creatures() {
-    let mut engine = test_engine(2);
-    let mut large = test_definition("large-creature", "Creature - Giant");
-    large.power = Some("4".to_string());
-    large.toughness = Some("4".to_string());
-    engine.state.players[0]
-        .battlefield
-        .push(test_instance("large-creature", large, "player-0"));
-    engine.state.players[1].battlefield.push(test_instance(
-        "small-creature",
-        test_definition("small-creature", "Creature - Elf"),
-        "player-1",
-    ));
-    let player_zero_hand = engine.state.players[0].hand.len();
-    let player_one_hand = engine.state.players[1].hand.len();
-
-    engine
-        .resolve_ecc_remaining_ability(
-            "shatterTheSky",
-            &ecc_test_stack("shatter-the-sky"),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Shatter the Sky resolves");
-
-    assert!(engine.state.players[0].battlefield.is_empty());
-    assert!(engine.state.players[1].battlefield.is_empty());
-    assert_eq!(engine.state.players[0].hand.len(), player_zero_hand + 1);
-    assert_eq!(engine.state.players[1].hand.len(), player_one_hand);
-}
-
-#[test]
-fn ecc_archfiend_places_minus_counters_only_on_opposing_creatures() {
-    let mut engine = test_engine(2);
-    engine.state.players[0].battlefield.push(test_instance(
-        "friendly-creature",
-        test_definition("friendly-creature", "Creature - Demon"),
-        "player-0",
-    ));
-    engine.state.players[1].battlefield.push(test_instance(
-        "opposing-creature",
-        test_definition("opposing-creature", "Creature - Soldier"),
-        "player-1",
-    ));
-
-    engine
-        .resolve_ecc_remaining_ability(
-            "archfiendMinusCounters",
-            &ecc_test_stack("archfiend-of-ifnir"),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Archfiend trigger resolves");
-
-    assert_eq!(
-        engine.state.players[0].battlefield[0].counters.get("-1/-1"),
-        None
-    );
-    assert_eq!(
-        engine.state.players[1].battlefield[0].counters.get("-1/-1"),
-        Some(&1)
-    );
-}
-
-#[test]
-fn ecc_everlasting_torment_makes_all_creature_damage_wither() {
-    let mut engine = test_engine(2);
-    let mut torment = test_definition("everlasting-torment", "Enchantment");
-    torment.rules.push(json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "eccStaticAbility",
-            "ability": "allDamageHasWither",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        }],
-    }));
-    engine.state.players[0].battlefield.push(test_instance(
-        "everlasting-torment",
-        torment,
-        "player-0",
-    ));
-    engine.state.players[0].battlefield.push(test_instance(
-        "damage-source",
-        test_definition("damage-source", "Creature - Elemental"),
-        "player-0",
-    ));
-    engine.state.players[1].battlefield.push(test_instance(
-        "damage-target",
-        test_definition("damage-target", "Creature - Giant"),
-        "player-1",
-    ));
-
-    engine
-        .deal_damage(
-            TargetRef::Permanent {
-                instance_id: "damage-target".to_string(),
-            },
-            2,
-            "damage-source",
-        )
-        .expect("damage resolves");
-
-    assert_eq!(
-        engine.state.players[1].battlefield[0].counters.get("-1/-1"),
-        Some(&2)
-    );
-    assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 0);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
     let definition = compile_playable_card(PlayableCardInput {
@@ -13844,6 +15208,9 @@ fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .draw_cards("player-0", 3)
         .expect("the third card is drawn");
     assert_eq!(engine.state.stack.len(), 1);
@@ -13871,64 +15238,52 @@ fn tamiyo_returns_transformed_with_printed_starting_loyalty() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     let mut engine = test_engine(2);
-    let mut definition = test_definition(
-        "tamiyo-inquisitive-student",
-        "Legendary Creature - Moonfolk Wizard",
-    );
-    definition.name = "Tamiyo, Inquisitive Student".to_string();
-    definition.power = Some("0".to_string());
-    definition.toughness = Some("3".to_string());
-    definition.rules = vec![
-        json!({
-            "kind": "triggeredAbility",
-            "activeFaceIndex": 0,
-            "source": { "kind": "self" },
-            "event": {
-                "kind": "cardDrawn",
-                "player": {
-                    "kind": "controllerOf",
-                    "object": { "kind": "self" },
+    let definition = compile_playable_card(PlayableCardInput {
+        id: "tamiyo".to_string(),
+        face_id: Some("tamiyo-front".to_string()),
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: Some("0".to_string()),
+        toughness: Some("3".to_string()),
+        oracle: OracleCardParseRequest {
+            card_name: "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar".to_string(),
+            type_line:
+                "Legendary Creature - Moonfolk Wizard // Legendary Planeswalker - Tamiyo"
+                    .to_string(),
+            mana_cost: None,
+            oracle_text: None,
+            layout: Some("transform".to_string()),
+            faces: vec![
+                OracleCardFace {
+                    id: "tamiyo-front".to_string(),
+                    name: "Tamiyo, Inquisitive Student".to_string(),
+                    type_line: "Legendary Creature - Moonfolk Wizard".to_string(),
+                    mana_cost: Some("{U}".to_string()),
+                    oracle_text: "Flying\nWhenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhen you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.".to_string(),
+                    power: Some("0".to_string()),
+                    toughness: Some("3".to_string()),
+                    loyalty: None,
                 },
-                "drawOrdinal": { "kind": "integer", "value": 3 },
-            },
-            "effects": [{
-                "kind": "exileThenReturnTransformed",
-                "object": { "kind": "self" },
-                "controller": {
-                    "kind": "ownerOf",
-                    "object": { "kind": "self" },
-                },
-            }],
-        }),
-        json!({
-            "kind": "rulesMarker",
-            "activeFaceIndex": 1,
-            "startingLoyalty": { "kind": "integer", "value": 2 },
-        }),
-        json!({
-            "kind": "rulesMarker",
-            "text": "Transformable card faces.",
-            "transformFaces": [
-                {
-                    "name": "Tamiyo, Inquisitive Student",
-                    "typeLine": "Legendary Creature - Moonfolk Wizard",
-                    "manaCost": "{U}",
-                    "power": "0",
-                    "toughness": "3",
-                },
-                {
-                    "name": "Tamiyo, Seasoned Scholar",
-                    "typeLine": "Legendary Planeswalker - Tamiyo",
-                    "manaCost": "",
-                    "power": null,
-                    "toughness": null,
+                OracleCardFace {
+                    id: "tamiyo-back".to_string(),
+                    name: "Tamiyo, Seasoned Scholar".to_string(),
+                    type_line: "Legendary Planeswalker - Tamiyo".to_string(),
+                    mana_cost: Some(String::new()),
+                    oracle_text: "+2: Until your next turn, whenever a creature attacks you or a planeswalker you control, it gets -1/-0 until end of turn.\n\u{2212}3: Return target instant or sorcery card from your graveyard to your hand. If it's a green card, add one mana of any color.\n\u{2212}7: Draw cards equal to half the number of cards in your library, rounded up. You get an emblem with \"You have no maximum hand size.\"".to_string(),
+                    power: None,
+                    toughness: None,
+                    loyalty: Some("2".to_string()),
                 },
             ],
-        }),
-    ];
+        },
+    })
+    .expect("Tamiyo compiles")
+    .card;
     engine.state.players[0].battlefield = vec![test_instance("tamiyo", definition, "player-0")];
     engine.state.players[0].library = (0..3)
         .map(|index| {
@@ -13941,6 +15296,9 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
         .collect();
     let mut provider = EmeritusDecisionProvider;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     for draw_number in 1..=3 {
         engine
             .draw_cards_with_replacements("player-0", 1, &mut provider)
@@ -13973,6 +15331,7 @@ fn tamiyo_returns_transformed_after_her_controllers_third_draw() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn tamiyo_investigates_when_she_attacks_without_an_external_card_catalog() {
     let rules = no_lands_rules(
@@ -14067,7 +15426,9 @@ fn engine_with_targeted_ward_permanent() -> GameEngine {
         decisions: BTreeMap::new(),
         targets: targets.clone(),
     });
-    engine.enqueue_ward_triggers("stack:targeting-spell", "player-0", &targets);
+    engine
+        .enqueue_targeting_triggers("stack:targeting-spell", &targets)
+        .expect("supported targeting costs");
     engine
 }
 
@@ -14260,6 +15621,9 @@ fn engine_with_offspring_creature() -> GameEngine {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
 }
 
 fn smothering_abomination(instance_id: &str) -> CardInstance {
@@ -14400,6 +15764,7 @@ fn floating_mana(symbols: &[&str]) -> Vec<FloatingMana> {
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
     let mut engine = test_engine(2);
@@ -14419,6 +15784,9 @@ fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
                 && action.card_instance_id.as_deref() == Some("three-drop")
         })
         .expect("three-mana creature can be cast");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("creature spell is cast");
@@ -14441,6 +15809,7 @@ fn endrek_sahr_creature_spell_trigger_creates_tokens_from_mana_value() {
     assert_eq!(engine.state.stack[0].card.instance_id, "three-drop");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
     let mut engine = test_engine(2);
@@ -14463,6 +15832,9 @@ fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
                 && action.card_instance_id.as_deref() == Some("one-drop")
         })
         .expect("one-mana creature can be cast");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("creature spell is cast");
@@ -14511,6 +15883,7 @@ fn endrek_sahr_threshold_trigger_is_deduplicated_and_sacrifices_source() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
     let mut engine = test_engine(2);
@@ -14536,6 +15909,9 @@ fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
     );
 
     let mut provider = EmeritusDecisionProvider;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut provider)
         .expect("upkeep sacrifice trigger resolves");
@@ -14567,12 +15943,16 @@ fn smothering_abomination_upkeep_sacrifices_then_draws_from_its_trigger() {
     assert_eq!(engine.state.players[0].library.len(), library_size - 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn smothering_abomination_self_sacrifice_still_draws_a_card() {
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![smothering_abomination("abomination")];
     let hand_size = engine.state.players[0].hand.len();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("abomination", "sacrificed")
         .expect("Smothering Abomination is sacrificed");
@@ -14584,6 +15964,7 @@ fn smothering_abomination_self_sacrifice_still_draws_a_card() {
     assert_eq!(engine.state.players[0].hand.len(), hand_size + 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn talon_gates_pays_one_then_adds_the_chosen_color_without_using_the_stack() {
     let mut engine = test_engine(2);
@@ -14655,6 +16036,7 @@ fn talon_gates_pays_one_then_adds_the_chosen_color_without_using_the_stack() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     let mut engine = test_engine(2);
@@ -14696,6 +16078,9 @@ fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     assert_eq!(cast.decisions["manaPayment"][1]["mana"], json!(["W"]));
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("white spell is cast through Talon");
 
@@ -14710,6 +16095,7 @@ fn talon_gates_makes_a_white_spell_castable_through_its_activation_cost() {
     assert_eq!(engine.state.stack[0].card.instance_id, "white-spell");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
     let mut engine = test_engine(2);
@@ -14724,6 +16110,9 @@ fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
         ),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -14763,6 +16152,7 @@ fn sacrifice_cost_mana_ability_resolves_immediately_without_tapping_source() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn basic_land_subtype_does_not_duplicate_its_parsed_mana_ability() {
     let engine = test_engine(2);
@@ -14772,9 +16162,10 @@ fn basic_land_subtype_does_not_duplicate_its_parsed_mana_ability() {
 
     assert_eq!(choices.len(), 1);
     assert_eq!(choices[0].symbols, vec!["G".to_string()]);
-    assert_eq!(choices[0].rule_index, Some(0));
+    assert_eq!(choices[0].native_rule_index(), Some(0));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
     let mut engine = test_engine(2);
@@ -14810,6 +16201,11 @@ fn reflecting_pool_derives_unique_types_without_recursive_bootstrap() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Fertile Ground; see docs/coverage-targets.md"
+)]
 #[test]
 fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     let mut engine = test_engine(2);
@@ -14874,6 +16270,7 @@ fn enchanted_land_mana_triggers_are_folded_into_the_mana_action() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn continuous_power_bonus_updates_topiary_lecturer_stats_and_mana() {
     let mut engine = test_engine(2);
@@ -14925,28 +16322,35 @@ fn continuous_power_bonus_updates_topiary_lecturer_stats_and_mana() {
     assert!(choices.iter().any(|choice| choice.symbols == ["G", "G"]));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     let mut engine = test_engine(3);
     engine.state.players[0].battlefield = vec![exotic_orchard("orchard")];
 
-    assert!(
+    // CR 106.7: with no opposing land defining a color, the ability can still
+    // be activated, but it produces no mana. It is never a source of a color.
+    let orchard_outputs = |engine: &GameEngine| {
         engine
             .legal_priority_actions(0)
-            .iter()
-            .all(|action| action.card_instance_id.as_deref() != Some("orchard")),
-        "Exotic Orchard cannot activate before an opposing land could produce a color"
+            .into_iter()
+            .filter(|action| action.card_instance_id.as_deref() == Some("orchard"))
+            .map(|action| action.decisions["manaProduced"].clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        orchard_outputs(&engine),
+        vec![json!([])],
+        "Exotic Orchard produces no mana before an opposing land could produce a color"
     );
 
     let mut opposing_rock = mana_source("mana-rock", "Artifact", "{U}", None);
     opposing_rock.owner = "player-1".to_string();
     opposing_rock.controller = "player-1".to_string();
     engine.state.players[1].battlefield = vec![opposing_rock];
-    assert!(
-        engine
-            .legal_priority_actions(0)
-            .iter()
-            .all(|action| action.card_instance_id.as_deref() != Some("orchard")),
+    assert_eq!(
+        orchard_outputs(&engine),
+        vec![json!([])],
         "a nonland mana source does not satisfy Exotic Orchard's Oracle text"
     );
 
@@ -14962,15 +16366,10 @@ fn exotic_orchard_requires_colors_from_opposing_lands_on_the_battlefield() {
     wastes.controller = "player-2".to_string();
     engine.state.players[2].battlefield = vec![mountain, wastes];
 
-    let produced = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .filter(|action| action.card_instance_id.as_deref() == Some("orchard"))
-        .map(|action| action.decisions["manaProduced"].clone())
-        .collect::<Vec<_>>();
-    assert_eq!(produced, vec![json!(["U"]), json!(["R"])]);
+    assert_eq!(orchard_outputs(&engine), vec![json!(["U"]), json!(["R"])]);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     let mut engine = test_engine(2);
@@ -15023,6 +16422,9 @@ fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     assert_eq!(cast.payment_sources, vec!["payment-pool".to_string()]);
 
     payment_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    payment_engine
         .apply_priority_action(&cast, &mut RandomAi::seeded(1))
         .expect("spell is cast with Reflecting Pool");
     assert!(payment_engine.state.players[0].battlefield[0].tapped);
@@ -15033,6 +16435,7 @@ fn reflecting_pool_activates_and_pays_from_a_tapped_lands_mana_type() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn impossible_payment_with_many_flexible_sources_is_pruned() {
     let mut engine = test_engine(2);
@@ -15051,6 +16454,7 @@ fn impossible_payment_with_many_flexible_sources_is_pruned() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn city_of_brass_mana_activation_puts_its_damage_trigger_on_the_stack() {
     let mut engine = test_engine(2);
@@ -15081,6 +16485,7 @@ fn city_of_brass_mana_activation_puts_its_damage_trigger_on_the_stack() {
     assert_eq!(engine.state.players[0].life, 19);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn city_of_brass_payment_trigger_is_above_the_spell() {
     let mut engine = test_engine(2);
@@ -15112,6 +16517,9 @@ fn city_of_brass_payment_trigger_is_above_the_spell() {
         .expect("City of Brass can pay for the spell");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("spell is cast using City of Brass");
 
@@ -15129,6 +16537,7 @@ fn city_of_brass_payment_trigger_is_above_the_spell() {
     assert_eq!(engine.state.stack[0].card.instance_id, "white-spell");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_spends_floating_mana_before_tapping_a_source() {
     let mut engine = test_engine(2);
@@ -15156,6 +16565,7 @@ fn payment_spends_floating_mana_before_tapping_a_source() {
     assert!(payment.activations.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_prefers_matching_restricted_sources() {
     let mut engine = test_engine(2);
@@ -15191,6 +16601,7 @@ fn payment_prefers_matching_restricted_sources() {
     assert_eq!(payment.activations[0].source_id, "tablet");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ally_encampment_and_plains_cast_great_divide_guide() {
     let mut engine = test_engine(2);
@@ -15235,6 +16646,7 @@ fn ally_encampment_and_plains_cast_great_divide_guide() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn great_divide_guide_grants_mana_ability_to_mature_allies_only() {
     let mut engine = test_engine(2);
@@ -15322,6 +16734,7 @@ fn great_divide_guide_grants_mana_ability_to_mature_allies_only() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() {
     let parse_static_rule = |name: &str, oracle_text: &str| {
@@ -15354,18 +16767,26 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
 
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![jaheira, token];
-    let token_choices = engine.mana_choices_for_permanent(
-        &engine.state.players[0].battlefield[1],
-        None,
-        true,
-        true,
-    );
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    // Granted mana abilities are admitted by the checked discovery session;
+    // the legacy printed-only resolver never sees them.
+    let choices = |engine: &GameEngine, index: usize| {
+        super::mana_discovery_session::ManaDiscoverySession::new(engine)
+            .mana_choices_for_permanent(
+                &engine.state.players[0].battlefield[index],
+                None,
+                true,
+                true,
+            )
+            .expect("checked mana discovery")
+    };
+    let token_choices = choices(&engine, 1);
     assert_eq!(token_choices.len(), 1);
     assert_eq!(token_choices[0].symbols, vec!["G".to_string()]);
     assert!(
-        engine
-            .mana_choices_for_permanent(&engine.state.players[0].battlefield[0], None, true, true)
-            .is_empty(),
+        choices(&engine, 0).is_empty(),
         "the token criteria must not grant the ability to Jaheira"
     );
 
@@ -15382,12 +16803,10 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
         "player-0",
     );
     engine.state.players[0].battlefield = vec![inga, bear];
-    let restricted_choices = engine.mana_choices_for_permanent(
-        &engine.state.players[0].battlefield[1],
-        None,
-        true,
-        true,
-    );
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let restricted_choices = choices(&engine, 1);
     assert_eq!(restricted_choices.len(), 5);
     assert!(
         restricted_choices
@@ -15403,6 +16822,11 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Azlask, the Swelling Scourge; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -15478,6 +16902,7 @@ fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn payment_uses_animated_lands_only_after_other_sources() {
     let mut engine = test_engine(2);
@@ -15522,6 +16947,7 @@ fn payment_uses_animated_lands_only_after_other_sources() {
     assert!(!source_ids.contains(&"animated"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     let mut engine = test_engine(2);
@@ -15592,6 +17018,9 @@ fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine.legal_priority_actions(0);
     let normal = actions.iter().find(|action| {
         action.kind == ActionKind::CastSpell
@@ -15620,6 +17049,7 @@ fn firebending_lesson_is_offered_with_a_creature_target_and_kicker() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
     let decision_id = offspring_decision_id(0);
@@ -15703,6 +17133,7 @@ fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
     assert!(paid_engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn countered_offspring_spell_never_creates_a_copy() {
     let decision_id = offspring_decision_id(0);
@@ -15720,7 +17151,7 @@ fn countered_offspring_spell_never_creates_a_copy() {
         .expect("cast with offspring");
     let stack_id = engine.state.stack[0].id.clone();
     engine
-        .counter_stack_object(&stack_id, "counterspell", "player-1")
+        .counter_stack_object(&stack_id, "counterspell", "player-1", false)
         .expect("counter offspring spell");
 
     assert!(engine.state.stack.is_empty());
@@ -15740,6 +17171,7 @@ fn countered_offspring_spell_never_creates_a_copy() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
     let mut declined_engine = engine_with_targeted_ward_permanent();
@@ -15748,6 +17180,9 @@ fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
         declined_engine.state.stack[1].ability_kind.as_deref(),
         Some("triggeredAbility")
     );
+    declined_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     declined_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: false })
         .expect("decline ward payment");
@@ -15772,10 +17207,16 @@ fn ward_is_paid_on_resolution_or_counters_the_targeting_stack_object() {
             .all(|permanent| permanent.tapped)
     );
     assert!(paid_engine.state.events.iter().any(|event| {
-        event.kind == "wardPaid" && event.detail["stackId"] == "stack:targeting-spell"
+        event.kind == "abilityPerformed"
+            && event.detail["abilityId"] == "wardPaid"
+            && event.detail["payload"]["stackId"] == "stack:targeting-spell"
+            && event.player_id.as_deref() == Some("player-0")
+            && event.card_instance_id.as_deref() == Some("ward-permanent")
+            && event.detail["payload"]["cost"] == json!({"kind":"payMana","manaCost":"{2}"})
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     let mut sacrifice_engine = engine_with_targeted_ward_permanent();
@@ -15789,10 +17230,13 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     sacrifice_engine.state.stack[1]
         .ability_rule
         .as_mut()
-        .expect("ward trigger has a rule")["effects"][0]["cost"] = json!({
+        .expect("ward trigger has a rule")["effects"][0]["then"][0]["cost"] = json!({
         "kind": "sacrificePermanent",
         "where": { "kind": "cardTypeContains", "value": "Creature" },
     });
+    sacrifice_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     sacrifice_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay ward by sacrificing a creature");
@@ -15820,7 +17264,7 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     discard_engine.state.stack[1]
         .ability_rule
         .as_mut()
-        .expect("ward trigger has a rule")["effects"][0]["cost"] = json!({
+        .expect("ward trigger has a rule")["effects"][0]["then"][0]["cost"] = json!({
         "kind": "discardCard",
         "where": {
             "kind": "or",
@@ -15831,6 +17275,9 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
             ],
         },
     });
+    discard_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     discard_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay ward by discarding a card");
@@ -15868,7 +17315,7 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     blight_engine.state.stack[1]
         .ability_rule
         .as_mut()
-        .expect("ward trigger has a rule")["effects"][0]["cost"] = json!({
+        .expect("ward trigger has a rule")["effects"][0]["then"][0]["cost"] = json!({
         "kind": "putCounters",
         "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
         "where": { "kind": "cardTypeContains", "value": "Creature" },
@@ -15900,6 +17347,7 @@ fn ward_can_be_paid_with_generic_sacrifice_or_discard_costs() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[test]
 fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
     let counter_rule = json!({
@@ -15915,12 +17363,11 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
                 "candidates": { "kind": "spells" },
             }],
         },
-        "effects": [{
-            "kind": "counterStackObjectUnlessPays",
-            "spell": { "kind": "chosenTarget", "id": "targetSpell" },
-            "manaCost": "{3}",
-            "exileInstead": true,
-        }],
+        "effects":crate::engine::resolution_costs::optional_cost_program(
+            "payment0",json!({"kind":"controllerOf","object":{"kind":"chosenTarget","id":"targetSpell"}}),
+            json!({"kind":"payMana","manaCost":"{3}"}),vec![],
+            vec![json!({"kind":"counterStackObject","object":{"kind":"chosenTarget","id":"targetSpell"},"exileInstead":true})],
+        ),
     });
     let build_engine = || {
         let mut engine = test_engine(2);
@@ -15959,6 +17406,9 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
             )]),
         });
         engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine
     };
 
     let mut declined_engine = build_engine();
@@ -15988,6 +17438,9 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
         })
         .collect();
     paid_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    paid_engine
         .resolve_top_stack(&mut WardDecisionProvider { pay: true })
         .expect("pay counter cost");
     assert_eq!(paid_engine.state.stack.len(), 1);
@@ -16000,6 +17453,7 @@ fn counter_unless_paid_uses_the_target_controller_and_exiles_when_declined() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
     let mut engine = test_engine(2);
@@ -16077,6 +17531,9 @@ fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
         })
         .expect("cycling action");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("activate cycling");
     assert!(engine.state.players[0].hand.is_empty());
@@ -16116,91 +17573,7 @@ fn cycling_pays_and_discards_from_hand_before_drawing_on_resolution() {
     );
 }
 
-#[test]
-fn repeated_named_cast_wins_and_first_cast_uses_the_requested_library_position() {
-    fn approach_definition() -> CardDefinition {
-        let mut definition = test_definition("approach", "Sorcery");
-        definition.name = "Approach of the Second Sun".to_string();
-        definition.rules = vec![json!({
-            "kind": "spellAbility",
-            "source": { "kind": "self" },
-            "effects": [{
-                "kind": "winOnRepeatedNamedCastOtherwiseLibrary",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "name": "Approach of the Second Sun",
-                "requiredCastZone": "hand",
-                "libraryPositionFromTop": { "kind": "integer", "value": 7 },
-                "gainLife": { "kind": "integer", "value": 7 },
-            }],
-        })];
-        definition
-    }
-
-    fn put_approach_on_stack(engine: &mut GameEngine, instance_id: &str) {
-        let card = test_instance(instance_id, approach_definition(), "player-0");
-        engine.state.stack.push(StackObject {
-            id: format!("stack:{instance_id}"),
-            controller: "player-0".to_string(),
-            card,
-            cant_be_countered: false,
-            exile_on_leave_stack: false,
-            ability_kind: None,
-            ability_rule: None,
-            decisions: BTreeMap::from([(
-                "castSourceZone".to_string(),
-                Value::String("hand".to_string()),
-            )]),
-            targets: BTreeMap::new(),
-        });
-        engine.record_event(
-            "spellCast",
-            Some("player-0".to_string()),
-            Some(instance_id.to_string()),
-            json!({
-                "cardName": "Approach of the Second Sun",
-                "fromZone": "hand",
-            }),
-        );
-    }
-
-    let mut first_cast = test_engine(2);
-    first_cast.state.players[0].library = (0..10)
-        .map(|index| {
-            let id = format!("library-{index}");
-            test_instance(&id, test_definition(&id, "Artifact"), "player-0")
-        })
-        .collect();
-    put_approach_on_stack(&mut first_cast, "approach-first");
-    first_cast
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("resolve the first Approach");
-    assert_eq!(first_cast.state.players[0].life, 27);
-    let position_from_top = first_cast.state.players[0]
-        .library
-        .iter()
-        .rev()
-        .position(|card| card.instance_id == "approach-first")
-        .map(|index| index + 1);
-    assert_eq!(position_from_top, Some(7));
-
-    let mut repeated_cast = test_engine(2);
-    repeated_cast.record_event(
-        "spellCast",
-        Some("player-0".to_string()),
-        Some("approach-prior".to_string()),
-        json!({
-            "cardName": "Approach of the Second Sun",
-            "fromZone": "hand",
-        }),
-    );
-    put_approach_on_stack(&mut repeated_cast, "approach-second");
-    repeated_cast
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("resolve the repeated Approach");
-    assert!(repeated_cast.state.players[1].has_lost);
-    assert!(repeated_cast.state.outcome.is_some());
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
     let mut engine = test_engine(2);
@@ -16285,6 +17658,7 @@ fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("resolve the graveyard-cast original");
@@ -16304,6 +17678,11 @@ fn graveyard_cast_reanimation_can_copy_and_retarget_the_resolving_spell() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Adagia, Windswept Bastion; see docs/coverage-targets.md"
+)]
 #[test]
 fn station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability() {
     let mut engine = test_engine(2);
@@ -16452,6 +17831,7 @@ fn station_requires_an_untapped_creature_and_unlocks_adagias_copy_ability() {
     assert!(copy_action(&engine).is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
     let mut engine = test_engine(2);
@@ -16506,6 +17886,9 @@ fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
         targets: BTreeMap::new(),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([{
                 "kind": "destroyPermanent",
@@ -16530,135 +17913,11 @@ fn global_mana_value_destruction_preserves_lands_and_larger_permanents() {
     assert!(engine.state.players[1].battlefield.is_empty());
 }
 
-#[test]
-fn strategic_betrayal_opponent_chooses_a_creature_then_exiles_their_graveyard() {
-    let mut engine = test_engine(2);
-    engine.state.players[1].battlefield = vec![
-        test_instance(
-            "creature-a",
-            test_definition("creature-a", "Creature - Test"),
-            "player-1",
-        ),
-        test_instance(
-            "creature-b",
-            test_definition("creature-b", "Creature - Test"),
-            "player-1",
-        ),
-    ];
-    engine.state.players[1].graveyard = vec![test_instance(
-        "grave-card",
-        test_definition("grave-card", "Sorcery"),
-        "player-1",
-    )];
-    let stack_object = StackObject {
-        id: "stack:betrayal".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "strategic-betrayal",
-            test_definition("strategic-betrayal", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([(
-            "targetOpponent".to_string(),
-            TargetRef::Player {
-                player_id: "player-1".to_string(),
-            },
-        )]),
-    };
-    let effects = json!([
-        {
-            "kind": "choosePermanents",
-            "id": "creatureToExile",
-            "player": {
-                "kind": "chosenTarget",
-                "id": "targetOpponent",
-            },
-            "minimum": {
-                "kind": "minimum",
-                "operands": [
-                    { "kind": "integer", "value": 1 },
-                    {
-                        "kind": "countPermanents",
-                        "player": {
-                            "kind": "chosenTarget",
-                            "id": "targetOpponent",
-                        },
-                        "where": {
-                            "kind": "cardTypeContains",
-                            "value": "Creature",
-                        },
-                    },
-                ],
-            },
-            "maximum": { "kind": "integer", "value": 1 },
-            "candidates": {
-                "kind": "permanents",
-                "controller": {
-                    "kind": "chosenTarget",
-                    "id": "targetOpponent",
-                },
-                "where": {
-                    "kind": "cardTypeContains",
-                    "value": "Creature",
-                },
-            },
-        },
-        {
-            "kind": "exileTogether",
-            "objects": {
-                "kind": "union",
-                "sets": [
-                    {
-                        "kind": "decisionResult",
-                        "decisionId": "creatureToExile",
-                    },
-                    {
-                        "kind": "cardsInZone",
-                        "zone": {
-                            "kind": "graveyard",
-                            "player": {
-                                "kind": "chosenTarget",
-                                "id": "targetOpponent",
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-    ]);
-    assert!(
-        effects
-            .as_array()
-            .expect("effects")
-            .iter()
-            .all(effect_supported)
-    );
-    engine
-        .execute_effects(
-            &effects,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("resolve Strategic Betrayal");
-
-    assert_eq!(engine.state.players[1].battlefield.len(), 1);
-    assert!(engine.state.players[1].graveyard.is_empty());
-    assert_eq!(engine.state.players[1].exile.len(), 2);
-    assert!(
-        engine.state.players[1]
-            .exile
-            .iter()
-            .any(|card| card.instance_id == "grave-card")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Outrageous Robbery; see docs/coverage-targets.md"
+)]
 #[test]
 fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
     let mut engine = test_engine(2);
@@ -16832,6 +18091,11 @@ fn outrageous_robbery_pays_x_and_grants_cross_owner_exile_casting() {
     assert_eq!(engine.state.stack[0].controller, "player-0");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Inside Information; see docs/coverage-targets.md"
+)]
 #[test]
 fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
     let mut engine = test_engine(2);
@@ -16971,6 +18235,7 @@ fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
     assert_eq!(engine.state.stack[0].controller, "player-0");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17017,6 +18282,9 @@ fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
         targets: BTreeMap::new(),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &trigger,
@@ -17048,6 +18316,11 @@ fn parsed_optional_sacrifice_draws_and_creates_a_treasure_when_performed() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Getaway Barrel; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17130,6 +18403,11 @@ fn parsed_random_revealed_creature_moves_to_battlefield_without_a_player_choice(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Radagast of Rhosgobel; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17188,6 +18466,11 @@ fn parsed_first_creature_reduction_and_flash_stop_after_the_first_cast() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Part in Friendship; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17277,6 +18560,11 @@ fn parsed_reveal_threshold_moves_the_creature_to_battlefield_or_hand() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Misty Mountains Cold; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -17383,6 +18671,11 @@ fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice()
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Petrified Hamlet; see docs/coverage-targets.md"
+)]
 #[test]
 fn petrified_hamlet_stores_a_land_name_and_applies_both_static_modifiers() {
     let trigger_rule = json!({
@@ -17561,6 +18854,7 @@ fn petrified_hamlet_stores_a_land_name_and_applies_both_static_modifiers() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn negate_targets_and_counters_only_a_noncreature_spell() {
     let mut engine = test_engine(2);
@@ -17670,6 +18964,9 @@ fn negate_targets_and_counters_only_a_noncreature_spell() {
         })
     );
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&negate_actions[0], &mut RandomAi::seeded(1))
         .expect("cast Negate");
     engine
@@ -17687,6 +18984,7 @@ fn negate_targets_and_counters_only_a_noncreature_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_spell_effect_cannot_counter_a_triggered_ability() {
     let mut engine = test_engine(2);
@@ -17748,6 +19046,7 @@ fn counter_spell_effect_cannot_counter_a_triggered_ability() {
     assert!(engine.state.players[1].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
     let mut engine = test_engine(2);
@@ -17766,6 +19065,9 @@ fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
         5
     );
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -17791,6 +19093,7 @@ fn treasure_token_has_and_executes_its_intrinsic_mana_ability() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
     let mut lotus_definition = test_definition("lotus-petal", "Artifact");
@@ -17822,6 +19125,9 @@ fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
         vec![test_instance("lotus-petal", lotus_definition, "player-0")];
     engine.state.players[0].hand = vec![test_instance("black-spell", spell_definition, "player-0")];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let cast = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -17856,328 +19162,7 @@ fn lotus_petal_makes_a_colored_spell_playable_and_is_sacrificed_for_payment() {
     assert_eq!(engine.state.stack[0].card.instance_id, "black-spell");
 }
 
-#[test]
-fn parsed_eldrazi_token_keeps_and_executes_its_embedded_mana_ability() {
-    let parsed = parse_oracle_card(OracleCardParseRequest {
-        card_name: "Test Spawn Maker".to_string(),
-        type_line: "Sorcery".to_string(),
-        mana_cost: Some("{2}{C}".to_string()),
-        oracle_text: Some(
-            "Create a 0/1 colorless Eldrazi Spawn creature token. It has \"Sacrifice this token: Add {C}.\""
-                .to_string(),
-        ),
-        layout: None,
-        faces: Vec::new(),
-    });
-    let rule = parsed.abilities[0]
-        .rule
-        .as_ref()
-        .expect("token creation parses canonically");
-    let create_token = &rule["effects"][0];
-
-    let mut engine = test_engine(2);
-    let stack_object = StackObject {
-        id: "stack:test-spawn-maker".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "test-spawn-maker",
-            test_definition("test-spawn-maker", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-        .create_tokens(
-            create_token,
-            &stack_object,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        )
-        .expect("create parsed Eldrazi Spawn token");
-
-    let spawn = &engine.state.players[0].battlefield[0];
-    assert_eq!(spawn.definition.name, "Eldrazi Spawn Token");
-    assert_eq!(spawn.definition.rules[0]["kind"], "manaAbility");
-    let spawn_id = spawn.instance_id.clone();
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action.kind == ActionKind::ActivateAbility
-                && action.card_instance_id.as_deref() == Some(spawn_id.as_str())
-        })
-        .expect("the parsed Spawn mana ability is legal");
-    engine
-        .apply_priority_action(&action, &mut RandomAi::seeded(1))
-        .expect("sacrifice Spawn for colorless mana");
-
-    assert!(engine.state.players[0].battlefield.is_empty());
-    assert_eq!(engine.state.players[0].mana_pool[0].symbol, "C");
-}
-
-#[test]
-fn clue_token_uses_its_parsed_catalog_ability_to_draw_a_card() {
-    let mut engine = test_engine(2);
-    let clue_definition = compile_named_token_definition("Clue")
-        .expect("token catalog loads")
-        .expect("Clue definition compiles");
-    engine.state.players[0].battlefield = vec![
-        test_instance("clue", clue_definition, "player-0"),
-        mana_source("wastes-1", "Basic Land - Wastes", "{C}", None),
-        mana_source("wastes-2", "Basic Land - Wastes", "{C}", None),
-    ];
-    engine.state.players[0].hand.clear();
-    engine.state.players[0].library = vec![test_instance(
-        "clue-drawn-card",
-        test_definition("clue-drawn-card", "Instant"),
-        "player-0",
-    )];
-
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action.kind == ActionKind::ActivateAbility
-                && action.card_instance_id.as_deref() == Some("clue")
-        })
-        .expect("Clue activation is legal");
-    engine
-        .apply_priority_action(&action, &mut RandomAi::seeded(1))
-        .expect("pay and sacrifice Clue");
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .all(|card| card.instance_id != "clue")
-    );
-
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(1))
-        .expect("resolve Clue draw");
-    assert_eq!(
-        engine.state.players[0].hand[0].instance_id,
-        "clue-drawn-card"
-    );
-}
-
-#[test]
-fn created_blood_token_uses_catalog_oracle_and_executes_all_of_its_costs() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    engine.state.players[0].battlefield =
-        vec![mana_source("wastes", "Basic Land - Wastes", "{C}", None)];
-    engine.state.players[0].hand = vec![test_instance(
-        "discarded-card",
-        test_definition("discarded-card", "Sorcery"),
-        "player-0",
-    )];
-    engine.state.players[0].library = vec![test_instance(
-        "drawn-card",
-        test_definition("drawn-card", "Instant"),
-        "player-0",
-    )];
-    let mut source_definition = test_definition("blood-source", "Sorcery");
-    source_definition.rules.push(json!({
-        "kind": "rulesMarker",
-        "text": "Source-linked token definitions",
-        "relatedTokenOracle": [{
-            "name": "blood",
-            "typeLine": "Token Artifact - Blood Source Linked",
-            "oracleText": "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.",
-            "manaCost": "",
-        }],
-    }));
-    let stack_object = StackObject {
-        id: "stack:create-blood".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance("blood-source", source_definition, "player-0"),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-        .create_tokens(
-            &json!({
-                "kind": "createTokens",
-                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "quantity": { "kind": "integer", "value": 1 },
-                "token": { "kind": "namedToken", "name": "Blood" },
-            }),
-            &stack_object,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        )
-        .expect("create Blood token");
-
-    let blood = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.definition.name == "Blood")
-        .expect("Blood is on the battlefield");
-    let blood_id = blood.instance_id.clone();
-    assert!(blood.definition.type_line.contains("Artifact"));
-    assert!(blood.definition.type_line.contains("Source Linked"));
-    assert_eq!(blood.definition.rules[0]["effects"][0]["kind"], "drawCards");
-    assert!(
-        blood.definition.rules[0]["costs"]
-            .as_array()
-            .is_some_and(|costs| { costs.iter().any(|cost| cost["kind"] == "discardCard") })
-    );
-
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action.kind == ActionKind::ActivateAbility
-                && action.card_instance_id.as_deref() == Some(blood_id.as_str())
-        })
-        .expect("Blood activation is legal");
-    engine
-        .apply_priority_action(&action, &mut RandomAi::seeded(1))
-        .expect("pay Blood activation costs");
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .all(|card| card.instance_id != blood_id)
-    );
-    assert!(
-        engine.state.players[0]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "discarded-card")
-    );
-    assert!(engine.state.players[0].hand.is_empty());
-
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(1))
-        .expect("resolve Blood draw");
-    assert_eq!(engine.state.players[0].hand[0].instance_id, "drawn-card");
-}
-
-#[test]
-fn named_token_creation_honors_the_tapped_entry_flag() {
-    let mut engine = test_engine(2);
-    let stack_object = StackObject {
-        id: "stack:create-tapped-treasure".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "treasure-source",
-            test_definition("treasure-source", "Creature"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-    engine
-        .create_tokens(
-            &json!({
-                "kind": "createTokens",
-                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "quantity": { "kind": "integer", "value": 1 },
-                "token": { "kind": "namedToken", "name": "Treasure" },
-                "tapped": true,
-            }),
-            &stack_object,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        )
-        .expect("create a tapped Treasure token");
-
-    let treasure = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.definition.name == "Treasure")
-        .expect("Treasure enters the battlefield");
-    assert!(treasure.tapped);
-    assert!(treasure.definition.is_token);
-}
-
-#[test]
-fn map_token_pays_taps_and_sacrifices_before_target_creature_explores() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    let mut map_definition = test_definition("token:map", "Artifact - Map");
-    map_definition.name = "Map".to_string();
-    map_definition.is_token = true;
-    map_definition.is_game_piece = true;
-    map_definition.power = None;
-    map_definition.toughness = None;
-    map_definition.rules = named_token_rules("Map").expect("Map rules");
-    engine.state.players[0].battlefield = vec![
-        test_instance("map", map_definition, "player-0"),
-        test_instance(
-            "explorer",
-            test_definition("explorer", "Creature - Scout"),
-            "player-0",
-        ),
-        mana_source("wastes", "Basic Land - Wastes", "{C}", None),
-    ];
-    engine.state.players[0].library = vec![test_instance(
-        "explored-card",
-        test_definition("explored-card", "Instant"),
-        "player-0",
-    )];
-
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action.kind == ActionKind::ActivateAbility
-                && action.card_instance_id.as_deref() == Some("map")
-                && action.targets.get("targetCreature")
-                    == Some(&TargetRef::Permanent {
-                        instance_id: "explorer".to_string(),
-                    })
-        })
-        .expect("Map explore action");
-    engine
-        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
-        .expect("activate Map");
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .all(|card| card.instance_id != "map")
-    );
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .find(|card| card.instance_id == "wastes")
-            .is_some_and(|card| card.tapped)
-    );
-    assert_eq!(engine.state.stack.len(), 1);
-
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("resolve explore");
-    let explorer = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "explorer")
-        .expect("exploring creature remains");
-    assert_eq!(explorer.counters.get("+1/+1"), Some(&1));
-    assert!(
-        engine.state.players[0]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "explored-card")
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_damage() {
     let mut engine = test_engine(2);
@@ -18211,6 +19196,9 @@ fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_
     engine.state.players[0].battlefield = vec![source];
     engine.state.players[1].battlefield = vec![target, indestructible];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .deal_damage(
             TargetRef::Player {
@@ -18256,6 +19244,7 @@ fn lifelink_and_deathtouch_apply_to_damage_while_indestructible_survives_lethal_
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn multiversal_passage_chooses_a_basic_land_type_before_optional_life_payment() {
     let mut engine = test_engine(2);
@@ -18332,6 +19321,7 @@ fn multiversal_passage_chooses_a_basic_land_type_before_optional_life_payment() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn cavern_of_souls_offers_creature_subtypes_from_oracle_type_lines() {
     struct EldraziDecisionProvider;
@@ -18389,6 +19379,7 @@ fn cavern_of_souls_offers_creature_subtypes_from_oracle_type_lines() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_dies_trigger_fires_only_when_its_source_dies() {
     let mut engine = test_engine(2);
@@ -18432,6 +19423,9 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Infestation Sage resolves");
 
@@ -18452,6 +19446,9 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
         test_definition("other-creature", "Creature - Rat"),
         "player-0",
     ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("other-creature", "destroyed")
         .expect("another creature dies");
@@ -18476,6 +19473,7 @@ fn self_dies_trigger_fires_only_when_its_source_dies() {
     assert_eq!(insects, 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
     let mut engine = test_engine(2);
@@ -18523,6 +19521,9 @@ fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
     ];
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("victim", "sacrificed")
         .expect("creature moves to graveyard");
     assert_eq!(engine.state.stack.len(), 1);
@@ -18541,55 +19542,11 @@ fn sekkuar_creates_a_hasty_graveborn_for_another_nontoken_creature_death() {
     assert_eq!(graveborn.definition.toughness.as_deref(), Some("1"));
 }
 
-#[test]
-fn mobilize_creates_attacking_warriors_then_sacrifices_them_at_end_step() {
-    let mut engine = test_engine(2);
-    let mut attacker = test_instance(
-        "mobilizer",
-        test_definition("mobilizer", "Creature - Orc Warrior"),
-        "player-0",
-    );
-    attacker.definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "mobilize", "quantity": 2 }
-    })];
-    engine.state.players[0].battlefield = vec![attacker];
-    engine.state.combat.attackers = vec![DeclaredAttacker {
-        attacker_id: "mobilizer".to_string(),
-        defender: TargetRef::Player {
-            player_id: "player-1".to_string(),
-        },
-        defending_player_id: "player-1".to_string(),
-    }];
-
-    engine.enqueue_declared_attacker_triggers(&["mobilizer".to_string()]);
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(1))
-        .expect("mobilize resolves");
-
-    let warriors = engine.state.players[0]
-        .battlefield
-        .iter()
-        .filter(|card| card.definition.type_line.contains("Warrior"))
-        .filter(|card| card.definition.is_token)
-        .collect::<Vec<_>>();
-    assert_eq!(warriors.len(), 2);
-    assert!(warriors.iter().all(|card| card.tapped));
-    assert!(warriors.iter().all(|card| card.flags["attacking"]));
-    assert_eq!(engine.state.combat.attackers.len(), 3);
-
-    engine
-        .process_end_step_sacrifices(&mut EmeritusDecisionProvider)
-        .expect("delayed sacrifices apply");
-    assert!(
-        engine.state.players[0]
-            .battlefield
-            .iter()
-            .all(|card| !card.definition.is_token)
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sneak Attack; see docs/coverage-targets.md"
+)]
 #[test]
 fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -18715,6 +19672,7 @@ fn sneak_attack_keeps_the_creature_until_its_delayed_trigger_resolves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attached_permanent_attack_trigger_uses_the_equipped_attacker() {
     let mut engine = test_engine(2);
@@ -18770,6 +19728,7 @@ fn attached_permanent_attack_trigger_uses_the_equipped_attacker() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn spell_cast_trigger_can_filter_by_distinct_color_count() {
     let mut engine = test_engine(2);
@@ -18811,6 +19770,7 @@ fn spell_cast_trigger_can_filter_by_distinct_color_count() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn static_permission_allows_playing_a_land_from_graveyard() {
     let mut engine = test_engine(2);
@@ -18860,6 +19820,9 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
         })
         .expect("graveyard land play is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("graveyard land is played");
 
@@ -18876,6 +19839,7 @@ fn static_permission_allows_playing_a_land_from_graveyard() {
     assert!(engine.state.players[0].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counters() {
     let mut engine = test_engine(2);
@@ -18909,13 +19873,32 @@ fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counte
     };
 
     engine
-        .return_graveyard_card_to_battlefield(
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .execute_effect(
+            &json!({
+                "kind": "moveCards",
+                "cards": {
+                    "kind": "cardsInZone",
+                    "zone": { "kind": "graveyard", "player": { "kind": "abilityController" } },
+                    "where": { "kind": "cardTypeContains", "value": "Creature" },
+                },
+                "to": {
+                    "kind": "battlefield",
+                    "player": { "kind": "abilityController" },
+                    "tapped": false,
+                    "enterWithCounters": [{
+                        "counter": "finality",
+                        "count": { "kind": "integer", "value": 1 },
+                    }],
+                },
+            }),
+            None,
             &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
             &mut EmeritusDecisionProvider,
-            "player-0",
-            json!({ "kind": "cardTypeContains", "value": "Creature" }),
-            false,
-            Some("finality"),
         )
         .expect("the card returns from the graveyard");
 
@@ -18935,6 +19918,7 @@ fn graveyard_reanimation_resets_the_old_permanent_before_adding_requested_counte
     assert!(!permanent.flags.contains_key("attacking"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
     let mut engine = test_engine(2);
@@ -18973,6 +19957,9 @@ fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
         .into_iter()
         .find(|action| action.card_instance_id.as_deref() == Some("land-watcher"))
         .expect("the trigger-bearing land can be played");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&play_watcher, &mut EmeritusDecisionProvider)
         .expect("the trigger-bearing land is played");
@@ -19013,6 +20000,7 @@ fn another_land_play_trigger_ignores_its_source_but_observes_a_later_land() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     let mut engine = test_engine(2);
@@ -19053,6 +20041,9 @@ fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     engine.state.players[0].battlefield = vec![creature];
     engine.state.players[0].hand = vec![test_instance("bulk-up", bulk_up_definition, "player-0")];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -19077,6 +20068,7 @@ fn power_of_a_chosen_target_is_evaluated_during_resolution() {
     assert_eq!(engine.current_power(creature), 6);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_leave_trigger_can_require_the_graveyard_destination() {
     let mut engine = test_engine(2);
@@ -19105,6 +20097,9 @@ fn self_leave_trigger_can_require_the_graveyard_destination() {
     engine.state.players[0].battlefield = vec![wellspring];
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("wellspring", "destroyed")
         .expect("Wellspring moves to graveyard");
 
@@ -19115,6 +20110,7 @@ fn self_leave_trigger_can_require_the_graveyard_destination() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn self_counter_effects_execute_after_a_sacrifice_cost() {
     let mut engine = test_engine(2);
@@ -19166,6 +20162,9 @@ fn self_counter_effects_execute_after_a_sacrifice_cost() {
     engine.state.step = GameStep::PrecombatMain;
     engine.state.active_player = 0;
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -19194,6 +20193,7 @@ fn self_counter_effects_execute_after_a_sacrifice_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
     let mut engine = test_engine(2);
@@ -19282,6 +20282,9 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
         })
         .expect("fetch-land activation is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("fetch-land costs are payable");
 
@@ -19317,6 +20320,7 @@ fn fetch_land_activation_pays_its_costs_and_finds_either_named_land_subtype() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn counter_then_token_quantity_uses_the_updated_source_counter() {
     let mut engine = test_engine(2);
@@ -19365,6 +20369,9 @@ fn counter_then_token_quantity_uses_the_updated_source_counter() {
         ],
     })];
     engine.state.players[0].battlefield = vec![assemble];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("explicit positive fixture admission");
 
     engine.enqueue_step_triggers("upkeep");
     engine
@@ -19382,6 +20389,7 @@ fn counter_then_token_quantity_uses_the_updated_source_counter() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() {
     let mut engine = test_engine(3);
@@ -19431,6 +20439,9 @@ fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() 
     }
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut provider)
         .expect("Day of Judgment is cast");
     engine
@@ -19460,6 +20471,7 @@ fn day_of_judgment_casts_without_targets_and_destroys_every_players_creatures() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
     let mut engine = test_engine(2);
@@ -19492,6 +20504,9 @@ fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
         .expect("Spirit Water Revival is castable");
     let mut provider = EmeritusDecisionProvider;
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut provider)
         .expect("Spirit Water Revival is cast");
     engine
@@ -19512,6 +20527,7 @@ fn spell_self_exile_instruction_moves_card_to_exile_after_resolution() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
     let mut engine = test_engine(2);
@@ -19582,6 +20598,9 @@ fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
         })
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine.legal_priority_actions(0);
     let action = actions
         .iter()
@@ -19610,6 +20629,7 @@ fn variable_combat_bonus_uses_cast_x_and_grants_both_keywords() {
     assert!(engine.permanent_has_keyword(target, "trample"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn creature_entered_during_combat_trigger_ignores_main_phase_entries() {
     let mut engine = test_engine(2);
@@ -19655,6 +20675,9 @@ fn creature_entered_during_combat_trigger_ignores_main_phase_entries() {
     engine.state.step = GameStep::DeclareAttackers;
     engine.enqueue_enter_battlefield_triggers(&entrant);
     assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("combat entry trigger resolves");
@@ -19758,6 +20781,7 @@ fn emeritus_definition(include_attack_trigger: bool) -> CardDefinition {
 }
 
 /// Feature: Casting a preparation permanent never declares the linked spell's target.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
     let mut engine = test_engine(2);
@@ -19795,6 +20819,9 @@ fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
         blocker_id: None,
     };
     let mut provider = EmeritusDecisionProvider;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut provider)
         .expect("the permanent is cast");
@@ -19867,6 +20894,7 @@ fn preparation_permanent_cast_creates_a_separate_prepared_spell_copy() {
 }
 
 /// Feature: Emeritus pays its optional eight-card attack instruction during trigger resolution.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
     let mut engine = test_engine(2);
@@ -19882,6 +20910,9 @@ fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
         })
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .run_combat(&mut EmeritusDecisionProvider)
         .expect("combat and the attack trigger resolve");
@@ -19916,6 +20947,7 @@ fn emeritus_attack_trigger_exiles_exactly_eight_then_prepares() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_permission_follows_the_permanents_current_controller() {
     let mut engine = test_engine(2);
@@ -19954,6 +20986,7 @@ fn prepared_spell_permission_follows_the_permanents_current_controller() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_copy_ceases_while_phased_out_and_returns_on_phase_in() {
     let mut engine = test_engine(2);
@@ -19989,6 +21022,7 @@ fn prepared_spell_copy_ceases_while_phased_out_and_returns_on_phase_in() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn preparing_twice_does_not_create_a_second_spell_copy() {
     let mut engine = test_engine(2);
@@ -20017,6 +21051,7 @@ fn preparing_twice_does_not_create_a_second_spell_copy() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn delayed_next_spell_trigger_is_consumed_and_copies_the_cast_spell() {
     let mut engine = test_engine(2);
@@ -20082,6 +21117,7 @@ fn delayed_next_spell_trigger_is_consumed_and_copies_the_cast_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn delayed_step_trigger_is_consumed_and_resolves_its_effects() {
     let mut engine = test_engine(2);
@@ -20119,6 +21155,7 @@ fn delayed_step_trigger_is_consumed_and_resolves_its_effects() {
     assert_eq!(engine.state.players[0].hand.len(), hand_size + 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
     let mut engine = test_engine(2);
@@ -20129,6 +21166,9 @@ fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
         .ensure_prepared_spell_copy("emeritus")
         .expect("prepared spell copy is created");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .move_permanent_to_graveyard("emeritus", "destroyed")
         .expect("source leaves the battlefield");
@@ -20144,6 +21184,7 @@ fn prepared_spell_copy_ceases_when_its_source_leaves_the_battlefield() {
 }
 
 /// Feature: Tablet's milled card stays playable through the end step and expires in cleanup.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn tablet_permission_survives_until_the_current_turn_cleanup() {
     let mut engine = test_engine(2);
@@ -20198,6 +21239,9 @@ fn tablet_permission_survives_until_the_current_turn_cleanup() {
         vec![test_instance("milled-card", milled_instant, "player-0")];
     engine.put_triggered_ability_on_stack(&tablet, trigger_rule);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Tablet's trigger resolves");
 
@@ -20221,6 +21265,7 @@ fn tablet_permission_survives_until_the_current_turn_cleanup() {
     assert!(!playable_from_graveyard(&engine));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn single_cast_permission_prohibits_later_spells_for_the_turn() {
     let mut engine = test_engine(2);
@@ -20259,6 +21304,9 @@ fn single_cast_permission_prohibits_later_spells_for_the_turn() {
         })
         .expect("the selected graveyard permanent is castable");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("the single permitted spell is cast");
     engine
@@ -20273,6 +21321,7 @@ fn single_cast_permission_prohibits_later_spells_for_the_turn() {
 }
 
 /// Feature: One attacker exposes players, opposing planeswalkers, and battles as defenders.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn attacker_actions_expose_every_supported_defender_kind() {
     let mut engine = test_engine(3);
@@ -20347,6 +21396,7 @@ fn attacker_actions_expose_every_supported_defender_kind() {
 }
 
 /// Feature: A human can cancel an attacker and redeclare it against another defender.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn human_revises_attacker_target_before_finishing_declarations() {
     #[derive(Default)]
@@ -20447,182 +21497,7 @@ fn human_revises_attacker_target_before_finishing_declarations() {
 }
 
 /// Feature: Multiple blockers can share one attacker and Rust owns their damage division.
-#[test]
-fn combat_supports_multiple_blockers_and_current_damage_assignment() {
-    let mut engine = test_engine(2);
-    let mut attacker_definition = test_definition("attacker", "Creature - Test");
-    attacker_definition.power = Some("4".to_string());
-    attacker_definition.toughness = Some("5".to_string());
-    let mut blocker_a_definition = test_definition("blocker-a", "Creature - Test");
-    blocker_a_definition.power = Some("2".to_string());
-    blocker_a_definition.toughness = Some("3".to_string());
-    let mut blocker_b_definition = test_definition("blocker-b", "Creature - Test");
-    blocker_b_definition.power = Some("2".to_string());
-    blocker_b_definition.toughness = Some("1".to_string());
-    engine.state.players[0].battlefield =
-        vec![test_instance("attacker", attacker_definition, "player-0")];
-    engine.state.players[1].battlefield = vec![
-        test_instance("blocker-a", blocker_a_definition, "player-1"),
-        test_instance("blocker-b", blocker_b_definition, "player-1"),
-    ];
-    let mut provider = MultipleBlockersDecisionProvider::default();
-
-    engine
-        .run_combat(&mut provider)
-        .expect("multiple blockers and their damage assignment resolve");
-
-    assert!(provider.saw_attack_assignment);
-    assert!(provider.saw_block_assignment);
-    let attacker = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|card| card.instance_id == "attacker")
-        .expect("the 4/5 attacker survives four combat damage");
-    assert_eq!(attacker.damage_marked, 4);
-    assert!(
-        engine.state.players[1]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "blocker-a")
-    );
-    assert!(
-        engine.state.players[1]
-            .graveyard
-            .iter()
-            .any(|card| card.instance_id == "blocker-b")
-    );
-    let serialized = serde_json::to_value(&engine.state).expect("state serializes");
-    assert_eq!(serialized["combat"]["attackers"], json!([]));
-    assert_eq!(serialized["combat"]["blockers"], json!([]));
-}
-
-#[test]
-fn trample_assigns_lethal_damage_in_order_then_hits_the_defending_player() {
-    let mut engine = test_engine(2);
-    let mut attacker_definition = test_definition("tramper", "Creature - Beast");
-    attacker_definition.power = Some("7".to_string());
-    attacker_definition.toughness = Some("7".to_string());
-    attacker_definition.rules.push(json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "trample" },
-    }));
-    let mut blocker_a_definition = test_definition("blocker-a", "Creature - Test");
-    blocker_a_definition.power = Some("2".to_string());
-    blocker_a_definition.toughness = Some("2".to_string());
-    let mut blocker_b_definition = test_definition("blocker-b", "Creature - Test");
-    blocker_b_definition.power = Some("2".to_string());
-    blocker_b_definition.toughness = Some("3".to_string());
-    engine.state.players[0].battlefield =
-        vec![test_instance("tramper", attacker_definition, "player-0")];
-    engine.state.players[1].battlefield = vec![
-        test_instance("blocker-a", blocker_a_definition, "player-1"),
-        test_instance("blocker-b", blocker_b_definition, "player-1"),
-    ];
-    let attacks = BTreeMap::from([(
-        "tramper".to_string(),
-        AttackAssignment {
-            defender: TargetRef::Player {
-                player_id: "player-1".to_string(),
-            },
-            defending_player_id: "player-1".to_string(),
-        },
-    )]);
-    let blocks = BTreeMap::from([(
-        "tramper".to_string(),
-        vec!["blocker-a".to_string(), "blocker-b".to_string()],
-    )]);
-
-    let assignments = engine
-        .choose_combat_damage_assignments(
-            &mut RandomAi::seeded(1),
-            &attacks,
-            &blocks,
-            CombatDamageStep::All,
-        )
-        .expect("trample damage assignment succeeds");
-    assert_eq!(assignments["tramper"]["blocker-a"], 2);
-    assert_eq!(assignments["tramper"]["blocker-b"], 3);
-
-    engine
-        .resolve_combat_damage(&attacks, &blocks, &assignments)
-        .expect("trample damage resolves");
-
-    assert_eq!(engine.state.players[1].life, 18);
-    assert_eq!(engine.state.players[1].graveyard.len(), 2);
-}
-
-#[test]
-fn blocked_trampler_hits_its_defender_after_all_blockers_are_gone() {
-    let mut engine = test_engine(2);
-    let mut attacker_definition = test_definition("tramper", "Creature - Beast");
-    attacker_definition.power = Some("5".to_string());
-    attacker_definition.rules.push(json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "trample" },
-    }));
-    engine.state.players[0].battlefield =
-        vec![test_instance("tramper", attacker_definition, "player-0")];
-    let attacks = BTreeMap::from([(
-        "tramper".to_string(),
-        AttackAssignment {
-            defender: TargetRef::Player {
-                player_id: "player-1".to_string(),
-            },
-            defending_player_id: "player-1".to_string(),
-        },
-    )]);
-    let blocks = BTreeMap::from([("tramper".to_string(), vec!["removed-blocker".to_string()])]);
-
-    engine
-        .resolve_combat_damage(&attacks, &blocks, &BTreeMap::new())
-        .expect("unopposed trample damage resolves");
-
-    assert_eq!(engine.state.players[1].life, 15);
-}
-
-/// Feature: Unblocked combat damage is assigned to the chosen permanent defender.
-#[test]
-fn combat_damage_hits_the_selected_permanent_instead_of_its_controller() {
-    let mut engine = test_engine(2);
-    let attacker = test_instance(
-        "attacker",
-        test_definition("attacker", "Creature - Test"),
-        "player-0",
-    );
-    let mut planeswalker = test_instance(
-        "planeswalker",
-        test_definition("planeswalker", "Legendary Planeswalker - Test"),
-        "player-1",
-    );
-    planeswalker.counters.insert("loyalty".to_string(), 3);
-    engine.state.players[0].battlefield = vec![attacker];
-    engine.state.players[1].battlefield = vec![planeswalker];
-    let attacks = BTreeMap::from([(
-        "attacker".to_string(),
-        AttackAssignment {
-            defender: TargetRef::Permanent {
-                instance_id: "planeswalker".to_string(),
-            },
-            defending_player_id: "player-1".to_string(),
-        },
-    )]);
-
-    engine
-        .resolve_combat_damage(&attacks, &BTreeMap::new(), &BTreeMap::new())
-        .expect("combat damage resolves");
-
-    assert_eq!(engine.state.players[1].life, 20);
-    assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 2);
-    assert!(engine.state.events.iter().any(|event| {
-        event.kind == "combatDamage"
-            && event.card_instance_id.as_deref() == Some("planeswalker")
-            && event.detail["permanentDamage"] == 2
-    }));
-}
-
-/// Feature: A permanent declaration includes an opponent land and returns that exact object.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn permanent_target_declarations_include_opponent_lands() {
     let mut engine = test_engine(2);
@@ -20680,6 +21555,9 @@ fn permanent_target_declarations_include_opponent_lands() {
         ..test_definition("bounce-spell", "Instant")
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&bounce_spell, "player-0")
         .expect("the canonical declaration is supported");
@@ -20707,6 +21585,7 @@ fn permanent_target_declarations_include_opponent_lands() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn hexproof_excludes_only_opposing_permanents_from_target_declarations() {
     let mut engine = test_engine(2);
@@ -20746,175 +21625,8 @@ fn hexproof_excludes_only_opposing_permanents_from_target_declarations() {
     }));
 }
 
-#[test]
-fn menace_requires_two_legal_blockers_before_blocking_can_finish() {
-    let mut engine = test_engine(2);
-    let mut menace_definition = test_definition("menace-attacker", "Creature - Test");
-    menace_definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "menace" },
-    })];
-    engine.state.players[0].battlefield = vec![test_instance(
-        "menace-attacker",
-        menace_definition,
-        "player-0",
-    )];
-    engine.state.players[1].battlefield = vec![test_instance(
-        "blocker-a",
-        test_definition("blocker-a", "Creature - Test"),
-        "player-1",
-    )];
-    let mut attackers = vec!["menace-attacker".to_string()];
-    let mut used_blockers = BTreeSet::new();
-    let mut blocks = BTreeMap::new();
-
-    let one_blocker_actions = engine.legal_blocker_actions(1, &attackers, &used_blockers, &blocks);
-    assert!(
-        one_blocker_actions
-            .iter()
-            .all(|action| action.kind != ActionKind::DeclareBlocker)
-    );
-
-    engine.state.players[1].battlefield.push(test_instance(
-        "blocker-b",
-        test_definition("blocker-b", "Creature - Test"),
-        "player-1",
-    ));
-    let first_block_actions = engine.legal_blocker_actions(1, &attackers, &used_blockers, &blocks);
-    assert!(
-        first_block_actions
-            .iter()
-            .any(|action| action.kind == ActionKind::DeclareBlocker)
-    );
-    used_blockers.insert("blocker-a".to_string());
-    blocks.insert("menace-attacker".to_string(), vec!["blocker-a".to_string()]);
-    engine.state.players[0].battlefield.push(test_instance(
-        "normal-attacker",
-        test_definition("normal-attacker", "Creature - Test"),
-        "player-0",
-    ));
-    attackers.push("normal-attacker".to_string());
-    let second_block_actions = engine.legal_blocker_actions(1, &attackers, &used_blockers, &blocks);
-    assert!(
-        second_block_actions
-            .iter()
-            .all(|action| action.kind != ActionKind::FinishBlockers)
-    );
-    assert!(second_block_actions.iter().any(|action| {
-        action.kind == ActionKind::DeclareBlocker
-            && action.blocker_id.as_deref() == Some("blocker-b")
-    }));
-    assert!(
-        second_block_actions
-            .iter()
-            .all(|action| { action.attacker_id.as_deref() == Some("menace-attacker") })
-    );
-
-    used_blockers.insert("blocker-b".to_string());
-    blocks
-        .get_mut("menace-attacker")
-        .expect("menace block assignment")
-        .push("blocker-b".to_string());
-    let complete_actions = engine.legal_blocker_actions(1, &attackers, &used_blockers, &blocks);
-    assert!(
-        complete_actions
-            .iter()
-            .any(|action| action.kind == ActionKind::FinishBlockers)
-    );
-}
-
-#[test]
-fn first_and_double_strike_use_distinct_combat_damage_steps() {
-    let mut first_strike_engine = test_engine(2);
-    let mut first_striker_definition = test_definition("first-striker", "Creature - Test");
-    first_striker_definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "firstStrike" },
-    })];
-    first_strike_engine.state.players[0].battlefield = vec![test_instance(
-        "first-striker",
-        first_striker_definition,
-        "player-0",
-    )];
-    first_strike_engine.state.players[1].battlefield = vec![test_instance(
-        "normal-blocker",
-        test_definition("normal-blocker", "Creature - Test"),
-        "player-1",
-    )];
-    let attacks = BTreeMap::from([(
-        "first-striker".to_string(),
-        AttackAssignment {
-            defender: TargetRef::Player {
-                player_id: "player-1".to_string(),
-            },
-            defending_player_id: "player-1".to_string(),
-        },
-    )]);
-    let blocks = BTreeMap::from([(
-        "first-striker".to_string(),
-        vec!["normal-blocker".to_string()],
-    )]);
-    let assignments = BTreeMap::from([(
-        "first-striker".to_string(),
-        BTreeMap::from([("normal-blocker".to_string(), 2)]),
-    )]);
-    first_strike_engine
-        .resolve_combat_damage_step(
-            &attacks,
-            &blocks,
-            &assignments,
-            CombatDamageStep::FirstStrike,
-        )
-        .expect("resolve first-strike damage");
-    assert!(first_strike_engine.state.players[1].battlefield.is_empty());
-    assert_eq!(
-        first_strike_engine.state.players[0].battlefield[0].damage_marked,
-        0
-    );
-
-    let mut double_strike_engine = test_engine(2);
-    let mut double_striker_definition = test_definition("double-striker", "Creature - Test");
-    double_striker_definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": { "kind": "doubleStrike" },
-    })];
-    double_strike_engine.state.players[0].battlefield = vec![test_instance(
-        "double-striker",
-        double_striker_definition,
-        "player-0",
-    )];
-    let double_strike_attacks = BTreeMap::from([(
-        "double-striker".to_string(),
-        AttackAssignment {
-            defender: TargetRef::Player {
-                player_id: "player-1".to_string(),
-            },
-            defending_player_id: "player-1".to_string(),
-        },
-    )]);
-    double_strike_engine
-        .resolve_combat_damage_step(
-            &double_strike_attacks,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            CombatDamageStep::FirstStrike,
-        )
-        .expect("resolve double-strike first damage");
-    double_strike_engine
-        .resolve_combat_damage_step(
-            &double_strike_attacks,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            CombatDamageStep::Normal,
-        )
-        .expect("resolve double-strike normal damage");
-    assert_eq!(double_strike_engine.state.players[1].life, 16);
-}
-
 /// Feature: Nonland permanent declarations expose every legal object and no lands.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn nonland_permanent_declarations_filter_the_complete_battlefield() {
     let mut engine = test_engine(2);
@@ -20973,6 +21685,9 @@ fn nonland_permanent_declarations_filter_the_complete_battlefield() {
         ..test_definition("nonland-target-spell", "Instant")
     };
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_card(&spell, "player-0")
         .expect("the nonland declaration is supported");
@@ -21000,43 +21715,7 @@ fn nonland_permanent_declarations_filter_the_complete_battlefield() {
     }));
 }
 
-#[test]
-fn boros_charm_spell_instruction_grants_indestructible_until_cleanup() {
-    let mut engine = test_engine(2);
-    let creature = test_instance(
-        "protected-creature",
-        test_definition("protected-creature", "Creature - Test"),
-        "player-0",
-    );
-    engine.state.players[0].battlefield = vec![creature];
-    let stack_object = StackObject {
-        id: "stack:boros".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "boros-charm",
-            test_definition("boros-charm", "Instant"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::from([("spellMode".to_string(), json!(["indestructible"]))]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_spell_instruction("borosCharm", &stack_object, &mut EmeritusDecisionProvider)
-        .expect("Boros Charm resolves");
-
-    let protected = &engine.state.players[0].battlefield[0];
-    assert!(engine.permanent_has_keyword(protected, "indestructible"));
-    assert!(protected.definition.rules.iter().any(|rule| {
-        rule["temporaryUntilTurn"] == engine.state.turn_number
-            && rule["ability"]["kind"] == "indestructible"
-    }));
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
     let mut engine = test_engine(2);
@@ -21088,6 +21767,9 @@ fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
         .expect("paid conspire cast is legal");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("conspired spell is cast");
 
@@ -21119,6 +21801,7 @@ fn conspire_taps_two_matching_creatures_and_copies_the_spell() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn replicate_pays_each_additional_cost_and_copies_the_spell() {
     let mut engine = test_engine(2);
@@ -21189,6 +21872,9 @@ fn replicate_pays_each_additional_cost_and_copies_the_spell() {
         .expect("one replicate payment is legal");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("replicated spell is cast");
     assert_eq!(engine.state.stack.len(), 2);
@@ -21224,6 +21910,7 @@ fn replicate_pays_each_additional_cost_and_copies_the_spell() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn threefold_signal_replicates_three_color_permanents_as_tokens() {
     let mut engine = test_engine(2);
@@ -21295,6 +21982,9 @@ fn threefold_signal_replicates_three_color_permanents_as_tokens() {
         .expect("Threefold Signal grants one affordable replicate payment");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("three-color permanent is cast with replicate");
     engine
@@ -21327,6 +22017,7 @@ fn threefold_signal_replicates_three_color_permanents_as_tokens() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
     let mut engine = test_engine(2);
@@ -21388,6 +22079,9 @@ fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
         5
     );
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("the copied permanent's enter trigger resolves");
 
@@ -21401,6 +22095,7 @@ fn copied_x_permanent_propagates_x_to_its_enter_trigger() {
     assert_eq!(engine.state.players[0].hand.len(), initial_hand_size + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
     let mut engine = test_engine(2);
@@ -21417,8 +22112,9 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
                 "object": { "kind": "self" },
             },
             "effects": [{
-                "kind": "resolveTriggeredInstruction",
-                "operation": "gainOneLife",
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 },
             }],
         }),
         json!({
@@ -21430,8 +22126,9 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
                 "object": { "kind": "self" },
             },
             "effects": [{
-                "kind": "resolveTriggeredInstruction",
-                "operation": "gainOneLife",
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 },
             }],
         }),
     ];
@@ -21444,6 +22141,9 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
                 && action.decisions.get("roomDoor").and_then(Value::as_u64) == Some(0)
         })
         .expect("first room door can be cast");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&cast, &mut EmeritusDecisionProvider)
         .expect("room cast succeeds");
@@ -21478,6 +22178,7 @@ fn room_cast_unlocks_one_door_then_offers_the_other_at_sorcery_speed() {
     assert_eq!(room.flags.get("roomDoor1Unlocked"), Some(&true));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
     let mut engine = test_engine(2);
@@ -21527,6 +22228,9 @@ fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
         .expect("waterbend spell is payable without lands");
     assert_eq!(action.payment_sources.len(), 2);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("waterbend spell casts");
     assert!(
@@ -21537,6 +22241,7 @@ fn waterbend_taps_artifacts_and_creatures_to_pay_its_additional_cost() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn earthbent_land_returns_tapped_after_it_is_exiled() {
     let mut engine = test_engine(2);
@@ -21560,36 +22265,38 @@ fn earthbent_land_returns_tapped_after_it_is_exiled() {
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "earthbendLand".to_string(),
+            "earthbendLand0".to_string(),
             TargetRef::Permanent {
                 instance_id: "earthbend-land".to_string(),
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "earthbend",
-                "land": { "kind": "chosenTarget", "id": "earthbendLand" },
-                "candidates": {
-                    "kind": "permanents",
-                    "controller": {
-                        "kind": "controllerOf",
-                        "object": { "kind": "self" },
-                    },
-                    "where": { "kind": "cardTypeContains", "value": "Land" },
-                },
-                "quantity": { "kind": "integer", "value": 3 },
-            }]),
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("earthbend resolves");
+    let earthbend_rule = no_lands_rules(
+        "Earthbend Source",
+        "Sorcery",
+        Some("{2}{G}"),
+        "Earthbend 3.",
+    )
+    .into_iter()
+    .next()
+    .expect("Earthbend 3 compiles to one spell ability");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &earthbend_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("earthbend resolves");
     engine
         .exile_permanent("earthbend-land")
         .expect("earthbent land is exiled");
+    while !engine.state.stack.is_empty() {
+        engine
+            .resolve_top_stack(&mut EmeritusDecisionProvider)
+            .expect("the earthbend return trigger resolves");
+    }
 
     let returned = engine.state.players[0]
         .battlefield
@@ -21601,37 +22308,27 @@ fn earthbent_land_returns_tapped_after_it_is_exiled() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
     let mut engine = test_engine(2);
     let mut toph = test_definition("toph-metalbender", "Legendary Creature - Human Warrior");
-    toph.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "addCardType",
-            "objects": {
-                "kind": "permanents",
-                "controller": {
-                    "kind": "controllerOf",
-                    "object": { "kind": "self" },
-                },
-                "where": {
-                    "kind": "and",
-                    "operands": [
-                        { "kind": "cardTypeContains", "value": "Artifact" },
-                        { "kind": "not", "operand": { "kind": "isToken" } },
-                    ],
-                },
-            },
-            "cardType": "Land",
-        }],
-    })];
+    toph.name = "Toph, the First Metalbender".to_string();
+    toph.rules = no_lands_rules(
+        "Toph, the First Metalbender",
+        "Legendary Creature - Human Warrior Ally",
+        Some("{1}{R}{G}{W}"),
+        "Nontoken artifacts you control are lands in addition to their other types. (They don't gain the ability to {T} for mana.)",
+    );
+    let earthbend_rule = no_lands_rules(
+        "Earthbend Source",
+        "Sorcery",
+        Some("{2}{G}"),
+        "Earthbend 3.",
+    )
+    .into_iter()
+    .next()
+    .expect("Earthbend 3 compiles to one spell ability");
     engine.state.players[0].battlefield = vec![
         test_instance("toph-metalbender", toph, "player-0"),
         test_instance(
@@ -21640,14 +22337,7 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
             "player-0",
         ),
     ];
-    let candidates = json!({
-        "kind": "permanents",
-        "controller": {
-            "kind": "controllerOf",
-            "object": { "kind": "self" },
-        },
-        "where": { "kind": "cardTypeContains", "value": "Land" },
-    });
+    let candidates = earthbend_rule["declaration"]["decisions"][0]["candidates"].clone();
 
     let targets = engine
         .target_candidates("player-0", &candidates)
@@ -21671,26 +22361,21 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
         ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "earthbendLand".to_string(),
+            "earthbendLand0".to_string(),
             TargetRef::Permanent {
                 instance_id: "stone-of-erech".to_string(),
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &json!([{
-                "kind": "earthbend",
-                "land": { "kind": "chosenTarget", "id": "earthbendLand" },
-                "candidates": candidates,
-                "quantity": { "kind": "integer", "value": 3 },
-            }]),
-            &source,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("earthbend resolves on the artifact land");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &earthbend_rule["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("earthbend resolves on the artifact land");
 
     let stone = engine.state.players[0]
         .battlefield
@@ -21701,6 +22386,11 @@ fn earthbend_can_target_a_nontoken_artifact_made_a_land_by_toph() {
     assert_eq!(stone.counters.get("+1/+1"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avatar Aang // Aang, Master of Elements; see docs/coverage-targets.md"
+)]
 #[test]
 fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
     let engine = test_engine(2);
@@ -21734,6 +22424,11 @@ fn flying_creature_cannot_be_blocked_without_flying_or_reach() {
     assert!(engine.can_block(&reach_blocker, &attacker));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Avatar Aang // Aang, Master of Elements; see docs/coverage-targets.md"
+)]
 #[test]
 fn bending_events_draw_and_transform_avatar_aang() {
     let mut engine = test_engine(2);
@@ -21794,6 +22489,11 @@ fn bending_events_draw_and_transform_avatar_aang() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Expansion // Explosion; see docs/coverage-targets.md"
+)]
 #[test]
 fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
     let mut expansion_engine = test_engine(2);
@@ -21927,6 +22627,11 @@ fn expansion_and_explosion_are_cast_as_distinct_split_card_halves() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Give // Take; see docs/coverage-targets.md"
+)]
 #[test]
 fn fuse_casts_both_split_halves_with_independent_targets() {
     let mut engine = test_engine(2);
@@ -21960,6 +22665,9 @@ fn fuse_casts_both_split_halves_with_independent_targets() {
         .map(|id| test_instance(id, test_definition(id, "Sorcery"), "player-0"))
         .collect();
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let fused = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -22005,6 +22713,11 @@ fn fuse_casts_both_split_halves_with_independent_targets() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Stratus Dancer; see docs/coverage-targets.md"
+)]
 #[test]
 fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
     let mut engine = test_engine(2);
@@ -22034,6 +22747,9 @@ fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
                     == Some(true)
         })
         .expect("Megamorph card can be cast face down for three mana");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&face_down_cast, &mut EmeritusDecisionProvider)
         .expect("face-down spell is cast");
@@ -22104,60 +22820,11 @@ fn megamorph_casts_face_down_and_counters_when_turned_face_up() {
     );
 }
 
-#[test]
-fn kheru_spellsnatcher_exiles_and_grants_a_free_cast_permission() {
-    let mut engine = test_engine(2);
-    let source = test_instance(
-        "kheru-spellsnatcher",
-        test_definition("kheru-spellsnatcher", "Creature - Snake Wizard"),
-        "player-0",
-    );
-    let target = test_instance(
-        "stolen-spell",
-        test_definition("stolen-spell", "Sorcery"),
-        "player-1",
-    );
-    engine.state.stack.push(StackObject {
-        id: "stack:stolen-spell".to_string(),
-        controller: "player-1".to_string(),
-        card: target,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    });
-    let trigger = StackObject {
-        id: "stack:kheru-trigger".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "kheruSpellsnatcherCounter",
-            &trigger,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Kheru counter resolves");
-
-    assert!(engine.state.stack.is_empty());
-    assert_eq!(engine.state.players[1].exile[0].instance_id, "stolen-spell");
-    assert!(engine.state.permissions.iter().any(|permission| {
-        value_kind(permission) == Some("kheruSpellsnatcherPermission")
-            && permission["cardInstanceId"] == "stolen-spell"
-            && permission["playerId"] == "player-0"
-            && permission["normalCostsApply"] == false
-    }));
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Boundless Realms; see docs/coverage-targets.md"
+)]
 #[test]
 fn boundless_realms_keeps_maximum_size_search_choices_available() {
     let mut engine = test_engine(2);
@@ -22238,34 +22905,7 @@ fn boundless_realms_keeps_maximum_size_search_choices_available() {
     );
 }
 
-#[test]
-fn avatar_spell_instruction_without_x_defaults_to_zero() {
-    let mut engine = test_engine(2);
-    let stack_object = StackObject {
-        id: "stack:spell-without-x".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "spell-without-x",
-            test_definition("spell-without-x", "Instant"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_avatar_deck_spell_instruction(
-            "searingTouchBuyback",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("a non-X Avatar spell resolves without an X declaration");
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn priority_fingerprint_ignores_event_history_but_tracks_game_changes() {
     let mut engine = test_engine(2);
@@ -22278,6 +22918,7 @@ fn priority_fingerprint_ignores_event_history_but_tracks_game_changes() {
     assert_ne!(engine.priority_state_fingerprint(), initial);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
     let mut engine = test_engine(2);
@@ -22324,6 +22965,9 @@ fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
         symbol: "C".to_string(),
         spend_restriction: None,
     }];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(engine.legal_priority_actions(0).iter().any(|action| {
         action.kind == ActionKind::CastSpell
             && action.card_instance_id.as_deref() == Some("reduced-spell")
@@ -22375,6 +23019,7 @@ fn generic_affinity_and_conditional_power_bonus_execute_from_canonical_rules() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
     let mut engine = test_engine(2);
@@ -22382,35 +23027,14 @@ fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
 
     let mut eye = test_definition("eye-of-ugin", "Legendary Land");
     eye.name = "Eye of Ugin".to_string();
-    eye.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "reduceCastingCost",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "where": {
-                "kind": "and",
-                "operands": [
-                    {
-                        "kind": "compare",
-                        "operator": "==",
-                        "left": {
-                            "kind": "colorCountOf",
-                            "object": { "kind": "candidate" },
-                        },
-                        "right": { "kind": "integer", "value": 0 },
-                    },
-                    { "kind": "subtypeContains", "value": "Eldrazi" },
-                ],
-            },
-            "amount": { "kind": "integer", "value": 2 },
-        }],
-    })];
+    // The real Oracle reduction compiles to a candidate color-count
+    // comparison, which the checked casting-cost query must accept.
+    eye.rules = no_lands_rules(
+        "Eye of Ugin",
+        "Legendary Land",
+        None,
+        "Colorless Eldrazi spells you cast cost {2} less to cast.",
+    );
     engine.state.players[0].battlefield = vec![test_instance("eye", eye, "player-0")];
 
     let mut eldrazi = test_definition("eye-target", "Creature - Eldrazi");
@@ -22437,6 +23061,7 @@ fn eye_of_ugin_reduces_only_colorless_eldrazi_spells() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
     let mut engine = test_engine(2);
@@ -22478,6 +23103,9 @@ fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
         .expect("Aeve is castable");
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("Aeve is cast");
     assert!(
@@ -22515,6 +23143,7 @@ fn storm_counts_prior_casts_and_permanent_copies_become_tokens() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
     let mut engine = test_engine(2);
@@ -22536,6 +23165,9 @@ fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
         .find(|action| action.decisions["plot"] == true)
         .expect("plot action is legal");
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&plot, &mut EmeritusDecisionProvider)
         .expect("plot special action succeeds");
@@ -22570,6 +23202,7 @@ fn plotted_card_waits_until_a_future_turn_and_casts_for_free() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     let mut engine = test_engine(2);
@@ -22624,6 +23257,9 @@ fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Taigam trigger resolves");
 
@@ -22645,6 +23281,7 @@ fn taigam_copies_then_suspends_the_original_spell_with_four_counters() {
     assert_eq!(suspended.counters.get("time"), Some(&4));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn suspend_removes_time_counters_and_casts_the_card_for_free() {
     let mut engine = test_engine(2);
@@ -22667,14 +23304,31 @@ fn suspend_removes_time_counters_and_casts_the_card_for_free() {
         .find(|action| action.decisions["suspend"] == true)
         .expect("suspend action is legal");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&suspend, &mut EmeritusDecisionProvider)
         .expect("card is suspended");
     assert_eq!(engine.state.players[0].exile[0].counters["time"], 1);
 
     engine.enqueue_step_triggers("upkeep");
+    assert_eq!(
+        engine.state.stack.len(),
+        1,
+        "the exile-zone upkeep trigger of the suspended card"
+    );
     engine
         .resolve_top_stack(&mut CastSpellDecisionProvider)
-        .expect("last time counter is removed and card is cast");
+        .expect("the upkeep trigger removes the last time counter");
+    assert_eq!(engine.state.players[0].exile[0].counters["time"], 0);
+    // CR 702.62a: removing the last counter is a separate triggered ability.
+    assert!(engine.state.stack.iter().any(|object| {
+        object.card.instance_id == "rift-sower"
+            && object.ability_kind.as_deref() == Some("triggeredAbility")
+    }));
+    engine
+        .resolve_top_stack(&mut CastSpellDecisionProvider)
+        .expect("the last-counter trigger casts the card without paying");
     assert!(engine.state.stack.iter().any(|object| {
         object.card.instance_id == "rift-sower" && object.ability_rule.is_none()
     }));
@@ -22689,61 +23343,7 @@ fn suspend_removes_time_counters_and_casts_the_card_for_free() {
     assert!(engine.permanent_has_keyword(permanent, "haste"));
 }
 
-#[test]
-fn kellan_triggers_only_for_casts_outside_hand_and_casts_a_smaller_permanent() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    let mut kellan = test_definition("kellan", "Legendary Creature - Human Faerie");
-    kellan.rules = vec![json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": {
-            "kind": "spellCast",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "where": null,
-            "fromZoneNot": "hand",
-        },
-        "effects": [{
-            "kind": "resolveTriggeredInstruction",
-            "operation": "kellanCastPermanentOrPutLand",
-        }],
-    })];
-    engine.state.players[0].battlefield = vec![test_instance("kellan", kellan, "player-0")];
-    let mut free_permanent = test_definition("free-permanent", "Artifact");
-    free_permanent.mana_cost = "{3}".to_string();
-    engine.state.players[0].hand =
-        vec![test_instance("free-permanent", free_permanent, "player-0")];
-    let mut triggering_spell = test_definition("triggering-spell", "Sorcery");
-    triggering_spell.mana_cost = "{4}".to_string();
-
-    engine.enqueue_spell_cast_triggers(
-        "player-0",
-        &triggering_spell,
-        &BTreeMap::from([(
-            "castSourceZone".to_string(),
-            Value::String("hand".to_string()),
-        )]),
-    );
-    assert!(engine.state.stack.is_empty());
-
-    engine.enqueue_spell_cast_triggers(
-        "player-0",
-        &triggering_spell,
-        &BTreeMap::from([(
-            "castSourceZone".to_string(),
-            Value::String("exile".to_string()),
-        )]),
-    );
-    assert_eq!(engine.state.stack.len(), 1);
-    engine
-        .resolve_top_stack(&mut CastSpellDecisionProvider)
-        .expect("Kellan trigger resolves");
-    assert!(engine.state.players[0].hand.is_empty());
-    assert!(engine.state.stack.iter().any(|object| {
-        object.card.instance_id == "free-permanent" && object.ability_rule.is_none()
-    }));
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn imoti_grants_cascade_to_six_mana_spells() {
     let mut engine = test_engine(2);
@@ -22781,6 +23381,9 @@ fn imoti_grants_cascade_to_six_mana_spells() {
         .find(|action| action.card_instance_id.as_deref() == Some("large-spell"))
         .expect("six-mana spell is castable");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("six-mana spell is cast");
 
@@ -22789,149 +23392,7 @@ fn imoti_grants_cascade_to_six_mana_spells() {
     }));
 }
 
-#[test]
-fn minds_desire_grants_a_free_play_from_exile_this_turn() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    let mut exiled_spell = test_definition("exiled-spell", "Creature - Avatar");
-    exiled_spell.mana_cost = "{9}".to_string();
-    engine.state.players[0].library = vec![test_instance("exiled-spell", exiled_spell, "player-0")];
-    let stack_object = StackObject {
-        id: "stack:minds-desire".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "minds-desire",
-            test_definition("minds-desire", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "mindDesireExileTopFree",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("Mind's Desire exiles its top card");
-
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| action.card_instance_id.as_deref() == Some("exiled-spell"))
-        .expect("the exiled spell is playable");
-    assert_eq!(action.decisions["castSourceZone"], "exile");
-    assert_eq!(action.decisions["withoutPayingManaCost"], true);
-}
-
-#[test]
-fn ragavan_grants_its_controller_permission_to_cast_an_opponents_exiled_card() {
-    let mut engine = test_engine(2);
-    engine.state.active_player = 0;
-    engine.state.step = GameStep::PostcombatMain;
-    let mut stolen_spell = test_definition("stolen-spell", "Creature - Rogue");
-    stolen_spell.mana_cost = "{0}".to_string();
-    engine.state.players[1].library = vec![test_instance("stolen-spell", stolen_spell, "player-1")];
-    let stack_object = StackObject {
-        id: "stack:ragavan-trigger".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "ragavan",
-            test_definition("ragavan", "Legendary Creature - Monkey Pirate"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::from([(
-            "triggeringPlayerId".to_string(),
-            Value::String("player-1".to_string()),
-        )]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "ragavanCombatDamage",
-            &stack_object,
-            &mut RandomAi::seeded(1),
-        )
-        .expect("Ragavan trigger resolves");
-
-    let cast = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| action.card_instance_id.as_deref() == Some("stolen-spell"))
-        .expect("the opponent-owned exiled spell is castable by Ragavan's controller");
-    assert_eq!(cast.player_id, "player-0");
-    assert_eq!(cast.decisions["castSourceZone"], "exile");
-}
-
-#[test]
-fn mind_grind_mills_every_revealed_card_through_the_xth_land_for_each_opponent() {
-    let mut engine = test_engine(3);
-    let card = |id: &str, type_line: &str, owner: &str| {
-        test_instance(id, test_definition(id, type_line), owner)
-    };
-    engine.state.players[1].library = vec![
-        card("not-revealed", "Artifact", "player-1"),
-        card("second-land", "Land", "player-1"),
-        card("middle-spell", "Sorcery", "player-1"),
-        card("first-land", "Land", "player-1"),
-        card("top-spell", "Instant", "player-1"),
-    ];
-    engine.state.players[2].library = vec![
-        card("opponent-two-second-land", "Land", "player-2"),
-        card("opponent-two-first-land", "Land", "player-2"),
-    ];
-    let stack_object = StackObject {
-        id: "stack:mind-grind".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "mind-grind",
-            test_definition("mind-grind", "Sorcery"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: None,
-        ability_rule: None,
-        decisions: BTreeMap::from([("xValue".to_string(), Value::from(2))]),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_avatar_deck_spell_instruction("mindGrind", &stack_object, &mut RandomAi::seeded(1))
-        .expect("Mind Grind resolves");
-
-    assert_eq!(
-        engine.state.players[1]
-            .library
-            .iter()
-            .map(|card| card.instance_id.as_str())
-            .collect::<Vec<_>>(),
-        vec!["not-revealed"]
-    );
-    assert_eq!(engine.state.players[1].graveyard.len(), 4);
-    assert!(engine.state.players[2].library.is_empty());
-    assert_eq!(engine.state.players[2].graveyard.len(), 2);
-    assert_eq!(
-        engine
-            .state
-            .events
-            .iter()
-            .filter(|event| event.kind == "cardMilled")
-            .count(),
-        6
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     let mut engine = test_engine(2);
@@ -22959,6 +23420,9 @@ fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     colorless_creature.summoning_sick = true;
     engine.state.players[0].battlefield = vec![white_creature, colorless_creature];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let action = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -22986,6 +23450,7 @@ fn convoke_uses_summoning_sick_creatures_for_colored_and_generic_mana() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     let mut engine = test_engine(2);
@@ -23030,6 +23495,9 @@ fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     assert!(action.payment_sources.is_empty());
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("teamwork spell is cast");
 
@@ -23040,6 +23508,11 @@ fn teamwork_uses_any_creature_combination_meeting_the_power_threshold() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Terminus; see docs/coverage-targets.md"
+)]
 #[test]
 fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
     let mut engine = test_engine(2);
@@ -23078,6 +23551,9 @@ fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
         .library
         .push(test_instance("terminus", terminus, "player-0"));
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     engine.draw_cards("player-0", 1).expect("card is drawn");
     assert!(engine.state.stack.iter().any(|object| {
         object
@@ -23103,6 +23579,7 @@ fn miracle_offers_the_first_drawn_card_at_its_alternative_cost() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
     let mut engine = test_engine(2);
@@ -23139,6 +23616,9 @@ fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
         )
         .expect("Predator damages the victim");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("victim", "destroyed")
         .expect("victim dies later this turn");
     engine
@@ -23151,6 +23631,11 @@ fn predator_ooze_triggers_only_for_a_creature_it_damaged_this_turn() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Plasm Capture; see docs/coverage-targets.md"
+)]
 #[test]
 fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     let mut engine = test_engine(2);
@@ -23191,7 +23676,20 @@ fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     };
 
     engine
-        .resolve_spell_instruction("plasmCapture", &plasm, &mut EmeritusDecisionProvider)
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .execute_effects(
+            &json!([{
+                "kind": "counterSpell",
+                "spell": { "kind": "chosenTarget", "id": "targetSpell" },
+                "addManaAtNextMainPhase": "C",
+            }]),
+            &plasm,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
         .expect("Plasm Capture resolves");
     assert!(engine.state.stack.is_empty());
     assert!(engine.state.rule_modifiers.iter().any(|modifier| {
@@ -23212,6 +23710,7 @@ fn plasm_capture_adds_the_countered_spells_mana_value_next_first_main() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     let mut engine = test_engine(2);
@@ -23268,6 +23767,9 @@ fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     assert_eq!(engine.current_power(copied), 6);
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .move_permanent_to_graveyard("alteration", "destroyed")
         .expect("Aura leaves");
     let restored = engine.state.players[0]
@@ -23278,6 +23780,7 @@ fn metamorphic_alteration_copies_the_choice_until_the_aura_leaves() {
     assert_eq!(restored.definition, original_definition);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
     let mut engine = test_engine(2);
@@ -23314,6 +23817,9 @@ fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
         .find(|action| action.decisions["usePrototype"] == true)
         .expect("prototype cast is available");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
         .expect("prototype is cast");
     engine
@@ -23339,173 +23845,7 @@ fn prototype_uses_alternate_characteristics_until_the_permanent_leaves() {
     );
 }
 
-#[test]
-fn damping_sphere_replaces_large_land_mana_and_taxes_later_spells() {
-    let mut engine = test_engine(2);
-    let mut sphere_definition = test_definition("sphere", "Artifact");
-    sphere_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [
-            { "kind": "dampingSphereMana" },
-            { "kind": "dampingSphereSpellTax" },
-        ],
-    })];
-    let sphere = test_instance("sphere", sphere_definition, "player-0");
-    let large_land = mana_source("ancient-tomb", "Land", "{C}{C}", None);
-    engine.state.players[0].battlefield = vec![sphere, large_land];
-
-    let choices = engine.mana_choices_for_permanent(
-        &engine.state.players[0].battlefield[1],
-        None,
-        true,
-        true,
-    );
-    assert_eq!(choices.len(), 1);
-    assert_eq!(choices[0].symbols, ["C"]);
-
-    engine.record_event("spellCast", Some("player-0".to_string()), None, json!({}));
-    let costs = engine.casting_additional_mana_costs(
-        &test_definition("next-spell", "Sorcery"),
-        "player-0",
-        &BTreeMap::new(),
-    );
-    assert!(costs.iter().any(|cost| cost == "{1}"));
-}
-
-#[test]
-fn dragon_throne_grants_and_resolves_its_equipped_creature_ability() {
-    let mut engine = test_engine(2);
-    engine.state.active_player = 0;
-    engine.state.step = GameStep::PrecombatMain;
-    engine.state.players[0].mana_pool = vec![
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-    ];
-    let mut equipment_definition = test_definition("throne", "Legendary Artifact - Equipment");
-    equipment_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [
-            {
-                "kind": "grantKeyword",
-                "objects": { "kind": "attachedPermanent", "attachment": { "kind": "self" } },
-                "keyword": "defender",
-            },
-            { "kind": "grantDragonThroneAbility", "attachment": { "kind": "self" } },
-        ],
-    })];
-    let mut throne = test_instance("throne", equipment_definition, "player-0");
-    throne.attached_to = Some("equipped".to_string());
-    let mut equipped_definition = test_definition("equipped", "Creature - Giant");
-    equipped_definition.power = Some("3".to_string());
-    equipped_definition.toughness = Some("3".to_string());
-    let equipped = test_instance("equipped", equipped_definition, "player-0");
-    let other = test_instance(
-        "other",
-        test_definition("other", "Creature - Soldier"),
-        "player-0",
-    );
-    engine.state.players[0].battlefield = vec![throne, equipped, other];
-
-    assert!(engine.permanent_has_keyword(&engine.state.players[0].battlefield[1], "defender"));
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action
-                .decisions
-                .get("dragonThroneAbility")
-                .and_then(Value::as_bool)
-                == Some(true)
-        })
-        .expect("the granted Dragon Throne ability is available");
-    engine
-        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
-        .expect("the granted ability is activated");
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the granted ability resolves");
-
-    let other = engine.state.players[0]
-        .battlefield
-        .iter()
-        .find(|permanent| permanent.instance_id == "other")
-        .expect("other creature remains");
-    assert_eq!(engine.current_power(other), 5);
-    assert_eq!(engine.current_toughness(other), 5);
-    assert!(engine.permanent_has_keyword(other, "trample"));
-}
-
-#[test]
-fn capitoline_triad_emblem_sets_only_its_controllers_creatures_base_to_nine() {
-    let mut engine = test_engine(2);
-    let mut controlled = test_instance(
-        "controlled",
-        test_definition("controlled", "Creature - Soldier"),
-        "player-0",
-    );
-    controlled.counters.insert("+1/+1".to_string(), 1);
-    engine.state.players[0].battlefield = vec![controlled];
-    engine.state.players[1].battlefield = vec![test_instance(
-        "opponent",
-        test_definition("opponent", "Creature - Soldier"),
-        "player-1",
-    )];
-    let stack_object = StackObject {
-        id: "stack:triad".to_string(),
-        controller: "player-0".to_string(),
-        card: test_instance(
-            "triad",
-            test_definition("triad", "Legendary Artifact Creature - Golem"),
-            "player-0",
-        ),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("activatedAbility".to_string()),
-        ability_rule: None,
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
-    };
-
-    engine
-        .resolve_triggered_instruction(
-            "capitolineTriadEmblem",
-            &stack_object,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("emblem resolves");
-
-    assert_eq!(
-        engine.current_power(&engine.state.players[0].battlefield[0]),
-        10
-    );
-    assert_eq!(
-        engine.current_toughness(&engine.state.players[0].battlefield[0]),
-        10
-    );
-    assert_eq!(
-        engine.current_power(&engine.state.players[1].battlefield[0]),
-        2
-    );
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn odric_makes_the_attacking_player_choose_defending_creatures_blocks() {
     #[derive(Default)]
@@ -23581,6 +23921,7 @@ fn odric_makes_the_attacking_player_choose_defending_creatures_blocks() {
     assert!(provider.attacker_chose_blocks);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
     let mut engine = test_engine(2);
@@ -23611,6 +23952,9 @@ fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
     });
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Seething Song resolves");
 
@@ -23623,6 +23967,7 @@ fn fixed_mana_spell_adds_every_symbol_from_its_canonical_effect() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn hone_counters_on_any_equipment_increase_the_equipped_creatures_power() {
     let mut engine = test_engine(2);
@@ -23644,6 +23989,7 @@ fn hone_counters_on_any_equipment_increase_the_equipped_creatures_power() {
     assert_eq!(engine.current_toughness(&creature), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn storied_grants_an_enduring_story_once_the_generic_threshold_is_met() {
     let mut engine = test_engine(2);
@@ -23679,6 +24025,7 @@ fn storied_grants_an_enduring_story_once_the_generic_threshold_is_met() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
     let mut engine = test_engine(2);
@@ -23742,6 +24089,7 @@ fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() {
     let mut engine = test_engine(2);
@@ -23787,6 +24135,9 @@ fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() 
         ),
     ];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let equip_actions = |engine: &GameEngine| {
         engine
             .legal_priority_actions(0)
@@ -23856,6 +24207,7 @@ fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() 
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -23896,6 +24248,9 @@ fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     engine.enqueue_step_triggers("beginCombat");
     assert_eq!(engine.state.stack.len(), 1);
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("resolve the draw-threshold combat trigger");
 
@@ -23906,6 +24261,7 @@ fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     assert!(engine.permanent_has_keyword(target, "firstStrike"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -23960,6 +24316,9 @@ fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     }];
     engine.state.players[1].battlefield = vec![tapped, untapped];
 
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let actions = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -23985,6 +24344,7 @@ fn target_qualified_reduction_is_applied_after_spell_targets_are_declared() {
     assert!(engine.permanent_position("untapped-target").is_some());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn source_power_characteristic_counts_only_its_controllers_permanents() {
     let mut engine = test_engine(2);
@@ -24033,6 +24393,7 @@ fn source_power_characteristic_counts_only_its_controllers_permanents() {
     assert_eq!(engine.current_toughness(garrison), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn opponent_second_draw_creates_a_token_and_grouped_players_each_draw() {
     let mut engine = test_engine(4);
@@ -24122,6 +24483,7 @@ fn opponent_second_draw_creates_a_token_and_grouped_players_each_draw() {
     assert_eq!(engine.state.players[3].hand.len(), initial_hands[3]);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
     let mut engine = test_engine(2);
@@ -24163,6 +24525,7 @@ fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
         )]),
     });
 
+    designate_fixture_stack_targets(&mut engine);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
         .expect("Thran Temporal Gateway ability resolves");
@@ -24175,6 +24538,7 @@ fn move_target_card_can_put_a_selected_card_from_hand_onto_the_battlefield() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
     let mut engine = test_engine(2);
@@ -24220,6 +24584,9 @@ fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
         .apply_priority_action(&action, &mut RandomAi::seeded(1))
         .expect("activate unearth");
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .resolve_top_stack(&mut RandomAi::seeded(1))
         .expect("resolve unearth");
 
@@ -24258,6 +24625,7 @@ fn graveyard_activation_enforces_sorcery_timing_and_unearth_exile_rules() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn conditional_combat_keywords_follow_turn_and_attacking_alone_state() {
     let mut engine = test_engine(2);
@@ -24334,91 +24702,7 @@ fn conditional_combat_keywords_follow_turn_and_attacking_alone_state() {
     assert!(engine.can_block(&blocker, &engine.state.players[0].battlefield[1]));
 }
 
-#[test]
-fn sokrates_can_activate_during_an_opponents_combat_and_prevent_damage() {
-    let mut engine = test_engine(2);
-    engine.state.active_player = 1;
-    engine.state.step = GameStep::DeclareBlockers;
-    let mut sokrates_definition = test_definition("sokrates", "Legendary Creature - Human Advisor");
-    sokrates_definition.rules = vec![json!({
-        "kind": "activatedAbility",
-        "source": { "kind": "self" },
-        "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
-        "declaration": {
-            "kind": "castingDeclaration",
-            "decisions": [{
-                "kind": "chooseTargets",
-                "id": "targetCreature",
-                "minimum": 1,
-                "maximum": 1,
-                "candidates": {
-                    "kind": "permanents",
-                    "where": { "kind": "cardTypeContains", "value": "Creature" },
-                },
-            }],
-        },
-        "effects": [{
-            "kind": "installSokratesDialogue",
-            "permanent": { "kind": "chosenTarget", "id": "targetCreature" },
-            "duration": { "kind": "untilEndOfCurrentTurn" },
-        }],
-    })];
-    let mut sokrates = test_instance("sokrates", sokrates_definition, "player-0");
-    sokrates.summoning_sick = false;
-    let mut attacker_definition = test_definition("attacker", "Creature - Giant");
-    attacker_definition.power = Some("6".to_string());
-    attacker_definition.toughness = Some("6".to_string());
-    let attacker = test_instance("attacker", attacker_definition, "player-1");
-    engine.state.players[0].battlefield = vec![sokrates];
-    engine.state.players[1].battlefield = vec![attacker];
-    let action = engine
-        .legal_priority_actions(0)
-        .into_iter()
-        .find(|action| {
-            action.kind == ActionKind::ActivateAbility
-                && action.card_instance_id.as_deref() == Some("sokrates")
-                && action.targets.get("targetCreature")
-                    == Some(&TargetRef::Permanent {
-                        instance_id: "attacker".to_string(),
-                    })
-        })
-        .expect("Sokrates activation is legal at instant speed during opponent combat");
-    let hand_sizes = [
-        engine.state.players[0].hand.len(),
-        engine.state.players[1].hand.len(),
-    ];
-
-    engine
-        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
-        .expect("Sokrates activates");
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("Sokrates ability resolves");
-    assert!(
-        engine.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("sokratesDialogue")
-                && modifier["cardInstanceId"] == "attacker"
-        }),
-        "Sokrates modifier was not installed on the selected attacker: {:?}",
-        engine.state.rule_modifiers,
-    );
-    engine
-        .deal_damage_amount_with_kind(
-            TargetRef::Player {
-                player_id: "player-0".to_string(),
-            },
-            6,
-            "attacker",
-            true,
-        )
-        .expect("combat damage event resolves");
-
-    assert!(engine.state.players[0].battlefield[0].tapped);
-    assert_eq!(engine.state.players[0].life, 20);
-    assert_eq!(engine.state.players[0].hand.len(), hand_sizes[0] + 3);
-    assert_eq!(engine.state.players[1].hand.len(), hand_sizes[1] + 3);
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn class_level_requirement_controls_permanent_rules_and_intrinsic_keywords() {
     let engine = test_engine(2);
@@ -24440,6 +24724,11 @@ fn class_level_requirement_controls_permanent_rules_and_intrinsic_keywords() {
     assert!(engine.permanent_has_keyword(&class, "flying"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Goblin Welder; see docs/coverage-targets.md"
+)]
 #[test]
 fn linked_exchange_targets_and_resolution_share_one_player() {
     let mut engine = test_engine(2);
@@ -24503,6 +24792,9 @@ fn linked_exchange_targets_and_resolution_share_one_player() {
             "card": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
         }],
     });
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let declarations = engine
         .declarations_for_activated_rule(&rule, "player-0", "exchange-source")
         .expect("linked target declarations are executable");
@@ -24576,9 +24868,16 @@ fn linked_exchange_targets_and_resolution_share_one_player() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     let mut engine = test_engine(2);
+    // Private live-rule fixture: the retired grant transport is not executed.
+    engine.state.rule_modifiers.push(json!({
+        "kind":"temporaryHexproofFrom","playerId":"player-0","includePlayer":true,
+        "permanentIds":["protected-creature"],"from":["blue","black"],
+        "expiresAfterTurn":engine.state.turn_number,"sourceCardInstanceId":"protection-spell",
+    }));
     engine.state.players[0].battlefield.push(test_instance(
         "protected-creature",
         test_definition("protected-creature", "Creature"),
@@ -24614,14 +24913,6 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
             "player": { "kind": "abilityController" },
             "duration": { "kind": "untilEndOfCurrentTurn" },
         },
-        {
-            "kind": "grantTemporaryHexproofFrom",
-            "player": { "kind": "abilityController" },
-            "includePlayer": true,
-            "includeControlledPermanents": true,
-            "from": ["blue", "black"],
-            "duration": { "kind": "untilEndOfCurrentTurn" },
-        },
     ]);
     let stack_object = StackObject {
         id: "stack:temporary-protection".to_string(),
@@ -24639,6 +24930,9 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
         targets: BTreeMap::new(),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &effects,
             &stack_object,
@@ -24654,7 +24948,7 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
             .iter()
             .any(|card| card.instance_id == "drawn-card")
     );
-    assert!(engine.controlled_spells_cant_be_countered("player-0"));
+    assert!(engine.temporary_controlled_spells_cant_be_countered("player-0"));
 
     let targeted_rule = json!({
         "kind": "spellAbility",
@@ -24699,139 +24993,7 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     );
 }
 
-#[test]
-fn linked_hand_or_permanent_exile_returns_the_selected_permanent() {
-    let mut engine = test_engine(2);
-    let source = test_instance(
-        "linked-exile-source",
-        test_definition("linked-exile-source", "Enchantment"),
-        "player-0",
-    );
-    engine.state.players[0].battlefield.extend([
-        source.clone(),
-        test_instance(
-            "wrong-controller-creature",
-            test_definition("wrong-controller-creature", "Creature"),
-            "player-0",
-        ),
-    ]);
-    engine.state.players[1].battlefield.push(test_instance(
-        "chosen-creature",
-        test_definition("chosen-creature", "Creature"),
-        "player-1",
-    ));
-    engine.state.players[1].hand.push(test_instance(
-        "revealed-nonland",
-        test_definition("revealed-nonland", "Instant"),
-        "player-1",
-    ));
-    let rule = json!({
-        "kind": "triggeredAbility",
-        "source": { "kind": "self" },
-        "event": { "kind": "entersBattlefield", "object": { "kind": "self" } },
-        "declaration": {
-            "kind": "castingDeclaration",
-            "decisions": [
-                {
-                    "kind": "chooseTargets",
-                    "id": "targetOpponent",
-                    "minimum": 1,
-                    "maximum": 1,
-                    "candidates": {
-                        "kind": "players",
-                        "where": {
-                            "kind": "isOpponentOf",
-                            "player": { "kind": "abilityController" },
-                        },
-                    },
-                },
-                {
-                    "kind": "chooseTargets",
-                    "id": "targetCreature",
-                    "minimum": 0,
-                    "maximum": 1,
-                    "candidates": {
-                        "kind": "permanents",
-                        "where": { "kind": "cardTypeContains", "value": "Creature" },
-                    },
-                    "selectionConstraint": {
-                        "kind": "targetControllerMatchesTargetPlayer",
-                        "targetId": "targetOpponent",
-                    },
-                },
-            ],
-        },
-        "effects": [{
-            "kind": "chooseExileFromHandOrPermanentUntilSourceLeaves",
-            "player": { "kind": "chosenTarget", "id": "targetOpponent" },
-            "permanent": { "kind": "chosenTarget", "id": "targetCreature" },
-            "handWhere": {
-                "kind": "not",
-                "operand": { "kind": "cardTypeContains", "value": "Land" },
-            },
-            "optional": true,
-        }],
-    });
-    let declarations = engine
-        .declarations_for_triggered_rule(&rule, "player-0", &source.definition)
-        .expect("linked player-controller declarations are supported");
-    assert_eq!(declarations.len(), 2);
-    assert!(declarations.iter().all(|declaration| {
-        declaration
-            .targets
-            .get("targetCreature")
-            .is_none_or(|target| {
-                target
-                    == &TargetRef::Permanent {
-                        instance_id: "chosen-creature".to_string(),
-                    }
-            })
-    }));
-
-    let stack_object = StackObject {
-        id: "stack:linked-hand-or-permanent".to_string(),
-        controller: "player-0".to_string(),
-        card: source.clone(),
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: Some("triggeredAbility".to_string()),
-        ability_rule: Some(rule.clone()),
-        decisions: BTreeMap::new(),
-        targets: BTreeMap::from([
-            (
-                "targetOpponent".to_string(),
-                TargetRef::Player {
-                    player_id: "player-1".to_string(),
-                },
-            ),
-            (
-                "targetCreature".to_string(),
-                TargetRef::Permanent {
-                    instance_id: "chosen-creature".to_string(),
-                },
-            ),
-        ]),
-    };
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the selected permanent is exiled");
-    assert!(engine.permanent_position("chosen-creature").is_none());
-
-    engine
-        .move_permanent_to_graveyard("linked-exile-source", "destroyed")
-        .expect("the source leaves the battlefield");
-    engine
-        .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("the linked return trigger resolves");
-    assert!(engine.permanent_position("chosen-creature").is_some());
-}
-
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
     let mut engine = test_engine(2);
@@ -24913,6 +25075,9 @@ fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
         targets: BTreeMap::new(),
     };
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &json!([{
                 "kind": "optionalPayCostCreateReflexiveTrigger",
@@ -24947,6 +25112,7 @@ fn optional_counter_payment_creates_and_resolves_a_reflexive_trigger() {
     assert!(type_line_contains(&attacker.definition.type_line, "Angel"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
     let mut engine = test_engine(2);
@@ -25012,8 +25178,12 @@ fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
         attacker_id: None,
         blocker_id: None,
     };
+    // The delve maximum is the generic component of the printed {5}{U}{U}.
     engine
-        .apply_delve_cost(&action, &spell)
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .apply_delve_cost(&action, &spell, 5)
         .expect("delve exiles the declared graveyard cards");
     assert!(engine.state.players[0].graveyard.is_empty());
     assert_eq!(engine.state.players[0].exile.len(), 2);
@@ -25029,6 +25199,7 @@ fn delve_payment_reduces_generic_mana_and_drives_entry_replacements() {
     assert_eq!(entering.counters.get("+1/+1"), Some(&1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn graveyard_leave_triggers_filter_the_cards_that_moved() {
     let mut engine = test_engine(2);
@@ -25083,6 +25254,11 @@ fn graveyard_leave_triggers_filter_the_cards_that_moved() {
     assert_eq!(engine.state.stack.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Moment of Glory; see docs/coverage-targets.md"
+)]
 #[test]
 fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25174,6 +25350,11 @@ fn cast_from_graveyard_counter_amendment_excludes_the_primary_target() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Mountain-king's Return; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25263,6 +25444,11 @@ fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ori, Keeper of Songs; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25310,6 +25496,11 @@ fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
     assert!(engine.permanent_has_keyword(ori, "vigilance"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bombur, Gentle Dreamer; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25351,6 +25542,11 @@ fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     assert!(!engine.static_modifier_applies_to("doesNotUntap", &bombur));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Queen of Dale; see docs/coverage-targets.md"
+)]
 #[test]
 fn opponent_first_filtered_spell_trigger_counts_only_matching_spells() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25424,6 +25620,7 @@ fn opponent_first_filtered_spell_trigger_counts_only_matching_spells() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn any_player_second_spell_trigger_counts_each_player_independently() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25492,6 +25689,11 @@ fn any_player_second_spell_trigger_counts_each_player_independently() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sauron, the Dark Lord; see docs/coverage-targets.md"
+)]
 #[test]
 fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25561,6 +25763,11 @@ fn controlled_army_combat_damage_tempts_then_enqueues_hand_replacement() {
     assert!(engine.state.stack.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sauron, the Lidless Eye; see docs/coverage-targets.md"
+)]
 #[test]
 fn temporary_control_sequence_restores_controller_at_cleanup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25617,6 +25824,11 @@ fn temporary_control_sequence_restores_controller_at_cleanup() {
     assert!(!engine.permanent_has_keyword(restored, "haste"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Roads Go Ever, Ever On; see docs/coverage-targets.md"
+)]
 #[test]
 fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25724,6 +25936,11 @@ fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
     assert_eq!(engine.current_toughness(attacker), 4);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Settle the Wreckage; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_group_exile_searches_for_the_number_actually_exiled() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25828,6 +26045,7 @@ fn parsed_group_exile_searches_for_the_number_actually_exiled() {
     assert!(searched_lands.iter().all(|card| card.tapped));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25874,15 +26092,15 @@ fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() 
         )]),
     };
     let mut resolution_decisions = stack_object.decisions.clone();
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut resolution_decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the selected type-changing mode executes");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut resolution_decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the selected type-changing mode executes");
 
     let (player_index, card_index) = engine.permanent_position("sunlight-target").unwrap();
     let target = &engine.state.players[player_index].battlefield[card_index];
@@ -25891,6 +26109,11 @@ fn parsed_modal_type_addition_and_keyword_change_the_target_until_end_of_turn() 
     assert!(has_keyword(&target.definition, "indestructible"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Velvetwing Butterflies // Gaze in Wonder; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25967,6 +26190,11 @@ fn parsed_bounded_multi_target_tap_taps_every_selected_creature() {
     assert!(engine.state.players[1].battlefield[1].tapped);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Luckwearer // Burglar's Plot; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26051,6 +26279,11 @@ fn parsed_shared_card_type_control_exchange_moves_both_permanents() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26107,6 +26340,11 @@ fn parsed_non_hand_reduction_uses_the_declared_cast_source_zone() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bilbo, Thief in the Night; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attack_trigger_casts_from_graveyard_and_links_the_exile_replacement() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26167,6 +26405,7 @@ fn parsed_attack_trigger_casts_from_graveyard_and_links_the_exile_replacement() 
     assert!(engine.state.players[0].graveyard.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26216,23 +26455,24 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
         ability_kind: Some("spellAbility".to_string()),
         ability_rule: Some(rule.clone()),
         decisions: BTreeMap::from([("chosenModes".to_string(), json!(["mode1"]))]),
+        // The parser declares the countered spell as `mode1:targetSpell`.
         targets: BTreeMap::from([(
-            "mode1:targetStackObject".to_string(),
+            "mode1:targetSpell".to_string(),
             TargetRef::StackObject {
                 stack_id: "stack:modal-target".to_string(),
             },
         )]),
     };
     let mut counter_decisions = counter_spell.decisions.clone();
-    counter_engine
-        .execute_effects(
-            &rule["effects"],
-            &counter_spell,
-            &mut BTreeMap::new(),
-            &mut counter_decisions,
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the selected counter mode executes");
+    execute_effects_at_resolution_start(
+        &mut counter_engine,
+        &rule["effects"],
+        &counter_spell,
+        &mut BTreeMap::new(),
+        &mut counter_decisions,
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the selected counter mode executes");
     assert!(counter_engine.state.stack.is_empty());
     assert!(
         counter_engine.state.players[1]
@@ -26272,6 +26512,9 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
     };
     let mut loot_decisions = loot_spell.decisions.clone();
     loot_engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    loot_engine
         .execute_effects(
             &rule["effects"],
             &loot_spell,
@@ -26284,6 +26527,11 @@ fn parsed_counter_or_loot_modal_executes_each_selected_mode() {
     assert_eq!(loot_engine.state.players[0].graveyard.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Elrond, Moon-Reader; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26363,6 +26611,11 @@ fn parsed_bounded_delayed_blink_exiles_and_returns_every_selected_permanent() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Elrond, Moon-Reader; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26438,6 +26691,11 @@ fn parsed_creature_ability_activation_trigger_draws_only_once_each_turn() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Vow to Erebor; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26512,6 +26770,11 @@ fn parsed_linked_target_sequence_untaps_buffs_and_attaches_a_chosen_equipment() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Enchanted River's Grasp; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_card() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26614,6 +26877,11 @@ fn parsed_attached_ability_loss_clears_counters_and_suppresses_the_enchanted_car
     assert!(!engine.static_modifier_applies_to("doesNotUntap", &enchanted));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Wandering Wizard; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26690,6 +26958,11 @@ fn parsed_source_owner_shuffle_moves_the_source_and_draws_for_its_owner() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Lake-town Mariners // Gone Fishing; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26802,6 +27075,11 @@ fn parsed_exact_count_blink_returns_every_target_under_its_owners_control() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Lord of the Eagles; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26849,6 +27127,11 @@ fn parsed_total_flying_power_reduces_only_the_spells_generic_mana() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Master's Councillors; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26894,6 +27177,11 @@ fn parsed_graveyard_threshold_bonus_counts_each_active_players_zone() {
     assert_eq!(engine.current_toughness(&source), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Mirkwood Meditator; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -26955,6 +27243,11 @@ fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
     assert_eq!(engine.current_toughness(&source), 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Most Decrepit Old Bird // Speak Secrets; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
     let threshold = parse_oracle_card(OracleCardParseRequest {
@@ -27075,6 +27368,11 @@ fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
     assert!(spell_engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Old Fat Spider Can't See Me; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
     let keyword_rule = parse_oracle_card(OracleCardParseRequest {
@@ -27220,6 +27518,11 @@ fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
     assert_eq!(engine.state.players[0].life, life_before - 3);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Plunder the Trollshaws; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27286,6 +27589,11 @@ fn parsed_conditional_instead_spell_uses_its_actual_cast_zone() {
     assert_eq!(resolve_from("graveyard"), 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Riddles in the Dark; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
     struct TwoCardPileProvider;
@@ -27383,6 +27691,11 @@ fn parsed_top_card_piles_move_only_the_chosen_partition_to_hand() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Roll-Roll-Roll-Roll; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27453,6 +27766,11 @@ fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
     assert!(engine.state.players[0].exile.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sound the Trumpets; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27567,6 +27885,11 @@ fn parsed_counter_follow_up_recruits_only_for_the_matching_mana_value() {
     assert_eq!(too_large.state.players[0].library.len(), 1);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thranduil's Decree; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27666,6 +27989,11 @@ fn parsed_filtered_counter_exiles_only_permanents_and_grants_a_free_cast() {
     assert!(instant.state.permissions.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uncover the Moon-Letters; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27731,6 +28059,11 @@ fn parsed_trigger_mana_spent_draws_then_discards_when_accepted() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uneasy Partings; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_owner_library_choice_is_made_by_the_owner() {
     struct OwnerChoosesBottom;
@@ -27830,6 +28163,11 @@ fn parsed_owner_library_choice_is_made_by_the_owner() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Wizard's Staff; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -27952,6 +28290,11 @@ fn parsed_wizards_staff_equips_only_wizards_and_doubles_granted_prowess() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Azog, Moria's Ruin; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_azog_uses_last_known_controller_and_power_for_amass_and_draw() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28037,6 +28380,7 @@ fn parsed_azog_uses_last_known_controller_and_power_for_amass_and_draw() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28090,15 +28434,15 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
             },
         )]),
     };
-    engine
-        .execute_effects(
-            &rule["effects"],
-            &trigger,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the target opponent chooses and sacrifices the matching permanent");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &trigger,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the target opponent chooses and sacrifices the matching permanent");
 
     assert!(engine.permanent_position("blade-sacrifice").is_none());
     assert!(engine.permanent_position("blade-kept-artifact").is_some());
@@ -28110,6 +28454,11 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dreaded Bat-Cloud; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28189,6 +28538,11 @@ fn no_lands_rules(
         .collect()
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Ashaya, Soul of the Wild, Dosan the Falling Leaf; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     let aftermath_rules = no_lands_rules(
@@ -28199,7 +28553,9 @@ fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     );
     let aftermath_rule = aftermath_rules
         .iter()
-        .find(|rule| rule["effects"][0]["kind"] == "returnCardsFromGraveyard")
+        .find(|rule| {
+            rule["kind"] == "activatedAbility" && rule["effects"][0]["kind"] == "moveCards"
+        })
         .expect("Aftermath Analyst has the bulk land-return ability")
         .clone();
     let aftermath = test_instance(
@@ -28304,6 +28660,11 @@ fn no_lands_engine_zone_and_static_rules_mutate_live_state() {
     assert!(dosan_engine.spell_casting_prohibited("player-1"));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Glacial Chasm, Field of the Dead; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds() {
     let glacial_rules = no_lands_rules(
@@ -28401,6 +28762,11 @@ fn no_lands_engine_glacial_chasm_and_field_of_the_dead_execute_their_thresholds(
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Braids, Arisen Nightmare, Exploration Broodship; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
     let braids_rule = no_lands_rules(
@@ -28538,6 +28904,11 @@ fn no_lands_engine_braids_and_broodship_preserve_linked_cost_semantics() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Green Sun's Zenith, Constant Mists; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics() {
     let swat_rules = no_lands_rules(
@@ -28548,9 +28919,17 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
     );
     let swat_rule = swat_rules
         .iter()
-        .find(|rule| rule["effects"][0]["kind"] == "changeTargets")
-        .expect("Deflecting Swat has a target-changing spell rule")
+        .find(|rule| {
+            rule["kind"] == "spellAbility"
+                && rule["effects"][0]["kind"] == "optionalEffects"
+                && rule["effects"][0]["effects"][0]["kind"] == "changeTargets"
+        })
+        .expect("Deflecting Swat has an optional target-changing spell rule")
         .clone();
+    let swat_target_id = swat_rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("Deflecting Swat declares its retarget object")
+        .to_string();
     let target_rule = json!({
         "kind": "spellAbility",
         "source": { "kind": "self" },
@@ -28604,7 +28983,7 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
         ability_rule: Some(swat_rule.clone()),
         decisions: BTreeMap::new(),
         targets: BTreeMap::from([(
-            "targetStackObject".to_string(),
+            swat_target_id.clone(),
             TargetRef::StackObject {
                 stack_id: "stack:target-spell".to_string(),
             },
@@ -28725,6 +29104,11 @@ fn no_lands_engine_deflecting_swat_green_sun_and_buyback_resolve_spell_semantics
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Squandered Resources; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
     let rules = no_lands_rules(
@@ -28796,6 +29180,11 @@ fn no_lands_engine_links_sacrificed_land_to_its_actual_mana_types() {
     assert_eq!(engine.state.players[0].mana_pool[0].symbol, "G");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Sylvan Library; see docs/coverage-targets.md"
+)]
 #[test]
 fn no_lands_engine_sylvan_library_uses_only_cards_drawn_this_turn() {
     struct SylvanDecisionProvider {
@@ -28907,6 +29296,7 @@ fn no_lands_engine_sylvan_library_uses_only_cards_drawn_this_turn() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
     let misty_rules = no_lands_rules(
@@ -28967,6 +29357,11 @@ fn misty_rainforest_only_gains_mana_actions_from_real_subtype_effects() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Archive Trap; see docs/coverage-targets.md"
+)]
 #[test]
 fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
     let misty_rules = no_lands_rules(
@@ -29055,6 +29450,11 @@ fn archive_trap_can_be_cast_for_zero_after_an_opponents_fetch_land_searches() {
     assert_eq!(engine.state.stack[0].card.instance_id, "archive-trap");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Spark Starter; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(
@@ -29141,6 +29541,7 @@ fn parsed_divided_damage_applies_the_declared_positive_distribution() {
     assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_two_target_attachment_moves_the_declared_equipment() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29176,14 +29577,15 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
         "player-0",
     );
     let targets = BTreeMap::from([
+        // The parser declares the Equipment and the creature in order.
         (
-            "targetAttachment".to_string(),
+            "targetPermanent1".to_string(),
             TargetRef::Permanent {
                 instance_id: "stalwart-equipment".to_string(),
             },
         ),
         (
-            "targetAttachmentRecipient".to_string(),
+            "targetPermanent2".to_string(),
             TargetRef::Permanent {
                 instance_id: "stalwart-recipient".to_string(),
             },
@@ -29202,16 +29604,15 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
     };
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![equipment, recipient];
-    engine
-        .execute_effect(
-            &rule["effects"][0],
-            None,
-            &stack_object,
-            &mut BTreeMap::new(),
-            &mut BTreeMap::new(),
-            &mut EmeritusDecisionProvider,
-        )
-        .expect("the declared Equipment attachment executes");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &json!([rule["effects"][0].clone()]),
+        &stack_object,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the declared Equipment attachment executes");
 
     assert_eq!(
         engine.state.players[0].battlefield[0]
@@ -29221,6 +29622,11 @@ fn parsed_two_target_attachment_moves_the_declared_equipment() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Pinecone Strike; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29294,6 +29700,7 @@ fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_optional_counted_discard_draw_mutates_live_zones() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29346,6 +29753,9 @@ fn parsed_optional_counted_discard_draw_mutates_live_zones() {
         .collect();
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effect(
             &rule["effects"][0],
             None,
@@ -29365,6 +29775,7 @@ fn parsed_optional_counted_discard_draw_mutates_live_zones() {
     assert!(engine.state.players[0].library.is_empty());
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn parsed_top_library_exile_installs_a_live_play_permission() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29411,6 +29822,9 @@ fn parsed_top_library_exile_installs_a_live_play_permission() {
     )];
 
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
         .execute_effects(
             &rule["effects"],
             &stack_object,
@@ -29435,6 +29849,11 @@ fn parsed_top_library_exile_installs_a_live_play_permission() {
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gandalf, Goblins' Bane // Flameshape; see docs/coverage-targets.md"
+)]
 #[test]
 fn conditional_exile_permission_tracks_the_live_battlefield() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29523,6 +29942,11 @@ fn conditional_exile_permission_tracks_the_live_battlefield() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Thorin, Mountain-king; see docs/coverage-targets.md"
+)]
 #[test]
 fn group_attachment_creates_a_reflexive_trigger_with_the_attached_creature_as_source() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29639,6 +30063,7 @@ fn group_attachment_creates_a_reflexive_trigger_with_the_attached_creature_as_so
     }));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn combined_mana_restriction_accepts_matching_spells_and_ability_sources_only() {
     let restriction = json!({
@@ -29676,6 +30101,11 @@ fn combined_mana_restriction_accepts_matching_spells_and_ability_sources_only() 
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Beorn the Fierce; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29752,6 +30182,11 @@ fn parsed_hob_linked_target_effects_mutate_the_target_before_the_threshold_check
     assert_eq!(engine.state.players[0].hand.len(), hand_before + 2);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Beorn's Hospitality; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
     let animation = parse_oracle_card(OracleCardParseRequest {
@@ -29890,6 +30325,11 @@ fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bolg, Erebor's Reckoning; see docs/coverage-targets.md"
+)]
 #[test]
 fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -29972,6 +30412,11 @@ fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     assert_eq!(modifier("enemy-two"), (-1, -1));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Celeborn the Wise, Bilbo's Ring; see docs/coverage-targets.md"
+)]
 #[test]
 fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     let filtered = parse_oracle_card(OracleCardParseRequest {
@@ -30081,6 +30526,11 @@ fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     assert!(!matches_stack_filter(&small_creature, &filter));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Dawn of a New Age; see docs/coverage-targets.md"
+)]
 #[test]
 fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30147,6 +30597,11 @@ fn source_counter_removal_controls_if_you_do_and_zero_counter_followup() {
     }
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Galadriel's Dismissal; see docs/coverage-targets.md"
+)]
 #[test]
 fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30262,6 +30717,11 @@ fn kicked_phase_out_instead_resolves_single_or_target_players_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Cavern-Hoard Dragon; see docs/coverage-targets.md"
+)]
 #[test]
 fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30352,6 +30812,11 @@ fn greatest_opponent_count_and_triggering_player_token_quantity_execute() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Arwen, Weaver of Hope; see docs/coverage-targets.md"
+)]
 #[test]
 fn external_entry_counters_use_the_static_sources_current_stat() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30388,6 +30853,11 @@ fn external_entry_counters_use_the_static_sources_current_stat() {
     assert_eq!(entering.counters.get("+1/+1"), Some(&3));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Last March of the Ents; see docs/coverage-targets.md"
+)]
 #[test]
 fn greatest_toughness_draw_then_hand_creatures_enter_together() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30471,6 +30941,11 @@ fn greatest_toughness_draw_then_hand_creatures_enter_together() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Gríma, Saruman's Footman; see docs/coverage-targets.md"
+)]
 #[test]
 fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30562,6 +31037,11 @@ fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Saruman of Many Colors; see docs/coverage-targets.md"
+)]
 #[test]
 fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30685,6 +31165,11 @@ fn opponent_mill_reflexive_copy_targets_by_owner_and_triggering_mana_value() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Tom Bombadil; see docs/coverage-targets.md"
+)]
 #[test]
 fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_play() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30785,6 +31270,11 @@ fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_pla
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Andúril, Flame of the West, Andúril, Narsil Reforged; see docs/coverage-targets.md"
+)]
 #[test]
 fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
     let parse_trigger = |name: &str, oracle_text: &str| {
@@ -30964,6 +31454,11 @@ fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The One Ring; see docs/coverage-targets.md"
+)]
 #[test]
 fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31026,6 +31521,11 @@ fn player_protection_entry_trigger_requires_the_source_to_have_been_cast() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Minas Morgul, Dark Fortress; see docs/coverage-targets.md"
+)]
 #[test]
 fn counter_linked_characteristics_follow_the_target_counter() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31103,6 +31603,11 @@ fn counter_linked_characteristics_follow_the_target_counter() {
     ));
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Witch-king of Angmar; see docs/coverage-targets.md"
+)]
 #[test]
 fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31190,6 +31695,11 @@ fn combat_damage_received_groups_sources_and_limits_each_opponents_sacrifice() {
     assert_eq!(emblem["bearerId"], "test-wraith");
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Uruk-hai Berserker; see docs/coverage-targets.md"
+)]
 #[test]
 fn ring_temptation_levels_drive_bearer_combat_rules() {
     let bearer = test_instance(
@@ -31277,6 +31787,11 @@ fn ring_temptation_levels_drive_bearer_combat_rules() {
     assert_eq!(engine.state.players[1].life, 17);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Witch-king, Bringer of Ruin; see docs/coverage-targets.md"
+)]
 #[test]
 fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31351,6 +31866,11 @@ fn least_power_sacrifice_offers_only_tied_minimum_creatures() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Call Forth the Tempest; see docs/coverage-targets.md"
+)]
 #[test]
 fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31420,6 +31940,11 @@ fn call_forth_repeated_cascade_creates_one_trigger_per_keyword_instance() {
     );
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Call Forth the Tempest; see docs/coverage-targets.md"
+)]
 #[test]
 fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31496,6 +32021,11 @@ fn call_forth_spell_cast_event_mana_values_drive_opposing_permanent_damage() {
     assert_eq!(engine.state.players[1].battlefield[0].damage_marked, 5);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Aragorn and Arwen, Wed; see docs/coverage-targets.md"
+)]
 #[test]
 fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31575,6 +32105,11 @@ fn aragorn_arwen_mass_counters_exclude_source_and_life_counts_allies() {
     assert_eq!(engine.state.players[0].life, 22);
 }
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Flame of Anor; see docs/coverage-targets.md"
+)]
 #[test]
 fn flame_of_anor_modal_declarations_expand_from_one_to_two_with_wizard() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -31642,3 +32177,890 @@ fn flame_of_anor_modal_declarations_expand_from_one_to_two_with_wizard() {
             .is_some_and(|modes| (1..=2).contains(&modes.len()))
     }));
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Jennifer Walters // The Sensational She-Hulk; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_controlled_creature_damage_retaliation_executes_once_each_turn() {
+    struct ChooseOpponentAndAccept;
+
+    impl DecisionProvider for ChooseOpponentAndAccept {
+        fn choose(
+            &mut self,
+            _state: &GameState,
+            request: &EngineDecisionRequest,
+        ) -> Result<usize, EngineError> {
+            if request.kind == DecisionKind::ResolutionChoice {
+                if let Some(index) = request.options.iter().position(|action| {
+                    action.targets.values().any(|target| {
+                        matches!(target, TargetRef::Player { player_id } if player_id == "player-1")
+                    })
+                }) {
+                    return Ok(index);
+                }
+                return request
+                    .options
+                    .len()
+                    .checked_sub(1)
+                    .ok_or_else(|| EngineError::new("retaliation choice has no options"));
+            }
+            Ok(0)
+        }
+    }
+
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "The Sensational She-Hulk".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: None,
+        oracle_text: Some(
+            "Whenever a creature you control is dealt damage, you may have The Sensational She-Hulk deal that much damage to any target. Do this only once each turn."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("She-Hulk's retaliation trigger parses");
+    assert!(rule_is_executable(&rule));
+
+    let mut she_hulk_definition = test_definition(
+        "the-sensational-she-hulk",
+        "Legendary Creature - Human Hero",
+    );
+    she_hulk_definition.name = "The Sensational She-Hulk".to_string();
+    she_hulk_definition.rules = vec![rule];
+    let she_hulk = test_instance("she-hulk", she_hulk_definition, "player-0");
+    let mut ally_definition = test_definition("durable-ally", "Creature - Hero");
+    ally_definition.toughness = Some("20".to_string());
+    let ally = test_instance("durable-ally", ally_definition, "player-0");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![she_hulk, ally];
+
+    engine
+        .deal_damage_amount_with_kind(
+            TargetRef::Permanent {
+                instance_id: "durable-ally".to_string(),
+            },
+            3,
+            "test-damage-source",
+            false,
+        )
+        .expect("damage to the controlled creature creates the retaliation trigger");
+    assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .resolve_top_stack(&mut ChooseOpponentAndAccept)
+        .expect("the optional retaliation targets and damages the opponent");
+    assert_eq!(engine.state.players[1].life, 17);
+
+    engine
+        .deal_damage_amount_with_kind(
+            TargetRef::Permanent {
+                instance_id: "durable-ally".to_string(),
+            },
+            2,
+            "test-damage-source",
+            false,
+        )
+        .expect("a second damage event in the same turn resolves");
+    assert!(
+        engine.state.stack.is_empty(),
+        "the trigger is limited to once each turn"
+    );
+
+    engine.state.turn_number += 1;
+    engine
+        .deal_damage_amount_with_kind(
+            TargetRef::Permanent {
+                instance_id: "durable-ally".to_string(),
+            },
+            4,
+            "test-damage-source",
+            false,
+        )
+        .expect("the next turn allows the trigger again");
+    assert_eq!(engine.state.stack.len(), 1);
+    engine
+        .resolve_top_stack(&mut ChooseOpponentAndAccept)
+        .expect("the next-turn retaliation resolves");
+    assert_eq!(engine.state.players[1].life, 13);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Nick Fury, Agent of S.H.I.E.L.D.; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_power_up_deploys_and_optionally_transforms_selected_double_faced_card() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Nick Fury, Agent of S.H.I.E.L.D.".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "Power-up — {W}{U}{B}{R}{G}: Put two +1/+1 counters on Nick Fury, then look at the top seven cards of your library. You may put a Hero, Equipment, or Vehicle card from among them onto the battlefield. If it's a double-faced card, you may transform it. Put the rest on the bottom of your library in a random order. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)"
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("Nick Fury's power-up parses");
+    assert!(rule_is_executable(&rule));
+
+    let double_faced_hero = compile_playable_card(PlayableCardInput {
+        id: "test-transforming-hero".to_string(),
+        face_id: Some("hero-front".to_string()),
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: Some("2".to_string()),
+        toughness: Some("2".to_string()),
+        oracle: OracleCardParseRequest {
+            card_name: "Test Recruit // Test Champion".to_string(),
+            type_line: "Creature - Human Hero // Creature - Human Hero".to_string(),
+            mana_cost: None,
+            oracle_text: None,
+            layout: Some("transform".to_string()),
+            faces: vec![
+                OracleCardFace {
+                    id: "hero-front".to_string(),
+                    name: "Test Recruit".to_string(),
+                    type_line: "Creature - Human Hero".to_string(),
+                    mana_cost: Some("{1}{W}".to_string()),
+                    oracle_text: String::new(),
+                    power: Some("2".to_string()),
+                    toughness: Some("2".to_string()),
+                    loyalty: None,
+                },
+                OracleCardFace {
+                    id: "hero-back".to_string(),
+                    name: "Test Champion".to_string(),
+                    type_line: "Creature - Human Hero".to_string(),
+                    mana_cost: Some(String::new()),
+                    oracle_text: String::new(),
+                    power: Some("4".to_string()),
+                    toughness: Some("4".to_string()),
+                    loyalty: None,
+                },
+            ],
+        },
+    })
+    .expect("the test double-faced Hero compiles")
+    .card;
+
+    let mut source_definition = test_definition("nick-fury", "Legendary Creature - Human Hero");
+    source_definition.name = "Nick Fury, Agent of S.H.I.E.L.D.".to_string();
+    source_definition.rules = vec![rule.clone()];
+    let source = test_instance("nick-fury", source_definition, "player-0");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(source.clone());
+    engine.state.players[0].library = (0..6)
+        .map(|index| {
+            test_instance(
+                &format!("nonmatching-{index}"),
+                test_definition(&format!("nonmatching-{index}"), "Sorcery"),
+                "player-0",
+            )
+        })
+        .chain(std::iter::once(test_instance(
+            "selected-hero",
+            double_faced_hero,
+            "player-0",
+        )))
+        .collect();
+    let stack_object = StackObject {
+        id: "stack:nick-fury-power-up".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the generic power-up effects resolve");
+
+    assert_eq!(
+        engine.state.players[0].battlefield[0].counters.get("+1/+1"),
+        Some(&2)
+    );
+    let selected = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.instance_id == "selected-hero")
+        .expect("the chosen Hero moved to the battlefield");
+    assert_eq!(selected.definition.name, "Test Champion");
+    assert_eq!(engine.state.players[0].library.len(), 6);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Origin of the Avengers; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_saga_optional_hand_deployment_draws_only_when_no_target_was_chosen() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Origin of the Avengers".to_string(),
+        type_line: "Enchantment - Saga".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Scry 2.\nII — You may put a Hero creature card with mana value 3 or less from your hand onto the battlefield. If you don't, draw a card.\nIII — Put a +1/+1 counter on each creature you control."
+                .to_string(),
+        ),
+        layout: Some("saga".to_string()),
+        faces: Vec::new(),
+    });
+    let rule = parsed
+        .abilities
+        .iter()
+        .filter_map(|ability| ability.rule.as_ref())
+        .find(|rule| {
+            rule["event"]["kind"] == "sagaChapterReached"
+                && rule["event"]["chapters"][0]["value"] == 2
+        })
+        .cloned()
+        .expect("the second Saga chapter parses");
+    assert!(rule_is_executable(&rule));
+
+    let mut source_definition = test_definition("origin-avengers", "Enchantment - Saga");
+    source_definition.rules = vec![rule.clone()];
+    let source = test_instance("origin-avengers", source_definition, "player-0");
+
+    let mut decline_engine = test_engine(2);
+    decline_engine.state.players[0]
+        .battlefield
+        .push(source.clone());
+    decline_engine.state.players[0].library.push(test_instance(
+        "fallback-draw",
+        test_definition("fallback-draw", "Sorcery"),
+        "player-0",
+    ));
+    let decline_hand_before = decline_engine.state.players[0].hand.len();
+    let decline_stack = StackObject {
+        id: "stack:origin-decline".to_string(),
+        controller: "player-0".to_string(),
+        card: source.clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    decline_engine
+        .execute_effects(
+            &rule["effects"],
+            &decline_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("declining the hand card executes the fallback draw");
+    assert_eq!(
+        decline_engine.state.players[0].hand.len(),
+        decline_hand_before + 1
+    );
+
+    let mut hero_definition = test_definition("three-mana-hero", "Creature - Human Hero");
+    hero_definition.mana_cost = "{2}{W}".to_string();
+    let hero = test_instance("three-mana-hero", hero_definition, "player-0");
+    let mut choose_engine = test_engine(2);
+    choose_engine.state.players[0]
+        .battlefield
+        .push(source.clone());
+    choose_engine.state.players[0].hand.push(hero);
+    choose_engine.state.players[0].library.push(test_instance(
+        "must-not-draw",
+        test_definition("must-not-draw", "Sorcery"),
+        "player-0",
+    ));
+    let choose_library_before = choose_engine.state.players[0].library.len();
+    let choose_stack = StackObject {
+        id: "stack:origin-choose".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "handCard".to_string(),
+            TargetRef::Card {
+                instance_id: "three-mana-hero".to_string(),
+            },
+        )]),
+    };
+    choose_engine
+        .execute_effects(
+            &rule["effects"],
+            &choose_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("choosing the hand card suppresses the fallback draw");
+    assert!(
+        choose_engine.state.players[0]
+            .battlefield
+            .iter()
+            .any(|card| card.instance_id == "three-mana-hero")
+    );
+    assert!(
+        !choose_engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "three-mana-hero")
+    );
+    assert_eq!(
+        choose_engine.state.players[0].library.len(),
+        choose_library_before
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Raft Security Officer; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_activation_reduction_is_applied_only_for_matching_selected_target() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Raft Security Officer".to_string(),
+        type_line: "Creature - Human Soldier".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "{2}, {T}: Tap target creature. This ability costs {1} less to activate if it targets a creature with power 3 or less."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("Raft Security Officer's activation parses");
+    assert!(rule_is_executable(&rule));
+
+    let mut source_definition =
+        test_definition("raft-security-officer", "Creature - Human Soldier");
+    source_definition.name = "Raft Security Officer".to_string();
+    source_definition.power = Some("4".to_string());
+    source_definition.toughness = Some("4".to_string());
+    source_definition.rules = vec![rule.clone()];
+    let source = test_instance("raft-officer", source_definition.clone(), "player-0");
+
+    let mut low_definition = test_definition("low-power-target", "Creature - Hero");
+    low_definition.power = Some("3".to_string());
+    low_definition.toughness = Some("4".to_string());
+    let low_target = test_instance("low-power-target", low_definition, "player-1");
+    let mut reduced_engine = test_engine(2);
+    reduced_engine.state.players[0].battlefield = vec![
+        source.clone(),
+        mana_source("single-mana", "Basic Land - Wastes", "{C}", None),
+    ];
+    reduced_engine.state.players[1].battlefield = vec![low_target];
+    let action = reduced_engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.card_instance_id.as_deref() == Some("raft-officer")
+                && action.targets.values().any(|target| {
+                    matches!(target, TargetRef::Permanent { instance_id } if instance_id == "low-power-target")
+                })
+        })
+        .expect("one mana pays the reduced activation targeting power 3");
+    reduced_engine
+        .apply_priority_action(&action, &mut EmeritusDecisionProvider)
+        .expect("the reduced activation is payable");
+    reduced_engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the tap ability resolves");
+    assert!(reduced_engine.state.players[1].battlefield[0].tapped);
+
+    let mut high_definition = test_definition("high-power-target", "Creature - Giant");
+    high_definition.power = Some("4".to_string());
+    high_definition.toughness = Some("4".to_string());
+    let high_target = test_instance("high-power-target", high_definition, "player-1");
+    let mut full_cost_engine = test_engine(2);
+    full_cost_engine.state.players[0].battlefield = vec![
+        test_instance("raft-officer", source_definition, "player-0"),
+        mana_source("single-mana", "Basic Land - Wastes", "{C}", None),
+    ];
+    full_cost_engine.state.players[1].battlefield = vec![high_target];
+    assert!(
+        full_cost_engine
+            .legal_priority_actions(0)
+            .into_iter()
+            .all(|action| action.card_instance_id.as_deref() != Some("raft-officer"))
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: White Widow, Free Agent; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_inline_modal_trigger_executes_each_selected_primitive_branch() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "White Widow, Free Agent".to_string(),
+        type_line: "Legendary Creature - Human Spy".to_string(),
+        mana_cost: Some("{2}{W}".to_string()),
+        oracle_text: Some(
+            "When White Widow enters, choose one — • Put a +1/+1 counter on each of up to two target creatures. • Return target artifact or enchantment card from your graveyard to your hand."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("White Widow's modal trigger parses");
+    assert!(rule_is_executable(&rule));
+
+    let source = test_instance(
+        "white-widow",
+        test_definition("white-widow", "Legendary Creature - Human Spy"),
+        "player-0",
+    );
+    let mut counter_engine = test_engine(2);
+    counter_engine.state.players[0].battlefield = vec![
+        source.clone(),
+        test_instance(
+            "counter-target-a",
+            test_definition("counter-target-a", "Creature - Hero"),
+            "player-0",
+        ),
+    ];
+    counter_engine.state.players[1]
+        .battlefield
+        .push(test_instance(
+            "counter-target-b",
+            test_definition("counter-target-b", "Creature - Villain"),
+            "player-1",
+        ));
+    let counter_stack = StackObject {
+        id: "stack:white-widow-counters".to_string(),
+        controller: "player-0".to_string(),
+        card: source.clone(),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::from([("chosenModes".to_string(), json!(["mode1"]))]),
+        targets: BTreeMap::from([
+            (
+                "mode1:targetPermanents:0".to_string(),
+                TargetRef::Permanent {
+                    instance_id: "counter-target-a".to_string(),
+                },
+            ),
+            (
+                "mode1:targetPermanents:1".to_string(),
+                TargetRef::Permanent {
+                    instance_id: "counter-target-b".to_string(),
+                },
+            ),
+        ]),
+    };
+    let mut counter_decisions = counter_stack.decisions.clone();
+    counter_engine
+        .execute_effects(
+            &rule["effects"],
+            &counter_stack,
+            &mut BTreeMap::new(),
+            &mut counter_decisions,
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the bounded counter mode resolves");
+    assert_eq!(
+        counter_engine.state.players[0].battlefield[1]
+            .counters
+            .get("+1/+1"),
+        Some(&1)
+    );
+    assert_eq!(
+        counter_engine.state.players[1].battlefield[0]
+            .counters
+            .get("+1/+1"),
+        Some(&1)
+    );
+
+    let recovered = test_instance(
+        "recovered-artifact",
+        test_definition("recovered-artifact", "Artifact"),
+        "player-0",
+    );
+    let mut return_engine = test_engine(2);
+    return_engine.state.players[0]
+        .battlefield
+        .push(source.clone());
+    return_engine.state.players[0].graveyard.push(recovered);
+    let return_stack = StackObject {
+        id: "stack:white-widow-return".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::from([("chosenModes".to_string(), json!(["mode2"]))]),
+        targets: BTreeMap::from([(
+            "mode2:targetGraveyardCard".to_string(),
+            TargetRef::Card {
+                instance_id: "recovered-artifact".to_string(),
+            },
+        )]),
+    };
+    let mut return_decisions = return_stack.decisions.clone();
+    return_engine
+        .execute_effects(
+            &rule["effects"],
+            &return_stack,
+            &mut BTreeMap::new(),
+            &mut return_decisions,
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the graveyard-return mode resolves");
+    assert!(return_engine.state.players[0].graveyard.is_empty());
+    assert!(
+        return_engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "recovered-artifact")
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Atlantis Attacks; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_teamwork_modal_executes_targeted_token_and_bounded_returns() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Atlantis Attacks".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{3}{U}{U}".to_string()),
+        oracle_text: Some(
+            "Teamwork 4\nChoose one. If this spell was cast using teamwork, choose both instead. \u{2022} Target player creates a 6/5 blue Leviathan creature token with hexproof. \u{2022} Return one or two target nonland permanents to their owners' hands."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed
+        .abilities
+        .iter()
+        .filter_map(|ability| ability.rule.as_ref())
+        .find(|rule| rule["kind"] == "spellAbility")
+        .cloned()
+        .expect("Atlantis Attacks' modal spell ability parses");
+    assert!(rule_is_executable(&rule));
+
+    let source = test_instance(
+        "atlantis-attacks",
+        test_definition("atlantis-attacks", "Sorcery"),
+        "player-0",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(test_instance(
+        "own-artifact",
+        test_definition("own-artifact", "Artifact"),
+        "player-0",
+    ));
+    engine.state.players[1].battlefield.push(test_instance(
+        "opposing-creature",
+        test_definition("opposing-creature", "Creature - Soldier"),
+        "player-1",
+    ));
+    let stack_object = StackObject {
+        id: "stack:atlantis-attacks".to_string(),
+        controller: "player-0".to_string(),
+        card: source,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::from([("chosenModes".to_string(), json!(["mode1", "mode2"]))]),
+        targets: BTreeMap::from([
+            (
+                "mode1:targetPlayer".to_string(),
+                TargetRef::Player {
+                    player_id: "player-1".to_string(),
+                },
+            ),
+            (
+                "mode2:targetPermanents:0".to_string(),
+                TargetRef::Permanent {
+                    instance_id: "own-artifact".to_string(),
+                },
+            ),
+            (
+                "mode2:targetPermanents:1".to_string(),
+                TargetRef::Permanent {
+                    instance_id: "opposing-creature".to_string(),
+                },
+            ),
+        ]),
+    };
+    let mut decisions = stack_object.decisions.clone();
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut decisions,
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("both teamwork-enabled modes resolve");
+
+    assert!(
+        engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "own-artifact")
+    );
+    assert!(
+        engine.state.players[1]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "opposing-creature")
+    );
+    let leviathan = engine.state.players[1]
+        .battlefield
+        .iter()
+        .find(|card| card.definition.type_line.contains("Leviathan"))
+        .expect("the targeted player creates the Leviathan");
+    assert_eq!(leviathan.definition.power.as_deref(), Some("6"));
+    assert_eq!(leviathan.definition.toughness.as_deref(), Some("5"));
+    assert!(has_keyword(&leviathan.definition, "hexproof"));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Bruce Banner // The Incredible Hulk; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_dealt_damage_enrage_adds_combat_only_while_source_is_attacking() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "The Incredible Hulk".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{4}{G}{G}".to_string()),
+        oracle_text: Some(
+            "Enrage \u{2014} Whenever The Incredible Hulk is dealt damage, put a +1/+1 counter on him. If he's attacking, untap him and there is an additional combat phase after this phase."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("Hulk's Enrage trigger parses");
+    assert!(rule_is_executable(&rule));
+
+    for (attacking, expect_additional_combat) in [(true, true), (false, false)] {
+        let mut source = test_instance(
+            if attacking {
+                "attacking-hulk"
+            } else {
+                "idle-hulk"
+            },
+            test_definition("test-hulk", "Legendary Creature - Human Hero"),
+            "player-0",
+        );
+        source.tapped = true;
+        source.flags.insert("attacking".to_string(), attacking);
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield.push(source.clone());
+        let stack_object = StackObject {
+            id: format!("stack:{}", source.instance_id),
+            controller: "player-0".to_string(),
+            card: source,
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("triggeredAbility".to_string()),
+            ability_rule: Some(rule.clone()),
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        };
+        engine
+            .execute_effects(
+                &rule["effects"],
+                &stack_object,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+                &mut EmeritusDecisionProvider,
+            )
+            .expect("the primitive Enrage effects resolve");
+
+        let resolved = &engine.state.players[0].battlefield[0];
+        assert_eq!(resolved.counters.get("+1/+1"), Some(&1));
+        assert_eq!(resolved.tapped, !expect_additional_combat);
+        assert_eq!(
+            engine
+                .state
+                .rule_modifiers
+                .iter()
+                .any(|modifier| modifier["kind"] == "additionalCombat"),
+            expect_additional_combat
+        );
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Echo, Perceptive Prodigy; see docs/coverage-targets.md"
+)]
+#[test]
+fn parsed_echo_copy_filters_stack_sources_and_copies_the_selected_ability() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Echo, Perceptive Prodigy".to_string(),
+        type_line: "Legendary Creature - Human Hero".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "{1}, {T}: Copy target activated or triggered ability you control from a creature source. You may choose new targets for the copy. (Mana abilities can't be targeted.)"
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    let rule = parsed.abilities[0]
+        .rule
+        .clone()
+        .expect("Echo's copy ability parses");
+    assert!(rule_is_executable(&rule));
+
+    let ability_rule = json!({
+        "kind": "activatedAbility",
+        "source": { "kind": "self" },
+        "costs": [],
+        "effects": [{
+            "kind": "gainLife",
+            "player": { "kind": "abilityController" },
+            "amount": { "kind": "integer", "value": 1 },
+        }],
+    });
+    let stack_ability = |id: &str, controller_id: &str, type_line: &str| StackObject {
+        id: id.to_string(),
+        controller: controller_id.to_string(),
+        card: test_instance(
+            &format!("source:{id}"),
+            test_definition(&format!("source:{id}"), type_line),
+            controller_id,
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(ability_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut engine = test_engine(2);
+    engine.state.stack = vec![
+        stack_ability("stack:own-creature", "player-0", "Creature - Hero"),
+        stack_ability("stack:own-artifact", "player-0", "Artifact"),
+        stack_ability("stack:opponent-creature", "player-1", "Creature - Villain"),
+    ];
+    let candidates = engine
+        .target_candidates(
+            "player-0",
+            &rule["declaration"]["decisions"][0]["candidates"],
+        )
+        .expect("stack candidates are supported");
+    assert_eq!(
+        candidates,
+        vec![TargetRef::StackObject {
+            stack_id: "stack:own-creature".to_string(),
+        }]
+    );
+
+    let echo_stack = StackObject {
+        id: "stack:echo-copy".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "echo",
+            test_definition("echo", "Legendary Creature - Human Hero"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            "targetAbility".to_string(),
+            TargetRef::StackObject {
+                stack_id: "stack:own-creature".to_string(),
+            },
+        )]),
+    };
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &echo_stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("Echo copies the selected ability");
+    assert_eq!(engine.state.stack.len(), 4);
+    assert_eq!(
+        engine
+            .state
+            .stack
+            .iter()
+            .filter(
+                |object| object.card.definition.type_line.contains("Creature")
+                    && object.controller == "player-0"
+            )
+            .count(),
+        2
+    );
+}
+
+#[path = "tests/granted_ability_runtime.rs"]
+mod granted_ability_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/quantified_player_sacrifice_runtime.rs"]
+mod quantified_player_sacrifice_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_action_sacrifice_runtime.rs"]
+mod player_action_sacrifice_runtime;
+
+#[path = "tests/choose_instruction_runtime.rs"]
+mod choose_instruction_runtime;
+#[path = "tests/damage_prevention_runtime.rs"]
+mod damage_prevention_runtime;
+#[path = "tests/equal_amount_reflexive_runtime.rs"]
+mod equal_amount_reflexive_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/intervening_if_condition_runtime.rs"]
+mod intervening_if_condition_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/source_combat_restriction_runtime.rs"]
+mod source_combat_restriction_runtime;

@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle/v1",
+  "cycle": 4,
+  "date": "2026-11-12",
+  "concept": "targeted-card-zone-move",
+  "baselineFingerprint": "2ABBD41362112D52C15B347E25E74A934B042661727E170F7D48492C7565F232",
+  "finalFingerprint": "9DFFE7AAB863D3A980387CB8C4CDCE6CC695CCE1209E81CA34CA4C5159465A45",
+  "certifiedCards": [
+    { "name": "Eternal Witness", "oracleId": "30b24e8e-3b0e-4d8e-90f3-f66eb7c1858c" },
+    { "name": "Buried Ruin", "oracleId": "3644f316-f9a3-46c9-9b1e-747f86cf4ead" },
+    { "name": "Noxious Revival", "oracleId": "97cabeda-9fe3-490d-99b4-4c8d87c17157" }
+  ],
+  "proofs": {
+    "parser": { "passed": 88, "total": 88, "invalidFixtures": 0, "seconds": 0.252 },
+    "repositoryContracts": { "passed": 170, "total": 170 },
+    "runtime": { "passed": 7, "total": 7, "assertions": 49, "seconds": 0.1140459 },
+    "irEquality": {
+      "allEqual": true,
+      "path": ".tmp/targeted-zone-move-claims-fixed-equality-root.json"
+    },
+    "generalizedExecutableContracts": {
+      "passed": 47,
+      "total": 47,
+      "scope": "additional generated population of real 9DFF rules accepted by rule_is_executable; separate from the 170 repository contracts and not individual behavior scenarios",
+      "path": ".tmp/targeted-zone-move-generalized-contract-results.jsonl"
+    }
+  },
+  "coverage": {
+    "round4_100": { "preserved": 27, "previous": 27, "gainedAbilities": 3, "gainedCards": 3, "regressions": 0 },
+    "rotating450": { "preserved": 239, "previous": 239, "gainedAbilities": 3, "gainedCards": 3, "regressions": 0 },
+    "sevenSets2069": { "preserved": 1120, "previous": 1120, "gainedAbilities": 1, "gainedCards": 0, "regressions": 0 },
+    "global39288": {
+      "abilities": 67420,
+      "preserved": 14302,
+      "previous": 14302,
+      "gainedAbilities": 67,
+      "gainedCards": 47,
+      "gainedOrdinaryCards": 46,
+      "gainedVariantCards": 1,
+      "gainedAuxiliaryCards": 0,
+      "gainedZeroAbilityCards": 0,
+      "gainedByLayout": { "normal": 44, "modal_dfc": 1, "prepare": 1, "vanguard": 1 },
+      "regressions": 0
+    }
+  },
+  "timingsSeconds": {
+    "combinedBuildFailed": 40.3123943,
+    "combinedBuildSucceeded": 48.9927933,
+    "claimFixBuildFailed": 7.293,
+    "claimFixBuildSucceeded": 14.619,
+    "parserFinal": 0.252,
+    "runtime": 0.1140459,
+    "analyzerLink": 1.2559178,
+    "round4_100": 0.127,
+    "rotating450": 0.471,
+    "sevenSets2069": 2.062,
+    "global39288": 30.022
+  },
+  "nextCohort": {
+    "cards": 100,
+    "retainedFromRound4": 97,
+    "sourceCounts": { "recent": 34, "priority": 33, "league": 33 },
+    "uniqueOracleIds": true,
+    "oracleInputOrderAligned": true,
+    "cohortSha256": "F3860456E8030490C19F0B22B938D9E0A01E7061E56707CAB5CE7B362738DA45",
+    "oracleInputSha256": "5F8BC076F486ED0F5DBD626080F371CBBAC027F6B98FA1B944E7173FCF428285",
+    "auditSha256": "B8A1ADE405A8C57A9F5A847746EB6B69E18D3753F4E4C865643E3DF56FF161DE",
+    "auditSeconds": 0.113,
+    "abilities": 201,
+    "recruits": [
+      { "name": "Goblin Welder", "oracleId": "9fc28e1f-f4ea-4bf8-9442-a36dba3b3b29", "source": "league" },
+      { "name": "Acererak the Archlich", "oracleId": "31b4e85d-89fc-4712-8f05-7ec097b1d3b6", "source": "league" },
+      { "name": "Skullclamp", "oracleId": "65986c1b-8e51-4604-b685-d82fa7d1263a", "source": "priority" }
+    ]
+  },
+  "artifacts": {
+    "round4Comparison": ".tmp/rotating-next-100-round4-2ABB-to-9DFF-comparison.json",
+    "rotating450Comparison": ".tmp/rotating-migration-queue-450-2ABB-to-9DFF-comparison.json",
+    "sevenSetsComparison": ".tmp/seven-local-sets-2ABB-to-9DFF-comparison.json",
+    "globalComparison": ".tmp/oracle-global-2ABB-to-9DFF-comparison.json",
+    "globalRootVerification": ".tmp/targeted-zone-move-global-root-verification.json",
+    "redGlobalGate": ".tmp/oracle-global-2ABB-to-87D9-comparison.json",
+    "runtime": ".tmp/targeted-zone-move-runtime-final.jsonl"
+  }
+}

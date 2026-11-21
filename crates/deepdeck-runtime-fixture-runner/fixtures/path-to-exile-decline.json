@@ -1,0 +1,161 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "path-to-exile-declines-controller-search",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "exilePermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "optionalEffects",
+        "player": { "kind": "boundValue", "id": "targetController" },
+        "effects": [
+          {
+            "kind": "chooseCards",
+            "id": "searchedCards",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "minimum": 0,
+            "maximum": 1,
+            "candidates": {
+              "kind": "cards",
+              "zone": {
+                "kind": "library",
+                "player": { "kind": "boundValue", "id": "targetController" }
+              },
+              "where": {
+                "kind": "and",
+                "operands": [
+                  { "kind": "typeLineContains", "value": "Basic" },
+                  { "kind": "cardTypeContains", "value": "Land" }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+            "to": {
+              "kind": "battlefield",
+              "player": { "kind": "boundValue", "id": "targetController" },
+              "tapped": true
+            }
+          },
+          {
+            "kind": "shuffleZone",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "boundValue", "id": "targetController" }
+            }
+          },
+          {
+            "kind": "recordLibrarySearch",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Path to Exile pilot",
+        "hand": [
+          {
+            "id": "path-to-exile",
+            "name": "Path to Exile",
+            "typeLine": "Instant",
+            "manaCost": "{W}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "library": [
+          {
+            "id": "basic-land",
+            "name": "Basic Land",
+            "typeLine": "Basic Land - Forest"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "target-creature",
+            "name": "Target Creature",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "path-to-exile",
+    "targets": {
+      "targetPermanent": {
+        "permanent": { "instanceId": "player-1:target-creature:1" }
+      }
+    }
+  },
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "target-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "basic-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "basic-land",
+      "equals": false
+    },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

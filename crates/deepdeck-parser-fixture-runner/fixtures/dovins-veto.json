@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "dovins-veto/generic-counter-prohibition-and-noncreature-counter",
+  "cardName": "Dovin's Veto",
+  "oracleId": "1b388371-f9ef-45b4-82a3-ca20a8cd7807",
+  "cases": [
+    {
+      "id": "exact-card",
+      "request": {
+        "cardName": "Dovin's Veto",
+        "typeLine": "Instant",
+        "manaCost": "{W}{U}",
+        "oracleText": "This spell can't be countered.\nCounter target noncreature spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": { "kind": "self" },
+                "zone": { "kind": "stack" }
+              },
+              "modifiers": [{
+                "kind": "cantBeCountered",
+                "object": { "kind": "self" }
+              }]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetSpell",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "candidates": {
+                    "kind": "spells",
+                    "where": {
+                      "kind": "not",
+                      "operand": { "kind": "cardTypeContains", "value": "Creature" }
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "counterSpell",
+                "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+              }]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "generalized-nonartifact-sibling",
+      "request": {
+        "cardName": "Unyielding Rebuttal",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "This spell can't be countered.\nCounter target nonartifact spell.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/activeWhile/zone/kind", "equals": "stack" },
+              { "pointer": "/modifiers/0/kind", "equals": "cantBeCountered" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "spells" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operand/value", "equals": "Artifact" },
+              { "pointer": "/effects/0/kind", "equals": "counterSpell" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-spell-qualifier-is-rejected",
+      "request": {
+        "cardName": "Malformed Rebuttal",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target unregisteredtype spell.",
+        "layout": null,
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "simple-counter",
+          "state": "selector.predicate.start",
+          "found": "unregisteredtype"
+        }]
+      }
+    }
+  ]
+}

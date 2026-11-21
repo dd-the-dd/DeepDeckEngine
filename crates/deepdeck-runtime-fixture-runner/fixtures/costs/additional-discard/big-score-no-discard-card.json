@@ -1,0 +1,226 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Big-Score/no-other-hand-card-cannot-discard-casting-spell",
+  "seed": 1521,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 2
+        },
+        "token": {
+          "kind": "namedToken",
+          "name": "Treasure"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Score caster",
+        "manaPool": [
+          "R",
+          "C",
+          "C",
+          "C"
+        ],
+        "library": [
+          {
+            "id": "drawn-one",
+            "name": "drawn-one",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "drawn-two",
+            "name": "drawn-two",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "big-score",
+            "name": "Big Score",
+            "typeLine": "Instant",
+            "manaCost": "{3}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseObjects",
+                      "id": "additionalCostCard",
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": null
+                      },
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ],
+                  "additionalCosts": [
+                    {
+                      "kind": "discardCard",
+                      "card": {
+                        "kind": "chosenObject",
+                        "id": "additionalCostCard"
+                      }
+                    }
+                  ]
+                },
+                "effects": []
+              },
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "createTokens",
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "token": {
+                      "kind": "namedToken",
+                      "name": "Treasure"
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "big-score",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "big-score",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": [
+        "R",
+        "C",
+        "C",
+        "C"
+      ]
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

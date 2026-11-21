@@ -1,0 +1,752 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "ordinary-bound-permanent-subjects",
+  "cases": [
+    {
+      "id": "real-repast-complete-two-faces",
+      "request": {
+        "cardName": "Revitalizing Repast // Old-Growth Grove",
+        "typeLine": "Instant // Land",
+        "manaCost": "",
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "03522b6b-31ec-4126-8885-5dbb2248688b:face-0",
+            "name": "Revitalizing Repast",
+            "typeLine": "Instant",
+            "manaCost": "{B/G}",
+            "oracleText": "Put a +1/+1 counter on target creature. It gains indestructible until end of turn."
+          },
+          {
+            "id": "03522b6b-31ec-4126-8885-5dbb2248688b:face-1",
+            "name": "Old-Growth Grove",
+            "typeLine": "Land",
+            "manaCost": "",
+            "oracleText": "This land enters tapped.\n{T}: Add {B} or {G}."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "counter": "+1/+1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "indestructible",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{B}",
+                      "{G}"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "counter-keyword-then-stats-same-subject",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on target creature. It gains flying until end of turn. It gets +2/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "counter": "+1/+1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "flying",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "stat-subject-then-keyword",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +1/+1 until end of turn. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "keyword": "indestructible",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-antecedent",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "player-is-not-permanent",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on target player. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plural-is-not-singular",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on two target creatures. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "later-player-replaces-focus",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on target creature. Target player gains 1 life. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-keyword-not-truncated",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on target creature. It gains flying and futureability until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-does-not-invent-binding",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "If you control a creature, it gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "observed-subject-three-independent-actions",
+      "request": {
+        "cardName": "Observed Subject Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature you control enters, put a charge counter on it. It gains flying until end of turn. It gets +2/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentEntered",
+                "where": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  },
+                  "counter": "charge",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  },
+                  "keyword": "flying",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "another-after-target-not-source-exclusion",
+      "request": {
+        "cardName": "Shared Permanent Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a charge counter on target creature. Put a charge counter on another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-declarations-each-retains-its-own-subject",
+      "request": {
+        "cardName": "Two Subject Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a charge counter on target creature. It gains flying until end of turn. Put a charge counter on target artifact. It gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent1",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent2",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent1"
+                  },
+                  "counter": "charge",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent1"
+                  },
+                  "keyword": "flying",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent2"
+                  },
+                  "counter": "charge",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent2"
+                  },
+                  "keyword": "haste",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "proven-source-entry-role-compatibility",
+      "request": {
+        "cardName": "Source Entry Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "When this artifact enters, put a charge counter on it. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "self"
+                  },
+                  "counter": "charge",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "untapPermanent",
+                  "permanent": {
+                    "kind": "observedEventObject",
+                    "event": "permanentEntered"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "incompatible-stack-object-blocks-observed-fallback",
+      "request": {
+        "cardName": "Observed Scope Blocker Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a creature you control enters, counter target spell. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-card-producer-blocks-observed-fallback",
+      "request": {
+        "cardName": "Observed Scope Blocker Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a creature you control enters, draw a card. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

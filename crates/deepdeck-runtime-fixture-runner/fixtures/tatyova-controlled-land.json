@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tatyova-controlled-land-gains-life-then-draws",
+  "seed": 24701,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "cardTypeContains", "value": "Land" }
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      },
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tatyova controller",
+        "life": 20,
+        "battlefield": [{
+          "id": "tatyova-benthic-druid",
+          "name": "Tatyova, Benthic Druid",
+          "typeLine": "Legendary Creature — Merfolk Druid",
+          "manaCost": "{3}{G}{U}",
+          "power": "3",
+          "toughness": "3",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "permanentEntered",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": { "kind": "cardTypeContains", "value": "Land" }
+            },
+            "effects": [
+              {
+                "kind": "gainLife",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 1 }
+              },
+              {
+                "kind": "drawCards",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "count": { "kind": "integer", "value": 1 }
+              }
+            ]
+          }]
+        }],
+        "hand": [{
+          "id": "controlled-land",
+          "name": "Controlled Land",
+          "typeLine": "Basic Land — Forest",
+          "rules": []
+        }],
+        "library": [
+          { "id": "library-bottom", "name": "Library Bottom", "typeLine": "Land" },
+          { "id": "drawn-card", "name": "Drawn Card", "typeLine": "Instant" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "playLand", "playerId": "player-0", "sourceDefinitionId": "controlled-land" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "controlled-land", "equals": true },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 21 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 1 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "triggeredAbilityPutOnStack", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-0", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

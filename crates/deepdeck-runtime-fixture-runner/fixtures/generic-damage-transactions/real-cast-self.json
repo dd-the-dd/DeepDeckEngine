@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "damage-source-reference/real-cast-self",
+  "seed": 11203,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": 1
+      },
+      {
+        "kind": "dealDamage",
+        "source": {
+          "kind": "self"
+        },
+        "amount": 2,
+        "recipient": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "abilityController"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "source-spell",
+            "name": "Source reference spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": 1
+                  },
+                  {
+                    "kind": "dealDamage",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "amount": 2,
+                    "recipient": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "abilityController"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      },
+      {
+        "id": "p2",
+        "name": "P2",
+        "life": 20
+      },
+      {
+        "id": "p3",
+        "name": "P3",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "source-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p2",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p3",
+      "equals": 18
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "source-spell",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "damageDealt",
+      "equals": 3
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "equals": 1
+    }
+  ]
+}

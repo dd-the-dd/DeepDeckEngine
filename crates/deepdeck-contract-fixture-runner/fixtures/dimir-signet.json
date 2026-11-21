@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "dimir-signet/mana-payment-tap-and-fixed-output-are-executable",
+  "cardName": "Dimir Signet",
+  "oracleId": "7d881c57-0bd9-4c57-aa4a-b10808b86143",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{U}{B}"
+    }]
+  }
+}

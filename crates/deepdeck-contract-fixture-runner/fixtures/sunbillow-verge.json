@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "sunbillow-verge/all-native-rules-are-executable",
+  "cardName": "Sunbillow Verge",
+  "oracleId": "a202276b-1f1b-4277-95ee-26877a204f5e",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{W}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "activationCondition": {
+        "kind": "controlsPermanent",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "where": {
+          "kind": "or",
+          "operands": [
+            { "kind": "subtypeContains", "value": "Mountain" },
+            { "kind": "subtypeContains", "value": "Plains" }
+          ]
+        }
+      },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{R}"
+      }]
+    }
+  ]
+}

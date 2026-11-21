@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "source-antecedent-provenance-extra-obligations",
+  "cases": [
+    {
+      "id": "untap-target-shadowing",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, untap target creature. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selected-sacrifice-clears-source-proof",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes tapped, sacrifice a creature. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legacy-owner-pronoun-cannot-launder-through-modifier",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, it gets +1/+1 until end of turn. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "legacy-owner-pronoun-cannot-launder-through-counters",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, put a +1/+1 counter on him. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/atomic-card-zone-ir-compatibility",
+  "cases": [
+    {
+      "id": "soul-guide-lantern-atomic-contract",
+      "request": {
+        "cardName": "Soul-Guide Lantern",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "When this artifact enters, exile target card from a graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      }
+                    },
+                    "id": "targetGraveyardCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetGraveyardCard",
+                    "kind": "chosenTargets"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "faceDown": false,
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "id": "targetGraveyardCard",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "stonecloaker-atomic-contract",
+      "request": {
+        "cardName": "Stonecloaker",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "When this creature enters, exile target card from a graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      }
+                    },
+                    "id": "targetGraveyardCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetGraveyardCard",
+                    "kind": "chosenTargets"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "faceDown": false,
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "id": "targetGraveyardCard",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "lantern-of-the-lost-atomic-contract",
+      "request": {
+        "cardName": "Lantern of the Lost",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "When this artifact enters, exile target card from a graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "anyGraveyard"
+                      }
+                    },
+                    "id": "targetGraveyardCard",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "cards": {
+                    "id": "targetGraveyardCard",
+                    "kind": "chosenTargets"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "faceDown": false,
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "id": "targetGraveyardCard",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

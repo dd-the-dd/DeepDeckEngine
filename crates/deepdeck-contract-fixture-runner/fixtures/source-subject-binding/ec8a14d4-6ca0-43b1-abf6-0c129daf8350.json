@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/ec8a14d4-6ca0-43b1-abf6-0c129daf8350",
+  "cardName": "Grasping Thrull",
+  "oracleId": "ec8a14d4-6ca0-43b1-abf6-0c129daf8350",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "56f82d97-ce50-490c-ad7f-46d70a73e454",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Grasping Thrull",
+      "typeLine": "Creature — Thrull",
+      "manaCost": "{3}{W}{B}",
+      "oracleText": "Flying\nWhen this creature enters, it deals 2 damage to each opponent and you gain 2 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

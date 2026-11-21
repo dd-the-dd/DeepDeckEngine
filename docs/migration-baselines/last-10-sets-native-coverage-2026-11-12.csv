@@ -1,0 +1,12 @@
+code,name,releaseDate,uniqueOracleIds,completeNonzero,completeVanilla,overallCompletePercent,partial,noNativeCanonical,nativeAbilities,totalAbilities,nativeAbilityPercent,analyzerSeconds,wallSeconds
+mbc,Mystery Booster Commander Edition,2026-10-19,80,8,0,10.00,15,57,26,181,14.36,0.141,1.024
+fra,Reality Fracture,2026-10-02,285,33,2,12.28,108,142,176,562,31.32,0.365,1.020
+hob,The Hobbit,2026-08-14,193,10,1,5.70,79,103,100,387,25.84,0.199,1.017
+msh,Marvel Super Heroes,2026-06-26,281,16,0,5.69,140,125,192,590,32.54,0.287,1.016
+sos,Secrets of Strixhaven,2026-04-24,271,31,0,11.44,99,141,172,506,33.99,0.289,1.023
+tmt,Teenage Mutant Ninja Turtles,2026-03-06,195,14,0,7.18,78,103,105,408,25.74,0.202,1.024
+ecl,Lorwyn Eclipsed,2026-01-23,273,20,0,7.33,80,173,120,540,22.22,0.313,1.025
+tla,Avatar: The Last Airbender,2025-11-21,286,30,0,10.49,94,162,169,604,27.98,0.510,1.015
+spm,Marvel's Spider-Man,2025-09-26,193,13,0,6.74,86,94,113,400,28.25,0.228,1.017
+eoe,Edge of Eternities,2025-08-01,266,19,0,7.14,81,166,122,519,23.51,0.458,1.025
+

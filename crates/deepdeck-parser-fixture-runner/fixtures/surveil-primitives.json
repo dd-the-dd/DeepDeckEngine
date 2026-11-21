@@ -1,0 +1,548 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/primitive-surveil",
+  "cases": [
+    {
+      "id": "actual-undercity-complete-oracle",
+      "request": {
+        "cardName": "Undercity Sewers",
+        "typeLine": "Land — Island Swamp",
+        "manaCost": "",
+        "oracleText": "({T}: Add {U} or {B}.)\nThis land enters tapped.\nWhen this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "chooseOne",
+                    "options": [
+                      "{U}",
+                      "{B}"
+                    ]
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "rule": {
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "surveilLookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "surveilGraveyardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "surveilLookedCards"
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "countObjects",
+                    "objects": {
+                      "kind": "boundObjects",
+                      "binding": "surveilLookedCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "surveilGraveyardOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "surveilGraveyardCards"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "surveilGraveyardOrder"
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "surveilGraveyardOrder"
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "surveilTopOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "surveilLookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "surveilGraveyardCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "surveilTopOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "top"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "surveilTopOrder"
+                  }
+                },
+                {
+                  "kind": "emitAbilitySignal",
+                  "abilityId": "surveil",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-two-surveils-isolated-bindings",
+      "request": {
+        "cardName": "Synthetic Surveil Source",
+        "typeLine": "Sorcery",
+        "manaCost": "",
+        "oracleText": "Surveil 2. Surveil 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "effect0:surveilLookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "effect0:surveilGraveyardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "effect0:surveilLookedCards"
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "countObjects",
+                    "objects": {
+                      "kind": "boundObjects",
+                      "binding": "effect0:surveilLookedCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "effect0:surveilGraveyardOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:surveilGraveyardCards"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:surveilGraveyardOrder"
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "effect0:surveilGraveyardOrder"
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "effect0:surveilTopOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "effect0:surveilLookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "effect0:surveilGraveyardCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:surveilTopOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "top"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "effect0:surveilTopOrder"
+                  }
+                },
+                {
+                  "kind": "emitAbilitySignal",
+                  "abilityId": "surveil",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bind": "effect1:surveilLookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "effect1:surveilGraveyardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "effect1:surveilLookedCards"
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "countObjects",
+                    "objects": {
+                      "kind": "boundObjects",
+                      "binding": "effect1:surveilLookedCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "effect1:surveilGraveyardOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect1:surveilGraveyardCards"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect1:surveilGraveyardOrder"
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "effect1:surveilGraveyardOrder"
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "effect1:surveilTopOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "effect1:surveilLookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "effect1:surveilGraveyardCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect1:surveilTopOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "top"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "effect1:surveilTopOrder"
+                  }
+                },
+                {
+                  "kind": "emitAbilitySignal",
+                  "abilityId": "surveil",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-nonnumeric-surveil-refused",
+      "request": {
+        "cardName": "Synthetic Surveil Source",
+        "typeLine": "Sorcery",
+        "manaCost": "",
+        "oracleText": "Surveil many.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "numeric.atom.start",
+            "found": "many"
+          }
+        ]
+      }
+    }
+  ]
+}

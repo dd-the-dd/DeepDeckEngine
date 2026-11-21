@@ -1,0 +1,1146 @@
+{
+    "snapshotSchemaVersion":  "deepdeck-official-ability-snapshot/v1",
+    "snapshotVersion":  "2026-11-06",
+    "source":  {
+                   "document":  "ComprehensiveRules",
+                   "effectiveDate":  "2026-11-06",
+                   "url":  "https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+                   "sha256":  "524F5195A1E5F54BB13C735EDF399AC717A4458E2713F398D1A3E6877186B829"
+               },
+    "keywordActions":  [
+                           {
+                               "section":  "701.2",
+                               "name":  "Activate"
+                           },
+                           {
+                               "section":  "701.3",
+                               "name":  "Attach"
+                           },
+                           {
+                               "section":  "701.4",
+                               "name":  "Behold"
+                           },
+                           {
+                               "section":  "701.5",
+                               "name":  "Cast"
+                           },
+                           {
+                               "section":  "701.6",
+                               "name":  "Counter"
+                           },
+                           {
+                               "section":  "701.7",
+                               "name":  "Create"
+                           },
+                           {
+                               "section":  "701.8",
+                               "name":  "Destroy"
+                           },
+                           {
+                               "section":  "701.9",
+                               "name":  "Discard"
+                           },
+                           {
+                               "section":  "701.10",
+                               "name":  "Double"
+                           },
+                           {
+                               "section":  "701.11",
+                               "name":  "Triple"
+                           },
+                           {
+                               "section":  "701.12",
+                               "name":  "Exchange"
+                           },
+                           {
+                               "section":  "701.13",
+                               "name":  "Exile"
+                           },
+                           {
+                               "section":  "701.14",
+                               "name":  "Fight"
+                           },
+                           {
+                               "section":  "701.15",
+                               "name":  "Goad"
+                           },
+                           {
+                               "section":  "701.16",
+                               "name":  "Investigate"
+                           },
+                           {
+                               "section":  "701.17",
+                               "name":  "Mill"
+                           },
+                           {
+                               "section":  "701.18",
+                               "name":  "Play"
+                           },
+                           {
+                               "section":  "701.19",
+                               "name":  "Regenerate"
+                           },
+                           {
+                               "section":  "701.20",
+                               "name":  "Reveal"
+                           },
+                           {
+                               "section":  "701.21",
+                               "name":  "Sacrifice"
+                           },
+                           {
+                               "section":  "701.22",
+                               "name":  "Scry"
+                           },
+                           {
+                               "section":  "701.23",
+                               "name":  "Search"
+                           },
+                           {
+                               "section":  "701.24",
+                               "name":  "Shuffle"
+                           },
+                           {
+                               "section":  "701.25",
+                               "name":  "Surveil"
+                           },
+                           {
+                               "section":  "701.26",
+                               "name":  "Tap and Untap"
+                           },
+                           {
+                               "section":  "701.27",
+                               "name":  "Transform"
+                           },
+                           {
+                               "section":  "701.28",
+                               "name":  "Convert"
+                           },
+                           {
+                               "section":  "701.29",
+                               "name":  "Fateseal"
+                           },
+                           {
+                               "section":  "701.30",
+                               "name":  "Clash"
+                           },
+                           {
+                               "section":  "701.31",
+                               "name":  "Planeswalk"
+                           },
+                           {
+                               "section":  "701.32",
+                               "name":  "Set in Motion"
+                           },
+                           {
+                               "section":  "701.33",
+                               "name":  "Abandon"
+                           },
+                           {
+                               "section":  "701.34",
+                               "name":  "Proliferate"
+                           },
+                           {
+                               "section":  "701.35",
+                               "name":  "Detain"
+                           },
+                           {
+                               "section":  "701.36",
+                               "name":  "Populate"
+                           },
+                           {
+                               "section":  "701.37",
+                               "name":  "Monstrosity"
+                           },
+                           {
+                               "section":  "701.38",
+                               "name":  "Vote"
+                           },
+                           {
+                               "section":  "701.39",
+                               "name":  "Bolster"
+                           },
+                           {
+                               "section":  "701.40",
+                               "name":  "Manifest"
+                           },
+                           {
+                               "section":  "701.41",
+                               "name":  "Support"
+                           },
+                           {
+                               "section":  "701.42",
+                               "name":  "Meld"
+                           },
+                           {
+                               "section":  "701.43",
+                               "name":  "Exert"
+                           },
+                           {
+                               "section":  "701.44",
+                               "name":  "Explore"
+                           },
+                           {
+                               "section":  "701.45",
+                               "name":  "Assemble"
+                           },
+                           {
+                               "section":  "701.46",
+                               "name":  "Adapt"
+                           },
+                           {
+                               "section":  "701.47",
+                               "name":  "Amass"
+                           },
+                           {
+                               "section":  "701.48",
+                               "name":  "Learn"
+                           },
+                           {
+                               "section":  "701.49",
+                               "name":  "Venture into the Dungeon"
+                           },
+                           {
+                               "section":  "701.50",
+                               "name":  "Connive"
+                           },
+                           {
+                               "section":  "701.51",
+                               "name":  "Open an Attraction"
+                           },
+                           {
+                               "section":  "701.52",
+                               "name":  "Roll to Visit Your Attractions"
+                           },
+                           {
+                               "section":  "701.53",
+                               "name":  "Incubate"
+                           },
+                           {
+                               "section":  "701.54",
+                               "name":  "The Ring Tempts You"
+                           },
+                           {
+                               "section":  "701.55",
+                               "name":  "Face a Villainous Choice"
+                           },
+                           {
+                               "section":  "701.56",
+                               "name":  "Time Travel"
+                           },
+                           {
+                               "section":  "701.57",
+                               "name":  "Discover"
+                           },
+                           {
+                               "section":  "701.58",
+                               "name":  "Cloak"
+                           },
+                           {
+                               "section":  "701.59",
+                               "name":  "Collect Evidence"
+                           },
+                           {
+                               "section":  "701.60",
+                               "name":  "Suspect"
+                           },
+                           {
+                               "section":  "701.61",
+                               "name":  "Forage"
+                           },
+                           {
+                               "section":  "701.62",
+                               "name":  "Manifest Dread"
+                           },
+                           {
+                               "section":  "701.63",
+                               "name":  "Endure"
+                           },
+                           {
+                               "section":  "701.64",
+                               "name":  "Harness"
+                           },
+                           {
+                               "section":  "701.65",
+                               "name":  "Airbend"
+                           },
+                           {
+                               "section":  "701.66",
+                               "name":  "Earthbend"
+                           },
+                           {
+                               "section":  "701.67",
+                               "name":  "Waterbend"
+                           },
+                           {
+                               "section":  "701.68",
+                               "name":  "Blight"
+                           },
+                           {
+                               "section":  "701.69",
+                               "name":  "Heal"
+                           },
+                           {
+                               "section":  "701.70",
+                               "name":  "Recruit"
+                           },
+                           {
+                               "section":  "701.71",
+                               "name":  "Empower Jace"
+                           },
+                           {
+                               "section":  "701.72",
+                               "name":  "Assimilate"
+                           }
+                       ],
+    "keywordAbilities":  [
+                             {
+                                 "section":  "702.2",
+                                 "name":  "Deathtouch"
+                             },
+                             {
+                                 "section":  "702.3",
+                                 "name":  "Defender"
+                             },
+                             {
+                                 "section":  "702.4",
+                                 "name":  "Double Strike"
+                             },
+                             {
+                                 "section":  "702.5",
+                                 "name":  "Enchant"
+                             },
+                             {
+                                 "section":  "702.6",
+                                 "name":  "Equip"
+                             },
+                             {
+                                 "section":  "702.7",
+                                 "name":  "First Strike"
+                             },
+                             {
+                                 "section":  "702.8",
+                                 "name":  "Flash"
+                             },
+                             {
+                                 "section":  "702.9",
+                                 "name":  "Flying"
+                             },
+                             {
+                                 "section":  "702.10",
+                                 "name":  "Haste"
+                             },
+                             {
+                                 "section":  "702.11",
+                                 "name":  "Hexproof"
+                             },
+                             {
+                                 "section":  "702.12",
+                                 "name":  "Indestructible"
+                             },
+                             {
+                                 "section":  "702.13",
+                                 "name":  "Intimidate"
+                             },
+                             {
+                                 "section":  "702.14",
+                                 "name":  "Landwalk"
+                             },
+                             {
+                                 "section":  "702.15",
+                                 "name":  "Lifelink"
+                             },
+                             {
+                                 "section":  "702.16",
+                                 "name":  "Protection"
+                             },
+                             {
+                                 "section":  "702.17",
+                                 "name":  "Reach"
+                             },
+                             {
+                                 "section":  "702.18",
+                                 "name":  "Shroud"
+                             },
+                             {
+                                 "section":  "702.19",
+                                 "name":  "Trample"
+                             },
+                             {
+                                 "section":  "702.20",
+                                 "name":  "Vigilance"
+                             },
+                             {
+                                 "section":  "702.21",
+                                 "name":  "Ward"
+                             },
+                             {
+                                 "section":  "702.22",
+                                 "name":  "Banding"
+                             },
+                             {
+                                 "section":  "702.23",
+                                 "name":  "Rampage"
+                             },
+                             {
+                                 "section":  "702.24",
+                                 "name":  "Cumulative Upkeep"
+                             },
+                             {
+                                 "section":  "702.25",
+                                 "name":  "Flanking"
+                             },
+                             {
+                                 "section":  "702.26",
+                                 "name":  "Phasing"
+                             },
+                             {
+                                 "section":  "702.27",
+                                 "name":  "Buyback"
+                             },
+                             {
+                                 "section":  "702.28",
+                                 "name":  "Shadow"
+                             },
+                             {
+                                 "section":  "702.29",
+                                 "name":  "Cycling"
+                             },
+                             {
+                                 "section":  "702.30",
+                                 "name":  "Echo"
+                             },
+                             {
+                                 "section":  "702.31",
+                                 "name":  "Horsemanship"
+                             },
+                             {
+                                 "section":  "702.32",
+                                 "name":  "Fading"
+                             },
+                             {
+                                 "section":  "702.33",
+                                 "name":  "Kicker"
+                             },
+                             {
+                                 "section":  "702.34",
+                                 "name":  "Flashback"
+                             },
+                             {
+                                 "section":  "702.35",
+                                 "name":  "Madness"
+                             },
+                             {
+                                 "section":  "702.36",
+                                 "name":  "Fear"
+                             },
+                             {
+                                 "section":  "702.37",
+                                 "name":  "Morph"
+                             },
+                             {
+                                 "section":  "702.38",
+                                 "name":  "Amplify"
+                             },
+                             {
+                                 "section":  "702.39",
+                                 "name":  "Provoke"
+                             },
+                             {
+                                 "section":  "702.40",
+                                 "name":  "Storm"
+                             },
+                             {
+                                 "section":  "702.41",
+                                 "name":  "Affinity"
+                             },
+                             {
+                                 "section":  "702.42",
+                                 "name":  "Entwine"
+                             },
+                             {
+                                 "section":  "702.43",
+                                 "name":  "Modular"
+                             },
+                             {
+                                 "section":  "702.44",
+                                 "name":  "Sunburst"
+                             },
+                             {
+                                 "section":  "702.45",
+                                 "name":  "Bushido"
+                             },
+                             {
+                                 "section":  "702.46",
+                                 "name":  "Soulshift"
+                             },
+                             {
+                                 "section":  "702.47",
+                                 "name":  "Splice"
+                             },
+                             {
+                                 "section":  "702.48",
+                                 "name":  "Offering"
+                             },
+                             {
+                                 "section":  "702.49",
+                                 "name":  "Ninjutsu"
+                             },
+                             {
+                                 "section":  "702.50",
+                                 "name":  "Epic"
+                             },
+                             {
+                                 "section":  "702.51",
+                                 "name":  "Convoke"
+                             },
+                             {
+                                 "section":  "702.52",
+                                 "name":  "Dredge"
+                             },
+                             {
+                                 "section":  "702.53",
+                                 "name":  "Transmute"
+                             },
+                             {
+                                 "section":  "702.54",
+                                 "name":  "Bloodthirst"
+                             },
+                             {
+                                 "section":  "702.55",
+                                 "name":  "Haunt"
+                             },
+                             {
+                                 "section":  "702.56",
+                                 "name":  "Replicate"
+                             },
+                             {
+                                 "section":  "702.57",
+                                 "name":  "Forecast"
+                             },
+                             {
+                                 "section":  "702.58",
+                                 "name":  "Graft"
+                             },
+                             {
+                                 "section":  "702.59",
+                                 "name":  "Recover"
+                             },
+                             {
+                                 "section":  "702.60",
+                                 "name":  "Ripple"
+                             },
+                             {
+                                 "section":  "702.61",
+                                 "name":  "Split Second"
+                             },
+                             {
+                                 "section":  "702.62",
+                                 "name":  "Suspend"
+                             },
+                             {
+                                 "section":  "702.63",
+                                 "name":  "Vanishing"
+                             },
+                             {
+                                 "section":  "702.64",
+                                 "name":  "Absorb"
+                             },
+                             {
+                                 "section":  "702.65",
+                                 "name":  "Aura Swap"
+                             },
+                             {
+                                 "section":  "702.66",
+                                 "name":  "Delve"
+                             },
+                             {
+                                 "section":  "702.67",
+                                 "name":  "Fortify"
+                             },
+                             {
+                                 "section":  "702.68",
+                                 "name":  "Frenzy"
+                             },
+                             {
+                                 "section":  "702.69",
+                                 "name":  "Gravestorm"
+                             },
+                             {
+                                 "section":  "702.70",
+                                 "name":  "Poisonous"
+                             },
+                             {
+                                 "section":  "702.71",
+                                 "name":  "Transfigure"
+                             },
+                             {
+                                 "section":  "702.72",
+                                 "name":  "Champion"
+                             },
+                             {
+                                 "section":  "702.73",
+                                 "name":  "Changeling"
+                             },
+                             {
+                                 "section":  "702.74",
+                                 "name":  "Evoke"
+                             },
+                             {
+                                 "section":  "702.75",
+                                 "name":  "Hideaway"
+                             },
+                             {
+                                 "section":  "702.76",
+                                 "name":  "Prowl"
+                             },
+                             {
+                                 "section":  "702.77",
+                                 "name":  "Reinforce"
+                             },
+                             {
+                                 "section":  "702.78",
+                                 "name":  "Conspire"
+                             },
+                             {
+                                 "section":  "702.79",
+                                 "name":  "Persist"
+                             },
+                             {
+                                 "section":  "702.80",
+                                 "name":  "Wither"
+                             },
+                             {
+                                 "section":  "702.81",
+                                 "name":  "Retrace"
+                             },
+                             {
+                                 "section":  "702.82",
+                                 "name":  "Devour"
+                             },
+                             {
+                                 "section":  "702.83",
+                                 "name":  "Exalted"
+                             },
+                             {
+                                 "section":  "702.84",
+                                 "name":  "Unearth"
+                             },
+                             {
+                                 "section":  "702.85",
+                                 "name":  "Cascade"
+                             },
+                             {
+                                 "section":  "702.86",
+                                 "name":  "Annihilator"
+                             },
+                             {
+                                 "section":  "702.87",
+                                 "name":  "Level Up"
+                             },
+                             {
+                                 "section":  "702.88",
+                                 "name":  "Rebound"
+                             },
+                             {
+                                 "section":  "702.89",
+                                 "name":  "Umbra Armor"
+                             },
+                             {
+                                 "section":  "702.90",
+                                 "name":  "Infect"
+                             },
+                             {
+                                 "section":  "702.91",
+                                 "name":  "Battle Cry"
+                             },
+                             {
+                                 "section":  "702.92",
+                                 "name":  "Living Weapon"
+                             },
+                             {
+                                 "section":  "702.93",
+                                 "name":  "Undying"
+                             },
+                             {
+                                 "section":  "702.94",
+                                 "name":  "Miracle"
+                             },
+                             {
+                                 "section":  "702.95",
+                                 "name":  "Soulbond"
+                             },
+                             {
+                                 "section":  "702.96",
+                                 "name":  "Overload"
+                             },
+                             {
+                                 "section":  "702.97",
+                                 "name":  "Scavenge"
+                             },
+                             {
+                                 "section":  "702.98",
+                                 "name":  "Unleash"
+                             },
+                             {
+                                 "section":  "702.99",
+                                 "name":  "Cipher"
+                             },
+                             {
+                                 "section":  "702.100",
+                                 "name":  "Evolve"
+                             },
+                             {
+                                 "section":  "702.101",
+                                 "name":  "Extort"
+                             },
+                             {
+                                 "section":  "702.102",
+                                 "name":  "Fuse"
+                             },
+                             {
+                                 "section":  "702.103",
+                                 "name":  "Bestow"
+                             },
+                             {
+                                 "section":  "702.104",
+                                 "name":  "Tribute"
+                             },
+                             {
+                                 "section":  "702.105",
+                                 "name":  "Dethrone"
+                             },
+                             {
+                                 "section":  "702.106",
+                                 "name":  "Hidden Agenda"
+                             },
+                             {
+                                 "section":  "702.107",
+                                 "name":  "Outlast"
+                             },
+                             {
+                                 "section":  "702.108",
+                                 "name":  "Prowess"
+                             },
+                             {
+                                 "section":  "702.109",
+                                 "name":  "Dash"
+                             },
+                             {
+                                 "section":  "702.110",
+                                 "name":  "Exploit"
+                             },
+                             {
+                                 "section":  "702.111",
+                                 "name":  "Menace"
+                             },
+                             {
+                                 "section":  "702.112",
+                                 "name":  "Renown"
+                             },
+                             {
+                                 "section":  "702.113",
+                                 "name":  "Awaken"
+                             },
+                             {
+                                 "section":  "702.114",
+                                 "name":  "Devoid"
+                             },
+                             {
+                                 "section":  "702.115",
+                                 "name":  "Ingest"
+                             },
+                             {
+                                 "section":  "702.116",
+                                 "name":  "Myriad"
+                             },
+                             {
+                                 "section":  "702.117",
+                                 "name":  "Surge"
+                             },
+                             {
+                                 "section":  "702.118",
+                                 "name":  "Skulk"
+                             },
+                             {
+                                 "section":  "702.119",
+                                 "name":  "Emerge"
+                             },
+                             {
+                                 "section":  "702.120",
+                                 "name":  "Escalate"
+                             },
+                             {
+                                 "section":  "702.121",
+                                 "name":  "Melee"
+                             },
+                             {
+                                 "section":  "702.122",
+                                 "name":  "Crew"
+                             },
+                             {
+                                 "section":  "702.123",
+                                 "name":  "Fabricate"
+                             },
+                             {
+                                 "section":  "702.124",
+                                 "name":  "Partner"
+                             },
+                             {
+                                 "section":  "702.125",
+                                 "name":  "Undaunted"
+                             },
+                             {
+                                 "section":  "702.126",
+                                 "name":  "Improvise"
+                             },
+                             {
+                                 "section":  "702.127",
+                                 "name":  "Aftermath"
+                             },
+                             {
+                                 "section":  "702.128",
+                                 "name":  "Embalm"
+                             },
+                             {
+                                 "section":  "702.129",
+                                 "name":  "Eternalize"
+                             },
+                             {
+                                 "section":  "702.130",
+                                 "name":  "Afflict"
+                             },
+                             {
+                                 "section":  "702.131",
+                                 "name":  "Ascend"
+                             },
+                             {
+                                 "section":  "702.132",
+                                 "name":  "Assist"
+                             },
+                             {
+                                 "section":  "702.133",
+                                 "name":  "Jump-Start"
+                             },
+                             {
+                                 "section":  "702.134",
+                                 "name":  "Mentor"
+                             },
+                             {
+                                 "section":  "702.135",
+                                 "name":  "Afterlife"
+                             },
+                             {
+                                 "section":  "702.136",
+                                 "name":  "Riot"
+                             },
+                             {
+                                 "section":  "702.137",
+                                 "name":  "Spectacle"
+                             },
+                             {
+                                 "section":  "702.138",
+                                 "name":  "Escape"
+                             },
+                             {
+                                 "section":  "702.139",
+                                 "name":  "Companion"
+                             },
+                             {
+                                 "section":  "702.140",
+                                 "name":  "Mutate"
+                             },
+                             {
+                                 "section":  "702.141",
+                                 "name":  "Encore"
+                             },
+                             {
+                                 "section":  "702.142",
+                                 "name":  "Boast"
+                             },
+                             {
+                                 "section":  "702.143",
+                                 "name":  "Foretell"
+                             },
+                             {
+                                 "section":  "702.144",
+                                 "name":  "Demonstrate"
+                             },
+                             {
+                                 "section":  "702.145",
+                                 "name":  "Daybound and Nightbound"
+                             },
+                             {
+                                 "section":  "702.146",
+                                 "name":  "Disturb"
+                             },
+                             {
+                                 "section":  "702.147",
+                                 "name":  "Decayed"
+                             },
+                             {
+                                 "section":  "702.148",
+                                 "name":  "Cleave"
+                             },
+                             {
+                                 "section":  "702.149",
+                                 "name":  "Training"
+                             },
+                             {
+                                 "section":  "702.150",
+                                 "name":  "Compleated"
+                             },
+                             {
+                                 "section":  "702.151",
+                                 "name":  "Reconfigure"
+                             },
+                             {
+                                 "section":  "702.152",
+                                 "name":  "Blitz"
+                             },
+                             {
+                                 "section":  "702.153",
+                                 "name":  "Casualty"
+                             },
+                             {
+                                 "section":  "702.154",
+                                 "name":  "Enlist"
+                             },
+                             {
+                                 "section":  "702.155",
+                                 "name":  "Read Ahead"
+                             },
+                             {
+                                 "section":  "702.156",
+                                 "name":  "Ravenous"
+                             },
+                             {
+                                 "section":  "702.157",
+                                 "name":  "Squad"
+                             },
+                             {
+                                 "section":  "702.158",
+                                 "name":  "Space Sculptor"
+                             },
+                             {
+                                 "section":  "702.159",
+                                 "name":  "Visit"
+                             },
+                             {
+                                 "section":  "702.160",
+                                 "name":  "Prototype"
+                             },
+                             {
+                                 "section":  "702.161",
+                                 "name":  "Living Metal"
+                             },
+                             {
+                                 "section":  "702.162",
+                                 "name":  "More Than Meets the Eye"
+                             },
+                             {
+                                 "section":  "702.163",
+                                 "name":  "For Mirrodin!"
+                             },
+                             {
+                                 "section":  "702.164",
+                                 "name":  "Toxic"
+                             },
+                             {
+                                 "section":  "702.165",
+                                 "name":  "Backup"
+                             },
+                             {
+                                 "section":  "702.166",
+                                 "name":  "Bargain"
+                             },
+                             {
+                                 "section":  "702.167",
+                                 "name":  "Craft"
+                             },
+                             {
+                                 "section":  "702.168",
+                                 "name":  "Disguise"
+                             },
+                             {
+                                 "section":  "702.169",
+                                 "name":  "Solved"
+                             },
+                             {
+                                 "section":  "702.170",
+                                 "name":  "Plot"
+                             },
+                             {
+                                 "section":  "702.171",
+                                 "name":  "Saddle"
+                             },
+                             {
+                                 "section":  "702.172",
+                                 "name":  "Spree"
+                             },
+                             {
+                                 "section":  "702.173",
+                                 "name":  "Freerunning"
+                             },
+                             {
+                                 "section":  "702.174",
+                                 "name":  "Gift"
+                             },
+                             {
+                                 "section":  "702.175",
+                                 "name":  "Offspring"
+                             },
+                             {
+                                 "section":  "702.176",
+                                 "name":  "Impending"
+                             },
+                             {
+                                 "section":  "702.177",
+                                 "name":  "Exhaust"
+                             },
+                             {
+                                 "section":  "702.178",
+                                 "name":  "Max Speed"
+                             },
+                             {
+                                 "section":  "702.179",
+                                 "name":  "Start Your Engines!"
+                             },
+                             {
+                                 "section":  "702.180",
+                                 "name":  "Harmonize"
+                             },
+                             {
+                                 "section":  "702.181",
+                                 "name":  "Mobilize"
+                             },
+                             {
+                                 "section":  "702.182",
+                                 "name":  "Job Select"
+                             },
+                             {
+                                 "section":  "702.183",
+                                 "name":  "Tiered"
+                             },
+                             {
+                                 "section":  "702.184",
+                                 "name":  "Station"
+                             },
+                             {
+                                 "section":  "702.185",
+                                 "name":  "Warp"
+                             },
+                             {
+                                 "section":  "702.186",
+                                 "name":  "∞ (Infinity)"
+                             },
+                             {
+                                 "section":  "702.187",
+                                 "name":  "Mayhem"
+                             },
+                             {
+                                 "section":  "702.188",
+                                 "name":  "Web-slinging"
+                             },
+                             {
+                                 "section":  "702.189",
+                                 "name":  "Firebending"
+                             },
+                             {
+                                 "section":  "702.190",
+                                 "name":  "Sneak"
+                             },
+                             {
+                                 "section":  "702.191",
+                                 "name":  "Increment"
+                             },
+                             {
+                                 "section":  "702.192",
+                                 "name":  "Paradigm"
+                             },
+                             {
+                                 "section":  "702.193",
+                                 "name":  "Power-up"
+                             },
+                             {
+                                 "section":  "702.194",
+                                 "name":  "Teamwork"
+                             },
+                             {
+                                 "section":  "702.195",
+                                 "name":  "Storied"
+                             },
+                             {
+                                 "section":  "702.196",
+                                 "name":  "Beam me up"
+                             }
+                         ],
+    "abilityWords":  [
+                         "adamant",
+                         "addendum",
+                         "alliance",
+                         "battalion",
+                         "battlefront",
+                         "bloodrush",
+                         "celebration",
+                         "channel",
+                         "chroma",
+                         "cohort",
+                         "constellation",
+                         "converge",
+                         "council’s dilemma",
+                         "coven",
+                         "delirium",
+                         "descend 4",
+                         "descend 8",
+                         "disappear",
+                         "domain",
+                         "eerie",
+                         "eminence",
+                         "enrage",
+                         "fateful hour",
+                         "fathomless descent",
+                         "federation",
+                         "ferocious",
+                         "flurry",
+                         "formidable",
+                         "grandeur",
+                         "hellbent",
+                         "heroic",
+                         "imprint",
+                         "infusion",
+                         "inspired",
+                         "join forces",
+                         "kinship",
+                         "landfall",
+                         "lieutenant",
+                         "magecraft",
+                         "metalcraft",
+                         "morbid",
+                         "opus",
+                         "pack tactics",
+                         "paradox",
+                         "parley",
+                         "radiance",
+                         "raid",
+                         "rally",
+                         "renew",
+                         "repartee",
+                         "revolt",
+                         "rulebreaker",
+                         "secret council",
+                         "seek out",
+                         "spell mastery",
+                         "strange new worlds",
+                         "strive",
+                         "survival",
+                         "sweep",
+                         "tempting offer",
+                         "threshold",
+                         "undergrowth",
+                         "valiant",
+                         "vivid",
+                         "void",
+                         "will of the council"
+                     ]
+}

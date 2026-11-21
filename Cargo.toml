@@ -3,6 +3,31 @@ name = "mtg-engine"
 version = "0.1.6"
 edition = "2024"
 
+[workspace]
+members = [
+    ".",
+    "crates/deepdeck-card-domain",
+    "crates/deepdeck-oracle",
+    "crates/deepdeck-engine-runtime",
+    "crates/deepdeck-runtime-fixture-runner",
+    "crates/deepdeck-contract-fixture-runner",
+    "crates/deepdeck-parser-fixture-runner",
+    "crates/deepdeck-oracle-engine-contracts",
+]
+resolver = "3"
+
+[features]
+# CI enables exactly one of these internal features at a time so the private-
+# access unit tests link as bounded binaries. Normal `cargo test` enables none
+# of them and continues to compile and run the complete unit-test suite.
+ci-test-partition = ["deepdeck-engine-runtime/ci-test-partition"]
+ci-unit-tests-1 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-1"]
+ci-unit-tests-2 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-2"]
+ci-unit-tests-3 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-3"]
+ci-unit-tests-4 = ["ci-test-partition", "deepdeck-engine-runtime/ci-unit-tests-4"]
+# Runs integration tests quarantined in docs/coverage-targets.md as ordinary tests.
+coverage-targets = []
+
 [dependencies]
 dotenvy = "0.15"
 rand = "0.8"
@@ -12,6 +37,8 @@ serde_json = "1"
 ureq = { version = "2", features = ["json"] }
 tungstenite = "0.27"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+deepdeck-oracle = { path = "crates/deepdeck-oracle" }
+deepdeck-engine-runtime = { path = "crates/deepdeck-engine-runtime" }
 
 [lib]
 name = "mtg_engine"

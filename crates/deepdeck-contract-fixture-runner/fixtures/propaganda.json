@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "propaganda/attack-tax-is-executable",
+  "cardName": "Propaganda",
+  "oracleId": "ea9709b6-4c37-4d5a-b04d-cd4c42e4f9dd",
+  "expectedExecutable": true,
+  "rules": [{
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": {
+        "kind": "controllerOf",
+        "object": { "kind": "self" }
+      },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  }]
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "surgical-extraction/phyrexian-reminder-and-same-name-search-are-executable",
+  "cardName": "Surgical Extraction",
+  "oracleId": "3bfa088c-9a47-4123-aee5-4de44e355bef",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "rulesMarker",
+      "source": { "kind": "self" },
+      "text": "({B/P} can be paid with either {B} or 2 life.)"
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetNamedCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": { "kind": "anyGraveyard" },
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "and",
+                "operands": [
+                  { "kind": "typeLineContains", "value": "Basic" },
+                  { "kind": "cardTypeContains", "value": "Land" }
+                ]
+              }
+            }
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "exileNamedCardsFromZones",
+        "player": { "kind": "chosenTarget", "id": "targetNamedCard" },
+        "chooser": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "nameFromCard": { "kind": "chosenTarget", "id": "targetNamedCard" },
+        "zones": ["graveyard", "hand", "library"],
+        "all": false,
+        "shuffleLibrary": true
+      }]
+    }
+  ]
+}

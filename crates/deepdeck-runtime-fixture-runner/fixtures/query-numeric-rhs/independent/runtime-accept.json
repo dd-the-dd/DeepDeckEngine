@@ -1,0 +1,450 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "independent-query/numeric-composition-accept",
+  "seed": 339271,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "optionalCardDeployment",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "graveyard",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "==",
+                "right": {
+                  "kind": "add",
+                  "left": {
+                    "kind": "countCounters",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "counter": "emberlace"
+                  },
+                  "right": {
+                    "kind": "divide",
+                    "left": {
+                      "kind": "countCards",
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": null
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 2
+                    },
+                    "round": "down"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "optionalCardDeployment"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": true
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "library": [
+          {
+            "id": "library-filler-0",
+            "name": "library-filler-0",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-filler-1",
+            "name": "library-filler-1",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-filler-2",
+            "name": "library-filler-2",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-filler-3",
+            "name": "library-filler-3",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-filler-4",
+            "name": "library-filler-4",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "eligible-artifact-three",
+            "name": "eligible-artifact-three",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": []
+          },
+          {
+            "id": "wrong-artifact-four",
+            "name": "wrong-artifact-four",
+            "typeLine": "Artifact",
+            "manaCost": "{4}",
+            "rules": []
+          },
+          {
+            "id": "wrong-creature-three",
+            "name": "wrong-creature-three",
+            "typeLine": "Creature",
+            "manaCost": "{3}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "independent-query-reliquary",
+            "name": "Independent Query Reliquary",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "chooseCards",
+                    "id": "optionalCardDeployment",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "==",
+                            "right": {
+                              "kind": "add",
+                              "left": {
+                                "kind": "countCounters",
+                                "object": {
+                                  "kind": "self"
+                                },
+                                "counter": "emberlace"
+                              },
+                              "right": {
+                                "kind": "divide",
+                                "left": {
+                                  "kind": "countCards",
+                                  "zone": {
+                                    "kind": "library",
+                                    "player": {
+                                      "kind": "controllerOf",
+                                      "object": {
+                                        "kind": "self"
+                                      }
+                                    }
+                                  },
+                                  "where": null
+                                },
+                                "right": {
+                                  "kind": "integer",
+                                  "value": 2
+                                },
+                                "round": "down"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "decisionResult",
+                      "decisionId": "optionalCardDeployment"
+                    },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": true
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ],
+            "counters": {
+              "emberlace": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "p0",
+      "sourceDefinitionId": "independent-query-reliquary",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "eligible-artifact-three",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "eligible-artifact-three",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "wrong-artifact-four",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "wrong-creature-three",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 5
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "independent-query-reliquary",
+      "counter": "emberlace",
+      "equals": 1
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "independent-query-reliquary",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 22
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "playerId": "p0",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "eligible-artifact-three",
+      "equals": true
+    }
+  ]
+}

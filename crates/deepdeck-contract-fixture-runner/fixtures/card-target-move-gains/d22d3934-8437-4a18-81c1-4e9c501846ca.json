@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/d22d3934-8437-4a18-81c1-4e9c501846ca",
+  "cardName": "Tomb Trawler",
+  "oracleId": "d22d3934-8437-4a18-81c1-4e9c501846ca",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "36e61cb8-219a-4fe6-a2e6-307665ffa38f",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "0",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Tomb Trawler",
+      "typeLine": "Artifact Creature — Golem",
+      "manaCost": "{2}",
+      "oracleText": "{2}: Put target card from your graveyard on the bottom of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

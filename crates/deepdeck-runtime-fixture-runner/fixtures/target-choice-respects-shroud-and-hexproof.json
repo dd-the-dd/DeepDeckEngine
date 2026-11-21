@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "target-choice-preserves-shroud-and-hexproof-restrictions",
+  "seed": 1304,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "keyword": "cantBeBlocked",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Gate pilot",
+        "battlefield": [
+          {
+            "id": "target-gate",
+            "name": "Target Gate",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "keyword": "cantBeBlocked",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "shrouded-land",
+            "name": "shrouded-land",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "shroud"
+                }
+              }
+            ]
+          },
+          {
+            "id": "own-hexproof-land",
+            "name": "own-hexproof-land",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "hexproof"
+                }
+              }
+            ]
+          },
+          {
+            "id": "ordinary-land",
+            "name": "ordinary-land",
+            "typeLine": "Land"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "enemy-hexproof-land",
+            "name": "enemy-hexproof-land",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "hexproof"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "target-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "shrouded-land"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "target-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "own-hexproof-land"
+        }
+      },
+      "equals": true
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "target-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "enemy-hexproof-land"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "target-gate",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "ordinary-land"
+        }
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "shrouded-land",
+      "keyword": "shroud",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "own-hexproof-land",
+      "keyword": "hexproof",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-1",
+      "definitionId": "enemy-hexproof-land",
+      "keyword": "hexproof",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

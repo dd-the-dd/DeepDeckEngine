@@ -1,0 +1,268 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "collection-domain-real/gemhide-p1",
+  "seed": 495702,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "ability": {
+          "costs": [
+            {
+              "kind": "tap",
+              "object": {
+                "kind": "self"
+              }
+            }
+          ],
+          "effects": [
+            {
+              "kind": "addMana",
+              "mana": {
+                "amount": 1,
+                "kind": "chooseColor"
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          ],
+          "kind": "manaAbility",
+          "source": {
+            "kind": "self"
+          }
+        },
+        "kind": "grantActivatedAbility",
+        "objects": {
+          "kind": "permanents",
+          "where": {
+            "kind": "subtypeContains",
+            "value": "Sliver"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p1",
+    "turnNumber": 3,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "p0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "224af68a-41a6-4e4e-94d0-130be341b788",
+            "name": "Gemhide Sliver",
+            "typeLine": "Creature — Sliver",
+            "manaCost": "{1}{G}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "ability": {
+                      "costs": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      ],
+                      "effects": [
+                        {
+                          "kind": "addMana",
+                          "mana": {
+                            "amount": 1,
+                            "kind": "chooseColor"
+                          },
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "manaAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "grantActivatedAbility",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Sliver"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "p0-sliver",
+            "name": "Synthetic p0-sliver",
+            "typeLine": "Creature — Sliver",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "p0-nonsliver",
+            "name": "Synthetic p0-nonsliver",
+            "typeLine": "Creature — Human",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "hand": []
+      },
+      {
+        "id": "p1",
+        "name": "p1",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "p1-sliver",
+            "name": "Synthetic p1-sliver",
+            "typeLine": "Creature — Sliver",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "p1-nonsliver",
+            "name": "Synthetic p1-nonsliver",
+            "typeLine": "Creature — Human",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ],
+        "hand": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "p1",
+      "sourceDefinitionId": "p1-sliver",
+      "manaSymbols": [
+        "U"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p1",
+      "symbols": [
+        "U"
+      ]
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "p1-sliver",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "224af68a-41a6-4e4e-94d0-130be341b788",
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "p0-sliver",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "224af68a-41a6-4e4e-94d0-130be341b788",
+      "manaSymbols": [
+        "W"
+      ],
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "p0-nonsliver",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "p1",
+      "sourceDefinitionId": "p1-nonsliver",
+      "manaSymbols": [
+        "G"
+      ],
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "playerId": "p1",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

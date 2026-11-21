@@ -1,0 +1,95 @@
+{
+  "schema_version": "deepdeck-retired-card-proofs/v1",
+  "reason": "User-authorized strict reset; these entries are NOT current executable coverage. Restore only after primitive implementation and fresh proofs.",
+  "cards": [
+    {
+      "oracle_id": "087f9ad7-e74f-40e2-8102-1ed2925d0418",
+      "name": "Rest in Peace",
+      "expected_semantic_ir_digest": "35CB66FFB510A1C2FC5F3CBA4D78F4947A7A696EDDD334D0FA978CB63AB934FC",
+      "contract": {
+        "fixture_id": "rest-in-peace/both-native-rules-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/rest-in-peace.json"
+      },
+      "runtime": {
+        "fixture_id": "rest-in-peace-replaces-a-spells-graveyard-destination",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/rest-in-peace-replacement.json"
+      }
+    },
+    {
+      "oracle_id": "dfd5939e-a71a-4e16-9b93-752162be4ccd",
+      "name": "Seam Rip",
+      "expected_semantic_ir_digest": "EBE48028C98A115E3280258F0DE08B374337962F3D19093E49620EEA155397AF",
+      "contract": {
+        "fixture_id": "seam-rip/linked-entry-exile-is-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/seam-rip.json"
+      },
+      "runtime": {
+        "fixture_id": "seam-rip-exiles-only-the-eligible-opposing-permanent-and-returns-it-to-its-owner",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/seam-rip.json"
+      }
+    },
+    {
+      "oracle_id": "3bfa088c-9a47-4123-aee5-4de44e355bef",
+      "name": "Surgical Extraction",
+      "expected_semantic_ir_digest": "82C1DA93F5DC8D45C1382F0CC0AAE3DC4B963654E99C172419E97A00351B7424",
+      "contract": {
+        "fixture_id": "surgical-extraction/phyrexian-reminder-and-same-name-search-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/surgical-extraction.json"
+      },
+      "runtime": {
+        "fixture_id": "surgical-extraction-binds-target-owner-and-name-across-three-zones",
+        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/surgical-extraction.json"
+      }
+    },
+    {
+      "oracle_id": "4ef583ab-e0a0-4e4b-bd65-af766038b1fd",
+      "name": "Ghost Vacuum",
+      "expected_semantic_ir_digest": "98BF739FFEECBBCFF64ADF25768533DF76F1EAF3EFFB0623745C6514D95487F7",
+      "contract": {
+        "fixture_id": "ghost-vacuum/both-linked-exile-abilities-are-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/ghost-vacuum.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "ghost-vacuum-exiles-links-and-returns-only-its-linked-creatures",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-linked-return.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-requires-six-mana",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-five-mana.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-requires-an-untapped-source",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-tapped.json"
+        },
+        {
+          "fixture_id": "ghost-vacuum-return-is-unavailable-outside-sorcery-timing",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/ghost-vacuum-return-sorcery-timing.json"
+        }
+      ]
+    },
+    {
+      "oracle_id": "1b5e6560-ff2e-4475-96cb-63f64c8a86db",
+      "name": "Soul-Guide Lantern",
+      "expected_semantic_ir_digest": "2DF2DFBC315CE87D3E69EE18765F1BD872D0AD48E50BFE0C823173B12FFE8F07",
+      "contract": {
+        "fixture_id": "soul-guide-lantern/all-native-rules-are-primitive-and-executable",
+        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/soul-guide-lantern.json"
+      },
+      "runtime": [
+        {
+          "fixture_id": "soul-guide-lantern-entry-exiles-one-target-without-source-linkage",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-entry-exile.json"
+        },
+        {
+          "fixture_id": "soul-guide-lantern-exiles-only-opponent-graveyards",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-opponent-graveyards.json"
+        },
+        {
+          "fixture_id": "soul-guide-lantern-pays-mana-taps-sacrifices-and-draws",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soul-guide-lantern-draw.json"
+        }
+      ]
+    }
+  ]
+}

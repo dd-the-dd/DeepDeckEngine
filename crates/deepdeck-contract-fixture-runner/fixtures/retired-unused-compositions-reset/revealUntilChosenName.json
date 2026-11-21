@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/revealUntilChosenName",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "revealUntilChosenName",
+        "player": {
+          "kind": "abilityController"
+        },
+        "decisionId": "chosenName",
+        "matchingDestination": "hand",
+        "otherDestination": "exile",
+        "lifePerOtherCard": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

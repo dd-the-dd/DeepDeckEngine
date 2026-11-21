@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "rest-in-peace/both-native-rules-are-executable",
+  "cardName": "Rest in Peace",
+  "oracleId": "087f9ad7-e74f-40e2-8102-1ed2925d0418",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+      "effects": [{ "kind": "exileAllGraveyards" }]
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": { "kind": "eachPlayer" },
+        "where": null,
+        "from": { "kind": "anyZone" },
+        "to": { "kind": "exile" }
+      }]
+    }
+  ]
+}

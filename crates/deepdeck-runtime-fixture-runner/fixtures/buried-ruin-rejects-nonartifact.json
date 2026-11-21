@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "buried-ruin-cannot-target-a-nonartifact-card",
+  "seed": 305,
+  "rule": {
+    "kind": "activatedAbility", "source": { "kind": "self" },
+    "costs": [{ "kind": "payMana", "manaCost": "{2}" }, { "kind": "tap", "object": { "kind": "self" } }, { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }],
+    "declaration": { "kind": "castingDeclaration", "decisions": [{ "id": "targetGraveyardCard", "kind": "chooseTargets", "minimum": 1, "maximum": 1, "candidates": { "kind": "cards", "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "where": { "kind": "cardTypeContains", "value": "Artifact" } } }] },
+    "effects": [{ "kind": "moveCards", "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" }, "from": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }, "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } }]
+  },
+  "initialState": { "activePlayerId": "player-0", "players": [
+    { "id": "player-0", "name": "Ruin controller", "manaPool": ["C", "C"], "battlefield": [{ "id": "buried-ruin", "name": "Buried Ruin", "typeLine": "Land" }], "graveyard": [{ "id": "only-sorcery", "name": "Only Sorcery", "typeLine": "Sorcery", "rules": [] }] },
+    { "id": "player-1", "name": "Opponent" }
+  ] },
+  "assertions": [
+    { "kind": "activatedAbilityAvailable", "controllerId": "player-0", "sourceDefinitionId": "buried-ruin", "targets": { "targetGraveyardCard": { "kind": "cardDefinition", "definitionId": "only-sorcery" } }, "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "buried-ruin", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "only-sorcery", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C", "C"] },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

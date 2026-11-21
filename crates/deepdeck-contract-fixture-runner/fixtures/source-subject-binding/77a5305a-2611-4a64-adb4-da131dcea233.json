@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/77a5305a-2611-4a64-adb4-da131dcea233",
+  "cardName": "Footlight Fiend",
+  "oracleId": "77a5305a-2611-4a64-adb4-da131dcea233",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "73083658-5e25-4d06-acba-ce8f771b5e52",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Footlight Fiend",
+      "typeLine": "Creature — Devil",
+      "manaCost": "{B/R}",
+      "oracleText": "When this creature dies, it deals 1 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

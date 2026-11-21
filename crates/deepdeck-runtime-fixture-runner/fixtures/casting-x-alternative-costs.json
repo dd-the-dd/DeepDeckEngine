@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "casting-x/selected-cost-controls-legal-x-values",
+  "seed": 209,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "X cost controller",
+        "manaPool": ["C", "C", "C", "U", "B"],
+        "hand": [
+          {
+            "id": "free-x-spell",
+            "name": "Free X Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": { "kind": "alternativeCost", "costs": [] }
+              },
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          },
+          {
+            "id": "normal-x-spell",
+            "name": "Normal X Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          },
+          {
+            "id": "alternative-x-spell",
+            "name": "Alternative X Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "alternativeCost",
+                  "costs": [{ "kind": "payMana", "manaCost": "{X}{B}" }]
+                }
+              },
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "free-x-spell",
+      "useAlternativeCost": true,
+      "declarationDecisions": { "xValue": 0 },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "free-x-spell",
+      "useAlternativeCost": true,
+      "declarationDecisions": { "xValue": 3 },
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "normal-x-spell",
+      "declarationDecisions": { "xValue": 3 },
+      "equals": true
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "alternative-x-spell",
+      "useAlternativeCost": true,
+      "declarationDecisions": { "xValue": 3 },
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

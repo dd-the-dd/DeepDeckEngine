@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "starting-town/early-turn-entry-is-executable",
+  "cardName": "Starting Town",
+  "oracleId": "d04e0975-f401-41b8-a9db-9bcf9cbbce66",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "replacementEffect",
+    "source": { "kind": "self" },
+    "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+    "condition": {
+      "kind": "not",
+      "operand": {
+        "kind": "and",
+        "operands": [
+          {
+            "kind": "duringControllerTurn",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          {
+            "kind": "compare",
+            "operator": "<=",
+            "left": {
+              "kind": "countTurnsTaken",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "right": { "kind": "integer", "value": 3 }
+          }
+        ]
+      }
+    },
+    "replacement": [
+      {
+        "kind": "setEnteringState",
+        "object": { "kind": "self" },
+        "tapped": true
+      }
+    ]
+  }
+}

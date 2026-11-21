@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "talisman-of-creativity/both-native-mana-rules-are-executable",
+  "cardName": "Talisman of Creativity",
+  "oracleId": "14d2979d-5728-42d7-a027-0eb1f754655d",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }]
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+        },
+        {
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 1 },
+          "recipient": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    }
+  ]
+}

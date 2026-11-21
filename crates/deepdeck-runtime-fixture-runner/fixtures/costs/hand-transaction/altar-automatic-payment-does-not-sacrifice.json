@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "phyrexian-altar/automatic-payment-does-not-choose-sacrifice",
+  "seed": 1515,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "chosenObject",
+          "id": "activationCostPermanent0"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseObjects",
+          "id": "activationCostPermanent0",
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "quantity": {
+            "kind": "exactly",
+            "value": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "chooseColor",
+          "amount": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Payer",
+        "battlefield": [
+          {
+            "id": "phyrexian-altar",
+            "name": "Phyrexian Altar",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": [
+              {
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "chosenObject",
+                      "id": "activationCostPermanent0"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseObjects",
+                      "id": "activationCostPermanent0",
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "mana": {
+                      "kind": "chooseColor",
+                      "amount": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "retained-creature",
+            "name": "retained-creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "hand": [
+          {
+            "id": "synthetic-green-spell",
+            "name": "Synthetic Green Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "chosen-protected-creature",
+            "name": "chosen-protected-creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "shroud"
+                }
+              },
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "hexproof"
+                }
+              }
+            ],
+            "controllerId": "player-0"
+          },
+          {
+            "id": "opponent-creature",
+            "name": "opponent-creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "synthetic-green-spell",
+      "equals": false
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "synthetic-green-spell",
+      "equals": true
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "azorius-signet-pays-one-taps-and-adds-white-blue",
+  "seed": 126,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "payMana", "manaCost": "{1}" },
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{W}{U}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Azorius pilot",
+        "manaPool": ["C"],
+        "battlefield": [{
+          "id": "azorius-signet",
+          "name": "Azorius Signet",
+          "typeLine": "Artifact",
+          "manaCost": "{2}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [{
+    "kind": "activateManaAbility",
+    "controllerId": "player-0",
+    "sourceDefinitionId": "azorius-signet",
+    "manaSymbols": ["W", "U"]
+  }],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["W", "U"] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "azorius-signet", "equals": true },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

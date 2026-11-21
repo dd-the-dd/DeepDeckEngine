@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cage-snapshot/move-top-destination-graveyard",
+  "seed": 11311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveTopMatchingCard",
+        "zone": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "where": null,
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        },
+        "grantKeywords": [],
+        "exileAtNextEndStep": false
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "power": null,
+            "toughness": null,
+            "rules": []
+          },
+          {
+            "id": "conditional-barrier",
+            "name": "conditional-barrier",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "power": null,
+            "toughness": null,
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "condition": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countCards",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": null
+                  },
+                  "right": 1
+                },
+                "modifiers": [
+                  {
+                    "kind": "prohibitUncastBattlefieldEntry",
+                    "where": null,
+                    "destination": "exile"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "entrant-a",
+            "name": "entrant-a",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "entrant-b",
+            "name": "entrant-b",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "executor"
+  },
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "entrant-a",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "entrant-b",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 1
+    }
+  ]
+}

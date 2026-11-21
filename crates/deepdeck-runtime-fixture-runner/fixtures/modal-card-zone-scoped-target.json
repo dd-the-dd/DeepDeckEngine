@@ -1,0 +1,479 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "modal-card-zone-target-is-scoped-and-inactive-permanent-targets-are-not-required",
+  "seed": 81204,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "allowRepeated": false,
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "maximum": {
+            "kind": "integer",
+            "value": 1
+          },
+          "minimum": 1,
+          "options": [
+            "mode1",
+            "mode2",
+            "mode3"
+          ]
+        },
+        {
+          "candidates": {
+            "kind": "cards",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            },
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "decisionId": "chosenModes",
+              "kind": "decisionResult"
+            },
+            "value": "mode1"
+          },
+          "id": "mode1:targetCard",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        },
+        {
+          "candidates": {
+            "kind": "anyTarget"
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "decisionId": "chosenModes",
+              "kind": "decisionResult"
+            },
+            "value": "mode2"
+          },
+          "id": "mode2:targetDamageable",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        },
+        {
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": {
+              "decisionId": "chosenModes",
+              "kind": "decisionResult"
+            },
+            "value": "mode3"
+          },
+          "id": "mode3:targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "condition": {
+          "kind": "selectionContains",
+          "selection": {
+            "decisionId": "chosenModes",
+            "kind": "decisionResult"
+          },
+          "value": "mode1"
+        },
+        "kind": "conditional",
+        "then": [
+          {
+            "cards": {
+              "id": "mode1:targetCard",
+              "kind": "chosenTargets"
+            },
+            "from": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "kind": "moveCards",
+            "to": {
+              "kind": "hand",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "condition": {
+          "kind": "selectionContains",
+          "selection": {
+            "decisionId": "chosenModes",
+            "kind": "decisionResult"
+          },
+          "value": "mode2"
+        },
+        "kind": "conditional",
+        "then": [
+          {
+            "amount": {
+              "kind": "integer",
+              "value": 3
+            },
+            "kind": "dealDamage",
+            "recipient": {
+              "id": "mode2:targetDamageable",
+              "kind": "chosenTarget"
+            },
+            "source": {
+              "kind": "self"
+            }
+          }
+        ]
+      },
+      {
+        "condition": {
+          "kind": "selectionContains",
+          "selection": {
+            "decisionId": "chosenModes",
+            "kind": "decisionResult"
+          },
+          "value": "mode3"
+        },
+        "kind": "conditional",
+        "then": [
+          {
+            "duration": {
+              "kind": "untilEndOfCurrentTurn"
+            },
+            "kind": "modifyPowerToughness",
+            "object": {
+              "id": "mode3:targetPermanent",
+              "kind": "chosenTarget"
+            },
+            "power": {
+              "kind": "integer",
+              "value": 3
+            },
+            "toughness": {
+              "kind": "integer",
+              "value": 3
+            }
+          }
+        ]
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Modal card-zone caster",
+        "manaPool": [
+          "B",
+          "R",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "darigaaz-charm",
+            "name": "Darigaaz's Charm",
+            "typeLine": "Instant",
+            "manaCost": "{B}{R}{G}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "allowRepeated": false,
+                      "id": "chosenModes",
+                      "kind": "chooseModes",
+                      "maximum": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "minimum": 1,
+                      "options": [
+                        "mode1",
+                        "mode2",
+                        "mode3"
+                      ]
+                    },
+                    {
+                      "candidates": {
+                        "kind": "cards",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      },
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "decisionId": "chosenModes",
+                          "kind": "decisionResult"
+                        },
+                        "value": "mode1"
+                      },
+                      "id": "mode1:targetCard",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    },
+                    {
+                      "candidates": {
+                        "kind": "anyTarget"
+                      },
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "decisionId": "chosenModes",
+                          "kind": "decisionResult"
+                        },
+                        "value": "mode2"
+                      },
+                      "id": "mode2:targetDamageable",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    },
+                    {
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "decisionId": "chosenModes",
+                          "kind": "decisionResult"
+                        },
+                        "value": "mode3"
+                      },
+                      "id": "mode3:targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode1"
+                    },
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "cards": {
+                          "id": "mode1:targetCard",
+                          "kind": "chosenTargets"
+                        },
+                        "from": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "kind": "moveCards",
+                        "to": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode2"
+                    },
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "amount": {
+                          "kind": "integer",
+                          "value": 3
+                        },
+                        "kind": "dealDamage",
+                        "recipient": {
+                          "id": "mode2:targetDamageable",
+                          "kind": "chosenTarget"
+                        },
+                        "source": {
+                          "kind": "self"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "chosenModes",
+                        "kind": "decisionResult"
+                      },
+                      "value": "mode3"
+                    },
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "duration": {
+                          "kind": "untilEndOfCurrentTurn"
+                        },
+                        "kind": "modifyPowerToughness",
+                        "object": {
+                          "id": "mode3:targetPermanent",
+                          "kind": "chosenTarget"
+                        },
+                        "power": {
+                          "kind": "integer",
+                          "value": 3
+                        },
+                        "toughness": {
+                          "kind": "integer",
+                          "value": 3
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "recovered-creature",
+            "name": "Recovered Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "darigaaz-charm",
+      "declarationDecisions": {
+        "chosenModes": [
+          "mode1"
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "recovered-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "recovered-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "darigaaz-charm",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

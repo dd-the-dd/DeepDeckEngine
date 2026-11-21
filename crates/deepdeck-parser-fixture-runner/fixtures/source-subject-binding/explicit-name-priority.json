@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "explicit-current-name-priority-source-proof-independent",
+  "cases": [
+    {
+      "id": "explicit-name-without-owner-subject-proof",
+      "request": {
+        "cardName": "It of the Test Fen",
+        "typeLine": "Sorcery",
+        "manaCost": null,
+        "oracleText": "It of the Test Fen deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-name-overrides-local-target-kind",
+      "request": {
+        "cardName": "It of the Test Fen",
+        "typeLine": "Sorcery",
+        "manaCost": null,
+        "oracleText": "Target creature gets +1/+1 until end of turn. It of the Test Fen deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                },
+                {
+                  "kind": "dealDamage",
+                  "source": {
+                    "kind": "self"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "recipient": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

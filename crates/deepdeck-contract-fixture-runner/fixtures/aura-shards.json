@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "aura-shards/permanent-entered-is-executable",
+  "cardName": "Aura Shards",
+  "oracleId": "8d03d050-391c-4311-8c42-4ee632d40fdc",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "permanentEntered",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": { "kind": "cardTypeContains", "value": "Creature" }
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Artifact" },
+              { "kind": "cardTypeContains", "value": "Enchantment" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "optionalEffects",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      }]
+    }]
+  }
+}

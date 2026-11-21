@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/returnBoundCardsWithinLifeGained",
+  "cardName": "Specialized effect retention audit batch02",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "returnBoundCardsWithinLifeGained",
+        "player": {
+          "kind": "abilityController"
+        },
+        "binding": "cards"
+      }
+    ]
+  }
+}

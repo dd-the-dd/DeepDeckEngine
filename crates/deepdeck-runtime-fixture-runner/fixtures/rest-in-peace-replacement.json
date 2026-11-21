@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rest-in-peace-replaces-a-spells-graveyard-destination",
+  "seed": 42,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "replaceGraveyardDestination",
+      "graveyardOwners": { "kind": "eachPlayer" },
+      "where": null,
+      "from": { "kind": "anyZone" },
+      "to": { "kind": "exile" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rest in Peace pilot",
+        "manaPool": ["C"],
+        "battlefield": [{
+          "id": "rest-in-peace",
+          "name": "Rest in Peace",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "replaceGraveyardDestination",
+              "graveyardOwners": { "kind": "eachPlayer" },
+              "where": null,
+              "from": { "kind": "anyZone" },
+              "to": { "kind": "exile" }
+            }]
+          }]
+        }],
+        "hand": [{
+          "id": "test-spell",
+          "name": "Test Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "{1}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "gainLife",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "test-spell" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 21 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "exile", "definitionId": "test-spell", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "test-spell", "equals": false },
+    { "kind": "eventCount", "eventKind": "graveyardDestinationReplaced", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

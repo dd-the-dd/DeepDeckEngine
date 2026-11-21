@@ -1,0 +1,210 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "seed": 1894,
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "source"
+  },
+  "id": "synthetic/simultaneous-sacrifice/effective-battlefield-selection",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "creatures",
+        "value": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "selected",
+        "player": {
+          "kind": "abilityController"
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "creatures"
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "forEachObject",
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "selected"
+        },
+        "bind": "recipient",
+        "effects": [
+          {
+            "kind": "putCounters",
+            "counter": "+1/+1",
+            "count": {
+              "kind": "integer",
+              "value": 1
+            },
+            "permanent": {
+              "kind": "boundValue",
+              "id": "recipient"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected",
+        "battlefield": [
+          {
+            "id": "animation-source",
+            "name": "animation-source",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "addCardType",
+                    "cardType": "Creature",
+                    "objects": {
+                      "kind": "permanents",
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "animated",
+            "name": "animated",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "suppressed",
+            "name": "suppressed",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "removeCardTypeWhile",
+                    "cardType": "Creature",
+                    "condition": {
+                      "kind": "compare",
+                      "operator": "==",
+                      "left": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "animated",
+      "counter": "+1/+1",
+      "equals": 1
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-1",
+      "definitionId": "suppressed",
+      "counter": "+1/+1",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "meltdown-pays-x-and-destroys-artifacts-with-mana-value-x-or-less",
+  "seed": 605,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "cardTypeContains", "value": "Artifact" },
+            {
+              "kind": "compare",
+              "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
+              "operator": "<=",
+              "right": { "kind": "decisionResult", "decisionId": "xValue" }
+            }
+          ]
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Meltdown caster",
+        "manaPool": ["C", "C", "R"],
+        "hand": [{
+          "id": "meltdown",
+          "name": "Meltdown",
+          "typeLine": "Sorcery",
+          "manaCost": "{X}{R}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Artifact controller",
+        "battlefield": [
+          {
+            "id": "meltdown-mv-one",
+            "name": "Mana Value One Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": []
+          },
+          {
+            "id": "meltdown-mv-two",
+            "name": "Mana Value Two Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          },
+          {
+            "id": "meltdown-mv-three",
+            "name": "Mana Value Three Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{3}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "meltdown",
+      "declarationDecisions": { "xValue": 2 }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "meltdown-mv-one", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "meltdown-mv-two", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "meltdown-mv-three", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

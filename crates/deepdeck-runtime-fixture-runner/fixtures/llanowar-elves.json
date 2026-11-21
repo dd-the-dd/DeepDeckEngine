@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "llanowar-elves-add-green-mana",
+  "seed": 1,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": { "kind": "self" }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": { "kind": "self" }
+        },
+        "mana": "{G}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Llanowar pilot",
+        "battlefield": [
+          {
+            "id": "llanowar-elves",
+            "name": "Llanowar Elves",
+            "typeLine": "Creature — Elf Druid",
+            "manaCost": "{G}",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "llanowar-elves-summoning-sick",
+            "name": "Llanowar Elves",
+            "typeLine": "Creature — Elf Druid",
+            "manaCost": "{G}",
+            "power": "1",
+            "toughness": "1",
+            "summoningSick": true
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "llanowar-elves"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": ["G"]
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "llanowar-elves",
+      "equals": true
+    },
+    {
+      "kind": "permanentSummoningSick",
+      "playerId": "player-0",
+      "definitionId": "llanowar-elves-summoning-sick",
+      "equals": true
+    },
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "llanowar-elves-summoning-sick",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    }
+  ]
+}

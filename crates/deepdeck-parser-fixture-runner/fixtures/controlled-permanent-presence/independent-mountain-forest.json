@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "independent-mountain-forest-entry-after-control-transfer",
+  "cases": [
+    {
+      "id": "fresh-query-plus-effective-type-control-and-phase",
+      "request": {
+        "cardName": "Independent Mountain Forest Gate",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a Mountain or a Forest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "replacementEffect",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "controlsPermanent",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Mountain"
+                      },
+                      {
+                        "kind": "subtypeContains",
+                        "value": "Forest"
+                      }
+                    ]
+                  }
+                }
+              },
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

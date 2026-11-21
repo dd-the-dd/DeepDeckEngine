@@ -1,0 +1,235 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "quantified-player-action",
+  "cases": [
+    {
+      "id": "Sneering Shadewriter",
+      "request": {
+        "cardName": "Sneering Shadewriter",
+        "typeLine": "Creature — Vampire Warlock",
+        "manaCost": "{4}{B}",
+        "oracleText": "Flying\nWhen this creature enters, each opponent loses 2 life and you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "loseLife",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Fugitive Listener",
+      "request": {
+        "cardName": "Fugitive Listener",
+        "typeLine": "Creature — El-Aurian Scout",
+        "manaCost": "{2}{B}",
+        "oracleText": "When this creature enters, each opponent discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects",
+                "equals": [
+                  {
+                    "kind": "forEachPlayer",
+                    "players": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "bind": "quantifiedPlayer",
+                    "effects": [
+                      {
+                        "kind": "discardCards",
+                        "player": {
+                          "kind": "boundValue",
+                          "id": "quantifiedPlayer"
+                        },
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-life",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponent gains three life and you lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-discard",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponent discards two cards at random.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-4",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponents loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-5",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponent lose 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-6",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponent loses 2 life and gains 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-7",
+      "request": {
+        "cardName": "Synthetic Quantified Observer",
+        "typeLine": "Creature - Test",
+        "manaCost": "{B}",
+        "oracleText": "When this creature enters, Each opponent discards two card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

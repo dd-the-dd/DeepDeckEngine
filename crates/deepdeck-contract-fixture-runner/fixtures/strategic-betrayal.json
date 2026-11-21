@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "targeted-player/compound-controlled-permanent-and-graveyard-exile-is-executable",
+  "cardName": "Strategic Betrayal",
+  "oracleId": "0127c13f-7b0f-44c3-8b35-97f306c5f239",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetOpponent",
+          "kind": "chooseTargets",
+          "candidates": {
+            "kind": "players",
+            "where": {
+              "kind": "isOpponentOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          "minimum": 1,
+          "maximum": 1
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "choosePermanents",
+        "id": "controlledPermanentToExile",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "targetOpponent"
+        },
+        "minimum": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 1
+            },
+            {
+              "kind": "countPermanents",
+              "player": {
+                "kind": "chosenTarget",
+                "id": "targetOpponent"
+              },
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            }
+          ]
+        },
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "chosenTarget",
+            "id": "targetOpponent"
+          },
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      },
+      {
+        "kind": "exileTogether",
+        "objects": {
+          "kind": "union",
+          "sets": [
+            {
+              "kind": "decisionResult",
+              "decisionId": "controlledPermanentToExile"
+            },
+            {
+              "kind": "cardsInZone",
+              "zone": {
+                "kind": "graveyard",
+                "player": {
+                  "kind": "chosenTarget",
+                  "id": "targetOpponent"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

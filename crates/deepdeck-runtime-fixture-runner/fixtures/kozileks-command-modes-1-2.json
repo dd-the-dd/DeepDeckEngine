@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "kozileks-command-modes-one-two-use-independent-player-targets",
+  "seed": 13512,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "minimum": 2,
+          "maximum": { "kind": "integer", "value": 2 },
+          "options": ["mode1", "mode2", "mode3", "mode4"],
+          "allowRepeated": false
+        },
+        { "id": "xValue", "kind": "chooseNumber", "minimum": 0 },
+        {
+          "id": "mode1:targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "players" },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" }
+        },
+        {
+          "id": "mode2:targetPlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "players" },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode2" }
+        },
+        {
+          "id": "mode3:targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                { "kind": "compare", "operator": "<=", "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } }, "right": { "kind": "decisionResult", "decisionId": "xValue" } }
+              ]
+            }
+          },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" }
+        },
+        {
+          "id": "mode4:targetCards",
+          "kind": "chooseTargets",
+          "minimum": 0,
+          "maximum": { "kind": "decisionResult", "decisionId": "xValue" },
+          "candidates": { "kind": "cards", "zone": { "kind": "anyGraveyard" }, "where": null },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode4" }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" },
+        "then": [{
+          "kind": "createTokens",
+          "controller": { "kind": "chosenTarget", "id": "mode1:targetPlayer" },
+          "quantity": { "kind": "decisionResult", "decisionId": "xValue" },
+          "token": {
+            "colors": [],
+            "types": ["Creature"],
+            "subtypes": ["Eldrazi", "Spawn"],
+            "power": 0,
+            "toughness": 1,
+            "abilities": [{
+              "kind": "manaAbility",
+              "source": { "kind": "self" },
+              "costs": [{ "kind": "sacrificePermanent", "permanent": { "kind": "self" } }],
+              "effects": [{ "kind": "addMana", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "mana": "{C}" }]
+            }]
+          }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode2" },
+        "then": [
+          { "kind": "lookAtTopCards", "zone": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" } }, "count": { "kind": "decisionResult", "decisionId": "xValue" }, "bind": "mode2:scryLookedCards" },
+          { "kind": "chooseCards", "id": "mode2:scryBottomCards", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "from": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" }, "minimum": { "kind": "integer", "value": 0 }, "maximum": { "kind": "countObjects", "objects": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" } } },
+          { "kind": "chooseOrder", "id": "mode2:scryBottomOrder", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "objects": { "kind": "decisionResult", "decisionId": "mode2:scryBottomCards" } },
+          { "kind": "moveCards", "cards": { "kind": "decisionResult", "decisionId": "mode2:scryBottomOrder" }, "to": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "position": "bottom" }, "order": { "kind": "decisionOrder", "decisionId": "mode2:scryBottomOrder" } },
+          { "kind": "chooseOrder", "id": "mode2:scryTopOrder", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "objects": { "kind": "setDifference", "left": { "kind": "boundObjects", "binding": "mode2:scryLookedCards" }, "right": { "kind": "decisionResult", "decisionId": "mode2:scryBottomCards" } } },
+          { "kind": "moveCards", "cards": { "kind": "decisionResult", "decisionId": "mode2:scryTopOrder" }, "to": { "kind": "library", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "position": "top" }, "order": { "kind": "decisionOrder", "decisionId": "mode2:scryTopOrder" } },
+          { "kind": "conditional", "condition": { "kind": "compare", "operator": ">=", "left": { "kind": "decisionResult", "decisionId": "xValue" }, "right": { "kind": "integer", "value": 1 } }, "then": [{ "kind": "emitAbilitySignal", "abilityId": "scry", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" } }], "else": [] },
+          { "kind": "drawCards", "player": { "kind": "chosenTarget", "id": "mode2:targetPlayer" }, "count": { "kind": "integer", "value": 1 } }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" },
+        "then": [{ "kind": "exilePermanent", "permanent": { "kind": "chosenTarget", "id": "mode3:targetPermanent" } }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode4" },
+        "then": [{ "kind": "exileTargetCards", "cards": { "kind": "chosenTargets", "id": "mode4:targetCards" } }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Kozilek's Command controller and scry recipient",
+        "hand": [{ "id": "kozileks-command", "name": "Kozilek's Command", "typeLine": "Kindred Instant - Eldrazi", "manaCost": "{X}{C}{C}" }],
+        "library": [
+          { "id": "library-bottom", "name": "Library Bottom", "typeLine": "Land" },
+          { "id": "draw-after-scry", "name": "Draw After Scry", "typeLine": "Instant" },
+          { "id": "scry-to-bottom", "name": "Scry To Bottom", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Eldrazi Spawn recipient" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "kozileks-command",
+    "decisions": { "chosenModes": ["mode1", "mode2"], "xValue": 2 },
+    "targets": {
+      "mode1:targetPlayer": { "player": { "playerId": "player-1" } },
+      "mode2:targetPlayer": { "player": { "playerId": "player-0" } }
+    }
+  },
+  "decisions": [
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 0 },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "tokenCreated", "playerId": "player-1", "equals": 2 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 2 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "scry-to-bottom", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "draw-after-scry", "equals": true },
+    { "kind": "eventCount", "eventKind": "abilityPerformed", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "cardDrawn", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

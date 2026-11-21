@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-unused-seven/after/chooseCreatureForEachPlayerThenSacrificeNonsharing",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "chooseCreatureForEachPlayerThenSacrificeNonsharing",
+        "chooser": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  }
+}

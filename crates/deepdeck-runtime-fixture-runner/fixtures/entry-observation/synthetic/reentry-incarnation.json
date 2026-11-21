@@ -1,0 +1,255 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-observed-object-old-trigger-does-not-untap-new-incarnation",
+  "seed": 183,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "permanentEntered",
+      "where": null,
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "entryState": {
+        "tapped": true
+      }
+    },
+    "effects": [
+      {
+        "kind": "untapPermanent",
+        "permanent": {
+          "kind": "observedEventObject",
+          "event": "permanentEntered"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "turnNumber": 1,
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "life": 20,
+        "battlefield": [
+          {
+            "id": "amulet-of-vigor",
+            "name": "Amulet of Vigor",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "power": null,
+            "toughness": null,
+            "tapped": true,
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "permanentEntered",
+                  "where": null,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "entryState": {
+                    "tapped": true
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "untapPermanent",
+                    "permanent": {
+                      "kind": "observedEventObject",
+                      "event": "permanentEntered"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "entry-land",
+            "name": "Entry Land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "cardsInZone",
+              "zone": {
+                "kind": "graveyard",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            },
+            "to": {
+              "kind": "battlefield",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "tapped": true
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "amulet-of-vigor",
+        "targets": {}
+      }
+    },
+    {
+      "kind": "executeRule",
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "eachPermanent",
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              },
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "to": {
+              "kind": "exile",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "faceDown": false
+            },
+            "bind": "moved"
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "boundObjects",
+              "binding": "moved"
+            },
+            "from": {
+              "kind": "exile",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "to": {
+              "kind": "battlefield",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "tapped": false
+            }
+          },
+          {
+            "kind": "tapPermanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Land"
+            }
+          }
+        ]
+      },
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "amulet-of-vigor",
+        "targets": {}
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "entry-land",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "amulet-of-vigor",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentUntapped",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

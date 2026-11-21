@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "rhythm-of-the-wild/filtered-counter-protection-and-riot-are-executable",
+  "cardName": "Rhythm of the Wild",
+  "oracleId": "acfa77fd-3610-4f12-9c3c-bd860ce91700",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [
+        {
+          "kind": "cantBeCountered",
+          "objects": {
+            "kind": "spells",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [
+        {
+          "kind": "grantKeyword",
+          "objects": {
+            "kind": "permanents",
+            "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": {
+              "kind": "and",
+              "operands": [
+                { "kind": "not", "operand": { "kind": "isToken" } },
+                { "kind": "cardTypeContains", "value": "Creature" }
+              ]
+            }
+          },
+          "keyword": "riot"
+        }
+      ]
+    }
+  ]
+}

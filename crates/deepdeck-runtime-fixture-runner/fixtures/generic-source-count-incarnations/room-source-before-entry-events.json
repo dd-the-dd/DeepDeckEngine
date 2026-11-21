@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "diagnostic/room-prepared-source-before-entry-events",
+  "seed": 188,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "doorUnlocked",
+      "object": {
+        "kind": "self"
+      }
+    },
+    "condition": {
+      "kind": "compare",
+      "operator": "==",
+      "left": {
+        "kind": "countPermanents",
+        "excludeSource": true,
+        "player": {
+          "kind": "abilityController"
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Enchantment"
+        }
+      },
+      "right": {
+        "kind": "integer",
+        "value": 1
+      }
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "abilityController"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ],
+    "roomDoorIndex": 0
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Player 0",
+        "life": 20,
+        "hand": [
+          {
+            "id": "room-source",
+            "name": "room-source",
+            "typeLine": "Enchantment - Room // Enchantment - Room",
+            "manaCost": "{0} // {0}",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "doorUnlocked",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "condition": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countPermanents",
+                    "excludeSource": true,
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Enchantment"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ],
+                "roomDoorIndex": 0
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "companion",
+            "name": "companion",
+            "typeLine": "Enchantment",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Player 1",
+        "life": 20
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "room-source",
+      "declarationDecisions": {
+        "roomDoor": 0
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "triggeredAbilityPutOnStack",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

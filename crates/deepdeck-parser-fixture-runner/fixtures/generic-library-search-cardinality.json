@@ -1,0 +1,958 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "library-search-literal-cardinality",
+  "cardName": "Harrow",
+  "oracleId": "705509e9-a034-4a5a-9c65-66f58748b8a2",
+  "cases": [
+    {
+      "id": "exact-complete-harrow",
+      "request": {
+        "cardName": "Harrow",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "additionalCosts": [
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "id": "additionalCostPermanent",
+                      "kind": "chosenObject"
+                    }
+                  }
+                ],
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    "id": "additionalCostPermanent",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 2,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "up-to-three-artifact-collection",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for up to three artifact cards, put those cards into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 3,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-four-qualified-reveal",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for 4 artifact cards, reveal them, put the cards into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 4,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "searchedCards"
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "plural-search-then-next-sentence",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for up to three artifact cards, put those cards into your hand, then shuffle. You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 3,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-search-control",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for a basic land card, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-reveal-control",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for an artifact card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "revealCards"
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-condition-control",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "typeLineContains",
+                          "value": "Basic"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Land"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": true
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-variable",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for X basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "found": "X"
+          }
+        ]
+      }
+    },
+    {
+      "id": "each-is-not-cardinality",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for each basic land card, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "found": "each"
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-result-for-plural",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "found": "it"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dangling-controller",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards and your opponent controls, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "found": "and"
+          }
+        ]
+      }
+    },
+    {
+      "id": "overflow-count",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for 2147483648 basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-trailing-condition",
+      "request": {
+        "cardName": "Generic library search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Search your library for up to two basic land cards, put them onto the battlefield, then shuffle if the moon shines.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0636b6c3-0662-420a-b30d-f0a14e7c512d",
+  "cardName": "Mirkwood Bats",
+  "oracleId": "0636b6c3-0662-420a-b30d-f0a14e7c512d",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "15f035df-784a-4dc8-b7f5-77139a4e6e99",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Mirkwood Bats",
+      "typeLine": "Creature — Bat",
+      "manaCost": "{3}{B}",
+      "oracleText": "Flying\nWhenever you create or sacrifice a token, each opponent loses 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

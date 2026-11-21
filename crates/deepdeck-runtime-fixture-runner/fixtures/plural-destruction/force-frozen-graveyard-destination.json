@@ -1,0 +1,263 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "plural-destruction/force-frozen-graveyard-destination",
+  "seed": 1901,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 0,
+          "maximum": 2,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "or",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Artifact"
+                },
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Enchantment"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "manaPool": [
+          "C",
+          "C",
+          "G",
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "tested-spell",
+            "name": "Force of Vigor",
+            "typeLine": "Instant",
+            "manaCost": "{2}{G}{G}",
+            "rules": [
+              {
+                "ability": {
+                  "condition": {
+                    "kind": "notYourTurn"
+                  },
+                  "costs": [
+                    {
+                      "kind": "exileCard",
+                      "where": {
+                        "kind": "colorContains",
+                        "value": "green"
+                      },
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "alternativeCost"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 0,
+                      "maximum": 2,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "chosenTargets",
+                      "id": "targetPermanent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "destination-replacement",
+            "name": "destination-replacement",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "replaceGraveyardDestination",
+                    "graveyardOwners": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null,
+                    "from": {
+                      "kind": "anyZone"
+                    },
+                    "to": {
+                      "kind": "exile"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "destroyed-artifact-creature",
+            "name": "destroyed-artifact-creature",
+            "typeLine": "Artifact Creature - Test",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "tested-spell",
+      "declarationDecisions": {
+        "targetPermanent": [
+          {
+            "permanent": {
+              "instanceId": "player-1:destination-replacement:0"
+            }
+          },
+          {
+            "permanent": {
+              "instanceId": "player-1:destroyed-artifact-creature:1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "tested-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "destination-replacement",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "exile",
+      "definitionId": "destroyed-artifact-creature",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDied",
+      "equals": 0
+    }
+  ]
+}

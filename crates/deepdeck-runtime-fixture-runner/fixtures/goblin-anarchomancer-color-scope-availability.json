@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "red-green-spell-reduction-is-color-and-controller-scoped",
+  "seed": 101103,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reducer controller",
+        "manaPool": ["R", "G", "U"],
+        "hand": [
+          {
+            "id": "red-spell",
+            "name": "Red Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{R}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "green-spell",
+            "name": "Green Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{G}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "blue-spell",
+            "name": "Blue Spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{U}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          },
+          {
+            "id": "colorless-spell",
+            "name": "Colorless Spell",
+            "typeLine": "Artifact",
+            "manaCost": "{4}",
+            "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+          }
+        ],
+        "battlefield": [{
+          "id": "goblin-anarchomancer",
+          "name": "Goblin Anarchomancer",
+          "typeLine": "Creature — Goblin Shaman",
+          "manaCost": "{R}{G}",
+          "power": "2",
+          "toughness": "2",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "reduceCastingCost",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "colorContains", "value": "Red" },
+                  { "kind": "colorContains", "value": "Green" }
+                ]
+              },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["R", "G", "U"],
+        "hand": [{
+          "id": "opponent-red-spell",
+          "name": "Opponent Red Spell",
+          "typeLine": "Sorcery",
+          "manaCost": "{3}{R}",
+          "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+        }]
+      }
+    ]
+  },
+  "assertions": [
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "red-spell", "equals": true },
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "green-spell", "equals": true },
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "blue-spell", "equals": false },
+    { "kind": "spellCastAvailable", "controllerId": "player-0", "sourceDefinitionId": "colorless-spell", "equals": false },
+    { "kind": "spellCastAvailable", "controllerId": "player-1", "sourceDefinitionId": "opponent-red-spell", "equals": false },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

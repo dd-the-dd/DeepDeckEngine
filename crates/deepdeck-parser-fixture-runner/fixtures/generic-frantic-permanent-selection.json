@@ -1,0 +1,504 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "ordinary-permanent-selection",
+  "cases": [
+    {
+      "id": "real-frantic-search",
+      "request": {
+        "cardName": "Frantic Search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw two cards, then discard two cards. Untap up to three lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "discardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "choosePermanents",
+                  "id": "effect2:selectedPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                },
+                {
+                  "kind": "untapPermanents",
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect2:selectedPermanents"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-creature-controlled-sequence",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Untap up to two creatures you control, then you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "choosePermanents",
+                  "id": "effect0:selectedPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "untapPermanents",
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:selectedPermanents"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-ordinary-untap-actions-have-distinct-bindings",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Untap up to one land and untap up to one artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "choosePermanents",
+                  "id": "effect0:selectedPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "untapPermanents",
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:selectedPermanents"
+                  }
+                },
+                {
+                  "kind": "choosePermanents",
+                  "id": "effect1:selectedPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                {
+                  "kind": "untapPermanents",
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect1:selectedPermanents"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-x",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Untap up to X lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "choosePermanents",
+                  "id": "effect0:selectedPermanents",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                },
+                {
+                  "kind": "untapPermanents",
+                  "objects": {
+                    "kind": "decisionResult",
+                    "decisionId": "effect0:selectedPermanents"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "not-targets",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap up to three target lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPermanent",
+                    "minimum": 0,
+                    "maximum": 3,
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": { "kind": "cardTypeContains", "value": "Land" }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "untapPermanents",
+                  "objects": { "kind": "chosenTargets", "id": "targetPermanent" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "target-slot-without-domain",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap up to three target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-domain",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap up to two creature cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dangling-sequence",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap up to two lands, then.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unexpected-suffix",
+      "request": {
+        "cardName": "Permanent Selection Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap up to two lands nonsense.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-x-producer",
+      "request": {
+        "cardName": "Frantic Search",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Untap up to X lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-quantity-explicit-cap",
+      "request": {
+        "cardName": "Frantic Search",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Untap two lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.untap-permanents.quantity-policy"
+          }
+        ]
+      }
+    }
+  ]
+}

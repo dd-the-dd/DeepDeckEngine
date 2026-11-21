@@ -1,0 +1,2010 @@
+{
+    "schema_version":  "deepdeck-rotating-nonnative-analysis/v1",
+    "generated_at":  "2026-11-12T09:44:35.2018419-05:00",
+    "baseline":  {
+                     "parser_build_fingerprint":  "E9B08C4797F740D6C1FC7D596B91D3297B947EB2AD439E97402164358BFD7DD1",
+                     "parser_executable_sha256":  "E50FBC2AA410F01133C8159478B73F394A5268C7C26AE5215C7A22AD067C2149",
+                     "analyzer_sha256":  "F3CBE5B5DA3A63D95F0104BF2AA99413B4463A050941F62675C2C49251995088",
+                     "queue_450_input_sha256":  "7B80C5DB07D532894A56017B9E932DE6E06F3132FF4D5F10B408445FEE088B8F",
+                     "queue_450_audit_sha256":  "4607640C54628FF58CAEDB4C8922F25682406E0EBAD701338B7E80C83724E1C8",
+                     "batch_100_sha256":  "64C479240A85F996753577036111E66E6E90C280400F28C721BA2A7679470DF2",
+                     "queue_450_parse_seconds":  21.067,
+                     "note":  "Debug baseline after reminder/PT integration, before generic Persist counterValue lexical correction."
+                 },
+    "selection":  {
+                      "method":  "first still-non-native cards in rotating recent/priority/league order; oracle_id deduplication; no gain-oriented sorting",
+                      "cards":  100,
+                      "recent":  34,
+                      "priority":  33,
+                      "league":  33,
+                      "oracle_text_verified_against_queue_450":  true,
+                      "oracle_text_mismatches":  0
+                  },
+    "metrics":  {
+                    "canonical_but_not_fully_native_cards":  78,
+                    "unsupported_cards":  22,
+                    "debt_abilities":  169,
+                    "legacy_abilities":  133,
+                    "unclaimed_abilities":  14,
+                    "native_unsupported_abilities":  22,
+                    "runtime_complete_cards_proven_by_this_report":  0
+                },
+    "ranking":  [
+                    {
+                        "rank":  1,
+                        "concept":  "library-search-move-parametric",
+                        "implementation_boundary":  "LibrarySearchMove selector + destination + reveal/shuffle ordering + trailing primitive sequence",
+                        "potential_abilities":  3,
+                        "cards_touched":  3,
+                        "complete_candidates_min":  3,
+                        "complete_candidates_max":  3,
+                        "oracle_ids":  [
+                                           "82004860-e589-4e38-8d61-8c0210e4ea39",
+                                           "ededbdae-d9dc-4206-9335-d7158f2d7700",
+                                           "c5229c17-b7be-4b05-b683-f2277edc4849"
+                                       ],
+                        "conditions":  [
+                                           "bare any-card selector and artifact-or-enchantment OR selector",
+                                           "destination hand or library top",
+                                           "optional reveal",
+                                           "shuffle ordering before or after move",
+                                           "optional trailing loseLife sequence",
+                                           "lower only to chooseCards/revealCards/shuffleZone/moveCards/loseLife/recordLibrarySearch",
+                                           "all three abilities must be native with no legacy and runtime contracts must accept the primitive IR"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Demonic Tutor",
+                                             "text":  "Search your library for a card, put that card into your hand, then shuffle."
+                                         },
+                                         {
+                                             "card":  "Vampiric Tutor",
+                                             "text":  "Search your library for a card, then shuffle and put that card on top. You lose 2 life."
+                                         },
+                                         {
+                                             "card":  "Enlightened Tutor",
+                                             "text":  "Search your library for an artifact or enchantment card, reveal it, then shuffle and put that card on top."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  2,
+                        "concept":  "static-no-maximum-hand-size",
+                        "implementation_boundary":  "typed static modifier noMaximumHandSize",
+                        "potential_abilities":  2,
+                        "cards_touched":  2,
+                        "complete_candidates_min":  2,
+                        "complete_candidates_max":  2,
+                        "oracle_ids":  [
+                                           "9965d9c5-2ebf-4a6c-930e-55c5890979be",
+                                           "c23e5b80-08d2-4e24-9908-fe2aa4f30f6f"
+                                       ],
+                        "conditions":  [
+                                           "reuse existing noMaximumHandSize primitive",
+                                           "prove runtime hand-size modifier",
+                                           "no legacy fallback"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Thought Vessel / Reliquary Tower",
+                                             "text":  "You have no maximum hand size."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  3,
+                        "concept":  "source-etb-simple-effect-sequence",
+                        "implementation_boundary":  "source enterBattlefield event delegated to ordinary effect sequence",
+                        "potential_abilities":  2,
+                        "cards_touched":  2,
+                        "complete_candidates_min":  1,
+                        "complete_candidates_max":  1,
+                        "oracle_ids":  [
+                                           "37688720-03de-4eca-a82d-a0afe8d58adc"
+                                       ],
+                        "conditions":  [
+                                           "first proof is Baleful Strix source ETB plus drawCards",
+                                           "do not count conditional Garruk body until condition proof"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Baleful Strix",
+                                             "text":  "When this creature enters, draw a card."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  4,
+                        "concept":  "static-additional-land-play",
+                        "implementation_boundary":  "typed additionalLandPlay static modifier",
+                        "potential_abilities":  2,
+                        "cards_touched":  2,
+                        "complete_candidates_min":  1,
+                        "complete_candidates_max":  1,
+                        "oracle_ids":  [
+                                           "0c2841bb-038c-4fbf-8360-bc0a1522b58d"
+                                       ],
+                        "conditions":  [
+                                           "Exploration is the one-card completion candidate",
+                                           "Icetill Explorer retains two other debts"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Exploration",
+                                             "text":  "You may play an additional land on each of your turns."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  5,
+                        "concept":  "trigger-spell-cast-object-predicate-scope",
+                        "implementation_boundary":  "SpellCastEvent child: caster + ObjectPredicate + ordinal/period; body remains separately parsed",
+                        "potential_abilities":  7,
+                        "cards_touched":  7,
+                        "complete_candidates_min":  0,
+                        "complete_candidates_max":  1,
+                        "oracle_ids":  [
+
+                                       ],
+                        "conditions":  [
+                                           "exclude Kuroki: cast occurs in its effect, not its primary event",
+                                           "composite bodies do not become complete from event parsing alone"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Grakk the Pacifist",
+                                             "text":  "Whenever you cast an Aura spell that targets a creature an opponent controls, draw a card. This ability triggers only once each turn."
+                                         },
+                                         {
+                                             "card":  "Lotho, Corrupt Shirriff",
+                                             "text":  "Whenever a player casts their second spell each turn, you lose 1 life and create a Treasure token."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  6,
+                        "concept":  "trigger-permanent-entered-object-predicate-controller",
+                        "implementation_boundary":  "PermanentEntered/source ETB child with predicate/controller; bodies remain independent",
+                        "potential_abilities":  14,
+                        "cards_touched":  13,
+                        "complete_candidates_min":  0,
+                        "complete_candidates_max":  1,
+                        "oracle_ids":  [
+
+                                       ],
+                        "conditions":  [
+                                           "only Baleful Strix is currently a conservative simple-body completion",
+                                           "living-weapon reminder and composite bodies are excluded from event-only gains"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Garruk\u0027s Uprising",
+                                             "text":  "Whenever a creature you control with power 4 or greater enters, draw a card."
+                                         },
+                                         {
+                                             "card":  "Amulet of Vigor",
+                                             "text":  "Whenever a permanent you control enters tapped, untap it."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  7,
+                        "concept":  "loyalty-parent-to-shared-effect-sequence",
+                        "implementation_boundary":  "loyalty cost parent delegates body to ordinary effect sequence",
+                        "potential_abilities":  15,
+                        "cards_touched":  6,
+                        "complete_candidates_min":  0,
+                        "complete_candidates_max":  0,
+                        "oracle_ids":  [
+
+                                       ],
+                        "conditions":  [
+                                           "diagnostic loyalty-ability.separator",
+                                           "many bodies still need independent token/action/condition children"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Worzel, the Protector",
+                                             "text":  "0: Create a 1/1 white Cat creature token with an activated ability."
+                                         }
+                                     ]
+                    },
+                    {
+                        "rank":  8,
+                        "concept":  "deck-commander-eligibility",
+                        "implementation_boundary":  "typed deck-construction rule plus runtime/deck-validation contract",
+                        "potential_abilities":  7,
+                        "cards_touched":  7,
+                        "complete_candidates_min":  0,
+                        "complete_candidates_max":  0,
+                        "oracle_ids":  [
+
+                                       ],
+                        "conditions":  [
+                                           "not a gameplay no-op",
+                                           "all seven cards retain other parser debts"
+                                       ],
+                        "examples":  [
+                                         {
+                                             "card":  "Greensleeves",
+                                             "text":  "Greensleeves can be your commander."
+                                         }
+                                     ]
+                    }
+                ],
+    "candidates":  [
+                       {
+                           "batch_rank":  1,
+                           "rotating_global_rank":  1,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "e298a2a4-0e04-4af9-8638-7c01668d97d0",
+                           "name":  "Ekthi, Contaminator Priest",
+                           "set":  "mbc",
+                           "collector_number":  "1",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  2,
+                           "rotating_global_rank":  4,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "56277f60-67b0-41fa-a363-c64e2d794d01",
+                           "name":  "Grakk the Pacifist",
+                           "set":  "mbc",
+                           "collector_number":  "2",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  3,
+                           "rotating_global_rank":  7,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "2a5376aa-8996-476e-9ee8-1426b0944091",
+                           "name":  "Nivea, Beloved Battlemage",
+                           "set":  "mbc",
+                           "collector_number":  "3",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  4,
+                           "rotating_global_rank":  10,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "dbbf6379-01b4-400d-a277-5887e6be1d0f",
+                           "name":  "Seluma, Light of Aysen",
+                           "set":  "mbc",
+                           "collector_number":  "4",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  5,
+                           "rotating_global_rank":  11,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "82004860-e589-4e38-8d61-8c0210e4ea39",
+                           "name":  "Demonic Tutor",
+                           "set":  "cmm",
+                           "collector_number":  "150",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  1
+                       },
+                       {
+                           "batch_rank":  6,
+                           "rotating_global_rank":  13,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "15084803-8470-469b-8cd9-154c2341b96d",
+                           "name":  "Worzel, the Protector",
+                           "set":  "mbc",
+                           "collector_number":  "5",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  3
+                       },
+                       {
+                           "batch_rank":  7,
+                           "rotating_global_rank":  14,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "afaef788-34d1-460b-b884-9d7ae6ddeb18",
+                           "name":  "Toxic Deluge",
+                           "set":  "trc",
+                           "collector_number":  "448",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  8,
+                           "rotating_global_rank":  16,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "f6841a6f-7dd3-4976-9891-539189c0e148",
+                           "name":  "Yume, Chronicler of Valor",
+                           "set":  "mbc",
+                           "collector_number":  "6",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  9,
+                           "rotating_global_rank":  17,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "ae120613-97d6-4393-b39d-c3e6c076f5d6",
+                           "name":  "Deflecting Swat",
+                           "set":  "cmm",
+                           "collector_number":  "214",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  10,
+                           "rotating_global_rank":  19,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "ab23a9e4-2d62-4b01-9d52-593de40811b0",
+                           "name":  "Dyfed, the Guiding Hand",
+                           "set":  "mbc",
+                           "collector_number":  "7",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  3
+                       },
+                       {
+                           "batch_rank":  11,
+                           "rotating_global_rank":  20,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority"
+                                       ],
+                           "oracle_id":  "a6f38908-aa4f-4f99-a28e-85d11dab52e4",
+                           "name":  "Ruinous Ultimatum",
+                           "set":  "trc",
+                           "collector_number":  "479",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  12,
+                           "rotating_global_rank":  22,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "e8a9dddd-4527-46cd-8b7e-4f83c5b51e48",
+                           "name":  "Flitwing, Lyev Detective",
+                           "set":  "mbc",
+                           "collector_number":  "8",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  13,
+                           "rotating_global_rank":  23,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "3127ae9b-a7a7-43ec-89d7-688f8445b33d",
+                           "name":  "Garruk\u0027s Uprising",
+                           "set":  "ecc",
+                           "collector_number":  "109",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  14,
+                           "rotating_global_rank":  24,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+                           "name":  "Grafdigger\u0027s Cage",
+                           "set":  "m20",
+                           "collector_number":  "227",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  15,
+                           "rotating_global_rank":  25,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "2d29c40a-4e13-4d99-bb5a-e991e385b8c2",
+                           "name":  "Grandmother Goby",
+                           "set":  "mbc",
+                           "collector_number":  "9",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  16,
+                           "rotating_global_rank":  27,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "dba16032-66c1-4ccb-9d65-d41ac550d182",
+                           "name":  "Amulet of Vigor",
+                           "set":  "wwk",
+                           "collector_number":  "121",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  17,
+                           "rotating_global_rank":  28,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "a0a8c04e-3ce7-4945-a6af-7e40a990c82c",
+                           "name":  "Gustha Ebbasdotter",
+                           "set":  "mbc",
+                           "collector_number":  "10",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  18,
+                           "rotating_global_rank":  29,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d09c9cba-fdd2-479b-ad5d-d05181c3e3f9",
+                           "name":  "Fierce Guardianship",
+                           "set":  "cmm",
+                           "collector_number":  "94",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  19,
+                           "rotating_global_rank":  31,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "2ff470ee-4532-4ded-a684-a2c0d1253fb3",
+                           "name":  "Sash and Waistcoat, Unmen",
+                           "set":  "mbc",
+                           "collector_number":  "11",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  20,
+                           "rotating_global_rank":  32,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "9965d9c5-2ebf-4a6c-930e-55c5890979be",
+                           "name":  "Thought Vessel",
+                           "set":  "trc",
+                           "collector_number":  "509",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  21,
+                           "rotating_global_rank":  33,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "109cdefd-e8cc-4ac7-b6ba-2cfdef8d780f",
+                           "name":  "Icetill Explorer",
+                           "set":  "eoe",
+                           "collector_number":  "192",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  22,
+                           "rotating_global_rank":  34,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "56d71eda-4037-45fb-9e98-1725147af6fc",
+                           "name":  "Tolabow, Loch Rascal",
+                           "set":  "mbc",
+                           "collector_number":  "12",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  23,
+                           "rotating_global_rank":  36,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "c23e5b80-08d2-4e24-9908-fe2aa4f30f6f",
+                           "name":  "Reliquary Tower",
+                           "set":  "trc",
+                           "collector_number":  "551",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  24,
+                           "rotating_global_rank":  37,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "92eeedc6-a331-445f-af56-c91dac69412b",
+                           "name":  "Boss Uramon, Shadow\u0027s Reach",
+                           "set":  "mbc",
+                           "collector_number":  "13",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  1
+                       },
+                       {
+                           "batch_rank":  25,
+                           "rotating_global_rank":  39,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "f29dc596-2121-4421-8463-15f6c2e8b9b3",
+                           "name":  "Rogue\u0027s Passage",
+                           "set":  "trc",
+                           "collector_number":  "552",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  26,
+                           "rotating_global_rank":  40,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "5e277de5-793a-4364-923a-a55b53c0fa85",
+                           "name":  "Istvan, Butcher of Eln",
+                           "set":  "mbc",
+                           "collector_number":  "14",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  27,
+                           "rotating_global_rank":  41,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "5825997b-10d7-4a36-972c-a80ddd90b8ed",
+                           "name":  "Feed the Swarm",
+                           "set":  "tle",
+                           "collector_number":  "257",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  1
+                       },
+                       {
+                           "batch_rank":  28,
+                           "rotating_global_rank":  42,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "96c2d71e-0fc9-42aa-bc6b-6d0ae3f66f8b",
+                           "name":  "Hexing Squelcher",
+                           "set":  "ecl",
+                           "collector_number":  "145",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  29,
+                           "rotating_global_rank":  43,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "ce70f16c-ea45-4f1d-aafb-34a5d05d31e7",
+                           "name":  "Kuroki, Thief of Talents",
+                           "set":  "mbc",
+                           "collector_number":  "15",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  30,
+                           "rotating_global_rank":  44,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "16e015b2-f8a3-4b1a-80be-58a8f5fb5e8c",
+                           "name":  "Frantic Search",
+                           "set":  "trc",
+                           "collector_number":  "438",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  31,
+                           "rotating_global_rank":  46,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "75d7f864-1240-43f5-8dd5-a5f7577bfa5b",
+                           "name":  "Miss Highwater",
+                           "set":  "mbc",
+                           "collector_number":  "16",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  32,
+                           "rotating_global_rank":  47,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "0d4ecdb1-ec90-497f-a7a4-1c68092b8757",
+                           "name":  "Teferi\u0027s Protection",
+                           "set":  "2x2",
+                           "collector_number":  "32",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  33,
+                           "rotating_global_rank":  49,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "6ec8a9b8-233f-4de5-8f4c-3d677fbf2f30",
+                           "name":  "Olinda the Oblivious",
+                           "set":  "mbc",
+                           "collector_number":  "17",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  34,
+                           "rotating_global_rank":  51,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "48712d36-5c13-4ded-87a4-68106da4a5cd",
+                           "name":  "Mindbreak Trap",
+                           "set":  "zen",
+                           "collector_number":  "57",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  35,
+                           "rotating_global_rank":  52,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "e1a8f5cf-9b59-46c6-8e41-6e44225ec0f4",
+                           "name":  "Sahir, Visitor in Darkness",
+                           "set":  "mbc",
+                           "collector_number":  "18",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  36,
+                           "rotating_global_rank":  53,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "3d6fa57a-aa53-4b5c-b8af-a7612c823117",
+                           "name":  "Faithless Looting",
+                           "set":  "soc",
+                           "collector_number":  "244",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  37,
+                           "rotating_global_rank":  54,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "8d02b297-97c4-4379-9862-0a462400f66f",
+                           "name":  "Phyrexian Altar",
+                           "set":  "2x2",
+                           "collector_number":  "311",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  38,
+                           "rotating_global_rank":  55,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "fd769cfb-668c-4557-a907-c6c17539c96a",
+                           "name":  "Thomil, the Destroyer",
+                           "set":  "mbc",
+                           "collector_number":  "19",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  3
+                       },
+                       {
+                           "batch_rank":  39,
+                           "rotating_global_rank":  56,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "8a52f3c0-2552-4425-b2e3-5496eb2232a7",
+                           "name":  "Mystic Remora",
+                           "set":  "dmr",
+                           "collector_number":  "59",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  40,
+                           "rotating_global_rank":  57,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "57ee0730-3ac5-4f17-ac82-bd4a6673c2bb",
+                           "name":  "The Endstone",
+                           "set":  "eoe",
+                           "collector_number":  "240",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  41,
+                           "rotating_global_rank":  58,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "195d1f2a-0d71-475b-9dd1-0c8efe64ad8f",
+                           "name":  "Balefang the Unslayable",
+                           "set":  "mbc",
+                           "collector_number":  "20",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  42,
+                           "rotating_global_rank":  59,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "e3afc704-220f-498f-9eaa-0821b17dc24c",
+                           "name":  "Sakura-Tribe Elder",
+                           "set":  "soc",
+                           "collector_number":  "285",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  43,
+                           "rotating_global_rank":  60,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "b83a3ba0-249e-4c39-bbf0-cb005413f7d2",
+                           "name":  "Show and Tell",
+                           "set":  "cn2",
+                           "collector_number":  "121",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  44,
+                           "rotating_global_rank":  61,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "f6552921-f949-4f3c-b75d-718c106d712b",
+                           "name":  "Chira, All In",
+                           "set":  "mbc",
+                           "collector_number":  "21",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  45,
+                           "rotating_global_rank":  63,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "00cfbea0-e862-468b-90d5-7478eb9847c0",
+                           "name":  "End-Blaze Epiphany",
+                           "set":  "ecl",
+                           "collector_number":  "134",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  46,
+                           "rotating_global_rank":  64,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "e7611ef9-e5fc-45eb-bc3f-4358a27107fd",
+                           "name":  "Dragon\u0027s Smile",
+                           "set":  "mbc",
+                           "collector_number":  "22",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  47,
+                           "rotating_global_rank":  65,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "30b24e8e-3b0e-4d8e-90f3-f66eb7c1858c",
+                           "name":  "Eternal Witness",
+                           "set":  "cmm",
+                           "collector_number":  "286",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  48,
+                           "rotating_global_rank":  66,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "9b7f1d05-707c-4ed3-9f0e-8ced1232c2ee",
+                           "name":  "Thalia, Guardian of Thraben",
+                           "set":  "vow",
+                           "collector_number":  "38",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  49,
+                           "rotating_global_rank":  67,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "723959e1-8356-4fdb-99e2-818df317dc72",
+                           "name":  "Jabs, Mistress of Mockery",
+                           "set":  "mbc",
+                           "collector_number":  "23",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  50,
+                           "rotating_global_rank":  68,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "0fd114c4-092b-4e28-b0dc-ef529f3bc73e",
+                           "name":  "Jeska\u0027s Will",
+                           "set":  "mkc",
+                           "collector_number":  "156",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  51,
+                           "rotating_global_rank":  69,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "0c2841bb-038c-4fbf-8360-bc0a1522b58d",
+                           "name":  "Exploration",
+                           "set":  "trc",
+                           "collector_number":  "461",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  52,
+                           "rotating_global_rank":  70,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "11db8545-eca6-43f5-b9e8-f302acef53a5",
+                           "name":  "Joven and Chandler",
+                           "set":  "mbc",
+                           "collector_number":  "24",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  53,
+                           "rotating_global_rank":  71,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "0456ec64-2c81-4763-a352-8ff64a4c3d6b",
+                           "name":  "Deadly Rollick",
+                           "set":  "cmm",
+                           "collector_number":  "147",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  54,
+                           "rotating_global_rank":  72,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "9575d7ce-f26d-4b90-87a3-6329e9799572",
+                           "name":  "Abandoned Air Temple",
+                           "set":  "tla",
+                           "collector_number":  "263",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  55,
+                           "rotating_global_rank":  73,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "bbe79ca2-8f05-4f1b-b5d3-84724d3eff3a",
+                           "name":  "Matoc, Lavamancer",
+                           "set":  "mbc",
+                           "collector_number":  "25",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  56,
+                           "rotating_global_rank":  74,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "ee579a32-a048-4335-b966-231ba731cdea",
+                           "name":  "Phyrexian Arena",
+                           "set":  "fdn",
+                           "collector_number":  "180",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  57,
+                           "rotating_global_rank":  76,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "c7ea2ce7-f684-44a2-94b2-d4aa7353f6fc",
+                           "name":  "The Unluckiest Planeswalker",
+                           "set":  "mbc",
+                           "collector_number":  "26",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  2
+                       },
+                       {
+                           "batch_rank":  58,
+                           "rotating_global_rank":  77,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "e68dc47c-692f-4420-9799-eee104017273",
+                           "name":  "Temur Ascendancy",
+                           "set":  "tdc",
+                           "collector_number":  "305",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  59,
+                           "rotating_global_rank":  78,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "3644f316-f9a3-46c9-9b1e-747f86cf4ead",
+                           "name":  "Buried Ruin",
+                           "set":  "eoc",
+                           "collector_number":  "150",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  60,
+                           "rotating_global_rank":  79,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "01f9cfd9-47da-4dbe-a21e-53eccad3864a",
+                           "name":  "Autumn Willow, Harmony",
+                           "set":  "mbc",
+                           "collector_number":  "27",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  61,
+                           "rotating_global_rank":  81,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "a91a6a32-3a82-4da0-8c80-1fe1ddebe915",
+                           "name":  "Energy Reserve",
+                           "set":  "tmh3",
+                           "collector_number":  "36",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  62,
+                           "rotating_global_rank":  83,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "5e62b51d-faec-4aa0-9504-cf2c282d08ea",
+                           "name":  "Rakdos Charm",
+                           "set":  "eoc",
+                           "collector_number":  "125",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  63,
+                           "rotating_global_rank":  85,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "94d9a596-96b3-4fd6-b3f9-62920929c668",
+                           "name":  "Glava, Five-Advents Mage",
+                           "set":  "mbc",
+                           "collector_number":  "29",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  64,
+                           "rotating_global_rank":  86,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "ea9709b6-4c37-4d5a-b04d-cd4c42e4f9dd",
+                           "name":  "Propaganda",
+                           "set":  "msc",
+                           "collector_number":  "151",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  65,
+                           "rotating_global_rank":  87,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d55f6c70-321f-4fb4-bd33-0850ae1a7c36",
+                           "name":  "Narset\u0027s Reversal",
+                           "set":  "tdc",
+                           "collector_number":  "92",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  66,
+                           "rotating_global_rank":  88,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "20b90808-0279-46eb-ae51-6990ac679a83",
+                           "name":  "Greensleeves",
+                           "set":  "mbc",
+                           "collector_number":  "30",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  3
+                       },
+                       {
+                           "batch_rank":  67,
+                           "rotating_global_rank":  89,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "b01d61cc-9844-4191-86a0-f2db6d42d6e5",
+                           "name":  "Damn",
+                           "set":  "lcc",
+                           "collector_number":  "191",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  68,
+                           "rotating_global_rank":  90,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "a784481f-eccb-4112-bb38-04a659319660",
+                           "name":  "Pitiless Plunderer",
+                           "set":  "j25",
+                           "collector_number":  "476",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  69,
+                           "rotating_global_rank":  91,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "214f4e0a-eba7-4a08-86b2-d490d6ae1048",
+                           "name":  "Maular, the Next Evolution",
+                           "set":  "mbc",
+                           "collector_number":  "31",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  70,
+                           "rotating_global_rank":  92,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "c5229c17-b7be-4b05-b683-f2277edc4849",
+                           "name":  "Enlightened Tutor",
+                           "set":  "dmr",
+                           "collector_number":  "6",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  71,
+                           "rotating_global_rank":  93,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "67f43ac6-2a58-4b53-b5d7-0330e2a252e2",
+                           "name":  "Reflecting Pool",
+                           "set":  "frc",
+                           "collector_number":  "23",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  72,
+                           "rotating_global_rank":  94,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "57994ace-3dd6-407f-b465-c70b552bd466",
+                           "name":  "Meatsqueak, Hoard Lord",
+                           "set":  "mbc",
+                           "collector_number":  "32",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  73,
+                           "rotating_global_rank":  95,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "74d3277a-38e5-4732-afed-084a56148f20",
+                           "name":  "Mana Drain",
+                           "set":  "2x2",
+                           "collector_number":  "57",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  74,
+                           "rotating_global_rank":  96,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "632e2979-d88a-482e-9bb8-57b683c5310f",
+                           "name":  "Secret Tunnel",
+                           "set":  "tla",
+                           "collector_number":  "278",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  75,
+                           "rotating_global_rank":  97,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "a95d29b9-c30b-4e63-afcb-dec7ed522c5a",
+                           "name":  "Arzakon",
+                           "set":  "mbc",
+                           "collector_number":  "33",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  4,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  3
+                       },
+                       {
+                           "batch_rank":  76,
+                           "rotating_global_rank":  98,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "3233af43-7826-4895-b67e-03c6102c2cd5",
+                           "name":  "Kutzil, Malamet Exemplar",
+                           "set":  "lci",
+                           "collector_number":  "232",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  77,
+                           "rotating_global_rank":  99,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "decfde5e-ea53-4b15-8f69-51da7ef39d15",
+                           "name":  "Skateboard",
+                           "set":  "tmt",
+                           "collector_number":  "178",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  78,
+                           "rotating_global_rank":  100,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "0339d25b-9591-49c0-bf31-4ba749ebd0b0",
+                           "name":  "Ashaya\u0027s Enduring Bond",
+                           "set":  "mbc",
+                           "collector_number":  "34",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  79,
+                           "rotating_global_rank":  101,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "ededbdae-d9dc-4206-9335-d7158f2d7700",
+                           "name":  "Vampiric Tutor",
+                           "set":  "dmr",
+                           "collector_number":  "108",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  80,
+                           "rotating_global_rank":  103,
+                           "selected_source":  "recent",
+                           "sources":  [
+                                           "recent"
+                                       ],
+                           "oracle_id":  "6b4544d8-0579-4621-8660-4adb3b2a90be",
+                           "name":  "Chief Magistrate of Mercadia",
+                           "set":  "mbc",
+                           "collector_number":  "35",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  81,
+                           "rotating_global_rank":  104,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "6b2e6a51-b9e6-4848-b7d7-98f02f2b897f",
+                           "name":  "Leyline of the Guildpact",
+                           "set":  "mkm",
+                           "collector_number":  "217",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  82,
+                           "rotating_global_rank":  108,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "ccba143d-ed9b-4044-bdad-f010a0e38e47",
+                           "name":  "Blazing Shoal",
+                           "set":  "bok",
+                           "collector_number":  "96",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  1
+                       },
+                       {
+                           "batch_rank":  83,
+                           "rotating_global_rank":  113,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d2664f28-49e1-46f8-a863-b217e961a57c",
+                           "name":  "Black Market Connections",
+                           "set":  "msc",
+                           "collector_number":  "155",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  84,
+                           "rotating_global_rank":  114,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "a7950edb-5670-46fd-a30e-0fe888a5a32b",
+                           "name":  "Phyrexian Dreadnought",
+                           "set":  "mir",
+                           "collector_number":  "315",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  85,
+                           "rotating_global_rank":  116,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "135cc078-1c45-465e-b0b9-7168c89f56f4",
+                           "name":  "Lotho, Corrupt Shirriff",
+                           "set":  "ltr",
+                           "collector_number":  "213",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  86,
+                           "rotating_global_rank":  117,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "97cabeda-9fe3-490d-99b4-4c8d87c17157",
+                           "name":  "Noxious Revival",
+                           "set":  "nph",
+                           "collector_number":  "118",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  87,
+                           "rotating_global_rank":  119,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "240e85d3-e495-4877-8609-4b4056c402f7",
+                           "name":  "Victimize",
+                           "set":  "tdc",
+                           "collector_number":  "198",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  88,
+                           "rotating_global_rank":  120,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d412b175-2365-4b2c-a8f5-3e4e9d06280d",
+                           "name":  "Archive Trap",
+                           "set":  "zen",
+                           "collector_number":  "41",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  89,
+                           "rotating_global_rank":  122,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "4c3ad545-b375-44a7-a24e-58baacc4e4b6",
+                           "name":  "Annie Joins Up",
+                           "set":  "otj",
+                           "collector_number":  "191",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  90,
+                           "rotating_global_rank":  123,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d32c9439-4c97-412b-83cc-6d9acb48be3c",
+                           "name":  "Exhibition Tidecaller",
+                           "set":  "sos",
+                           "collector_number":  "48",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  91,
+                           "rotating_global_rank":  125,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "457af74a-02b3-4659-846d-63e482667f34",
+                           "name":  "Deadly Dispute",
+                           "set":  "msc",
+                           "collector_number":  "794",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  92,
+                           "rotating_global_rank":  126,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "690c7f8e-fea2-4920-afa7-02ff120701a1",
+                           "name":  "Spinerock Knoll",
+                           "set":  "dsc",
+                           "collector_number":  "300",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  93,
+                           "rotating_global_rank":  128,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "37688720-03de-4eca-a82d-a0afe8d58adc",
+                           "name":  "Baleful Strix",
+                           "set":  "otc",
+                           "collector_number":  "215",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  94,
+                           "rotating_global_rank":  129,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "priority",
+                                           "league"
+                                       ],
+                           "oracle_id":  "c0d8fef4-65f4-4769-982d-b397d2b7e977",
+                           "name":  "Animate Dead",
+                           "set":  "soc",
+                           "collector_number":  "207",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  3,
+                           "legacy_abilities":  3,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  95,
+                           "rotating_global_rank":  131,
+                           "selected_source":  "priority",
+                           "sources":  [
+                                           "recent",
+                                           "priority"
+                                       ],
+                           "oracle_id":  "f9d3b046-0b95-4103-a630-4b3fb88bb60b",
+                           "name":  "Delighted Halfling",
+                           "set":  "ltr",
+                           "collector_number":  "158",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  96,
+                           "rotating_global_rank":  132,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "018107d1-ebf7-4657-bc91-c8374af55cc5",
+                           "name":  "Cabal Therapy",
+                           "set":  "ema",
+                           "collector_number":  "83",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  97,
+                           "rotating_global_rank":  138,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "b4ce2c8f-a19c-461e-8a2e-0ec2bd3ebca3",
+                           "name":  "Ocelot Pride",
+                           "set":  "mh3",
+                           "collector_number":  "38",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  2,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  98,
+                           "rotating_global_rank":  141,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "d04bce9a-822b-4a52-8826-b503ef5f5b2e",
+                           "name":  "Slumbering Trudge",
+                           "set":  "sos",
+                           "collector_number":  "160",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  99,
+                           "rotating_global_rank":  144,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "league"
+                                       ],
+                           "oracle_id":  "c68964df-51ae-43b0-abea-74735016c13f",
+                           "name":  "Visions of Beyond",
+                           "set":  "uma",
+                           "collector_number":  "81",
+                           "parse_status":  "canonical",
+                           "debt_abilities":  1,
+                           "legacy_abilities":  1,
+                           "unclaimed_abilities":  0,
+                           "native_unsupported_abilities":  0
+                       },
+                       {
+                           "batch_rank":  100,
+                           "rotating_global_rank":  147,
+                           "selected_source":  "league",
+                           "sources":  [
+                                           "recent",
+                                           "league"
+                                       ],
+                           "oracle_id":  "a6079dff-9479-4665-aba5-2cddefb9a2bc",
+                           "name":  "Blood for the Blood God!",
+                           "set":  "40k",
+                           "collector_number":  "108",
+                           "parse_status":  "unsupported",
+                           "debt_abilities":  2,
+                           "legacy_abilities":  0,
+                           "unclaimed_abilities":  1,
+                           "native_unsupported_abilities":  1
+                       }
+                   ]
+}

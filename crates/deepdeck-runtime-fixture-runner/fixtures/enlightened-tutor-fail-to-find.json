@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "enlightened-tutor-may-fail-to-find-a-qualified-card",
+  "seed": 148,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Artifact" },
+              { "kind": "cardTypeContains", "value": "Enchantment" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "revealCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "excludeCards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "position": "top" }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Enlightened Tutor fail-to-find pilot",
+        "manaPool": ["W"],
+        "hand": [
+          { "id": "enlightened-tutor", "name": "Enlightened Tutor", "typeLine": "Instant", "manaCost": "{W}" }
+        ],
+        "library": [
+          { "id": "eligible-artifact", "name": "Eligible Artifact", "typeLine": "Artifact" },
+          { "id": "eligible-enchantment", "name": "Eligible Enchantment", "typeLine": "Enchantment" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "enlightened-tutor" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "selectCards", "count": 0, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "eligible-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "eligible-enchantment", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "enlightened-tutor", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardsRevealed", "playerId": "player-0", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "librarySearched", "playerId": "player-0", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

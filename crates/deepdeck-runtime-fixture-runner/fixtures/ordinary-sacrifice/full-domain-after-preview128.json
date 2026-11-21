@@ -1,0 +1,756 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ordinary-sacrifice/full-domain-after-preview128",
+  "seed": 7721,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "sacrificePermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Land"
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "source",
+            "typeLine": "Artifact",
+            "rules": []
+          },
+          {
+            "id": "land-000",
+            "name": "land-000",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-001",
+            "name": "land-001",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-002",
+            "name": "land-002",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-003",
+            "name": "land-003",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-004",
+            "name": "land-004",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-005",
+            "name": "land-005",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-006",
+            "name": "land-006",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-007",
+            "name": "land-007",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-008",
+            "name": "land-008",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-009",
+            "name": "land-009",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-010",
+            "name": "land-010",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-011",
+            "name": "land-011",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-012",
+            "name": "land-012",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-013",
+            "name": "land-013",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-014",
+            "name": "land-014",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-015",
+            "name": "land-015",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-016",
+            "name": "land-016",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-017",
+            "name": "land-017",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-018",
+            "name": "land-018",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-019",
+            "name": "land-019",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-020",
+            "name": "land-020",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-021",
+            "name": "land-021",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-022",
+            "name": "land-022",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-023",
+            "name": "land-023",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-024",
+            "name": "land-024",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-025",
+            "name": "land-025",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-026",
+            "name": "land-026",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-027",
+            "name": "land-027",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-028",
+            "name": "land-028",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-029",
+            "name": "land-029",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-030",
+            "name": "land-030",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-031",
+            "name": "land-031",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-032",
+            "name": "land-032",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-033",
+            "name": "land-033",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-034",
+            "name": "land-034",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-035",
+            "name": "land-035",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-036",
+            "name": "land-036",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-037",
+            "name": "land-037",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-038",
+            "name": "land-038",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-039",
+            "name": "land-039",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-040",
+            "name": "land-040",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-041",
+            "name": "land-041",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-042",
+            "name": "land-042",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-043",
+            "name": "land-043",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-044",
+            "name": "land-044",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-045",
+            "name": "land-045",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-046",
+            "name": "land-046",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-047",
+            "name": "land-047",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-048",
+            "name": "land-048",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-049",
+            "name": "land-049",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-050",
+            "name": "land-050",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-051",
+            "name": "land-051",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-052",
+            "name": "land-052",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-053",
+            "name": "land-053",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-054",
+            "name": "land-054",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-055",
+            "name": "land-055",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-056",
+            "name": "land-056",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-057",
+            "name": "land-057",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-058",
+            "name": "land-058",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-059",
+            "name": "land-059",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-060",
+            "name": "land-060",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-061",
+            "name": "land-061",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-062",
+            "name": "land-062",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-063",
+            "name": "land-063",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-064",
+            "name": "land-064",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-065",
+            "name": "land-065",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-066",
+            "name": "land-066",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-067",
+            "name": "land-067",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-068",
+            "name": "land-068",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-069",
+            "name": "land-069",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-070",
+            "name": "land-070",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-071",
+            "name": "land-071",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-072",
+            "name": "land-072",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-073",
+            "name": "land-073",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-074",
+            "name": "land-074",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-075",
+            "name": "land-075",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-076",
+            "name": "land-076",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-077",
+            "name": "land-077",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-078",
+            "name": "land-078",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-079",
+            "name": "land-079",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-080",
+            "name": "land-080",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-081",
+            "name": "land-081",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-082",
+            "name": "land-082",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-083",
+            "name": "land-083",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-084",
+            "name": "land-084",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-085",
+            "name": "land-085",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-086",
+            "name": "land-086",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-087",
+            "name": "land-087",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-088",
+            "name": "land-088",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-089",
+            "name": "land-089",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-090",
+            "name": "land-090",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-091",
+            "name": "land-091",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-092",
+            "name": "land-092",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-093",
+            "name": "land-093",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-094",
+            "name": "land-094",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-095",
+            "name": "land-095",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-096",
+            "name": "land-096",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-097",
+            "name": "land-097",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-098",
+            "name": "land-098",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-099",
+            "name": "land-099",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-100",
+            "name": "land-100",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-101",
+            "name": "land-101",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-102",
+            "name": "land-102",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-103",
+            "name": "land-103",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-104",
+            "name": "land-104",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-105",
+            "name": "land-105",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-106",
+            "name": "land-106",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-107",
+            "name": "land-107",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-108",
+            "name": "land-108",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-109",
+            "name": "land-109",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-110",
+            "name": "land-110",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-111",
+            "name": "land-111",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-112",
+            "name": "land-112",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-113",
+            "name": "land-113",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-114",
+            "name": "land-114",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-115",
+            "name": "land-115",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-116",
+            "name": "land-116",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-117",
+            "name": "land-117",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-118",
+            "name": "land-118",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-119",
+            "name": "land-119",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-120",
+            "name": "land-120",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-121",
+            "name": "land-121",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-122",
+            "name": "land-122",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-123",
+            "name": "land-123",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-124",
+            "name": "land-124",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-125",
+            "name": "land-125",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-126",
+            "name": "land-126",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-127",
+            "name": "land-127",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-128",
+            "name": "land-128",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "land-129",
+            "name": "land-129",
+            "typeLine": "Basic Land — Forest"
+          }
+        ],
+        "library": [
+          {
+            "id": "filler",
+            "name": "filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "other",
+            "name": "other",
+            "typeLine": "Sorcery"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "source"
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "reverse"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "land-129",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "land-000",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentSacrificed",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

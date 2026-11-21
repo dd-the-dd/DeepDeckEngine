@@ -1,0 +1,392 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-joint-retarget",
+  "cases": [
+    {
+      "id": "real-deflecting-swat-complete",
+      "request": {
+        "cardName": "Deflecting Swat",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "If you control a commander, you may cast this spell without paying its mana cost.\nYou may choose new targets for target spell or ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "ability": {
+                "condition": {
+                  "kind": "compare",
+                  "left": {
+                    "excludeSource": false,
+                    "kind": "countPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isCommander"
+                    }
+                  },
+                  "operator": ">=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                "costs": [],
+                "kind": "alternativeCost"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "retargetObject0",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "stackItems",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "isSpell"
+                          },
+                          {
+                            "kind": "or",
+                            "operands": [
+                              {
+                                "kind": "isActivatedAbility"
+                              },
+                              {
+                                "kind": "isTriggeredAbility"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "changeTargets",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "retargetObject0"
+                      },
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "optional": false
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mandatory-spell",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose new targets for target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "activated-ability",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{U}",
+        "oracleText": "{1}, {T}: Choose new targets for target activated ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sequence-preserved",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose new targets for target spell or ability, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-group-shared",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may choose new targets for target spell or ability and gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "nonstack-negative",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose new targets for target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-for-negative",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose new targets target spell or ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "suffix-negative",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may choose new targets for target spell or ability without drawing.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-permission-scope-negative",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may choose new targets for target spell or ability. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-shared-program-implicit-face-x",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "You may choose new targets for target spell or ability and gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-shared-program-missing-x-producer",
+      "request": {
+        "cardName": "Shared Reassignment",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may choose new targets for target spell or ability and gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    }
+  ]
+}

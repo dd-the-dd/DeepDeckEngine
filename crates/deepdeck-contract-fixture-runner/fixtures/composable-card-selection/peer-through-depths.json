@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "composable-selection/peer-through-depths/complete-real-source",
+  "cardName": "Peer Through Depths",
+  "oracleId": "a61f5100-aa38-4996-b23c-3ce4ed25ed09",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "df0994df-730c-4947-8248-0aaf97998fa1",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Peer Through Depths",
+      "typeLine": "Instant — Arcane",
+      "manaCost": "{1}{U}",
+      "oracleText": "Look at the top five cards of your library. You may reveal an instant or sorcery card from among them and put it into your hand. Put the rest on the bottom of your library in any order.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

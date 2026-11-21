@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "city-of-traitors-land-play-trigger-sacrifices-source",
+  "seed": 12801,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "landPlayed",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "excludeSource": true
+    },
+    "effects": [
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "City controller",
+        "battlefield": [
+          { "id": "city-of-traitors", "name": "City of Traitors", "typeLine": "Land" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "city-of-traitors"
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "city-of-traitors", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "city-of-traitors", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentSacrificed", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "exploration-does-not-grant-an-additional-land-play-to-an-opponent",
+  "seed": 404,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "additionalLandPlay",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "count": { "kind": "integer", "value": 1 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Exploration controller",
+        "battlefield": [{
+          "id": "exploration",
+          "name": "Exploration",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+            "modifiers": [{
+              "kind": "additionalLandPlay",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "count": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Active opponent",
+        "hand": [
+          { "id": "opponent-forest-one", "name": "Opponent Forest One", "typeLine": "Basic Land - Forest", "rules": [] },
+          { "id": "opponent-forest-two", "name": "Opponent Forest Two", "typeLine": "Basic Land - Forest", "rules": [] }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "playLand", "playerId": "player-1", "sourceDefinitionId": "opponent-forest-one" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "opponent-forest-one", "equals": true },
+    { "kind": "landPlayAvailable", "playerId": "player-1", "sourceDefinitionId": "opponent-forest-two", "equals": false },
+    { "kind": "eventCount", "eventKind": "landPlayed", "playerId": "player-1", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

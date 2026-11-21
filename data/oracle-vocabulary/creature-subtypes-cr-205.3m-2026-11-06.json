@@ -1,0 +1,981 @@
+{
+  "schemaVersion": "deepdeck-creature-subtypes/v1",
+  "source": {
+    "authority": "Wizards of the Coast",
+    "url": "https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.txt",
+    "effectiveDate": "2026-11-06",
+    "rule": "205.3m",
+    "documentSha256": "524f5195a1e5f54bb13c735edf399ac717a4458e2713f398d1a3e6877186b829"
+  },
+  "canonical": [
+    "Time Lord",
+    "Advisor",
+    "Aenar",
+    "Aetherborn",
+    "Alien",
+    "Ally",
+    "Andorian",
+    "Android",
+    "Angel",
+    "Antelope",
+    "Ape",
+    "Archer",
+    "Archon",
+    "Armadillo",
+    "Army",
+    "Artificer",
+    "Assassin",
+    "Assembly-Worker",
+    "Astartes",
+    "Atog",
+    "Aurochs",
+    "Avatar",
+    "Azra",
+    "Badger",
+    "Bajoran",
+    "Balloon",
+    "Barbarian",
+    "Bard",
+    "Basilisk",
+    "Bat",
+    "Bear",
+    "Beast",
+    "Beaver",
+    "Beeble",
+    "Beholder",
+    "Berserker",
+    "Betazoid",
+    "Bird",
+    "Bison",
+    "Blinkmoth",
+    "Boar",
+    "Bolian",
+    "Borg",
+    "Brikar",
+    "Bringer",
+    "Brushwagg",
+    "Caitian",
+    "Camarid",
+    "Camel",
+    "Capybara",
+    "Cardassian",
+    "Caribou",
+    "Carrier",
+    "Cat",
+    "Centaur",
+    "Child",
+    "Chimera",
+    "Citizen",
+    "Cleric",
+    "Clown",
+    "Cockatrice",
+    "Construct",
+    "Coward",
+    "Coyote",
+    "Crab",
+    "Crocodile",
+    "C’tan",
+    "Custodes",
+    "Cyberman",
+    "Cyclops",
+    "Dalek",
+    "Dauthi",
+    "Demigod",
+    "Demon",
+    "Denobulan",
+    "Deserter",
+    "Detective",
+    "Devil",
+    "Dinosaur",
+    "Djinn",
+    "Doctor",
+    "Dog",
+    "Dragon",
+    "Drake",
+    "Dreadnought",
+    "Drix",
+    "Drone",
+    "Druid",
+    "Dryad",
+    "Dwarf",
+    "Echidna",
+    "Edosian",
+    "Efreet",
+    "Egg",
+    "El-Aurian",
+    "Elder",
+    "Eldrazi",
+    "Elemental",
+    "Elephant",
+    "Elf",
+    "Elk",
+    "Employee",
+    "Eternal",
+    "Excalbian",
+    "Eye",
+    "Faerie",
+    "Ferengi",
+    "Ferret",
+    "Fish",
+    "Flagbearer",
+    "Fox",
+    "Fractal",
+    "Frog",
+    "Fungus",
+    "Gamer",
+    "Gamma",
+    "Gargoyle",
+    "Germ",
+    "Giant",
+    "Giraffe",
+    "Gith",
+    "Glimmer",
+    "Gnoll",
+    "Gnome",
+    "Goat",
+    "Goblin",
+    "God",
+    "Golem",
+    "Gorgon",
+    "Gorn",
+    "Graveborn",
+    "Gremlin",
+    "Griffin",
+    "Guest",
+    "Hag",
+    "Halfling",
+    "Hamster",
+    "Harpy",
+    "Hedgehog",
+    "Hellion",
+    "Hero",
+    "Hippo",
+    "Hippogriff",
+    "Hirogen",
+    "Homarid",
+    "Homunculus",
+    "Horror",
+    "Horse",
+    "Human",
+    "Hydra",
+    "Hyena",
+    "Illusion",
+    "Illyrian",
+    "Imp",
+    "Incarnation",
+    "Inhuman",
+    "Inkling",
+    "Inquisitor",
+    "Insect",
+    "Jackal",
+    "Jellyfish",
+    "Jem’Hadar",
+    "Juggernaut",
+    "Kangaroo",
+    "Kavu",
+    "Kelpien",
+    "Kirin",
+    "Kithkin",
+    "Klingon",
+    "Knight",
+    "Kobold",
+    "Kor",
+    "Kraken",
+    "Kree",
+    "Kwejian",
+    "Llama",
+    "Lamia",
+    "Lammasu",
+    "Lanthanite",
+    "Leech",
+    "Lemur",
+    "Leviathan",
+    "Lhurgoyf",
+    "Licid",
+    "Lizard",
+    "Lobster",
+    "Manticore",
+    "Masticore",
+    "Medusan",
+    "Melkotian",
+    "Mercenary",
+    "Merfolk",
+    "Metathran",
+    "Minion",
+    "Minotaur",
+    "Mite",
+    "Mole",
+    "Monger",
+    "Mongoose",
+    "Monk",
+    "Monkey",
+    "Moogle",
+    "Moonfolk",
+    "Mount",
+    "Mouse",
+    "Mutant",
+    "Myr",
+    "Mystic",
+    "Na’kuhl",
+    "Nautilus",
+    "Necron",
+    "Nephilim",
+    "Nightmare",
+    "Nightstalker",
+    "Ninja",
+    "Noble",
+    "Noggle",
+    "Nomad",
+    "Nymph",
+    "Ocampa",
+    "Octopus",
+    "Officer",
+    "Ogre",
+    "Ooze",
+    "Orb",
+    "Orc",
+    "Orgg",
+    "Orion",
+    "Otter",
+    "Ouphe",
+    "Ox",
+    "Oyster",
+    "Pangolin",
+    "Peasant",
+    "Pegasus",
+    "Pentavite",
+    "Performer",
+    "Pest",
+    "Phelddagrif",
+    "Phoenix",
+    "Phyrexian",
+    "Pilot",
+    "Pincher",
+    "Pirate",
+    "Plant",
+    "Platypus",
+    "Porcupine",
+    "Possum",
+    "Praetor",
+    "Primarch",
+    "Prism",
+    "Processor",
+    "Q",
+    "Qu",
+    "Rabbit",
+    "Raccoon",
+    "Ranger",
+    "Rat",
+    "Rebel",
+    "Reflection",
+    "Rhino",
+    "Rigger",
+    "Robot",
+    "Rogue",
+    "Romulan",
+    "Sable",
+    "Salamander",
+    "Samurai",
+    "Sand",
+    "Saproling",
+    "Satyr",
+    "Scarecrow",
+    "Scientist",
+    "Scion",
+    "Scorpion",
+    "Scout",
+    "Sculpture",
+    "Seal",
+    "Serf",
+    "Serpent",
+    "Servo",
+    "Shade",
+    "Shaman",
+    "Shapeshifter",
+    "Shark",
+    "Sheep",
+    "Shi’ar",
+    "Siren",
+    "Skeleton",
+    "Skrull",
+    "Skunk",
+    "Slith",
+    "Sliver",
+    "Sloth",
+    "Slug",
+    "Snail",
+    "Snake",
+    "Soldier",
+    "Soltari",
+    "Sorcerer",
+    "Spawn",
+    "Specter",
+    "Spellshaper",
+    "Sphinx",
+    "Spider",
+    "Spike",
+    "Spirit",
+    "Splinter",
+    "Sponge",
+    "Spy",
+    "Squid",
+    "Squirrel",
+    "Starfish",
+    "Surrakar",
+    "Survivor",
+    "Symbiote",
+    "Synth",
+    "Talaxian",
+    "Talosian",
+    "Tamarian",
+    "Tellarite",
+    "Tentacle",
+    "Tetravite",
+    "Thalakos",
+    "Tholian",
+    "Thopter",
+    "Thrull",
+    "Tiefling",
+    "Tosk",
+    "Toy",
+    "Treefolk",
+    "Tribble",
+    "Trill",
+    "Trilobite",
+    "Triskelavite",
+    "Troll",
+    "Turtle",
+    "Tyranid",
+    "Unicorn",
+    "Utrom",
+    "Vampire",
+    "Varmint",
+    "Vau-N’Akat",
+    "Vedalken",
+    "Villain",
+    "Volver",
+    "Vorta",
+    "Vulcan",
+    "Wall",
+    "Walrus",
+    "Warlock",
+    "Warrior",
+    "Weasel",
+    "Weird",
+    "Werewolf",
+    "Whale",
+    "Wizard",
+    "Wolf",
+    "Wolverine",
+    "Wombat",
+    "Worm",
+    "Wraith",
+    "Wurm",
+    "Xindi",
+    "Yeti",
+    "Zombie",
+    "Zubera"
+  ],
+  "exactAliases": [
+    {
+      "surface": "Advisors",
+      "canonical": "Advisor"
+    },
+    {
+      "surface": "Aliens",
+      "canonical": "Alien"
+    },
+    {
+      "surface": "Allies",
+      "canonical": "Ally"
+    },
+    {
+      "surface": "Angels",
+      "canonical": "Angel"
+    },
+    {
+      "surface": "Apes",
+      "canonical": "Ape"
+    },
+    {
+      "surface": "Archers",
+      "canonical": "Archer"
+    },
+    {
+      "surface": "Archons",
+      "canonical": "Archon"
+    },
+    {
+      "surface": "Armies",
+      "canonical": "Army"
+    },
+    {
+      "surface": "Artificers",
+      "canonical": "Artificer"
+    },
+    {
+      "surface": "Assassins",
+      "canonical": "Assassin"
+    },
+    {
+      "surface": "Bards",
+      "canonical": "Bard"
+    },
+    {
+      "surface": "Bats",
+      "canonical": "Bat"
+    },
+    {
+      "surface": "Bears",
+      "canonical": "Bear"
+    },
+    {
+      "surface": "Beasts",
+      "canonical": "Beast"
+    },
+    {
+      "surface": "Beebles",
+      "canonical": "Beeble"
+    },
+    {
+      "surface": "Birds",
+      "canonical": "Bird"
+    },
+    {
+      "surface": "Boars",
+      "canonical": "Boar"
+    },
+    {
+      "surface": "Camarids",
+      "canonical": "Camarid"
+    },
+    {
+      "surface": "Cats",
+      "canonical": "Cat"
+    },
+    {
+      "surface": "Citizens",
+      "canonical": "Citizen"
+    },
+    {
+      "surface": "Clerics",
+      "canonical": "Cleric"
+    },
+    {
+      "surface": "Clowns",
+      "canonical": "Clown"
+    },
+    {
+      "surface": "Constructs",
+      "canonical": "Construct"
+    },
+    {
+      "surface": "Cowards",
+      "canonical": "Coward"
+    },
+    {
+      "surface": "Coyotes",
+      "canonical": "Coyote"
+    },
+    {
+      "surface": "Crabs",
+      "canonical": "Crab"
+    },
+    {
+      "surface": "Daleks",
+      "canonical": "Dalek"
+    },
+    {
+      "surface": "Demons",
+      "canonical": "Demon"
+    },
+    {
+      "surface": "Detectives",
+      "canonical": "Detective"
+    },
+    {
+      "surface": "Devils",
+      "canonical": "Devil"
+    },
+    {
+      "surface": "Dinosaurs",
+      "canonical": "Dinosaur"
+    },
+    {
+      "surface": "Djinns",
+      "canonical": "Djinn"
+    },
+    {
+      "surface": "Doctors",
+      "canonical": "Doctor"
+    },
+    {
+      "surface": "Dogs",
+      "canonical": "Dog"
+    },
+    {
+      "surface": "Dragons",
+      "canonical": "Dragon"
+    },
+    {
+      "surface": "Drakes",
+      "canonical": "Drake"
+    },
+    {
+      "surface": "Druids",
+      "canonical": "Druid"
+    },
+    {
+      "surface": "Dwarves",
+      "canonical": "Dwarf"
+    },
+    {
+      "surface": "Efreets",
+      "canonical": "Efreet"
+    },
+    {
+      "surface": "Eggs",
+      "canonical": "Egg"
+    },
+    {
+      "surface": "Elementals",
+      "canonical": "Elemental"
+    },
+    {
+      "surface": "Elves",
+      "canonical": "Elf"
+    },
+    {
+      "surface": "Employees",
+      "canonical": "Employee"
+    },
+    {
+      "surface": "Faeries",
+      "canonical": "Faerie"
+    },
+    {
+      "surface": "Foxes",
+      "canonical": "Fox"
+    },
+    {
+      "surface": "Frogs",
+      "canonical": "Frog"
+    },
+    {
+      "surface": "Fungi",
+      "canonical": "Fungus"
+    },
+    {
+      "surface": "Giants",
+      "canonical": "Giant"
+    },
+    {
+      "surface": "Glimmers",
+      "canonical": "Glimmer"
+    },
+    {
+      "surface": "Goats",
+      "canonical": "Goat"
+    },
+    {
+      "surface": "Goblins",
+      "canonical": "Goblin"
+    },
+    {
+      "surface": "Gods",
+      "canonical": "God"
+    },
+    {
+      "surface": "Golems",
+      "canonical": "Golem"
+    },
+    {
+      "surface": "Gorgons",
+      "canonical": "Gorgon"
+    },
+    {
+      "surface": "Gremlins",
+      "canonical": "Gremlin"
+    },
+    {
+      "surface": "Guests",
+      "canonical": "Guest"
+    },
+    {
+      "surface": "Halflings",
+      "canonical": "Halfling"
+    },
+    {
+      "surface": "Hamsters",
+      "canonical": "Hamster"
+    },
+    {
+      "surface": "Heroes",
+      "canonical": "Hero"
+    },
+    {
+      "surface": "Homarids",
+      "canonical": "Homarid"
+    },
+    {
+      "surface": "Horrors",
+      "canonical": "Horror"
+    },
+    {
+      "surface": "Horses",
+      "canonical": "Horse"
+    },
+    {
+      "surface": "Humans",
+      "canonical": "Human"
+    },
+    {
+      "surface": "Illusions",
+      "canonical": "Illusion"
+    },
+    {
+      "surface": "Imps",
+      "canonical": "Imp"
+    },
+    {
+      "surface": "Inklings",
+      "canonical": "Inkling"
+    },
+    {
+      "surface": "Insects",
+      "canonical": "Insect"
+    },
+    {
+      "surface": "Jackals",
+      "canonical": "Jackal"
+    },
+    {
+      "surface": "Juggernauts",
+      "canonical": "Juggernaut"
+    },
+    {
+      "surface": "Klingons",
+      "canonical": "Klingon"
+    },
+    {
+      "surface": "Knights",
+      "canonical": "Knight"
+    },
+    {
+      "surface": "Kobolds",
+      "canonical": "Kobold"
+    },
+    {
+      "surface": "Krakens",
+      "canonical": "Kraken"
+    },
+    {
+      "surface": "Leeches",
+      "canonical": "Leech"
+    },
+    {
+      "surface": "Leviathans",
+      "canonical": "Leviathan"
+    },
+    {
+      "surface": "Lizards",
+      "canonical": "Lizard"
+    },
+    {
+      "surface": "Lobsters",
+      "canonical": "Lobster"
+    },
+    {
+      "surface": "Mercenaries",
+      "canonical": "Mercenary"
+    },
+    {
+      "surface": "Mice",
+      "canonical": "Mouse"
+    },
+    {
+      "surface": "Minotaurs",
+      "canonical": "Minotaur"
+    },
+    {
+      "surface": "Monks",
+      "canonical": "Monk"
+    },
+    {
+      "surface": "Mounts",
+      "canonical": "Mount"
+    },
+    {
+      "surface": "Mutants",
+      "canonical": "Mutant"
+    },
+    {
+      "surface": "Nautiluses",
+      "canonical": "Nautilus"
+    },
+    {
+      "surface": "Nightmares",
+      "canonical": "Nightmare"
+    },
+    {
+      "surface": "Ninjas",
+      "canonical": "Ninja"
+    },
+    {
+      "surface": "Octopuses",
+      "canonical": "Octopus"
+    },
+    {
+      "surface": "Officers",
+      "canonical": "Officer"
+    },
+    {
+      "surface": "Oozes",
+      "canonical": "Ooze"
+    },
+    {
+      "surface": "Orcs",
+      "canonical": "Orc"
+    },
+    {
+      "surface": "Otters",
+      "canonical": "Otter"
+    },
+    {
+      "surface": "Oxen",
+      "canonical": "Ox"
+    },
+    {
+      "surface": "Pegasi",
+      "canonical": "Pegasus"
+    },
+    {
+      "surface": "Pests",
+      "canonical": "Pest"
+    },
+    {
+      "surface": "Phyrexians",
+      "canonical": "Phyrexian"
+    },
+    {
+      "surface": "Pilots",
+      "canonical": "Pilot"
+    },
+    {
+      "surface": "Pirates",
+      "canonical": "Pirate"
+    },
+    {
+      "surface": "Plants",
+      "canonical": "Plant"
+    },
+    {
+      "surface": "Praetors",
+      "canonical": "Praetor"
+    },
+    {
+      "surface": "Rabbits",
+      "canonical": "Rabbit"
+    },
+    {
+      "surface": "Raccoons",
+      "canonical": "Raccoon"
+    },
+    {
+      "surface": "Rats",
+      "canonical": "Rat"
+    },
+    {
+      "surface": "Rebels",
+      "canonical": "Rebel"
+    },
+    {
+      "surface": "Reflections",
+      "canonical": "Reflection"
+    },
+    {
+      "surface": "Rhinos",
+      "canonical": "Rhino"
+    },
+    {
+      "surface": "Riggers",
+      "canonical": "Rigger"
+    },
+    {
+      "surface": "Robots",
+      "canonical": "Robot"
+    },
+    {
+      "surface": "Rogues",
+      "canonical": "Rogue"
+    },
+    {
+      "surface": "Salamanders",
+      "canonical": "Salamander"
+    },
+    {
+      "surface": "Saprolings",
+      "canonical": "Saproling"
+    },
+    {
+      "surface": "Satyrs",
+      "canonical": "Satyr"
+    },
+    {
+      "surface": "Scientists",
+      "canonical": "Scientist"
+    },
+    {
+      "surface": "Scions",
+      "canonical": "Scion"
+    },
+    {
+      "surface": "Scouts",
+      "canonical": "Scout"
+    },
+    {
+      "surface": "Sculptures",
+      "canonical": "Sculpture"
+    },
+    {
+      "surface": "Serpents",
+      "canonical": "Serpent"
+    },
+    {
+      "surface": "Servos",
+      "canonical": "Servo"
+    },
+    {
+      "surface": "Shamans",
+      "canonical": "Shaman"
+    },
+    {
+      "surface": "Shapeshifters",
+      "canonical": "Shapeshifter"
+    },
+    {
+      "surface": "Sharks",
+      "canonical": "Shark"
+    },
+    {
+      "surface": "Skeletons",
+      "canonical": "Skeleton"
+    },
+    {
+      "surface": "Slivers",
+      "canonical": "Sliver"
+    },
+    {
+      "surface": "Snakes",
+      "canonical": "Snake"
+    },
+    {
+      "surface": "Soldiers",
+      "canonical": "Soldier"
+    },
+    {
+      "surface": "Spawns",
+      "canonical": "Spawn"
+    },
+    {
+      "surface": "Sphinxes",
+      "canonical": "Sphinx"
+    },
+    {
+      "surface": "Spiders",
+      "canonical": "Spider"
+    },
+    {
+      "surface": "Spirits",
+      "canonical": "Spirit"
+    },
+    {
+      "surface": "Squirrels",
+      "canonical": "Squirrel"
+    },
+    {
+      "surface": "Survivors",
+      "canonical": "Survivor"
+    },
+    {
+      "surface": "Thopters",
+      "canonical": "Thopter"
+    },
+    {
+      "surface": "Thrulls",
+      "canonical": "Thrull"
+    },
+    {
+      "surface": "Tieflings",
+      "canonical": "Tiefling"
+    },
+    {
+      "surface": "Tribbles",
+      "canonical": "Tribble"
+    },
+    {
+      "surface": "Trilobites",
+      "canonical": "Trilobite"
+    },
+    {
+      "surface": "Turtles",
+      "canonical": "Turtle"
+    },
+    {
+      "surface": "Unicorns",
+      "canonical": "Unicorn"
+    },
+    {
+      "surface": "Vampires",
+      "canonical": "Vampire"
+    },
+    {
+      "surface": "Villains",
+      "canonical": "Villain"
+    },
+    {
+      "surface": "Vulcans",
+      "canonical": "Vulcan"
+    },
+    {
+      "surface": "Walls",
+      "canonical": "Wall"
+    },
+    {
+      "surface": "Warlocks",
+      "canonical": "Warlock"
+    },
+    {
+      "surface": "Warriors",
+      "canonical": "Warrior"
+    },
+    {
+      "surface": "Werewolves",
+      "canonical": "Werewolf"
+    },
+    {
+      "surface": "Wizards",
+      "canonical": "Wizard"
+    },
+    {
+      "surface": "Wolves",
+      "canonical": "Wolf"
+    },
+    {
+      "surface": "Wraiths",
+      "canonical": "Wraith"
+    },
+    {
+      "surface": "Wurms",
+      "canonical": "Wurm"
+    },
+    {
+      "surface": "Yetis",
+      "canonical": "Yeti"
+    },
+    {
+      "surface": "Zombies",
+      "canonical": "Zombie"
+    }
+  ]
+}

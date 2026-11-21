@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/exilePermanentWithSource",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "exilePermanentWithSource",
+        "candidates": {
+          "controller": {
+            "kind": "opponentsOf",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            ]
+          }
+        },
+        "maximum": 1,
+        "minimum": 1,
+        "permanent": {
+          "id": "exileTarget",
+          "kind": "chosenTarget"
+        },
+        "returnWhenSourceLeaves": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "cards": [
+    {
+      "collectorNumber": "69",
+      "setCode": "msh",
+      "name": "Namor the Sub-Mariner",
+      "parserTest": "mana_symbol_cast_count_parses_without_compiling_the_engine_runtime",
+      "contractTest": "reusable_marvel_leaves_share_events_targets_and_primitive_effects",
+      "contractPartition": 3,
+      "runtimeTest": "parsed_mana_symbol_cast_trigger_filters_and_uses_the_symbol_count_for_tokens",
+      "runtimePartition": 2
+    }
+  ]
+}

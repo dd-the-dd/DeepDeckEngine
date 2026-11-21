@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/0c319f45-cb0f-4641-acd8-145768acb3fc",
+  "cardName": "Sakura-Tribe Scout",
+  "oracleId": "0c319f45-cb0f-4641-acd8-145768acb3fc",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "9cbdda50-8a27-4094-849d-b6f66def82ce",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Sakura-Tribe Scout",
+      "typeLine": "Creature — Snake Shaman Scout",
+      "manaCost": "{G}",
+      "oracleText": "{T}: You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

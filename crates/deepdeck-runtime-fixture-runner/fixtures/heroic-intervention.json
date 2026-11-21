@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "heroic-intervention-grants-each-controlled-permanent-two-keywords",
+  "seed": 40,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "hexproof",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "eachPermanent",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "where": null
+        },
+        "keyword": "indestructible",
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Intervention pilot",
+        "hand": [
+          {
+            "id": "heroic-intervention",
+            "name": "Heroic Intervention",
+            "typeLine": "Instant",
+            "manaCost": "{1}{G}"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "friendly-creature",
+            "name": "Friendly Creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "friendly-artifact",
+            "name": "Friendly Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opposing-creature",
+            "name": "Opposing Creature",
+            "typeLine": "Creature - Rogue",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "heroic-intervention"
+  },
+  "assertions": [
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-creature", "keyword": "hexproof", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-creature", "keyword": "indestructible", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-artifact", "keyword": "hexproof", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-0", "definitionId": "friendly-artifact", "keyword": "indestructible", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-1", "definitionId": "opposing-creature", "keyword": "hexproof", "equals": false },
+    { "kind": "permanentHasKeyword", "playerId": "player-1", "definitionId": "opposing-creature", "keyword": "indestructible", "equals": false },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

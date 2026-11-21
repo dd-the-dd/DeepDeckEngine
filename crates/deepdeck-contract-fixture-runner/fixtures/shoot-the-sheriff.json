@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "shoot-the-sheriff/negated-characteristic-batch-is-executable",
+  "cardName": "Shoot the Sheriff",
+  "oracleId": "2038138e-2e52-41e4-90fc-443fa054c5c0",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "not",
+                "operand": {
+                  "kind": "or",
+                  "operands": [
+                    { "kind": "subtypeContains", "value": "Assassin" },
+                    { "kind": "subtypeContains", "value": "Mercenary" },
+                    { "kind": "subtypeContains", "value": "Pirate" },
+                    { "kind": "subtypeContains", "value": "Rogue" },
+                    { "kind": "subtypeContains", "value": "Warlock" }
+                  ]
+                }
+              },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+    }]
+  }
+}

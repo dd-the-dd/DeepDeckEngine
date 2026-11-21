@@ -1,0 +1,276 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "Full-search/unrestricted-mandatory-empty-library-still-resolves",
+  "seed": 1515,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{6}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": null,
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "searchedCards",
+        "kind": "chooseCards",
+        "maximum": 1,
+        "minimum": 1,
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "recordLibrarySearch",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Search controller",
+        "manaPool": [
+          "C",
+          "C",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "battlefield": [
+          {
+            "id": "planar-portal",
+            "name": "Planar Portal",
+            "typeLine": "Artifact",
+            "manaCost": "{6}",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{6}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": null,
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 1,
+                    "minimum": 1,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "planar-portal",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "planar-portal",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "librarySearched",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "zoneShuffled",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

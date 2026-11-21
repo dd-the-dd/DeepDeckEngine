@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/26d6a089-b867-4b89-be8e-2ad11bff0d64",
+  "cardName": "Meldweb Curator",
+  "oracleId": "26d6a089-b867-4b89-be8e-2ad11bff0d64",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "f0d392b2-1dac-432d-930c-66b238f7512b",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Meldweb Curator",
+      "typeLine": "Creature — Phyrexian Wizard",
+      "manaCost": "{3}{U}",
+      "oracleText": "When this creature enters, put up to one target instant or sorcery card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

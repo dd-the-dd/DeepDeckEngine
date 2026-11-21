@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "flow-state-sorcery-alone-then-instant-and-sorcery",
+  "seed": 2,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+        "count": { "kind": "integer", "value": 3 },
+        "bind": "lookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "from": { "kind": "boundObjects", "binding": "lookedCards" },
+        "count": {
+          "kind": "conditionalValue",
+          "condition": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countCards",
+                  "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                  "where": { "kind": "cardTypeContains", "value": "Instant" }
+                },
+                "right": { "kind": "integer", "value": 1 }
+              },
+              {
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                  "kind": "countCards",
+                  "zone": { "kind": "graveyard", "player": { "kind": "controllerOf", "object": { "kind": "self" } } },
+                  "where": { "kind": "cardTypeContains", "value": "Sorcery" }
+                },
+                "right": { "kind": "integer", "value": 1 }
+              }
+            ]
+          },
+          "ifTrue": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 2 },
+              { "kind": "countObjects", "objects": { "kind": "boundObjects", "binding": "lookedCards" } }
+            ]
+          },
+          "ifFalse": {
+            "kind": "minimum",
+            "operands": [
+              { "kind": "integer", "value": 1 },
+              { "kind": "countObjects", "objects": { "kind": "boundObjects", "binding": "lookedCards" } }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "cardsForHand" },
+        "to": { "kind": "hand", "player": { "kind": "controllerOf", "object": { "kind": "self" } } }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "remainderOrder",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "objects": {
+          "kind": "setDifference",
+          "left": { "kind": "boundObjects", "binding": "lookedCards" },
+          "right": { "kind": "decisionResult", "decisionId": "cardsForHand" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "remainderOrder" },
+        "to": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "position": "bottom"
+        },
+        "order": { "kind": "decisionOrder", "decisionId": "remainderOrder" }
+      }
+    ]
+  },
+  "initialState": {
+    "turnNumber": 1,
+    "activePlayerId": "player-0",
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Flow State pilot",
+        "manaPool": ["C", "U"],
+        "hand": [
+          { "id": "flow-state-direct", "name": "Flow State", "typeLine": "Sorcery", "manaCost": "{1}{U}" },
+          {
+            "id": "instant-probe",
+            "name": "Instant Probe",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }
+            ]
+          },
+          { "id": "flow-state-cast", "name": "Flow State", "typeLine": "Sorcery", "manaCost": "{1}{U}" }
+        ],
+        "library": [
+          { "id": "card-a", "name": "Card A", "typeLine": "Creature" },
+          { "id": "card-b", "name": "Card B", "typeLine": "Artifact" },
+          { "id": "card-c", "name": "Card C", "typeLine": "Enchantment" },
+          { "id": "card-d", "name": "Card D", "typeLine": "Land" },
+          { "id": "card-e", "name": "Card E", "typeLine": "Creature" },
+          { "id": "card-f", "name": "Card F", "typeLine": "Artifact" }
+        ],
+        "graveyard": [
+          { "id": "sorcery-only", "name": "Sorcery Only", "typeLine": "Sorcery" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": { "controllerId": "player-0", "sourceDefinitionId": "flow-state-direct" },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "instant-probe" },
+    { "kind": "resolveTopStack" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "flow-state-cast" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "selectCards", "count": 1, "take": "forward" },
+    { "kind": "orderCards", "order": "forward" },
+    { "kind": "selectCards", "count": 2, "take": "forward" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "card-f", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "card-b", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "card-e", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 3 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 4 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 3 },
+    { "kind": "decisionCount", "equals": 3 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

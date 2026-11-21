@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "shared-cost-query/crab-reduction-only-exact-parser-ir",
+  "seed": 1559,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "manaPool": [
+          "U",
+          "U",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "reduction-clause-probe",
+            "name": "Reduction clause probe",
+            "typeLine": "Creature \u00e2\u20ac\u201d Elemental Crab",
+            "manaCost": "{5}{U}{U}",
+            "power": "5",
+            "toughness": "5",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "stackOrCast"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "reduceOwnGenericCastingCost",
+                    "amount": {
+                      "kind": "countObjects",
+                      "objects": {
+                        "kind": "cardsInZone",
+                        "zone": {
+                          "kind": "graveyard",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Instant"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Sorcery"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "instant",
+            "name": "Instant sample",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "sorcery",
+            "name": "Sorcery sample",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "dual",
+            "name": "Dual-type sample",
+            "typeLine": "Instant Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "artifact",
+            "name": "Artifact sample",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Other player"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "reduction-clause-probe"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "definitionId": "reduction-clause-probe",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 4
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

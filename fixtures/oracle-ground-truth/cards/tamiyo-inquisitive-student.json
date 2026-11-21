@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "2a717b98-cdac-416d-bf6c-f6b6638e65d1",
+  "oracleId": "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Tamiyo, Inquisitive Student",
+    "setCode": "mh3",
+    "collectorNumber": "242",
+    "typeLine": "Legendary Creature — Moonfolk Wizard",
+    "manaCost": "{U}",
+    "oracleText": "Flying\nWhenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhen you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control."
+  },
+  "abilities": [
+    {
+      "id": "tamiyo-inquisitive-student:ability:2",
+      "reviewStatus": "verified",
+      "source": { "text": "Whenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")", "lineStart": 1, "lineEnd": 1 },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+        "effects": [{
+          "kind": "createTokens",
+          "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "quantity": { "kind": "integer", "value": 1 },
+          "token": { "kind": "namedToken", "name": "Clue" }
+        }]
+      }
+    },
+    {
+      "id": "tamiyo-inquisitive-student:ability:3",
+      "reviewStatus": "verified",
+      "source": { "text": "When you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.", "lineStart": 2, "lineEnd": 2 },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+          "kind": "cardDrawn",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "drawOrdinal": { "kind": "integer", "value": 3 }
+        },
+        "effects": [
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "self" },
+            "bind": "exiledSource",
+            "to": {
+              "kind": "exile",
+              "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+              "faceDown": false
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "boundObjects", "binding": "exiledSource" },
+            "to": {
+              "kind": "battlefield",
+              "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+              "tapped": false,
+              "faceChange": { "kind": "transformFace" }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

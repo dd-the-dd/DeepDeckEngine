@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-keyword/old-map-explore",
+  "expectedExecutable": false,
+  "rule": {
+    "activationCondition": {
+      "kind": "sorceryTiming"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{1}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "explore",
+        "object": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

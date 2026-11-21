@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/4fd493b3-63f9-4633-8f88-8755e489da32",
+  "cardName": "Conjurer's Bauble",
+  "oracleId": "4fd493b3-63f9-4633-8f88-8755e489da32",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "2d32960e-d182-455f-8e74-eb11b10050da",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Conjurer's Bauble",
+      "typeLine": "Artifact",
+      "manaCost": "{1}",
+      "oracleText": "{T}, Sacrifice this artifact: Put up to one target card from your graveyard on the bottom of your library. Draw a card.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/5d46e85f-4a04-48b1-afe9-3a47678041d4/part-0",
+  "cardName": "Startled Relic Sloth",
+  "oracleId": "5d46e85f-4a04-48b1-afe9-3a47678041d4",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "f143fd41-58c3-45a0-bef8-e9e4b4a502a5",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Startled Relic Sloth",
+      "typeLine": "Creature — Sloth Beast",
+      "manaCost": "{2}{R}{W}",
+      "oracleText": "Trample, lifelink\nAt the beginning of combat on your turn, exile up to one target card from a graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

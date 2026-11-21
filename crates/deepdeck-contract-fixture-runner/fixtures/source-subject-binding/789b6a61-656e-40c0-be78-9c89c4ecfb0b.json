@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/789b6a61-656e-40c0-be78-9c89c4ecfb0b",
+  "cardName": "Smoldering Efreet",
+  "oracleId": "789b6a61-656e-40c0-be78-9c89c4ecfb0b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "af33b204-6b50-4404-b986-9f6b970a7f06",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Smoldering Efreet",
+      "typeLine": "Creature — Efreet Monk",
+      "manaCost": "{1}{R}",
+      "oracleText": "When this creature dies, it deals 2 damage to you.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

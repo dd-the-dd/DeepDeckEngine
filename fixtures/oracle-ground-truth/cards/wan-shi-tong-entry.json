@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "oracle-ground-truth/v1",
+  "cardId": "e20da6b5-1057-4a28-9e85-07de714e262f",
+  "oracleId": "2bace3ea-7d28-4a1c-857a-d3c3a1c11b59",
+  "reviewStatus": "verified",
+  "context": {
+    "name": "Wan Shi Tong, Librarian",
+    "setCode": "tla",
+    "collectorNumber": "78",
+    "typeLine": "Legendary Creature — Bird Spirit",
+    "manaCost": "{X}{U}{U}",
+    "oracleText": "When Wan Shi Tong enters, put X +1/+1 counters on him. Then draw half X cards, rounded down."
+  },
+  "abilities": [
+    {
+      "id": "wan-shi-tong:entry-ability",
+      "reviewStatus": "verified",
+      "source": {
+        "text": "When Wan Shi Tong enters, put X +1/+1 counters on him. Then draw half X cards, rounded down.",
+        "lineStart": 0,
+        "lineEnd": 0
+      },
+      "expectedRule": {
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+        "effects": [
+          {
+            "kind": "putCounters",
+            "permanent": { "kind": "self" },
+            "counter": "+1/+1",
+            "count": { "kind": "sourceCastXValue" }
+          },
+          {
+            "kind": "drawCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": {
+              "kind": "divide",
+              "left": { "kind": "sourceCastXValue" },
+              "right": { "kind": "integer", "value": 2 },
+              "round": "down"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

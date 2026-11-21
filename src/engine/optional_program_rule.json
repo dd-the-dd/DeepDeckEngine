@@ -1,0 +1,59 @@
+{
+  "declaration": {
+    "decisions": [
+      {
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Enchantment"
+              }
+            ]
+          }
+        },
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "maximum": 1,
+        "minimum": 1
+      }
+    ],
+    "kind": "castingDeclaration"
+  },
+  "effects": [
+    {
+      "kind": "optionalEffects",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "effects": [
+        {
+          "kind": "destroyPermanent",
+          "permanent": {
+            "id": "targetPermanent",
+            "kind": "chosenTarget"
+          }
+        }
+      ]
+    }
+  ],
+  "event": {
+    "kind": "enterBattlefield",
+    "object": {
+      "kind": "self"
+    }
+  },
+  "kind": "triggeredAbility",
+  "source": {
+    "kind": "self"
+  }
+}

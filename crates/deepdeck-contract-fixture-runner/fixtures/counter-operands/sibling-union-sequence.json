@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "permanent-counter-operands/sibling-union-sequence",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            ]
+          },
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "counter": "ice",
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        }
+      }
+    ]
+  },
+  "expectedExecutable": true
+}

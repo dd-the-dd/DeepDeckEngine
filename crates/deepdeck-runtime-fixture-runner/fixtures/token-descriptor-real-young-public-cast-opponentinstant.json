@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "real-young-public-cast-opponentinstant",
+  "seed": 912,
+  "rule": {
+    "effects": [
+      {
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 1
+        },
+        "token": {
+          "abilities": [],
+          "colors": [
+            "Red"
+          ],
+          "power": 1,
+          "subtypes": [
+            "Elemental"
+          ],
+          "toughness": 1,
+          "types": [
+            "Creature"
+          ]
+        }
+      }
+    ],
+    "event": {
+      "kind": "spellCast",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "where": {
+        "kind": "or",
+        "operands": [
+          {
+            "kind": "cardTypeContains",
+            "value": "Instant"
+          },
+          {
+            "kind": "cardTypeContains",
+            "value": "Sorcery"
+          }
+        ]
+      }
+    },
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "young-pyromancer",
+            "name": "Young Pyromancer",
+            "typeLine": "Creature — Human Shaman",
+            "manaCost": "{1}{R}",
+            "power": "2",
+            "toughness": "1",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "createTokens",
+                    "quantity": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "token": {
+                      "abilities": [],
+                      "colors": [
+                        "Red"
+                      ],
+                      "power": 1,
+                      "subtypes": [
+                        "Elemental"
+                      ],
+                      "toughness": 1,
+                      "types": [
+                        "Creature"
+                      ]
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "spellCast",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Instant"
+                      },
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Sorcery"
+                      }
+                    ]
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "P1",
+        "hand": [
+          {
+            "id": "probe-spell",
+            "name": "probe-spell",
+            "typeLine": "Instant",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "abilityController"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 0
+                    }
+                  }
+                ]
+              }
+            ],
+            "manaCost": "{0}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "probe-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "tokenCreated",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

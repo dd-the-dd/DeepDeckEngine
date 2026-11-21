@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "opt/native-atomic-scry-and-draw-are-executable",
+  "cardName": "Opt",
+  "oracleId": "713332c1-5bd8-400f-bfff-c1ca0697a043",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "lookAtTopCards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "count": { "kind": "integer", "value": 1 },
+          "bind": "scryLookedCards"
+        },
+        {
+          "kind": "chooseCards",
+          "id": "scryBottomCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "from": { "kind": "boundObjects", "binding": "scryLookedCards" },
+          "minimum": { "kind": "integer", "value": 0 },
+          "maximum": {
+            "kind": "countObjects",
+            "objects": { "kind": "boundObjects", "binding": "scryLookedCards" }
+          }
+        },
+        {
+          "kind": "chooseOrder",
+          "id": "scryBottomOrder",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "objects": { "kind": "decisionResult", "decisionId": "scryBottomCards" }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "decisionResult", "decisionId": "scryBottomOrder" },
+          "to": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "position": "bottom"
+          },
+          "order": { "kind": "decisionOrder", "decisionId": "scryBottomOrder" }
+        },
+        {
+          "kind": "chooseOrder",
+          "id": "scryTopOrder",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "objects": {
+            "kind": "setDifference",
+            "left": { "kind": "boundObjects", "binding": "scryLookedCards" },
+            "right": { "kind": "decisionResult", "decisionId": "scryBottomCards" }
+          }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "decisionResult", "decisionId": "scryTopOrder" },
+          "to": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "position": "top"
+          },
+          "order": { "kind": "decisionOrder", "decisionId": "scryTopOrder" }
+        },
+        {
+          "kind": "emitAbilitySignal",
+          "abilityId": "scry",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      ]
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "effects": [
+        {
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": { "kind": "integer", "value": 1 }
+        }
+      ]
+    }
+  ]
+}

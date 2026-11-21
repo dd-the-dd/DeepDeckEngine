@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "effect/target-player-action-dispatch",
+  "cases": [
+    {
+      "id": "regression-restless-reef-target-player-mill",
+      "request": {
+        "cardName": "Restless Reef",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Whenever this land attacks, target player mills four cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "rule": {
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": {
+              "kind": "declaredAttacker",
+              "object": { "kind": "self" }
+            },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPlayer",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": { "kind": "players" }
+              }]
+            },
+            "effects": [{
+              "kind": "mill",
+              "player": { "kind": "chosenTarget", "id": "targetPlayer" },
+              "count": { "kind": "integer", "value": 4 }
+            }]
+          }
+        }]
+      }
+    },
+    {
+      "id": "sibling-creature-attacks-target-player-mill",
+      "request": {
+        "cardName": "Archive Raider",
+        "typeLine": "Creature — Rogue",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature attacks, target player mills two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "canonical",
+          "recognizer": "native",
+          "abilityType": "triggeredAbility",
+          "ruleAssertions": [
+            { "pointer": "/event/kind", "equals": "declaredAttacker" },
+            { "pointer": "/declaration/decisions/0/id", "equals": "targetPlayer" },
+            { "pointer": "/effects/0/kind", "equals": "mill" },
+            { "pointer": "/effects/0/player/id", "equals": "targetPlayer" },
+            { "pointer": "/effects/0/count/value", "equals": 2 }
+          ]
+        }]
+      }
+    }
+  ]
+}

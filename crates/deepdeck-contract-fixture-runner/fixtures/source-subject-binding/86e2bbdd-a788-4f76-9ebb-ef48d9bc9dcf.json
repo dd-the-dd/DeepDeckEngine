@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/86e2bbdd-a788-4f76-9ebb-ef48d9bc9dcf",
+  "cardName": "Pitchburn Devils",
+  "oracleId": "86e2bbdd-a788-4f76-9ebb-ef48d9bc9dcf",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "fbd306cf-6625-4414-b9e5-4b909bb1bb13",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Pitchburn Devils",
+      "typeLine": "Creature — Devil",
+      "manaCost": "{4}{R}",
+      "oracleText": "When this creature dies, it deals 3 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

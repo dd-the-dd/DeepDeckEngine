@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "token-options/34c0f75d-10a9-428d-b202-3defb3949090",
+  "cardName": "Ant-Man's Army",
+  "oracleId": "34c0f75d-10a9-428d-b202-3defb3949090",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "61a89566-06c1-404f-8217-e5276e2dc5a2",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Ant-Man's Army",
+      "typeLine": "Creature — Insect",
+      "manaCost": "{2}{G}",
+      "oracleText": "When this creature enters, create a Food token or a Treasure token. (A Food token is an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\" A Treasure token is an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

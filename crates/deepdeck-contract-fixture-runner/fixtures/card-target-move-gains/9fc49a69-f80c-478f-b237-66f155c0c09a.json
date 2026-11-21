@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/9fc49a69-f80c-478f-b237-66f155c0c09a",
+  "cardName": "Cybernetic Specialist",
+  "oracleId": "9fc49a69-f80c-478f-b237-66f155c0c09a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b147f16e-a2d6-4d43-9213-9a2723b0d3ef",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Cybernetic Specialist",
+      "typeLine": "Artifact Creature — Human Scientist",
+      "manaCost": "{2}",
+      "oracleText": "When this creature enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{1}, {T}: Put target card from your graveyard on the bottom of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

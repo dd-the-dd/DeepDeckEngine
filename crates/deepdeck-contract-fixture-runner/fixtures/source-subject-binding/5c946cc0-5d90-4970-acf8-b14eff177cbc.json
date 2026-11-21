@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5c946cc0-5d90-4970-acf8-b14eff177cbc",
+  "cardName": "Storm Caller",
+  "oracleId": "5c946cc0-5d90-4970-acf8-b14eff177cbc",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1b6d123c-c16d-43fa-b183-8a59c7e1a11e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Storm Caller",
+      "typeLine": "Creature — Ogre Shaman",
+      "manaCost": "{2}{R}",
+      "oracleText": "When this creature enters, it deals 2 damage to each opponent.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

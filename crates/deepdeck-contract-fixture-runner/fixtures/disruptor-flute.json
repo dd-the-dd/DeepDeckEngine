@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "disruptor-flute/all-native-rules-are-executable",
+  "cardName": "Disruptor Flute",
+  "oracleId": "d6c46906-1339-4440-8cd0-2bb9890d4975",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flash" }
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "decisions": [{
+        "id": "chosenCardName",
+        "kind": "chooseCardName",
+        "where": null,
+        "lookAtOpponentHand": false
+      }],
+      "replacement": [{ "kind": "storeDecision", "decisionId": "chosenCardName" }]
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "additionalCastingCost",
+        "players": { "kind": "eachPlayer" },
+        "where": {
+          "kind": "nameEquals",
+          "value": {
+            "kind": "storedDecision",
+            "object": { "kind": "self" },
+            "decisionId": "chosenCardName"
+          }
+        },
+        "cost": { "kind": "payMana", "manaCost": "{3}" }
+      }]
+    },
+    {
+      "kind": "staticAbility",
+      "source": { "kind": "self" },
+      "activeWhile": {
+        "kind": "inZone",
+        "object": { "kind": "self" },
+        "zone": { "kind": "battlefield" }
+      },
+      "modifiers": [{
+        "kind": "prohibitActivation",
+        "abilities": {
+          "kind": "activatedAbilities",
+          "sourceWhere": {
+            "kind": "nameEquals",
+            "value": {
+              "kind": "storedDecision",
+              "object": { "kind": "self" },
+              "decisionId": "chosenCardName"
+            }
+          },
+          "where": { "kind": "not", "operand": { "kind": "isManaAbility" } }
+        }
+      }]
+    }
+  ]
+}

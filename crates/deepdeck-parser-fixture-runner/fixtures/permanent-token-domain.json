@@ -1,0 +1,197 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "permanent-token-domain",
+  "cases": [
+    {
+      "id": "kindred-artifact-creature",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Goblin kindred artifact creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-artifact-creature",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Creature",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, if you control an artifact, create a 1/1 red Goblin artifact creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "forbidden-sorcery-creature",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Goblin sorcery creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "forbidden-instant-creature",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Goblin instant creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-forbidden-sorcery",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Creature",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, if you control an artifact, create a 1/1 red Goblin sorcery creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-forbidden-instant",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Creature",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, if you control an artifact, create a 1/1 red Goblin creature instant token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multisentence-invalid-no-partial",
+      "request": {
+        "cardName": "Permanent Token Domain",
+        "typeLine": "Creature",
+        "manaCost": "{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, if you control an artifact, create a 1/1 red Goblin sorcery creature token. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

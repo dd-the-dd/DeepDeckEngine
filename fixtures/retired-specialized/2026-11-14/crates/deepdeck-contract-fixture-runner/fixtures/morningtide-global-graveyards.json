@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "Morningtide/exile-all-graveyards-spell-primitive",
+  "cardName": "Morningtide",
+  "oracleId": "a8432372-672b-4bf7-9000-17e43356f149",
+  "expectedExecutable": true,
+  "rule": {
+    "effects": [
+      {
+        "kind": "exileAllGraveyards"
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  }
+}

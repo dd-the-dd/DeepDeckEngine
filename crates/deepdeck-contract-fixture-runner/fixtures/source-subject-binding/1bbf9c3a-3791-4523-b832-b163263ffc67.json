@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/1bbf9c3a-3791-4523-b832-b163263ffc67",
+  "cardName": "Avatar",
+  "oracleId": "1bbf9c3a-3791-4523-b832-b163263ffc67",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "94a50acd-ac2d-47bf-b331-0bcf5edd9c75",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "6",
+    "oracle": {
+      "cardName": "Avatar",
+      "typeLine": "Token Creature — Avatar",
+      "manaCost": "",
+      "oracleText": "Haste\nWhenever this creature attacks, it deals 3 damage to each opponent.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

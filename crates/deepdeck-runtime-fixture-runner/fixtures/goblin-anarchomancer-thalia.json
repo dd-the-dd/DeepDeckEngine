@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "goblin-anarchomancer-red-green-spell-is-reduced-once-after-thalia-tax",
+  "seed": 101101,
+  "rule": { "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Anarchomancer controller",
+        "manaPool": ["C", "R"],
+        "hand": [{
+          "id": "red-green-sorcery",
+          "name": "Red-Green Sorcery",
+          "typeLine": "Sorcery",
+          "manaCost": "{1}{R/G}",
+          "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+        }],
+        "battlefield": [{
+          "id": "goblin-anarchomancer",
+          "name": "Goblin Anarchomancer",
+          "typeLine": "Creature — Goblin Shaman",
+          "manaCost": "{R}{G}",
+          "power": "2",
+          "toughness": "2",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "reduceCastingCost",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "where": {
+                "kind": "or",
+                "operands": [
+                  { "kind": "colorContains", "value": "Red" },
+                  { "kind": "colorContains", "value": "Green" }
+                ]
+              },
+              "amount": { "kind": "integer", "value": 1 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Thalia controller",
+        "battlefield": [{
+          "id": "thalia",
+          "name": "Thalia, Guardian of Thraben",
+          "typeLine": "Legendary Creature — Human Soldier",
+          "manaCost": "{1}{W}",
+          "power": "2",
+          "toughness": "1",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "additionalCastingCost",
+              "players": { "kind": "eachPlayer" },
+              "where": {
+                "kind": "not",
+                "operand": { "kind": "cardTypeContains", "value": "Creature" }
+              },
+              "cost": { "kind": "payMana", "manaCost": "{1}" }
+            }]
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "red-green-sorcery" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "red-green-sorcery", "equals": true },
+    { "kind": "eventCount", "eventKind": "spellCast", "playerId": "player-0", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}
+

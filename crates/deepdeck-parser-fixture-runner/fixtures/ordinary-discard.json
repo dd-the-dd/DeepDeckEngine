@@ -1,0 +1,472 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "ordinary-discard/shared-action",
+  "cases": [
+    {
+      "id": "exact-agna-qela",
+      "request": {
+        "cardName": "Agna Qel'a",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped unless you control a basic land.\n{T}: Add {U}.\n{2}{U}, {T}: Draw a card, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect"
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility"
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{2}{U}"
+                },
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "discardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-discard-before-draw",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "You discard a card, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ordinary-after-and-before-actions",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw two cards, then discard two cards and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "repeated-random-scopes",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard a card at random, then discard a card at random.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/id",
+                "equals": "effect0:discardSelection"
+              },
+              {
+                "pointer": "/effects/2/id",
+                "equals": "effect1:discardSelection"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-implicit-mana-x",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Discard X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "discardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-x-no-manufactured-producer",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card, then discard X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-face-cannot-produce-x",
+      "request": {
+        "cardName": "Producer // Consumer",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{X}{U} // {U}",
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "producer",
+            "name": "Producer",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}",
+            "oracleText": "Draw a card."
+          },
+          {
+            "id": "consumer",
+            "name": "Consumer",
+            "typeLine": "Sorcery",
+            "manaCost": "{U}",
+            "oracleText": "Discard X cards."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source",
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-plural-near-miss",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard two card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "counted-card.noun"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selection-near-miss",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard a card at choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selection-method.random.mode"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unconsumed-suffix-is-not-coverage",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard a card, then teleport a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-verb-cost-and-ordinary-effect",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Discard this card: Draw a card, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mana-before-discard-is-not-library-movement",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {G}, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "digit-and-zero-counts",
+      "request": {
+        "cardName": "Generic Discard Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Discard 0 cards, then discard 2 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              },
+              {
+                "pointer": "/effects/1/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

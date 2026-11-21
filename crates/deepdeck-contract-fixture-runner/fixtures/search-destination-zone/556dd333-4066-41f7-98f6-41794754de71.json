@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "search-zone-gain/556dd333-4066-41f7-98f6-41794754de71",
+  "cardName": "Vile Entomber",
+  "oracleId": "556dd333-4066-41f7-98f6-41794754de71",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "833b5a32-5d77-4e46-a524-25bada29ef59",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Vile Entomber",
+      "typeLine": "Creature — Zombie Warlock",
+      "manaCost": "{2}{B}{B}",
+      "oracleText": "Deathtouch (Any amount of damage this deals to a creature is enough to destroy it.)\nWhen this creature enters, search your library for a card, put that card into your graveyard, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

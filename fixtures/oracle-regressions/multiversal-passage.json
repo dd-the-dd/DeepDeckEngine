@@ -34,7 +34,7 @@
             "options": ["Plains", "Island", "Swamp", "Mountain", "Forest"]
           },
           {
-            "id": "payTwoLife",
+            "id": "optionalLifePayment",
             "kind": "chooseWhetherToPay",
             "player": { "kind": "controllerOf", "object": { "kind": "self" } },
             "cost": {
@@ -55,7 +55,7 @@
               "kind": "not",
               "operand": {
                 "kind": "costWasPaid",
-                "decisionId": "payTwoLife"
+                "decisionId": "optionalLifePayment"
               }
             },
             "then": [

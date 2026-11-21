@@ -1,0 +1,182 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "erode-destroys-and-searches-for-prior-controller",
+  "seed": 3,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetPermanent",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Creature" },
+              { "kind": "cardTypeContains", "value": "Planeswalker" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "id": "targetController",
+        "kind": "bind",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": { "kind": "chosenTarget", "id": "targetPermanent" }
+      },
+      {
+        "kind": "optionalEffects",
+        "player": { "kind": "boundValue", "id": "targetController" },
+        "effects": [
+          {
+            "id": "searchedCards",
+            "kind": "chooseCards",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "minimum": 0,
+            "maximum": 1,
+            "candidates": {
+              "kind": "cards",
+              "zone": {
+                "kind": "library",
+                "player": { "kind": "boundValue", "id": "targetController" }
+              },
+              "where": {
+                "kind": "and",
+                "operands": [
+                  { "kind": "typeLineContains", "value": "Basic" },
+                  { "kind": "cardTypeContains", "value": "Land" }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "moveCards",
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+            "to": {
+              "kind": "battlefield",
+              "player": { "kind": "boundValue", "id": "targetController" },
+              "tapped": true
+            }
+          },
+          {
+            "kind": "shuffleZone",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "boundValue", "id": "targetController" }
+            }
+          },
+          {
+            "kind": "recordLibrarySearch",
+            "player": { "kind": "boundValue", "id": "targetController" },
+            "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Erode pilot",
+        "manaPool": ["C", "B"],
+        "hand": [{
+          "id": "erode",
+          "name": "Erode",
+          "typeLine": "Instant",
+          "manaCost": "{1}{B}"
+        }],
+        "battlefield": [{
+          "id": "target-creature",
+          "name": "Target Creature",
+          "typeLine": "Creature - Test",
+          "controllerId": "player-1",
+          "power": "2",
+          "toughness": "2"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "library": [
+          {
+            "id": "nonbasic-land",
+            "name": "Nonbasic Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "basic-land",
+            "name": "Basic Land",
+            "typeLine": "Basic Land - Forest"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "erode"
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [
+    { "kind": "chooseOption", "index": 1 },
+    { "kind": "selectCards", "count": 1, "take": "forward" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "target-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "target-creature",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "basic-land",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "basic-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "erode",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 2 }
+  ]
+}

@@ -1,0 +1,599 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-explicit-token-descriptor",
+  "cases": [
+    {
+      "id": "real-young-pyromancer-complete",
+      "request": {
+        "cardName": "Young Pyromancer",
+        "typeLine": "Creature — Human Shaman",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, create a 1/1 red Elemental creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "spellCast",
+                "where": {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Instant"
+                    },
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Sorcery"
+                    }
+                  ]
+                },
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "effects": [
+                {
+                  "kind": "createTokens",
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "power": 1,
+                    "toughness": 1,
+                    "colors": [
+                      "Red"
+                    ],
+                    "types": [
+                      "Creature"
+                    ],
+                    "subtypes": [
+                      "Elemental"
+                    ],
+                    "abilities": []
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "spell-shares-descriptor",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "activation-shares-descriptor",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Create two 2/3 green Elf Warrior creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multicolor-artifact-creature",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 2/2 blue and red Golem artifact creature token with haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multisubtype-keyword",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Create a 1/1 blue Bird Illusion creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "keyword-connector-effect-boundary",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Create a 1/1 blue Bird creature token with flying and you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multiple-keywords-then-effect",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{W}",
+        "oracleText": "Create a 1/1 white Monk creature token with first strike and vigilance, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "explicit-then-named",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token, then create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-then-explicit",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a Treasure token, then create a 1/1 red Elemental creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "named-catalog-unchanged",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a Treasure token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "arithmetic-quantity",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}",
+        "oracleText": "Create one plus two 1/1 colorless Servo artifact creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "same-face-bound-variable",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "Create X 1/1 red Elemental creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-counter-controller-snapshot",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target spell. Its controller creates a 1/1 blue Bird creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-descriptor-subtype",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Inventedling creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-named-modifier",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token named Ember.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-quoted-rule",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token with \"This token sings.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-statistic-range",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 2147483648/1 red Elemental creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-named-catalog",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a Madeuptoken token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbound-variable",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create X 1/1 red Elemental creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "automaton": "card-context-binding",
+            "state": "binding.x-value.source",
+            "expected": "an explicit xValue declaration or {X} in this spell face mana cost",
+            "found": "{R}",
+            "messageContains": "The canonical rule consumes `xValue`, but this spell face has neither an explicit `xValue` declaration nor {X} in its mana cost."
+          }
+        ]
+      }
+    },
+    {
+      "id": "literal-arithmetic-overflow",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create 2147483647 plus one 1/1 red Elemental creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "trailing-unconsumed-modifier",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token with flying banana.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

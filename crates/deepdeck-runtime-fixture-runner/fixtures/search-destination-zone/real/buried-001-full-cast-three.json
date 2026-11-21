@@ -1,0 +1,397 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "buried-alive-real-public-cast-three-of-four-creatures",
+  "seed": 1158203,
+  "rule": {
+    "effects": [
+      {
+        "candidates": {
+          "kind": "cards",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "searchedCards",
+        "kind": "chooseCards",
+        "maximum": 3,
+        "minimum": 0,
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "searchedCards",
+          "kind": "decisionResult"
+        },
+        "kind": "recordLibrarySearch",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "life": 20,
+        "manaPool": [
+          "C",
+          "C",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "76878b19-2916-4f3f-bee5-20846bc9e2db",
+            "name": "Buried Alive",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{B}",
+            "rules": [
+              {
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 3,
+                    "minimum": 0,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "proof-creature-1",
+            "name": "Proof Creature 1",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "proof-creature-2",
+            "name": "Proof Creature 2",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "proof-creature-3",
+            "name": "Proof Creature 3",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "proof-creature-4",
+            "name": "Proof Creature 4",
+            "typeLine": "Creature",
+            "power": "1",
+            "toughness": "1",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "proof-land",
+            "name": "Proof Land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "life": 20,
+        "library": [
+          {
+            "id": "opponent-card-0",
+            "name": "Opponent Card 0",
+            "typeLine": "Instant",
+            "manaCost": "",
+            "rules": []
+          },
+          {
+            "id": "opponent-card-1",
+            "name": "Opponent Card 1",
+            "typeLine": "Instant",
+            "manaCost": "",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "76878b19-2916-4f3f-bee5-20846bc9e2db"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 3,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "76878b19-2916-4f3f-bee5-20846bc9e2db",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "proof-creature-1",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "proof-creature-2",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "proof-creature-3",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "proof-creature-4",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "library",
+      "definitionId": "proof-land",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 4
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "library",
+      "definitionId": "opponent-card-0",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "library",
+      "definitionId": "opponent-card-1",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 20
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 20
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "librarySearched",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "zoneShuffled",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDied",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

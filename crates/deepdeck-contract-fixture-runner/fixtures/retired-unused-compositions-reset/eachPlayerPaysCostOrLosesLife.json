@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/eachPlayerPaysCostOrLosesLife",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "eachPlayerPaysCostOrLosesLife",
+        "cost": {
+          "kind": "sacrificePermanent",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          },
+          "count": 1
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  }
+}

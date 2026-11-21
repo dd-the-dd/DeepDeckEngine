@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static/no-maximum-hand-size",
+  "cases": [
+    {
+      "id": "exact-thought-vessel",
+      "request": {
+        "cardName": "Thought Vessel",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "You have no maximum hand size.\n{T}: Add {C}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "staticAbility" },
+              { "pointer": "/activeWhile/kind", "equals": "inZone" },
+              { "pointer": "/activeWhile/zone/kind", "equals": "battlefield" },
+              { "pointer": "/modifiers/0/kind", "equals": "noMaximumHandSize" },
+              { "pointer": "/modifiers/0/player/kind", "equals": "controllerOf" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reliquary-tower",
+      "request": {
+        "cardName": "Reliquary Tower",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "You have no maximum hand size.\n{T}: Add {C}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              { "pointer": "/modifiers/0/kind", "equals": "noMaximumHandSize" }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "manaAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-minimum-hand-size",
+      "request": {
+        "cardName": "Hand Size Near Miss",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "You have no minimum hand size.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [{
+          "index": 0,
+          "status": "unsupported",
+          "recognizer": "native",
+          "abilityType": "staticAbility"
+        }],
+        "diagnostics": [{
+          "abilityIndex": 0,
+          "code": "oracle_machine_failure",
+          "automaton": "static-no-maximum-hand-size",
+          "state": "modifier.no-maximum-hand-size.maximum",
+          "expectedContains": "maximum",
+          "found": "minimum"
+        }]
+      }
+    }
+  ]
+}

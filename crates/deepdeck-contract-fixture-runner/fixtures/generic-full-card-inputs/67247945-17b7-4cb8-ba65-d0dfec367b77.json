@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/67247945-17b7-4cb8-ba65-d0dfec367b77/part-0",
+  "cardName": "Thraben Heretic",
+  "oracleId": "67247945-17b7-4cb8-ba65-d0dfec367b77",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "20eb4f21-2f20-4e4b-998c-a72527585549",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Thraben Heretic",
+      "typeLine": "Creature — Human Wizard",
+      "manaCost": "{1}{W}",
+      "oracleText": "{T}: Exile target creature card from a graveyard.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

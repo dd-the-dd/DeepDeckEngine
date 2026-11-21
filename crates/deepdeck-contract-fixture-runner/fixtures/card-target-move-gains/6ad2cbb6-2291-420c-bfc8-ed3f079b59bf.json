@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/6ad2cbb6-2291-420c-bfc8-ed3f079b59bf",
+  "cardName": "Tombstone, Career Criminal",
+  "oracleId": "6ad2cbb6-2291-420c-bfc8-ed3f079b59bf",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d3cd086b-8ffe-452f-9bb1-cc235058a3af",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Tombstone, Career Criminal",
+      "typeLine": "Legendary Creature — Human Villain",
+      "manaCost": "{2}{B}",
+      "oracleText": "When Tombstone enters, return target Villain card from your graveyard to your hand.\nVillain spells you cast cost {1} less to cast.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

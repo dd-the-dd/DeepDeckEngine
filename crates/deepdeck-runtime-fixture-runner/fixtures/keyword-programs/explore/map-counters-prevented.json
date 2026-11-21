@@ -1,0 +1,638 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "explore/map/counters-prevented-still-completes",
+  "seed": 1711,
+  "rule": {
+    "activationCondition": {
+      "kind": "sorceryTiming"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{1}"
+      },
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "kind": "sacrificePermanent",
+        "permanent": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "explore:subject",
+        "value": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        }
+      },
+      {
+        "kind": "bind",
+        "id": "explore:controller",
+        "value": {
+          "kind": "controllerOfObject",
+          "object": {
+            "kind": "boundValue",
+            "id": "explore:subject"
+          }
+        }
+      },
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "boundValue",
+            "id": "explore:controller"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "bind": "explore:top"
+      },
+      {
+        "kind": "revealCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "explore:top"
+        }
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "left": {
+            "kind": "countObjects",
+            "objects": {
+              "kind": "filterObjects",
+              "objects": {
+                "kind": "boundObjects",
+                "binding": "explore:top"
+              },
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          },
+          "operator": ">",
+          "right": {
+            "kind": "integer",
+            "value": 0
+          }
+        },
+        "then": [
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "boundObjects",
+              "binding": "explore:top"
+            },
+            "from": {
+              "kind": "library",
+              "player": {
+                "kind": "boundValue",
+                "id": "explore:controller"
+              }
+            },
+            "to": {
+              "kind": "hand",
+              "player": {
+                "kind": "boundValue",
+                "id": "explore:controller"
+              }
+            }
+          }
+        ],
+        "else": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "objectOnBattlefield",
+              "object": {
+                "kind": "boundValue",
+                "id": "explore:subject"
+              }
+            },
+            "then": [
+              {
+                "kind": "putCounters",
+                "permanent": {
+                  "kind": "boundValue",
+                  "id": "explore:subject"
+                },
+                "counter": "+1/+1",
+                "count": {
+                  "kind": "integer",
+                  "value": 1
+                },
+                "placedBy": {
+                  "kind": "boundValue",
+                  "id": "explore:controller"
+                }
+              }
+            ],
+            "else": []
+          },
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "compare",
+              "left": {
+                "kind": "countObjects",
+                "objects": {
+                  "kind": "boundObjects",
+                  "binding": "explore:top"
+                }
+              },
+              "operator": ">",
+              "right": {
+                "kind": "integer",
+                "value": 0
+              }
+            },
+            "then": [
+              {
+                "kind": "optionalEffects",
+                "player": {
+                  "kind": "boundValue",
+                  "id": "explore:controller"
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "boundObjects",
+                      "binding": "explore:top"
+                    },
+                    "from": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "boundValue",
+                        "id": "explore:controller"
+                      }
+                    },
+                    "to": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "boundValue",
+                        "id": "explore:controller"
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "else": []
+          }
+        ]
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "explore",
+        "player": {
+          "kind": "boundValue",
+          "id": "explore:controller"
+        },
+        "object": {
+          "kind": "boundValue",
+          "id": "explore:subject"
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Explorer controller",
+        "manaPool": [
+          "C"
+        ],
+        "battlefield": [
+          {
+            "id": "map",
+            "name": "map",
+            "typeLine": "Token Artifact - Map",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "activationCondition": {
+                  "kind": "sorceryTiming"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{1}"
+                  },
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "kind": "bind",
+                    "id": "explore:subject",
+                    "value": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  },
+                  {
+                    "kind": "bind",
+                    "id": "explore:controller",
+                    "value": {
+                      "kind": "controllerOfObject",
+                      "object": {
+                        "kind": "boundValue",
+                        "id": "explore:subject"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "lookAtTopCards",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "boundValue",
+                        "id": "explore:controller"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "bind": "explore:top"
+                  },
+                  {
+                    "kind": "revealCards",
+                    "cards": {
+                      "kind": "boundObjects",
+                      "binding": "explore:top"
+                    }
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "filterObjects",
+                          "objects": {
+                            "kind": "boundObjects",
+                            "binding": "explore:top"
+                          },
+                          "where": {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          }
+                        }
+                      },
+                      "operator": ">",
+                      "right": {
+                        "kind": "integer",
+                        "value": 0
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "moveCards",
+                        "cards": {
+                          "kind": "boundObjects",
+                          "binding": "explore:top"
+                        },
+                        "from": {
+                          "kind": "library",
+                          "player": {
+                            "kind": "boundValue",
+                            "id": "explore:controller"
+                          }
+                        },
+                        "to": {
+                          "kind": "hand",
+                          "player": {
+                            "kind": "boundValue",
+                            "id": "explore:controller"
+                          }
+                        }
+                      }
+                    ],
+                    "else": [
+                      {
+                        "kind": "conditional",
+                        "condition": {
+                          "kind": "objectOnBattlefield",
+                          "object": {
+                            "kind": "boundValue",
+                            "id": "explore:subject"
+                          }
+                        },
+                        "then": [
+                          {
+                            "kind": "putCounters",
+                            "permanent": {
+                              "kind": "boundValue",
+                              "id": "explore:subject"
+                            },
+                            "counter": "+1/+1",
+                            "count": {
+                              "kind": "integer",
+                              "value": 1
+                            },
+                            "placedBy": {
+                              "kind": "boundValue",
+                              "id": "explore:controller"
+                            }
+                          }
+                        ],
+                        "else": []
+                      },
+                      {
+                        "kind": "conditional",
+                        "condition": {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "countObjects",
+                            "objects": {
+                              "kind": "boundObjects",
+                              "binding": "explore:top"
+                            }
+                          },
+                          "operator": ">",
+                          "right": {
+                            "kind": "integer",
+                            "value": 0
+                          }
+                        },
+                        "then": [
+                          {
+                            "kind": "optionalEffects",
+                            "player": {
+                              "kind": "boundValue",
+                              "id": "explore:controller"
+                            },
+                            "effects": [
+                              {
+                                "kind": "moveCards",
+                                "cards": {
+                                  "kind": "boundObjects",
+                                  "binding": "explore:top"
+                                },
+                                "from": {
+                                  "kind": "library",
+                                  "player": {
+                                    "kind": "boundValue",
+                                    "id": "explore:controller"
+                                  }
+                                },
+                                "to": {
+                                  "kind": "graveyard",
+                                  "player": {
+                                    "kind": "boundValue",
+                                    "id": "explore:controller"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ],
+                        "else": []
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "emitAbilitySignal",
+                    "abilityId": "explore",
+                    "player": {
+                      "kind": "boundValue",
+                      "id": "explore:controller"
+                    },
+                    "object": {
+                      "kind": "boundValue",
+                      "id": "explore:subject"
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ],
+            "isToken": true
+          },
+          {
+            "id": "explorer",
+            "name": "explorer",
+            "typeLine": "Creature - Scout",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "preventCounters",
+                    "objects": {
+                      "kind": "self"
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ],
+        "library": [
+          {
+            "id": "revealed-top",
+            "name": "revealed-top",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "library": [
+          {
+            "id": "opponent-top",
+            "name": "opponent-top",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "map",
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "explorer"
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "map",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "playerId": "player-1",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "opponent-top",
+      "equals": true
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "explorer",
+      "counter": "+1/+1",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "revealed-top",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 0
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ]
+}

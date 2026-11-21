@@ -1,0 +1,338 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/selector-keyword-scope",
+  "cases": [
+    {
+      "id": "spider-exact",
+      "request": {
+        "cardName": "Spider Food",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy up to one target artifact, enchantment, or creature with flying. Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Food"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-local-reach",
+      "request": {
+        "cardName": "Selector scope sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy up to one target artifact, enchantment, or creature with reach. Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "reach"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Food"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-local-vigilance",
+      "request": {
+        "cardName": "Selector scope sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy up to one target artifact, enchantment, or creature with vigilance. Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "vigilance"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "kind": "namedToken",
+                    "name": "Food"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-ambiguous-head",
+      "request": {
+        "cardName": "Selector scope near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy target red or green creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "selector.predicate.qualifier-scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-unknown-keyword",
+      "request": {
+        "cardName": "Selector scope near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy target artifact or creature with imaginary.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "selector.keyword-qualifier.keyword"
+          }
+        ]
+      }
+    }
+  ]
+}

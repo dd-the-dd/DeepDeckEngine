@@ -1,0 +1,196 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "tamiyo/all-native-rules-are-executable",
+  "cardName": "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+  "oracleId": "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "flying" }
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "createTokens",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": { "kind": "namedToken", "name": "Clue" }
+      }]
+    },
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": {
+        "kind": "cardDrawn",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "drawOrdinal": { "kind": "integer", "value": 3 }
+      },
+      "effects": [
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "self" },
+          "bind": "exiledSource",
+          "to": {
+            "kind": "exile",
+            "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+            "faceDown": false
+          }
+        },
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "boundObjects", "binding": "exiledSource" },
+          "to": {
+            "kind": "battlefield",
+            "player": { "kind": "ownerOf", "object": { "kind": "self" } },
+            "tapped": false,
+            "faceChange": { "kind": "transformFace" }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [{
+        "kind": "payLoyalty",
+        "object": { "kind": "self" },
+        "amount": { "kind": "integer", "value": 2 }
+      }],
+      "activationCondition": { "kind": "sorceryTiming" },
+      "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+      "effects": [{
+        "kind": "installDelayedTriggeredAbility",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "duration": {
+          "kind": "untilNextTurn",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "event": {
+          "kind": "permanentAttacks",
+          "attacker": { "kind": "cardTypeContains", "value": "Creature" },
+          "defender": {
+            "kind": "union",
+            "operands": [
+              {
+                "kind": "player",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              {
+                "kind": "permanent",
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": { "kind": "cardTypeContains", "value": "Planeswalker" }
+              }
+            ]
+          }
+        },
+        "effects": [{
+          "kind": "modifyPowerToughness",
+          "object": { "kind": "triggeringPermanent" },
+          "power": { "kind": "integer", "value": -1 },
+          "toughness": { "kind": "integer", "value": 0 },
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        }]
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [{
+        "kind": "payLoyalty",
+        "object": { "kind": "self" },
+        "amount": { "kind": "integer", "value": -3 }
+      }],
+      "activationCondition": { "kind": "sorceryTiming" },
+      "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "kind": "chooseTargets",
+          "id": "targetGraveyardCard",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "graveyard",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Instant" },
+                { "kind": "cardTypeContains", "value": "Sorcery" }
+              ]
+            }
+          }
+        }]
+      },
+      "effects": [
+        {
+          "kind": "moveCards",
+          "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+          "to": {
+            "kind": "hand",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        },
+        {
+          "kind": "conditionalEffect",
+          "condition": {
+            "kind": "objectMatchesFilter",
+            "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
+            "where": { "kind": "colorContains", "value": "Green" }
+          },
+          "then": [{
+            "kind": "addMana",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "mana": { "kind": "chooseColor", "amount": 1 }
+          }],
+          "else": []
+        }
+      ]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [{
+        "kind": "payLoyalty",
+        "object": { "kind": "self" },
+        "amount": { "kind": "integer", "value": -7 }
+      }],
+      "activationCondition": { "kind": "sorceryTiming" },
+      "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+      "effects": [
+        {
+          "kind": "drawCards",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "count": {
+            "kind": "divide",
+            "left": {
+              "kind": "countCards",
+              "zone": {
+                "kind": "library",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              "where": null
+            },
+            "right": { "kind": "integer", "value": 2 },
+            "round": "up"
+          }
+        },
+        {
+          "kind": "createEmblem",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "modifiers": [{
+            "kind": "noMaximumHandSize",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }]
+        }
+      ]
+    }
+  ]
+}

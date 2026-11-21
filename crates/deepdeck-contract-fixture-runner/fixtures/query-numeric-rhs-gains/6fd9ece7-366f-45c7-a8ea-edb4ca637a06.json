@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/6fd9ece7-366f-45c7-a8ea-edb4ca637a06",
+  "cardName": "Scaled Herbalist",
+  "oracleId": "6fd9ece7-366f-45c7-a8ea-edb4ca637a06",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "6cb05274-5a94-44e3-889a-667cba1da033",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "3",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Scaled Herbalist",
+      "typeLine": "Creature — Lizard Druid",
+      "manaCost": "{1}{G}",
+      "oracleText": "{T}: You may put a land card from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

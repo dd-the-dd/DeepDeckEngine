@@ -1,0 +1,830 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "typed-trigger-multiplicity",
+  "cases": [
+    {
+      "id": "real-jabs-complete",
+      "request": {
+        "cardName": "Jabs, Mistress of Mockery",
+        "typeLine": "Legendary Creature — Human Rogue",
+        "manaCost": "{2}{R}",
+        "oracleText": "If a triggered ability of a permanent you control but don't own triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": null,
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "ownership": "notOwned"
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-annie-complete",
+      "request": {
+        "cardName": "Annie Joins Up",
+        "typeLine": "Legendary Enchantment",
+        "manaCost": "{1}{R}{G}{W}",
+        "oracleText": "When Annie Joins Up enters, it deals 5 damage to target creature or planeswalker an opponent controls.\nIf a triggered ability of a legendary creature you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Planeswalker"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 5
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "isLegendary"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "owner-before-controller",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you don't own but you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": null,
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "ownership": "notOwned"
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ownership-only-artifact",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of an artifact you own triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    },
+                    "ownership": "owned"
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-additional-occurrences",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers two additional times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": null,
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "additionalTriggers": 2
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "controller-complement",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you don't control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": null,
+                    "controller": {
+                      "kind": "playersExcept",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "typed-source-alternatives",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of an artifact or creature you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-domain-union-first",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent or creature you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-domain-union-last",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a creature or permanent you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-nonpermanent-source",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of an instant you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-repeated-owner",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control but don't own you own triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-owner-player-set",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent an opponent owns triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-bound-numeric-context",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a creature with power greater than X you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-bound-additional-count",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers X additional times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-overflow-additional-count",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers 2147483648 additional times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-zero-count",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers zero additional times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-conditional-tail",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers an additional time if you control a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-second-sentence",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers an additional time. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "positive-max-numeric-domain",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a permanent you control triggers, that ability triggers 2147483647 additional times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "additionalTriggers": 2147483647
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "red-permanent-source-query",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a red permanent you control triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "colorContains",
+                      "value": "Red"
+                    }
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "reject-local-owner-branch",
+      "request": {
+        "cardName": "Multiplicity Contract",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "If a triggered ability of a creature you own or an artifact triggers, that ability triggers an additional time.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ghost-vacuum/both-linked-exile-abilities-are-executable",
+  "cardName": "Ghost Vacuum",
+  "oracleId": "4ef583ab-e0a0-4e4b-bd65-af766038b1fd",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetGraveyardCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": { "kind": "anyGraveyard" },
+            "where": null
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "exileTargetCardWithSource",
+        "card": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
+        "source": { "kind": "self" },
+        "fromZone": "graveyard"
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [
+        { "kind": "payMana", "manaCost": "{6}" },
+        { "kind": "tap", "object": { "kind": "self" } },
+        { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+      ],
+      "activationCondition": { "kind": "sorceryTiming" },
+      "effects": [{
+        "kind": "moveCards",
+        "cards": {
+          "kind": "filterObjects",
+          "objects": { "kind": "cardsExiledWithSource" },
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false,
+          "enterWithCounters": [{
+            "counter": "flying",
+            "count": { "kind": "integer", "value": 1 }
+          }],
+          "addTypes": ["Creature"],
+          "addSubtypes": ["Spirit"],
+          "basePower": { "kind": "integer", "value": 1 },
+          "baseToughness": { "kind": "integer", "value": 1 },
+          "retainExistingTypes": true
+        }
+      }]
+    }
+  ]
+}

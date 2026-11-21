@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ruinous-ultimatum-empty-opponent-collection-resolves-without-a-choice",
+  "seed": 61121,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "not",
+          "operand": { "kind": "cardTypeContains", "value": "Land" }
+        },
+        "player": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ruinous Ultimatum caster",
+        "manaPool": ["R", "R", "W", "W", "W", "B", "B"],
+        "hand": [{
+          "id": "ruinous-ultimatum-empty",
+          "name": "Ruinous Ultimatum",
+          "typeLine": "Sorcery",
+          "manaCost": "{R}{R}{W}{W}{W}{B}{B}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": {
+                "kind": "eachPermanent",
+                "where": {
+                  "kind": "not",
+                  "operand": { "kind": "cardTypeContains", "value": "Land" }
+                },
+                "player": {
+                  "kind": "opponentsOf",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                }
+              }
+            }]
+          }]
+        }],
+        "battlefield": [
+          { "id": "empty-caster-enchantment", "name": "Caster Enchantment", "typeLine": "Enchantment" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent with no eligible permanent",
+        "battlefield": [
+          { "id": "empty-opponent-land", "name": "Opponent Land", "typeLine": "Land" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "ruinous-ultimatum-empty" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "empty-caster-enchantment", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "empty-opponent-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "ruinous-ultimatum-empty", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

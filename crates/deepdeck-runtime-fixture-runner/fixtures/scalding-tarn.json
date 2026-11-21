@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "scalding-tarn-pays-costs-finds-subtype-and-shuffles",
+  "seed": 44,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      {
+        "kind": "payLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "chooseCards",
+        "id": "searchedCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "minimum": 0,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "library",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "subtypeContains", "value": "Island" },
+              { "kind": "subtypeContains", "value": "Mountain" }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "shuffleZone",
+        "zone": {
+          "kind": "library",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "recordLibrarySearch",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cards": { "kind": "decisionResult", "decisionId": "searchedCards" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Scalding Tarn pilot",
+        "life": 20,
+        "battlefield": [{
+          "id": "scalding-tarn",
+          "name": "Scalding Tarn",
+          "typeLine": "Land"
+        }],
+        "library": [
+          {
+            "id": "eligible-volcanic-island",
+            "name": "Eligible Volcanic Island",
+            "typeLine": "Land - Island Mountain"
+          },
+          {
+            "id": "ineligible-forest",
+            "name": "Ineligible Forest",
+            "typeLine": "Basic Land - Forest"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "scalding-tarn",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "selectCards", "count": 1, "take": "forward" }],
+  "assertions": [
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 19 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "scalding-tarn",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "eligible-volcanic-island",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "eligible-volcanic-island",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "ineligible-forest",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "librarySearched", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "zoneShuffled", "equals": 1 },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

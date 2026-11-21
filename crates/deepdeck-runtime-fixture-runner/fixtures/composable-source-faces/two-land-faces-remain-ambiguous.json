@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "adapter-boundary/two-legal-land-faces-remain-ambiguous",
+  "seed": 151115,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": []
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "synthetic-two-land-faces",
+            "name": "Synthetic Land 0",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "rulesMarker",
+                "text": "Modal double-faced card faces.",
+                "splitFaces": [
+                  {
+                    "id": "synthetic-land-0",
+                    "name": "Synthetic Land 0",
+                    "typeLine": "Land",
+                    "manaCost": "",
+                    "oracleText": "",
+                    "power": null,
+                    "toughness": null,
+                    "loyalty": null,
+                    "rules": []
+                  },
+                  {
+                    "id": "synthetic-land-1",
+                    "name": "Synthetic Land 1",
+                    "typeLine": "Land",
+                    "manaCost": "",
+                    "oracleText": "",
+                    "power": null,
+                    "toughness": null,
+                    "loyalty": null,
+                    "rules": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "playLand",
+        "playerId": "p0",
+        "sourceDefinitionId": "synthetic-two-land-faces"
+      },
+      "expectedErrorContains": "2 matching legal land plays"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "battlefield",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

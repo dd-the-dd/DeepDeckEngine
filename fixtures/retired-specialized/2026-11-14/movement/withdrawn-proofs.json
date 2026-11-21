@@ -1,0 +1,199 @@
+{
+  "reason": "Explicit strict reset; nine proofs depended on retired movement compositions. Generic four-assertion Cage port remains active; archived semantic scenes require future generic ports.",
+  "references": [
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/actual-cast-barrier-then-prohibited-entry",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/actual-cast-barrier-then-prohibited-entry.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/admission-checks-source-type-artifact-vehicle",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/admission-checks-source-type-artifact-vehicle.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/admission-checks-source-type-creature",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/admission-checks-source-type-creature.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/blocked-move-keeps-following-effect",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/blocked-move-keeps-following-effect.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/new-source-applies-to-next-separate-effect",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/new-source-applies-to-next-separate-effect.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/returning-barrier-cannot-prohibit-simultaneous-peers",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/returning-barrier-cannot-prohibit-simultaneous-peers.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/source-left-before-return-no-stale-prohibition",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/source-left-before-return-no-stale-prohibition.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/opponent-graveyard-card-stays-put",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/top-matching-opponent-prohibited.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    },
+    {
+      "oracle_id": "753cb2b2-24ce-484f-a2d0-be6fd2c67ebd",
+      "name": "Grafdigger's Cage",
+      "role": "runtime",
+      "fixture_id": "zone-prohibition/top-matching-graveyard-card-stays-put",
+      "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/top-matching-prohibited.json",
+      "disposition": "WITHDRAW_OLD_PROOF_OR_PORT_GENERICALLY_BEFORE_REUSE"
+    }
+  ],
+  "archivedFixtures": [
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/actual-cast-barrier-then-prohibited-entry.json",
+      "sha256": "8E541B6DC530B52ECF382696805574F56E0D3B6312812A43A4541C440B1B1119",
+      "fixtureId": "zone-prohibition/actual-cast-barrier-then-prohibited-entry",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/8E541B6DC530B52E.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/8E541B6DC530B52E.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/blocked-move-keeps-following-effect.json",
+      "sha256": "6D6C5C8DE20061A1E4A1716D944A992B676A53F9548FDD808A5DAF3F89FC1051",
+      "fixtureId": "zone-prohibition/blocked-move-keeps-following-effect",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/6D6C5C8DE20061A1.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/6D6C5C8DE20061A1.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/new-source-applies-to-next-separate-effect.json",
+      "sha256": "B3F31561BCE6C7DE809605F917B633BDD705B9C2551B92A0C22EA4AAD76674C6",
+      "fixtureId": "zone-prohibition/new-source-applies-to-next-separate-effect",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/B3F31561BCE6C7DE.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/B3F31561BCE6C7DE.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/source-left-before-return-no-stale-prohibition.json",
+      "sha256": "5265874C96CB19BE65B94F9E60E3AACF3B5DEC2A3B685D4E47BCEFE379E9856B",
+      "fixtureId": "zone-prohibition/source-left-before-return-no-stale-prohibition",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/5265874C96CB19BE.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/5265874C96CB19BE.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/top-matching-opponent-prohibited.json",
+      "sha256": "C78B849B9B95E9263BBBAC515B7AB6D33E931B33D9F734A3058B2FFCDB8F4A75",
+      "fixtureId": "zone-prohibition/opponent-graveyard-card-stays-put",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/C78B849B9B95E926.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/C78B849B9B95E926.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/top-matching-prohibited.json",
+      "sha256": "0A9B30B3EE43790CCD7F4A70DB897EC072C3B196B2F523C4C9A837FD03E952D9",
+      "fixtureId": "zone-prohibition/top-matching-graveyard-card-stays-put",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/0A9B30B3EE43790C.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/0A9B30B3EE43790C.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/top-matching-unmatched-type-control.json",
+      "sha256": "5A78AB3C1237BE4465275253CBDB4BA2771876EEB5BC495B680A0C9B98BDB036",
+      "fixtureId": "zone-prohibition/top-matching-not-a-prohibited-type",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/5A78AB3C1237BE44.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/5A78AB3C1237BE44.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-snapshots/move-top-admission-library.json",
+      "sha256": "CC517E38FFC3BBD0A0FD1FB8EB4D1F9F04411DACCDF5E5B8F0FE87510F7F174B",
+      "fixtureId": "cage-snapshot/move-top-admission-library",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/CC517E38FFC3BBD0.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/CC517E38FFC3BBD0.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-snapshots/move-top-destination-graveyard.json",
+      "sha256": "C9C04F7D6F35DF06FDDFE93669898D595C7636CBAAE42CF73E2CFDD43E25CC02",
+      "fixtureId": "cage-snapshot/move-top-destination-graveyard",
+      "kind": "moveTopMatchingCard",
+      "archivePath": "fixture-archives/C9C04F7D6F35DF06.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/C9C04F7D6F35DF06.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/admission-checks-source-type-artifact-vehicle.json",
+      "sha256": "1B008900BD867434BED587CB2294FADE77D5CDE3C945E397F066FD84D09A21D1",
+      "fixtureId": "zone-prohibition/admission-checks-source-type-artifact-vehicle",
+      "kind": "returnRecentGraveyardCards",
+      "archivePath": "fixture-archives/1B008900BD867434.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/1B008900BD867434.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/admission-checks-source-type-creature.json",
+      "sha256": "7BCF733A1A023D7F9D8939A02420A437E5B2336A9E3F5AF747E71591FCDF84B0",
+      "fixtureId": "zone-prohibition/admission-checks-source-type-creature",
+      "kind": "returnRecentGraveyardCards",
+      "archivePath": "fixture-archives/7BCF733A1A023D7F.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/7BCF733A1A023D7F.json"
+    },
+    {
+      "path": "crates/deepdeck-runtime-fixture-runner/fixtures/generic-zone-entry-prohibition/returning-barrier-cannot-prohibit-simultaneous-peers.json",
+      "sha256": "16C85182248D73772A93A012E3D01EC9FD2A1332E350391E750EE7BF9DA1FCC2",
+      "fixtureId": "zone-prohibition/returning-barrier-cannot-prohibit-simultaneous-peers",
+      "kind": "returnRecentGraveyardCards",
+      "archivePath": "fixture-archives/16C85182248D7377.json",
+      "archiveByteIdentical": true,
+      "disposition": "ROOT archive outside fast runner; no deletion by agent",
+      "rootArchive": "fixtures/retired-specialized/2026-11-14/movement/16C85182248D7377.json"
+    }
+  ]
+}

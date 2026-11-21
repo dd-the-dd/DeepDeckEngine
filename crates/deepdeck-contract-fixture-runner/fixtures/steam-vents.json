@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "steam-vents/both-native-rules-are-executable",
+  "cardName": "Steam Vents",
+  "oracleId": "17039058-822d-409f-938c-b727a366ba63",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [{
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{U}", "{R}"] }
+      }]
+    },
+    {
+      "kind": "replacementEffect",
+      "source": { "kind": "self" },
+      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
+      "decisions": [{
+        "id": "optionalLifePayment",
+        "kind": "chooseWhetherToPay",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "cost": { "kind": "payLife", "amount": { "kind": "integer", "value": 2 } }
+      }],
+      "replacement": [{
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": { "kind": "costWasPaid", "decisionId": "optionalLifePayment" }
+        },
+        "then": [{
+          "kind": "setEnteringState",
+          "object": { "kind": "self" },
+          "tapped": true
+        }]
+      }]
+    }
+  ]
+}

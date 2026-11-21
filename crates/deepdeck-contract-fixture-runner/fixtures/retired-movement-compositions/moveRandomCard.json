@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-composed/moveRandomCard",
+  "cardName": "Synthetic acceptance contract only",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "moveRandomCard",
+        "from": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "abilityController"
+          }
+        },
+        "where": null,
+        "to": {
+          "kind": "hand",
+          "player": {
+            "kind": "abilityController"
+          }
+        }
+      }
+    ]
+  }
+}

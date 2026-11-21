@@ -1,7 +1,8 @@
 use crate::card_catalog::{named_card_printing, named_token_printing};
 use crate::engine::{CardDefinition, rule_is_executable};
 use crate::oracle::{
-    OracleCardParseRequest, OracleCardParseResult, ParsedOracleAbility, parse_oracle_card,
+    CardPartRole, CardStructureKind, OracleCardParseRequest, OracleCardParseResult,
+    ParsedOracleAbility, parse_oracle_card, plan_card_structure,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -95,7 +96,10 @@ fn compile_token_oracle_definition(
     power: Option<String>,
     toughness: Option<String>,
 ) -> Result<CardDefinition, String> {
-    Ok(compile_playable_card(PlayableCardInput {
+    let catalog_input = oracle_text
+        .clone()
+        .map(|oracle| (type_line.clone(), oracle));
+    let compiled = compile_playable_card(PlayableCardInput {
         id: format!("token:{}", name.trim().to_lowercase()),
         face_id: None,
         is_token: true,
@@ -111,8 +115,22 @@ fn compile_token_oracle_definition(
             layout,
             faces: Vec::new(),
         },
-    })?
-    .card)
+    })?;
+    let mut card = compiled.card;
+    // A token's printed text that the card grammar leaves incomplete is still
+    // compiled by the shared token compiler that also builds the parser-free
+    // runtime artifact (for example Map's exploration program). The token is
+    // never created with a silently missing printed ability when that
+    // compiler covers the complete text.
+    if (compiled.unsupported_ability_count != 0 || compiled.unexecutable_rule_count != 0)
+        && let Some(rules) = catalog_input.and_then(|(type_line, oracle)| {
+            crate::oracle::compile_named_token_catalog_rules(name, &type_line, &oracle)
+        })
+        && rules.iter().all(rule_is_executable)
+    {
+        card.rules = rules;
+    }
+    Ok(card)
 }
 
 pub fn compile_named_token_definition(name: &str) -> Result<Option<CardDefinition>, String> {
@@ -123,7 +141,7 @@ pub fn compile_named_token_definition(name: &str) -> Result<Option<CardDefinitio
         .type_line
         .clone()
         .unwrap_or_else(|| format!("Token - {name}"));
-    compile_token_oracle_definition(
+    let mut definition = compile_token_oracle_definition(
         name,
         type_line,
         printing.mana_cost.clone(),
@@ -131,8 +149,9 @@ pub fn compile_named_token_definition(name: &str) -> Result<Option<CardDefinitio
         printing.layout.clone(),
         printing.power.clone(),
         printing.toughness.clone(),
-    )
-    .map(Some)
+    )?;
+    definition.rules.extend(printing.color_indicator_rule());
+    Ok(Some(definition))
 }
 
 pub fn compile_named_card_definition(name: &str) -> Result<Option<CardDefinition>, String> {
@@ -225,13 +244,21 @@ fn linked_prepare_face_id<'a>(
     parser_result: &'a OracleCardParseResult,
     selected_face_id: Option<&str>,
 ) -> Option<&'a str> {
-    if parser_result.context.layout.as_deref() != Some("prepare") {
+    let structure = parser_result.card_structure.as_ref()?;
+    if structure.kind != CardStructureKind::Preparation {
         return None;
     }
-    let mut faces = parser_result.context.faces.iter();
-    let permanent_face = faces.next()?;
-    let spell_face = faces.next()?;
-    (selected_face_id == Some(permanent_face.id.as_str())).then_some(spell_face.id.as_str())
+    let primary = structure
+        .parts
+        .iter()
+        .find(|part| part.role == CardPartRole::Primary)?;
+    let spell = structure
+        .parts
+        .iter()
+        .find(|part| part.role == CardPartRole::PreparedSpell)?;
+    (selected_face_id == primary.face_id.as_deref())
+        .then_some(spell.face_id.as_deref())
+        .flatten()
 }
 
 fn has_intrinsic_basic_land_mana_ability(type_line: &str) -> bool {
@@ -274,9 +301,10 @@ pub fn playable_rules_for_face(
     parser_result: &OracleCardParseResult,
     selected_face_id: Option<&str>,
 ) -> Vec<Value> {
-    if parser_result.context.layout.as_deref() == Some("modal_dfc")
-        && parser_result.context.faces.len() >= 2
-    {
+    let Some(structure) = parser_result.card_structure.as_ref() else {
+        return Vec::new();
+    };
+    if structure.kind == CardStructureKind::ModalDoubleFaced {
         return vec![json!({
             "kind": "rulesMarker",
             "text": "Modal double-faced card faces.",
@@ -298,13 +326,7 @@ pub fn playable_rules_for_face(
         })];
     }
 
-    if parser_result.context.faces.len() == 2
-        && parser_result
-            .context
-            .faces
-            .iter()
-            .all(|face| face.type_line.contains("Room"))
-    {
+    if structure.kind == CardStructureKind::Rooms {
         return parser_result
             .context
             .faces
@@ -328,9 +350,7 @@ pub fn playable_rules_for_face(
             .collect();
     }
 
-    if parser_result.context.layout.as_deref() == Some("split")
-        && parser_result.context.faces.len() >= 2
-    {
+    if structure.kind == CardStructureKind::Split {
         return vec![json!({
             "kind": "rulesMarker",
             "text": "Split card faces.",
@@ -351,8 +371,8 @@ pub fn playable_rules_for_face(
     }
 
     if matches!(
-        parser_result.context.layout.as_deref(),
-        Some("flip" | "transform")
+        structure.kind,
+        CardStructureKind::Flip | CardStructureKind::Transform
     ) && selected_face_id
         == parser_result
             .context
@@ -443,7 +463,10 @@ pub fn playable_rules_for_face(
     rules
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::*;
 
@@ -501,6 +524,9 @@ mod tests {
 }
 
 pub fn compile_playable_card(input: PlayableCardInput) -> Result<PlayableCardCompilation, String> {
+    // Fail before selecting a partial face or accepting an empty rule vector.
+    plan_card_structure(&input.oracle)
+        .map_err(|failure| format!("{}: {}", failure.code, failure.message))?;
     let selected_face = if input.oracle.faces.is_empty() {
         None
     } else if let Some(face_id) = input.face_id.as_deref() {
@@ -542,7 +568,15 @@ pub fn compile_playable_card(input: PlayableCardInput) -> Result<PlayableCardCom
         .abilities
         .iter()
         .filter(|ability| {
-            parser_result.context.layout.as_deref() == Some("split")
+            parser_result
+                .card_structure
+                .as_ref()
+                .is_some_and(|structure| {
+                    matches!(
+                        structure.kind,
+                        CardStructureKind::Split | CardStructureKind::Rooms
+                    )
+                })
                 || ability.source.face_id.as_deref() == selected_face_id.as_deref()
                 || ability.source.face_id.as_deref() == linked_face_id.as_deref()
         })

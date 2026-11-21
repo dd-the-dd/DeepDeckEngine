@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/3724cc42-1bbd-4a11-8469-ab8492ddba52",
+  "cardName": "Fear of Lost Teeth",
+  "oracleId": "3724cc42-1bbd-4a11-8469-ab8492ddba52",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "259045fe-f349-4be1-bf29-465d084ed35e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Fear of Lost Teeth",
+      "typeLine": "Enchantment Creature — Nightmare",
+      "manaCost": "{B}",
+      "oracleText": "When this creature dies, it deals 1 damage to any target and you gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

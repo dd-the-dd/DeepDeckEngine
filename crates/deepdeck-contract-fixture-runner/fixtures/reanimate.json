@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "reanimate-targeted-graveyard-entry-and-linked-mana-value-loss-is-executable",
+  "cardName": "Reanimate",
+  "oracleId": "a044474a-cd72-4e9d-bd8d-a08f2de9cdc0",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "targetGraveyardCard",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "anyGraveyard" },
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "targetManaValue",
+        "value": {
+          "kind": "manaValueOf",
+          "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+        "to": {
+          "kind": "battlefield",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "tapped": false
+        }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "boundValue", "id": "targetManaValue" }
+      }
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tamiyo-minus-seven-rounds-library-half-up-and-creates-hand-size-emblem",
+  "seed": 71,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{
+      "kind": "payLoyalty",
+      "object": { "kind": "self" },
+      "amount": { "kind": "integer", "value": -7 }
+    }],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": {
+          "kind": "divide",
+          "left": {
+            "kind": "countCards",
+            "zone": {
+              "kind": "library",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": null
+          },
+          "right": { "kind": "integer", "value": 2 },
+          "round": "up"
+        }
+      },
+      {
+        "kind": "createEmblem",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "modifiers": [{
+          "kind": "noMaximumHandSize",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tamiyo controller",
+        "library": [
+          { "id": "library-card-1", "name": "Library Card 1", "typeLine": "Instant" },
+          { "id": "library-card-2", "name": "Library Card 2", "typeLine": "Sorcery" },
+          { "id": "library-card-3", "name": "Library Card 3", "typeLine": "Artifact" },
+          { "id": "library-card-4", "name": "Library Card 4", "typeLine": "Creature", "power": "1", "toughness": "1" },
+          { "id": "library-card-5", "name": "Library Card 5", "typeLine": "Enchantment" }
+        ],
+        "battlefield": [{
+          "id": "tamiyo-seasoned-scholar",
+          "name": "Tamiyo, Seasoned Scholar",
+          "typeLine": "Legendary Planeswalker — Tamiyo"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "tamiyo-seasoned-scholar"
+  },
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 3 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "emblemCreated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

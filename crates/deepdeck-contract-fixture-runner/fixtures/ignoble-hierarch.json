@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "ignoble-hierarch/all-native-rules-are-executable",
+  "cardName": "Ignoble Hierarch",
+  "oracleId": "c8de43a3-ebd3-4000-b343-a6ffed11d34d",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": { "kind": "exalted" }
+    },
+    {
+      "kind": "manaAbility",
+      "source": { "kind": "self" },
+      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+      "effects": [
+        {
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": { "kind": "chooseOne", "options": ["{B}", "{R}", "{G}"] }
+        }
+      ]
+    }
+  ]
+}

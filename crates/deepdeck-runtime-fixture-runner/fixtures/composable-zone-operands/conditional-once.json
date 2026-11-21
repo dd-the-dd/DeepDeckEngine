@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "observer-phase/nested-conditional-once",
+  "seed": 19,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "left": {
+            "kind": "integer",
+            "value": 1
+          },
+          "operator": "==",
+          "right": {
+            "kind": "integer",
+            "value": 1
+          }
+        },
+        "then": [
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "cardsInZone",
+              "zone": {
+                "kind": "graveyard",
+                "player": {
+                  "kind": "chosenTarget",
+                  "id": "targetZonePlayer"
+                }
+              }
+            },
+            "to": {
+              "kind": "exile",
+              "player": {
+                "kind": "chosenTarget",
+                "id": "targetZonePlayer"
+              },
+              "faceDown": false
+            }
+          }
+        ],
+        "else": []
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetZonePlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "source",
+            "name": "Legacy Destination Source",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "operator": "==",
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "moveCards",
+                        "cards": {
+                          "kind": "cardsInZone",
+                          "zone": {
+                            "kind": "graveyard",
+                            "player": {
+                              "kind": "chosenTarget",
+                              "id": "targetZonePlayer"
+                            }
+                          }
+                        },
+                        "to": {
+                          "kind": "exile",
+                          "player": {
+                            "kind": "chosenTarget",
+                            "id": "targetZonePlayer"
+                          },
+                          "faceDown": false
+                        }
+                      }
+                    ],
+                    "else": []
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetZonePlayer",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "players"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "p0-library",
+            "name": "p0-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "unaffected",
+            "name": "unaffected",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "p1-library",
+            "name": "p1-library",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "graveyard": [
+          {
+            "id": "p1-grave",
+            "name": "p1-grave",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "p1-grave-two",
+            "name": "Other Grave Card",
+            "typeLine": "Sorcery",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "zone-watcher",
+            "name": "Zone Watcher",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "cardsLeftGraveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "aggregation": "oneOrMore"
+                },
+                "condition": {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "countCards",
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": null
+                  },
+                  "operator": "==",
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "source",
+        "targets": {
+          "targetZonePlayer": {
+            "player": {
+              "playerId": "p1"
+            }
+          }
+        }
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "conditional",
+            "condition": {
+              "kind": "compare",
+              "left": {
+                "kind": "integer",
+                "value": 1
+              },
+              "operator": "==",
+              "right": {
+                "kind": "integer",
+                "value": 1
+              }
+            },
+            "then": [
+              {
+                "kind": "moveCards",
+                "cards": {
+                  "kind": "cardsInZone",
+                  "zone": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "chosenTarget",
+                      "id": "targetZonePlayer"
+                    }
+                  }
+                },
+                "to": {
+                  "kind": "exile",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetZonePlayer"
+                  },
+                  "faceDown": false
+                }
+              }
+            ],
+            "else": []
+          }
+        ],
+        "declaration": {
+          "kind": "castingDeclaration",
+          "decisions": [
+            {
+              "id": "targetZonePlayer",
+              "kind": "chooseTargets",
+              "minimum": 1,
+              "maximum": 1,
+              "candidates": {
+                "kind": "players"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "exile",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 23
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "lifeGained",
+      "playerId": "p1",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsMoved",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

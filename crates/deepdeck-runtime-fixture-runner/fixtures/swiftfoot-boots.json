@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "swiftfoot-boots-equips-and-grants-both-continuous-keywords",
+  "seed": 64,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "attachedPermanent",
+          "attachment": { "kind": "self" }
+        },
+        "keyword": "hexproof"
+      },
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "attachedPermanent",
+          "attachment": { "kind": "self" }
+        },
+        "keyword": "haste"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Equipment pilot",
+        "manaPool": ["C"],
+        "battlefield": [
+          {
+            "id": "swiftfoot-boots",
+            "name": "Swiftfoot Boots",
+            "typeLine": "Artifact — Equipment",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": { "kind": "self" },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": { "kind": "self" },
+                  "zone": { "kind": "battlefield" }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": { "kind": "self" }
+                    },
+                    "keyword": "hexproof"
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": { "kind": "self" }
+                    },
+                    "keyword": "haste"
+                  }
+                ]
+              },
+              {
+                "kind": "keywordAbility",
+                "source": { "kind": "self" },
+                "ability": {
+                  "kind": "equip",
+                  "costs": [{ "kind": "payMana", "manaCost": "{1}" }]
+                }
+              }
+            ]
+          },
+          {
+            "id": "new-mana-creature",
+            "name": "New Creature",
+            "typeLine": "Creature — Elf",
+            "manaCost": "{G}",
+            "power": "1",
+            "toughness": "1",
+            "summoningSick": true
+          },
+          {
+            "id": "unprotected-creature",
+            "name": "Unprotected Creature",
+            "typeLine": "Creature — Human",
+            "manaCost": "{W}",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [{
+          "id": "opponent-pinger",
+          "name": "Opponent Pinger",
+          "typeLine": "Creature — Wizard",
+          "manaCost": "{1}{R}",
+          "power": "1",
+          "toughness": "1",
+          "summoningSick": false,
+          "rules": [{
+            "kind": "activatedAbility",
+            "source": { "kind": "self" },
+            "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetPermanent",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "permanents",
+                  "where": { "kind": "cardTypeContains", "value": "Creature" }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "dealDamage",
+              "source": { "kind": "self" },
+              "amount": { "kind": "integer", "value": 1 },
+              "recipient": { "kind": "chosenTarget", "id": "targetPermanent" }
+            }]
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "swiftfoot-boots",
+      "abilityRuleIndex": 1,
+      "targets": {
+        "equipTarget": {
+          "kind": "permanentDefinition",
+          "definitionId": "new-mana-creature"
+        }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "eventCount", "eventKind": "permanentAttached", "equals": 1 },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-pinger",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "new-mana-creature"
+        }
+      },
+      "equals": false
+    },
+    {
+      "kind": "activatedAbilityAvailable",
+      "controllerId": "player-1",
+      "sourceDefinitionId": "opponent-pinger",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": {
+          "kind": "permanentDefinition",
+          "definitionId": "unprotected-creature"
+        }
+      },
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}
+

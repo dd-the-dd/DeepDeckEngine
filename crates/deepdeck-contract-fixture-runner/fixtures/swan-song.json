@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "swan-song/native-counter-and-descriptive-token-are-executable",
+  "cardName": "Swan Song",
+  "oracleId": "8ddfc283-c9b4-41a5-af88-cf0068e986cc",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Enchantment" },
+              { "kind": "cardTypeContains", "value": "Instant" },
+              { "kind": "cardTypeContains", "value": "Sorcery" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "counteredSpellController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetSpell" }
+        }
+      },
+      {
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "counteredSpellController" },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "colors": ["Blue"],
+          "types": ["Creature"],
+          "subtypes": ["Bird"],
+          "power": 2,
+          "toughness": 2,
+          "abilities": [{ "kind": "flying" }]
+        }
+      }
+    ]
+  }
+}

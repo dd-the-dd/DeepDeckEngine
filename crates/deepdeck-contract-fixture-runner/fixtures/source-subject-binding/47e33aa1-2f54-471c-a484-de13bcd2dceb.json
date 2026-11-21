@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/47e33aa1-2f54-471c-a484-de13bcd2dceb",
+  "cardName": "Screeching Soulbreaker",
+  "oracleId": "47e33aa1-2f54-471c-a484-de13bcd2dceb",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "738667a1-c184-43ea-829f-49fbb69b6fc0",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Screeching Soulbreaker",
+      "typeLine": "Creature — Siren Bard",
+      "manaCost": "{2}{B}",
+      "oracleText": "Flying\nWhenever this creature attacks, it deals 1 damage to each opponent and you gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

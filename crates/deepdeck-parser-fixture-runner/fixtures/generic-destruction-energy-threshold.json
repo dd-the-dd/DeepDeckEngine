@@ -1,0 +1,278 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic-destruction-query/energy-threshold-composition",
+  "cardName": "Wrath of the Skies",
+  "oracleId": "21efa6f2-3e7c-4576-b5a3-0b75b2843442",
+  "cases": [
+    {
+      "id": "exact-real-complete-card",
+      "request": {
+        "cardName": "Wrath of the Skies",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{W}{W}",
+        "oracleText": "You get X {E} (energy counters), then you may pay any amount of {E}. Destroy each artifact, creature, and enchantment with mana value less than or equal to the amount of {E} paid this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "id": "xValue",
+                    "kind": "chooseNumber",
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "decisionId": "xValue",
+                    "kind": "decisionResult"
+                  },
+                  "counter": "energy",
+                  "kind": "addPlayerCounters",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "id": "paidPlayerCounters",
+                  "kind": "chooseNumber",
+                  "maximum": {
+                    "counter": "energy",
+                    "kind": "countPlayerCounters",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "count": {
+                    "decisionId": "paidPlayerCounters",
+                    "kind": "decisionResult"
+                  },
+                  "counter": "energy",
+                  "kind": "removePlayerCounters",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "or",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Enchantment"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "<=",
+                          "right": {
+                            "decisionId": "paidPlayerCounters",
+                            "kind": "decisionResult"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "fixed-amount-creature-sibling",
+      "request": {
+        "cardName": "Threshold Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{W}{W}",
+        "oracleText": "You get 3 {E} (energy counters), then you may pay any amount of {E}. Destroy each creature with mana value less than or equal to the amount of {E} paid this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "counter": "energy",
+                  "kind": "addPlayerCounters",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "id": "paidPlayerCounters",
+                  "kind": "chooseNumber",
+                  "maximum": {
+                    "counter": "energy",
+                    "kind": "countPlayerCounters",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "count": {
+                    "decisionId": "paidPlayerCounters",
+                    "kind": "decisionResult"
+                  },
+                  "counter": "energy",
+                  "kind": "removePlayerCounters",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "manaValueOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": "<=",
+                          "right": {
+                            "decisionId": "paidPlayerCounters",
+                            "kind": "decisionResult"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrong-payment-reference-near-miss",
+      "request": {
+        "cardName": "Threshold Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{W}{W}",
+        "oracleText": "You get X {E} (energy counters), then you may pay any amount of {E}. Destroy each artifact, creature, and enchantment with mana value less than or equal to the amount of {E} spent this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

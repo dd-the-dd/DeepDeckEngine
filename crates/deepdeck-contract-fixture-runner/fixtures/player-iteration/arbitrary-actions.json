@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/player-loop/arbitrary-actions/shape",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "loop:player",
+        "effects": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          },
+          {
+            "kind": "drawCards",
+            "player": {
+              "kind": "boundValue",
+              "id": "loop:player"
+            },
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

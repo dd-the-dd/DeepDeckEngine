@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "underground-sea/native-mana-choice-is-executable",
+  "cardName": "Underground Sea",
+  "oracleId": "4b22be3a-8ce1-47d1-b82e-6c3ccfb0548b",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseOne", "options": ["{U}", "{B}"] }
+    }]
+  }
+}

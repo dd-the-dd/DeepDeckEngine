@@ -1,0 +1,283 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 12,
+  "generatedDate": "2026-11-12",
+  "status": "accepted-five-gates-complete",
+  "concept": "controllerScopedFixedSpellReductionAndTypedSpellCasterRelation",
+  "parserFingerprint": "B13B46877056C4CF59C030B4ED09B1CD30978F95D67E0CF8F8D2BB20510F097D",
+  "architecture": {
+    "reductionModifier": "reduceCastingCost with fixed positive generic amount",
+    "increaseModifier": "additionalCastingCost",
+    "subjectRelation": "typed SpellCastQuery and SpellCasterScope; never current spell controller",
+    "objectSelection": "one shared coordinated collection machine parameterized by Control or Cast relation",
+    "postnominalRelative": "shared ObjectQuery qualifier, not a cost-parent-local parser",
+    "manaParsing": "ManaCostNode.fixed_generic_amount on exactly one generic symbol",
+    "unsupportedSurfaces": [
+      "colored reduction amounts",
+      "X reduction amounts",
+      "zero or overflowing fixed reductions",
+      "multiple mana symbols in one fixed reduction",
+      "opponent-scoped reductions until a runtime modifier contract exists",
+      "conditional continuations after the committed reduction sentence"
+    ]
+  },
+  "proofs": {
+    "parserBuilds": [
+      {
+        "fingerprint": "AD1573E3796243B339164A1AB57F0B8695D8B84554D43F60D9AEB8705995344D",
+        "compileSeconds": 40.296,
+        "executionSeconds": 0.404,
+        "passed": false,
+        "passedCases": 3,
+        "totalCases": 13,
+        "diagnosis": "The general ObjectQuery control relation consumed `you` and then rejected `cast`; caster is not current spell controller.",
+        "path": ".tmp/static-spell-reduction-parser-build.json"
+      },
+      {
+        "fingerprint": "515E6C7D3F7A94D89761D0E6F17D71DFA6F6DA1AC9361DC8C0BD9E2C7C659F85",
+        "compileSeconds": 32.858,
+        "executionSeconds": 0.707,
+        "passed": false,
+        "passedCases": 7,
+        "totalCases": 13,
+        "diagnosis": "Five invalid amounts exposed the child mana cursor state instead of parent ownership; one conditional continuation expected the wrong classification.",
+        "path": ".tmp/static-spell-reduction-parser-loop4-build.json"
+      },
+      {
+        "fingerprint": "B13B46877056C4CF59C030B4ED09B1CD30978F95D67E0CF8F8D2BB20510F097D",
+        "compileSeconds": 13.351,
+        "executionSeconds": 0.424,
+        "passed": true,
+        "passedCases": 13,
+        "totalCases": 13,
+        "path": ".tmp/static-spell-reduction-parser-loop5-build.json"
+      }
+    ],
+    "parserRepositoryGate": {
+      "status": "passed",
+      "observedCaseCountEvolution": [165, 166, 167],
+      "finalPassed": 167,
+      "finalTotal": 167,
+      "executionSeconds": 0.404,
+      "buildOccurred": false,
+      "inputFingerprint": "B13B46877056C4CF59C030B4ED09B1CD30978F95D67E0CF8F8D2BB20510F097D",
+      "path": ".tmp/static-spell-reduction-parser-final-B13B4687.json"
+    },
+    "generatedAbilityContracts": {
+      "passed": 99,
+      "total": 99,
+      "executionSeconds": 0.059505,
+      "path": ".tmp/static-spell-reduction-global-ability-contracts-B13B4687-results.json"
+    },
+    "generatedFullCardContracts": {
+      "passed": 40,
+      "total": 40,
+      "executionSeconds": 0.0277364,
+      "path": ".tmp/static-spell-reduction-global-full-card-contracts-B13B4687-results.json"
+    },
+    "generatedContractsTotal": {
+      "passed": 139,
+      "total": 139
+    },
+    "goblinExact": {
+      "parserContractRuntimeRuleEqual": true,
+      "canonicalRuleSha256": "98F1CC5EE88E79E0744171AF3A06627CCA37570D7E5809A1FDF865054067C78C",
+      "exactRuntimeScenarios": 1,
+      "exactRuntimeAssertions": 5,
+      "supportingSiblingScenarios": 1,
+      "supportingSiblingAssertions": 3,
+      "combinedExecutionSeconds": 0.0338843,
+      "path": ".tmp/static-spell-reduction-runtime-focused-B13B4687.json"
+    },
+    "sagradaCommanderCorrection": {
+      "passed": 3,
+      "total": 3,
+      "assertions": 5,
+      "executionSeconds": 0.1488083,
+      "scope": "commander designation, noncommander same characteristics, and the printed word Commander",
+      "path": ".tmp/sagrada-commander-runtime-results.json"
+    },
+    "fryRuntime": {
+      "passed": 5,
+      "total": 5,
+      "parserContractRuntimeRulesEqual": true,
+      "fixtures": [
+        "fry-white-blue-target",
+        "fry-red-target-ineligible",
+        "fry-color-revalidation",
+        "fry-devoid-ineligible",
+        "fry-devoid-set-white-eligible"
+      ],
+      "dynamicColorRevalidation": "accepted shared effective-color runtime correction",
+      "path": ".tmp/static-spell-reduction-root-summary-final.json"
+    },
+    "repositoryContractRegression": {
+      "passed": 225,
+      "total": 225,
+      "invalidFixtures": 0,
+      "executionSeconds": 1.794,
+      "path": ".tmp/effective-color-formatted-contract-final.jsonl"
+    },
+    "repositoryRuntimeRegression": {
+      "passed": 394,
+      "total": 394,
+      "assertions": 2429,
+      "buildSeconds": 36.511,
+      "executionSeconds": 2.065,
+      "inputFingerprint": "C526C47EA1A19F5168DF7E33AB70F199FDFE8EF972230D2761D0D4E5D672B8D9",
+      "runnerSha256": "17CC3B01E96197A9135725F32F6E047B50E3FA1DB7717C333D655878FFAA6EFB",
+      "path": ".tmp/effective-color-formatted-runtime-final.json"
+    },
+    "architecture": {
+      "violations": 0,
+      "historicalWarnings": 4,
+      "path": ".tmp/static-spell-reduction-architecture-loop4.json"
+    },
+    "independentGlobalComparison": {
+      "passed": true,
+      "preservedNativeAbilities": 14652,
+      "unexpectedRegressions": 0,
+      "path": ".tmp/static-spell-reduction-global-FAAC58D9-to-B13B4687-comparison.json",
+      "sha256": "6F71D7DCAFAD6EFD074FB7213838005F31EC769F3C3B63D3EA13C7BD94C6840E"
+    },
+    "independentRootVerification": {
+      "passed": true,
+      "path": ".tmp/static-spell-reduction-root-summary-final.json",
+      "sha256": "CE93A856BAC4F4B8FDD365EC16143F6534C7C141EE623A45846E19315BB07D79",
+      "fullParserContractRuntimeRulesEqual": ["Goblin Anarchomancer", "Fry"],
+      "fryExactRuntimeFixtures": 5,
+      "domainOnlySiblingMatchesStoneCalendar": true,
+      "sagradaRuntimeModifierMatchesNativeParser": true
+    },
+    "fullModeCompatibilityPanel": {
+      "previouslyCanonicalAbilities": 193,
+      "rawIdenticalRules": 175,
+      "equivalentColorSpellingNormalizations": 17,
+      "boundedSemanticCorrections": 1,
+      "boundedCorrection": "Sagrada Familiar: false subtypeContains Commander replaced by isCommander",
+      "legacyReductionSubset": {
+        "abilities": 109,
+        "rawIdentical": 91,
+        "equivalentColorSpellings": 17,
+        "boundedCorrections": 1,
+        "promotedNative": 68,
+        "retainedLegacy": 41
+      },
+      "nativeWhitelistUsed": false,
+      "path": ".tmp/static-spell-reduction-global-root-verification-B13B4687.json"
+    }
+  },
+  "coverage": {
+    "round10": {
+      "cards": 100,
+      "preservedNativeAbilities": 26,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 1,
+      "unexpectedRegressions": 0,
+      "auditSeconds": 0.643967,
+      "comparisonSeconds": 0.168932
+    },
+    "queue450": {
+      "cards": 450,
+      "preservedNativeAbilities": 257,
+      "gainedNativeAbilities": 1,
+      "gainedFullyNativeCards": 1,
+      "unexpectedRegressions": 0,
+      "auditSeconds": 0.6057,
+      "comparisonSeconds": 0.201745
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "preservedNativeAbilities": 1152,
+      "gainedNativeAbilities": 12,
+      "gainedFullyNativeCards": 6,
+      "unexpectedRegressions": 0,
+      "auditSeconds": 2.633313,
+      "comparisonSeconds": 0.415786
+    },
+    "global": {
+      "cards": 39288,
+      "abilities": 67420,
+      "preservedNativeAbilities": 14652,
+      "nativeCanonicalAbilitiesAfter": 14751,
+      "gainedNativeAbilities": 99,
+      "gainedFullyRecognizedParserCards": 40,
+      "unexpectedRegressions": 0,
+      "gainAttribution": {
+        "reduceCastingCost": 87,
+        "additionalCastingCostUnlockedByCastRelation": 11,
+        "sharedPostnominalRelativeFry": 1
+      },
+      "fullCardPopulation": {
+        "ordinary": 38,
+        "auxiliary": 2,
+        "variant": 0
+      },
+      "auditSeconds": 39.478973,
+      "comparisonSeconds": 4.43798
+    }
+  },
+  "runtimeCertificationBoundary": {
+    "certifiedNow": [
+      "Goblin Anarchomancer exact reduction combined with Thalia tax",
+      "domain-only reduction sibling",
+      "Sagrada commander designation semantics",
+      "Fry nominal and dynamic effective-color target legality"
+    ],
+    "pending": [],
+    "consequence": "The checkpoint is accepted across lexical, native automata, primitive IR, executable contracts, and runtime behavior."
+  },
+  "round11": {
+    "retained": 99,
+    "added": 1,
+    "removedCard": "Goblin Anarchomancer",
+    "addedCard": {
+      "name": "Sink into Stupor // Soporific Springs",
+      "oracleId": "bcc6eece-75ea-494c-b33a-d4477d504e0b",
+      "source": "priority",
+      "rotatingGlobalRank": 209
+    },
+    "sourceCounts": { "recent": 34, "priority": 33, "league": 33 },
+    "batchSha256": "3880C7590EFC8E16F65697BF58F6877472673BD7A32277DEA97BCA3968C8654A",
+    "inputSha256": "55874CDF0C6093A2C5694E63E64563D6219A9F6F3BE3FFED5ABFB085115C21E3",
+    "auditSha256": "EF17C6D3996C6672F184813BAEBC86D467F40636B4FF18441CA35C00D692B448",
+    "blockers": { "total": 178, "unclaimed": 150, "nativeUnsupported": 28, "legacy": 0 },
+    "rankingPath": ".tmp/rotating-next-100-round11-ranking-B13B4687.json",
+    "rankingConclusion": "The simple phase-event parent wins: one round11 completion, but 29 global full-card completions and 124 partial ability gains on the immutable B13 probes. Phyrexian Altar and Sakura-Tribe Elder do not form one atomic two-card correction."
+  },
+  "correctiveLoops": [
+    "domain-only where:null and i32 overflow guard",
+    "typed single-symbol extraction from ManaCostNode",
+    "shared postnominal relative moved into ObjectQuery",
+    "typed Cast relation instead of current spell controller",
+    "parent ownership of invalid fixed-cost diagnostics",
+    "fixture color schema replaced by mana-derived effective colors",
+    "shared runtime revalidation of current effective color"
+  ],
+  "timings": {
+    "failedParserBuild1Seconds": 40.296,
+    "failedParserBuild2Seconds": 32.858,
+    "successfulParserBuildSeconds": 13.351,
+    "successfulFocusedExecutionSeconds": 0.424,
+    "analyzerLinkSeconds": 1.082411,
+    "round10AuditSeconds": 0.643967,
+    "queue450AuditSeconds": 0.6057,
+    "sevenSetsAuditSeconds": 2.633313,
+    "globalAuditSeconds": 39.478973,
+    "globalComparisonSeconds": 4.43798,
+    "abilityContractExecutionSeconds": 0.059505,
+    "fullCardContractExecutionSeconds": 0.0277364,
+    "goblinRuntimeSeconds": 0.0338843,
+    "sagradaRuntimeSeconds": 0.1488083,
+    "fryNominalRuntimeSeconds": 0.037,
+    "finalParserRegressionSeconds": 0.404,
+    "finalContractRegressionSeconds": 1.794,
+    "finalRuntimeBuildSeconds": 36.511,
+    "finalRuntimeExecutionSeconds": 2.065,
+    "correctiveLoops": 7,
+    "round11RefillSeconds": 1.4827354,
+    "round11AuditSeconds": 0.2493803,
+    "focusedTrackerWindowIsExecutionTime": false
+  },
+  "tracker": ".tmp/card-migration-timings/round11-goblin-anarchomancer-static-spell-reduction.json"
+}

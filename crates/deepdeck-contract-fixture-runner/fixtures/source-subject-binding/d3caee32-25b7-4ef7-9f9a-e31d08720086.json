@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/d3caee32-25b7-4ef7-9f9a-e31d08720086",
+  "cardName": "Renegade Wheelsmith",
+  "oracleId": "d3caee32-25b7-4ef7-9f9a-e31d08720086",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "6956a341-10fd-48af-b382-88c2b2934a3e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Renegade Wheelsmith",
+      "typeLine": "Creature — Dwarf Pilot",
+      "manaCost": "{1}{R}{W}",
+      "oracleText": "Whenever this creature becomes tapped, target creature can't block this turn.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "schemaVersion": "deepdeck-oracle-migration-cycle-report/v1",
+  "cycle": 6,
+  "generatedDate": "2026-11-12",
+  "concept": "additionalLandPlay",
+  "parserFingerprint": "0F5B240B45AFDBFA0D8FCB69412ACA25EBC52595528E24AEE2686269FF4532BF",
+  "proofs": {
+    "parser": {
+      "passed": 103,
+      "total": 103,
+      "targetedCases": 8,
+      "buildSeconds": 30.523,
+      "executionSeconds": 0.645
+    },
+    "repositoryContracts": {
+      "passed": 174,
+      "total": 174,
+      "targetedCards": [
+        "Exploration",
+        "Azusa, Lost but Seeking"
+      ]
+    },
+    "targetedRuntime": {
+      "passed": 5,
+      "total": 5,
+      "assertions": 27,
+      "executionSeconds": 0.098,
+      "path": ".tmp/additional-land-play-runtime-root.jsonl",
+      "sha256": "740CF3EE2DAAB1A4A282071A9F978BA827288841EF288C276F629D148B8C5CA7"
+    },
+    "globalRuntime": {
+      "passed": 347,
+      "total": 347,
+      "assertions": 2145,
+      "executionSeconds": 1.414
+    },
+    "generatedContractsCombinedSnapshot": {
+      "passed": 56,
+      "total": 56,
+      "path": ".tmp/death-and-land-generalization-contract-results.jsonl",
+      "sha256": "BA091AD51C8EB7D3A0370A0C1176E6AF1BE7A4322AFC5FBB93F060C5850C6A6E"
+    },
+    "parserContractRuntimeEquality": {
+      "allEqual": true,
+      "cards": [
+        "Exploration",
+        "Azusa, Lost but Seeking"
+      ],
+      "path": ".tmp/additional-land-play-parser-contract-runtime-equality.json"
+    }
+  },
+  "coverage": {
+    "round5": {
+      "cards": 100,
+      "preservedNativeAbilities": 26,
+      "previousNativeAbilities": 26,
+      "gainedNativeAbilities": 2,
+      "gainedFullyNativeCards": 1,
+      "regressions": 0
+    },
+    "queue450": {
+      "cards": 450,
+      "preservedNativeAbilities": 242,
+      "previousNativeAbilities": 242,
+      "gainedNativeAbilities": 3,
+      "gainedFullyNativeCards": 1,
+      "regressions": 0
+    },
+    "sevenSets": {
+      "cards": 2069,
+      "preservedNativeAbilities": 1121,
+      "previousNativeAbilities": 1121,
+      "gainedNativeAbilities": 4,
+      "gainedFullyNativeCards": 0,
+      "regressions": 0
+    },
+    "global": {
+      "cards": 39288,
+      "abilities": 67420,
+      "preservedNativeAbilities": 14369,
+      "previousNativeAbilities": 14369,
+      "gainedNativeAbilities": 22,
+      "gainedFullyNativeCards": 4,
+      "regressions": 0,
+      "fullCardPopulation": {
+        "ordinary": [
+          {
+            "name": "Exploration",
+            "oracleId": "0c2841bb-038c-4fbf-8360-bc0a1522b58d"
+          },
+          {
+            "name": "Azusa, Lost but Seeking",
+            "oracleId": "6c2c8bf3-9bf8-4a86-89d3-3bb36260dc51"
+          }
+        ],
+        "variant": [
+          {
+            "name": "Titania",
+            "oracleId": "024cfe2e-d3c0-4341-bb70-67664ed1595d",
+            "layout": "vanguard",
+            "typeLine": "Vanguard"
+          }
+        ],
+        "auxiliary": [
+          {
+            "name": "The Explorer",
+            "oracleId": "a3c7b8c6-4995-42bc-973c-45f46b9e32dc",
+            "layout": "normal",
+            "typeLine": "Hero",
+            "setType": "memorabilia"
+          }
+        ]
+      }
+    }
+  },
+  "round6": {
+    "retained": 97,
+    "added": 3,
+    "total": 100,
+    "sourceCounts": {
+      "recent": 34,
+      "priority": 33,
+      "league": 33
+    },
+    "removed": [
+      "Exploration",
+      "Pitiless Plunderer",
+      "Blood Artist"
+    ],
+    "recruits": [
+      {
+        "name": "Aether Vial",
+        "oracleId": "fc148e1e-dff0-448e-9f16-625341754356",
+        "source": "league",
+        "rotatingGlobalRank": 159
+      },
+      {
+        "name": "Crop Rotation",
+        "oracleId": "28b46183-c62f-47b1-9fee-3ba148202cab",
+        "source": "league",
+        "rotatingGlobalRank": 162
+      },
+      {
+        "name": "Timeless Lotus",
+        "oracleId": "fec77e0a-433e-4d32-9260-e26a37f6ad23",
+        "source": "priority",
+        "rotatingGlobalRank": 176
+      }
+    ],
+    "batch": {
+      "path": ".tmp/rotating-next-100-round6.json",
+      "sha256": "B6BA7114D40FD564DD71C4E2538597E4795B4AC94A8289D54B6E4958AB7CB05F"
+    },
+    "oracleInput": {
+      "path": ".tmp/rotating-next-100-round6-input.json",
+      "sha256": "D6D4C680A1BC0218CDBB29A53FB5A5ED350BC676690595F1E1132DFF8CE9B355"
+    }
+  }
+}

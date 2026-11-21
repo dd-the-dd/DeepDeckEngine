@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "eternal-witness/optional-own-graveyard-return-is-executable",
+  "cardName": "Eternal Witness",
+  "oracleId": "30b24e8e-3b0e-4d8e-90f3-f66eb7c1858c",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "enterBattlefield",
+      "object": { "kind": "self" }
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetCard",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": null
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "optionalEffects",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "effects": [{
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetCard" },
+        "from": {
+          "kind": "graveyard",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "to": {
+          "kind": "hand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      }]
+    }]
+  }
+}

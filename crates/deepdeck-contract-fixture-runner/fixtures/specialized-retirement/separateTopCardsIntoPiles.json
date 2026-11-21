@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "specialized-retirement/separateTopCardsIntoPiles",
+  "cardName": "Specialized effect audit batch03",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "separateTopCardsIntoPiles",
+        "player": {
+          "kind": "abilityController"
+        },
+        "count": 5,
+        "firstPileVisibility": "face-down",
+        "secondPileVisibility": "face-up",
+        "pileChooser": {
+          "kind": "chosenOpponent"
+        },
+        "chosenPileDestination": "hand",
+        "otherPileDestination": "graveyard"
+      }
+    ]
+  }
+}

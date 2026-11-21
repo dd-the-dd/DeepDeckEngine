@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retire-next/after/grantMayhem",
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantMayhem",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "where": {
+          "kind": "cardTypeContains",
+          "value": "Creature"
+        },
+        "useManaCost": true
+      }
+    ]
+  },
+  "expectedExecutable": false
+}

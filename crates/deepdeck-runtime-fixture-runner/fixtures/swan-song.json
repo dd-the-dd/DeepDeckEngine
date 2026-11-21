@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "swan-song-counters-and-creates-bird-for-target-controller",
+  "seed": 142,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Enchantment" },
+              { "kind": "cardTypeContains", "value": "Instant" },
+              { "kind": "cardTypeContains", "value": "Sorcery" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "counteredSpellController",
+        "value": {
+          "kind": "controllerOf",
+          "object": { "kind": "chosenTarget", "id": "targetSpell" }
+        }
+      },
+      {
+        "kind": "counterSpell",
+        "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+      },
+      {
+        "kind": "createTokens",
+        "controller": { "kind": "boundValue", "id": "counteredSpellController" },
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": {
+          "colors": ["Blue"],
+          "types": ["Creature"],
+          "subtypes": ["Bird"],
+          "power": 2,
+          "toughness": 2,
+          "abilities": [{ "kind": "flying" }]
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-1",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Swan Song pilot",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "swan-song",
+          "name": "Swan Song",
+          "typeLine": "Instant",
+          "manaCost": "{U}"
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "manaPool": ["R"],
+        "hand": [{
+          "id": "target-instant",
+          "name": "Target Instant",
+          "typeLine": "Instant",
+          "manaCost": "{R}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "target-instant" },
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "swan-song" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "target-instant", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-1", "zone": "battlefield", "equals": 1 },
+    { "kind": "permanentTypeLineContains", "playerId": "player-1", "definitionId": "token:bird token", "value": "Bird", "equals": true },
+    { "kind": "permanentHasKeyword", "playerId": "player-1", "definitionId": "token:bird token", "keyword": "flying", "equals": true },
+    { "kind": "permanentPowerToughness", "playerId": "player-1", "definitionId": "token:bird token", "power": 2, "toughness": 2 },
+    { "kind": "permanentColorSymbol", "playerId": "player-1", "definitionId": "token:bird token", "symbol": "U", "equals": true },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/393ff8c5-4da0-4290-b498-222cc0244026",
+  "cardName": "H.E.R.B.I.E. Scout Unit",
+  "oracleId": "393ff8c5-4da0-4290-b498-222cc0244026",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "3496d0d4-3fab-4ea4-8986-afe5a7155ec6",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "H.E.R.B.I.E. Scout Unit",
+      "typeLine": "Artifact Creature — Robot Scout",
+      "manaCost": "{4}",
+      "oracleText": "Flying\nWhen this creature enters, draw a card, then you may put a land card from your hand onto the battlefield tapped.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

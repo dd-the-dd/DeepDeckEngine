@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "search-zone-gain/db655c5a-06f6-42bc-8180-d9ca1c1d939a",
+  "cardName": "Carnivorous Cultivator // Enroot",
+  "oracleId": "db655c5a-06f6-42bc-8180-d9ca1c1d939a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "79dd5c54-5ea5-47b5-8f9b-50ed57a5ea45",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Carnivorous Cultivator // Enroot",
+      "typeLine": "Creature — Elf Warlock // Sorcery",
+      "manaCost": "{1}{G} // {G}",
+      "oracleText": null,
+      "layout": "prepare",
+      "faces": [
+        {
+          "id": "79dd5c54-5ea5-47b5-8f9b-50ed57a5ea45:face-0",
+          "name": "Carnivorous Cultivator",
+          "typeLine": "Creature — Elf Warlock",
+          "manaCost": "{1}{G}",
+          "oracleText": "Deathtouch\nThis creature enters prepared.\nWhenever this creature deals combat damage to a player, return target land card from your graveyard to your hand.",
+          "power": "2",
+          "toughness": "3",
+          "loyalty": null
+        },
+        {
+          "id": "79dd5c54-5ea5-47b5-8f9b-50ed57a5ea45:face-1",
+          "name": "Enroot",
+          "typeLine": "Sorcery",
+          "manaCost": "{G}",
+          "oracleText": "Search your library for a land card, put it into your graveyard, then shuffle.",
+          "power": null,
+          "toughness": null,
+          "loyalty": null
+        }
+      ]
+    }
+  }
+}

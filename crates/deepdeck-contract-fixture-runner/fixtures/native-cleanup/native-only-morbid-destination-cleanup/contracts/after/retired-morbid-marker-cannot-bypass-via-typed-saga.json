@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-morbid-marker-cannot-bypass-via-typed-saga",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "rulesMarker",
+    "source": {
+      "kind": "self"
+    },
+    "text": "Historical mixed metadata",
+    "marker": "sagaProgression",
+    "finalChapter": {
+      "kind": "integer",
+      "value": 3
+    },
+    "morbidSearchDestination": true
+  }
+}

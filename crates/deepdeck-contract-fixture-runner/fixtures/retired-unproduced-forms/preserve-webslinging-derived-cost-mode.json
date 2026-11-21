@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retire-five/preserve-derived-alternative-cost-mode",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": {
+      "kind": "self"
+    },
+    "ability": {
+      "kind": "alternativeCost",
+      "mode": "grantedWebSlinging",
+      "costs": [
+        {
+          "kind": "payMana",
+          "manaCost": "{1}{U}"
+        },
+        {
+          "kind": "returnPermanentToOwnersHand",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      ]
+    }
+  }
+}

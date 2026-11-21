@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "mana-type/reflecting-pool-complete-input",
+  "cardName": "Reflecting Pool",
+  "oracleId": "67f43ac6-2a58-4b53-b5d7-0330e2a252e2",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cbc4281a-b70d-4f96-b309-38e986484829",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Reflecting Pool",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "{T}: Add one mana of any type that a land you control could produce.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

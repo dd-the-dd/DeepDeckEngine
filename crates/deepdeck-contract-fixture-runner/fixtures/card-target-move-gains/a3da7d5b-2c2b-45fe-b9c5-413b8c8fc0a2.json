@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/a3da7d5b-2c2b-45fe-b9c5-413b8c8fc0a2",
+  "cardName": "Academy Ruins",
+  "oracleId": "a3da7d5b-2c2b-45fe-b9c5-413b8c8fc0a2",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d0e3ff04-aa5b-4d6d-b06e-b4679f7938b8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Academy Ruins",
+      "typeLine": "Legendary Land",
+      "manaCost": "",
+      "oracleText": "{T}: Add {C}.\n{1}{U}, {T}: Put target artifact card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

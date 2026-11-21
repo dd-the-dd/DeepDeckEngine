@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/64ee02f1-afdb-474b-a893-31538ad7219a",
+  "cardName": "Jagged Barrens",
+  "oracleId": "64ee02f1-afdb-474b-a893-31538ad7219a",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "5d809f5b-d965-4cb1-a9f8-2048f8534373",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Jagged Barrens",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {B} or {R}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

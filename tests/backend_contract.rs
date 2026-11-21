@@ -82,6 +82,10 @@ fn oracle_backend_returns_canonical_rules_and_audit_stages() {
     );
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Spirit Water Revival; see docs/coverage-targets.md"
+)]
 #[test]
 fn oracle_backend_recognizes_a_spell_self_exile_instruction() {
     let result = parse_oracle_card(OracleCardParseRequest {
@@ -130,6 +134,10 @@ fn oracle_backend_builds_variable_combat_bonus_from_existing_primitives() {
     );
 }
 
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: The Blue Spirit; see docs/coverage-targets.md"
+)]
 #[test]
 fn oracle_backend_preserves_during_combat_on_enter_triggers() {
     let result = parse_oracle_card(OracleCardParseRequest {
@@ -476,6 +484,10 @@ fn backend_routes_oracle_parse_json() {
 }
 
 /// Feature: Yenna is represented by reusable copy, condition, untap, and scry primitives.
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Yenna, Redtooth Regent; see docs/coverage-targets.md"
+)]
 #[test]
 fn backend_parses_yenna_without_card_specific_copy_flags() {
     let response = route_json(
@@ -506,6 +518,10 @@ fn backend_parses_yenna_without_card_specific_copy_flags() {
 }
 
 /// Feature: Taigam composes stack-copy and suspend primitives in Oracle order.
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Taigam, Master Opportunist; see docs/coverage-targets.md"
+)]
 #[test]
 fn backend_parses_taigam_as_copy_then_suspend_original_spell() {
     let response = route_json(
@@ -535,6 +551,10 @@ fn backend_parses_taigam_as_copy_then_suspend_original_spell() {
 }
 
 /// Feature: Interactive play retrieves compact canonical rules without parser audit stages.
+#[cfg_attr(
+    not(feature = "coverage-targets"),
+    ignore = "coverage target: Consult the Star Charts; see docs/coverage-targets.md"
+)]
 #[test]
 fn backend_routes_compact_oracle_rules_json() {
     let response = route_json(

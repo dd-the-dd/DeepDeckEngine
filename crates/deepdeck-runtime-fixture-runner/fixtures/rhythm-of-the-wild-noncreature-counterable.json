@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "rhythm-of-the-wild-does-not-protect-noncreature-spells",
+  "seed": 113,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "cantBeCountered",
+      "objects": {
+        "kind": "spells",
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "where": { "kind": "cardTypeContains", "value": "Creature" }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Rhythm controller",
+        "manaPool": ["R"],
+        "battlefield": [{
+          "id": "rhythm-of-the-wild",
+          "name": "Rhythm of the Wild",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+            "modifiers": [{
+              "kind": "cantBeCountered",
+              "objects": {
+                "kind": "spells",
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "where": { "kind": "cardTypeContains", "value": "Creature" }
+              }
+            }]
+          }]
+        }],
+        "hand": [{
+          "id": "rhythm-instant",
+          "name": "Rhythm Instant",
+          "typeLine": "Instant",
+          "manaCost": "{R}",
+          "rules": [{ "kind": "spellAbility", "source": { "kind": "self" }, "effects": [] }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Counterspell controller",
+        "manaPool": ["U", "U"],
+        "hand": [{
+          "id": "cancel",
+          "name": "Cancel",
+          "typeLine": "Instant",
+          "manaCost": "{U}{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetSpell",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": { "kind": "spells" }
+              }]
+            },
+            "effects": [{
+              "kind": "counterSpell",
+              "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+            }]
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "rhythm-instant" },
+    { "kind": "castSpell", "controllerId": "player-1", "sourceDefinitionId": "cancel" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "counterPrevented", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "spellCountered", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "rhythm-instant", "equals": true }
+  ]
+}

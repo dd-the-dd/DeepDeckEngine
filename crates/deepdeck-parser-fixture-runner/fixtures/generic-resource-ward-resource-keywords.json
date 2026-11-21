@@ -1,0 +1,1126 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-resource-keywords",
+  "cases": [
+    {
+      "id": "actual-complete-hexing",
+      "request": {
+        "cardName": "Hexing Squelcher",
+        "typeLine": "Creature — Goblin Sorcerer",
+        "manaCost": "{1}{R}",
+        "oracleText": "This spell can't be countered.\nWard—Pay 2 life.\nSpells you control can't be countered.\nOther creatures you control have \"Ward—Pay 2 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stack"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "kind": "cantBeCountered",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "ward",
+                "cost": {
+                  "kind": "payLife",
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            }
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "kind": "cantBeCountered",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "spells"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "intrinsic-fixed-life",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "ward",
+                "cost": {
+                  "kind": "payLife",
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "intrinsic-old-mana-ir",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "ward",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{2}"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-quoted-life",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Other creatures you control have \"Ward—Pay 4 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 4
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "bare-mana-grant",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have ward {2}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{2}"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "quoted-mana-grant",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Ward {3}.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "cost": {
+                    "kind": "payMana",
+                    "manaCost": "{3}"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-enchantments-value-sibling",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Other enchantments you control have \"Ward—Pay 5 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Enchantment"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 5
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mixed-resource-keyword-grant-list",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Other creatures you control have \"Ward—Pay 2 life and flying.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantWard",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                },
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "excludeSource": true
+                  },
+                  "keyword": "flying"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "quoted-parameterless",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Flying.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "flying"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "quoted-parameterless-outer-period",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Flying\".",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "keyword": "flying"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "ward-life-reminder",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay 2 life (Whenever this enchantment becomes the target of a spell or ability an opponent controls, counter it unless that player pays 2 life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "ward",
+                "cost": {
+                  "kind": "payLife",
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "keyword-list-resource",
+      "request": {
+        "cardName": "Parameterized keyword sibling",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Flying, ward—Pay 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbilityGroup",
+              "source": {
+                "kind": "self"
+              },
+              "abilities": [
+                {
+                  "kind": "flying"
+                },
+                {
+                  "kind": "ward",
+                  "cost": {
+                    "kind": "payLife",
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-variable-life",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-source-sacrifice",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-discard-resource",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-missing-amount",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-life-range",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay 2147483648 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-variable-mana",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward {X}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-unmatched-quote",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Ward—Pay 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-quoted-nonkeyword",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Draw a card.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-duration-tail",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Ward—Pay 2 life.\" until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "keyword-list.item"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-condition-tail",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have ward {2} as long as you control an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "static.continuous.connector",
+            "found": "as"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-second-sentence",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Creatures you control have \"Ward—Pay 2 life.\" You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "static-continuous-effect",
+            "state": "keyword-list.item"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-wrong-reminder-amount",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay 2 life (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays 3 life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "negative-wrong-reminder-resource",
+      "request": {
+        "cardName": "Keyword near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}{G}",
+        "oracleText": "Ward—Pay 2 life (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

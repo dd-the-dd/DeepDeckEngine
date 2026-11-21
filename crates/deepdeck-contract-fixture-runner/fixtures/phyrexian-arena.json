@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "phyrexian-arena/phase-trigger-sequence-is-executable",
+  "cardName": "Phyrexian Arena",
+  "oracleId": "ee579a32-a048-4335-b966-231ba731cdea",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": {
+      "kind": "stepBegan",
+      "step": "upkeep",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": { "kind": "integer", "value": 1 }
+      }
+    ]
+  }
+}

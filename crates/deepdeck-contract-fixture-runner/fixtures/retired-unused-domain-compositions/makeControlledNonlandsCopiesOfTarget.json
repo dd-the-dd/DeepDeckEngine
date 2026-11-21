@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/makeControlledNonlandsCopiesOfTarget",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "makeControlledNonlandsCopiesOfTarget",
+        "player": {
+          "kind": "abilityController"
+        },
+        "copy": {
+          "kind": "chosenTarget",
+          "id": "permanent"
+        }
+      }
+    ]
+  }
+}

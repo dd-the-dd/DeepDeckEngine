@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "bitter-triumph/alternative-additional-cost-is-executable",
+  "cardName": "Bitter Triumph",
+  "oracleId": "776341cb-d2ec-423f-9250-92dc8bd8d503",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "additionalCostMode",
+          "kind": "chooseModes",
+          "minimum": 1,
+          "maximum": 1,
+          "options": ["discard", "payLife"]
+        },
+        {
+          "id": "discardCost1",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "hand",
+              "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+            },
+            "where": null
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "additionalCostMode" },
+            "value": "discard"
+          }
+        }
+      ],
+      "additionalCosts": [
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "additionalCostMode" },
+            "value": "discard"
+          },
+          "then": [{
+            "kind": "discardCard",
+            "card": { "kind": "chosenTarget", "id": "discardCost1" }
+          }],
+          "else": []
+        },
+        {
+          "kind": "conditional",
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "additionalCostMode" },
+            "value": "payLife"
+          },
+          "then": [{
+            "kind": "payLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": 3 }
+          }],
+          "else": []
+        }
+      ]
+    },
+    "effects": []
+  }
+}

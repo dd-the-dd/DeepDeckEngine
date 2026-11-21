@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tamiyo-minus-three-returns-green-spell-card-and-adds-chosen-mana",
+  "seed": 71,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{
+      "kind": "payLoyalty",
+      "object": { "kind": "self" },
+      "amount": { "kind": "integer", "value": -3 }
+    }],
+    "activationCondition": { "kind": "sorceryTiming" },
+    "activationLimit": { "kind": "oncePerTurn", "id": "loyaltyAbility" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "targetGraveyardCard",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": {
+            "kind": "graveyard",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          },
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "cardTypeContains", "value": "Instant" },
+              { "kind": "cardTypeContains", "value": "Sorcery" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+        "to": {
+          "kind": "hand",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      },
+      {
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "objectMatchesFilter",
+          "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" },
+          "where": { "kind": "colorContains", "value": "Green" }
+        },
+        "then": [{
+          "kind": "addMana",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "mana": {
+            "kind": "chooseColor",
+            "amount": 1
+          }
+        }],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tamiyo controller",
+        "battlefield": [{
+          "id": "tamiyo-seasoned-scholar",
+          "name": "Tamiyo, Seasoned Scholar",
+          "typeLine": "Legendary Planeswalker — Tamiyo"
+        }],
+        "graveyard": [{
+          "id": "green-instant",
+          "name": "Green Instant",
+          "typeLine": "Instant",
+          "manaCost": "{G}"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "tamiyo-seasoned-scholar",
+    "targets": {
+      "targetGraveyardCard": {
+        "card": { "instanceId": "player-0:green-instant:1" }
+      }
+    }
+  },
+  "decisions": [{ "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "green-instant", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "green-instant", "equals": false },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["W"] },
+    { "kind": "decisionCount", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

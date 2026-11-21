@@ -1,0 +1,3158 @@
+{
+    "schema_version":  "1.0",
+    "generated_at":  "2026-11-09",
+    "purpose":  "Card migration priority queue based on current play, independent of set order.",
+    "method":  {
+                   "per_format_limit":  50,
+                   "deduplication_key":  "Scryfall oracle_id",
+                   "fusion":  "Reciprocal Rank Fusion",
+                   "fusion_formula":  "sum(1 / (60 + format_rank))",
+                   "format_weights":  {
+                                          "legacy":  1,
+                                          "commander":  1,
+                                          "standard":  1
+                                      },
+                   "note":  "Source scores are preserved but not compared across providers. Only ranks feed the cross-format priority score."
+               },
+    "sources":  [
+                    {
+                        "id":  "moxou-legacy",
+                        "url":  "https://www.moxou.com/format/legacy",
+                        "provider":  "Moxou",
+                        "format":  "legacy",
+                        "updated_at":  "2026-10-27",
+                        "window":  "90-day score history",
+                        "metric":  "Moxou Score and rank, combining main deck and sideboard play"
+                    },
+                    {
+                        "id":  "moxou-standard",
+                        "url":  "https://www.moxou.com/format/standard",
+                        "provider":  "Moxou",
+                        "format":  "standard",
+                        "updated_at":  "2026-11-04",
+                        "window":  "90-day score history",
+                        "metric":  "Moxou Score and rank, combining main deck and sideboard play"
+                    },
+                    {
+                        "id":  "edhrec-top",
+                        "url":  "https://edhrec.com/top",
+                        "provider":  "EDHREC",
+                        "format":  "commander",
+                        "observed_at":  "2026-11-09",
+                        "window":  "past 2 years",
+                        "metric":  "inclusion deck count rank"
+                    },
+                    {
+                        "id":  "scryfall-collection",
+                        "url":  "https://api.scryfall.com/cards/collection",
+                        "provider":  "Scryfall",
+                        "observed_at":  "2026-11-09",
+                        "metric":  "canonical name, oracle_id, and current format legality"
+                    }
+                ],
+    "cross_checks":  [
+                          {
+                              "url":  "https://www.mtggoldfish.com/format-staples/legacy",
+                              "provider":  "MTGGoldfish",
+                              "observed_at":  "2026-11-09",
+                              "finding":  "The leading Legacy staples overlap materially with the Moxou top ranks."
+                          },
+                          {
+                              "url":  "https://mtg-standard.com/article/31",
+                              "provider":  "MTG Standard",
+                              "observed_at":  "2026-11-09",
+                              "finding":  "The 30-day main-deck and sideboard staples overlap materially with the Moxou Standard top ranks."
+                          }
+                      ],
+    "counts":  {
+                   "source_rows":  150,
+                   "unique_source_names":  145,
+                   "resolved_oracle_ids":  145,
+                   "unresolved_names":  [
+
+                                        ],
+                   "legality_mismatches":  0
+               },
+    "queue":  [
+                  {
+                      "global_rank":  1,
+                      "name":  "Swords to Plowshares",
+                      "oracle_id":  "b1544f21-7e98-461b-aed5-e748b0168c52",
+                      "priority_score":  0.02903091,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  3,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      },
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  16,
+                                          "source_score":  52,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  2,
+                      "name":  "Erode",
+                      "oracle_id":  "2e467fab-e808-44d3-99bf-e3621baeb7cb",
+                      "priority_score":  0.02399445,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  43,
+                                          "source_score":  27,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      },
+                                      {
+                                          "format":  "standard",
+                                          "rank":  10,
+                                          "source_score":  58,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  3,
+                      "name":  "Negate",
+                      "oracle_id":  "3407fe41-fdd3-4119-8f70-4bc4590a379f",
+                      "priority_score":  0.02190476,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  40,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      },
+                                      {
+                                          "format":  "standard",
+                                          "rank":  24,
+                                          "source_score":  42,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  4,
+                      "name":  "Llanowar Elves",
+                      "oracle_id":  "68954295-54e3-4303-a6bc-fc4547a4e3a3",
+                      "priority_score":  0.02162731,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  34,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      },
+                                      {
+                                          "format":  "standard",
+                                          "rank":  31,
+                                          "source_score":  36,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  5,
+                      "name":  "Stock Up",
+                      "oracle_id":  "2251e34e-4ce8-4452-9dc6-d8cce8583996",
+                      "priority_score":  0.01961538,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  44,
+                                          "source_score":  27,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      },
+                                      {
+                                          "format":  "standard",
+                                          "rank":  40,
+                                          "source_score":  32,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  6,
+                      "name":  "Force of Will",
+                      "oracle_id":  "956381ba-6d37-4a8a-846c-bad79222dbee",
+                      "priority_score":  0.01639344,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  1,
+                                          "source_score":  100,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  7,
+                      "name":  "Sol Ring",
+                      "oracle_id":  "6ad8011d-3471-4369-9d68-b264cc027487",
+                      "priority_score":  0.01639344,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  1,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "banned",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  8,
+                      "name":  "Strategic Betrayal",
+                      "oracle_id":  "0127c13f-7b0f-44c3-8b35-97f306c5f239",
+                      "priority_score":  0.01639344,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  1,
+                                          "source_score":  100,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  9,
+                      "name":  "Arcane Signet",
+                      "oracle_id":  "0bc7f093-bef0-4f1a-852c-4b75ebf54838",
+                      "priority_score":  0.01612903,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  2,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  10,
+                      "name":  "Duress",
+                      "oracle_id":  "33d405ea-7a9a-4970-b70f-9c05d90dd6f0",
+                      "priority_score":  0.01612903,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  2,
+                                          "source_score":  97,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  11,
+                      "name":  "Wasteland",
+                      "oracle_id":  "09a70ae8-3859-4a09-901d-dce063fa3b5f",
+                      "priority_score":  0.01612903,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  2,
+                                          "source_score":  97,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  12,
+                      "name":  "Consign to Memory",
+                      "oracle_id":  "16c39265-72d9-4c86-a961-8dd38ff9adcd",
+                      "priority_score":  0.01587302,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  3,
+                                          "source_score":  92,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  13,
+                      "name":  "Requiting Hex",
+                      "oracle_id":  "eda16b31-33db-4ad2-901a-80fbe6273733",
+                      "priority_score":  0.01587302,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  3,
+                                          "source_score":  80,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  14,
+                      "name":  "Brainstorm",
+                      "oracle_id":  "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
+                      "priority_score":  0.015625,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  4,
+                                          "source_score":  86,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  15,
+                      "name":  "Flashfreeze",
+                      "oracle_id":  "eaf98e03-729b-4145-b2af-c910c415c15d",
+                      "priority_score":  0.015625,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  4,
+                                          "source_score":  79,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  16,
+                      "name":  "Path to Exile",
+                      "oracle_id":  "d683d985-9888-4d21-8b5f-69e69ce4a03b",
+                      "priority_score":  0.015625,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  4,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  17,
+                      "name":  "Counterspell",
+                      "oracle_id":  "cc187110-1148-4090-bbb8-e205694a39f5",
+                      "priority_score":  0.01538462,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  5,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  18,
+                      "name":  "Disdainful Stroke",
+                      "oracle_id":  "11e02134-7b1a-46a4-a89e-7539dd1efada",
+                      "priority_score":  0.01538462,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  5,
+                                          "source_score":  70,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  19,
+                      "name":  "Force of Negation",
+                      "oracle_id":  "ac2173f9-f223-440a-9231-fd98762bdc6f",
+                      "priority_score":  0.01538462,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  5,
+                                          "source_score":  84,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  20,
+                      "name":  "Cultivate",
+                      "oracle_id":  "8b755881-a72d-4e21-a369-d2924eb4585a",
+                      "priority_score":  0.01515152,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  6,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  21,
+                      "name":  "Multiversal Passage",
+                      "oracle_id":  "17770eeb-ecbf-4510-af2d-acececfbe146",
+                      "priority_score":  0.01515152,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  6,
+                                          "source_score":  70,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  22,
+                      "name":  "Ponder",
+                      "oracle_id":  "02090581-61aa-4348-ad57-451be8ee91c2",
+                      "priority_score":  0.01515152,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  6,
+                                          "source_score":  81,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  23,
+                      "name":  "Farseek",
+                      "oracle_id":  "495e52e6-4c2b-4574-9474-eadbdcc8b4ac",
+                      "priority_score":  0.01492537,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  7,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  24,
+                      "name":  "Flooded Strand",
+                      "oracle_id":  "f3c7af78-a77d-4134-82a2-a5ce84285a84",
+                      "priority_score":  0.01492537,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  7,
+                                          "source_score":  80,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  25,
+                      "name":  "Spell Snare",
+                      "oracle_id":  "38877c68-b69b-4ee1-8e8f-5137a184a8f7",
+                      "priority_score":  0.01492537,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  7,
+                                          "source_score":  69,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  26,
+                      "name":  "Blasphemous Act",
+                      "oracle_id":  "7a2484a9-04fd-41a0-8224-610c1c07ed10",
+                      "priority_score":  0.01470588,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  8,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  27,
+                      "name":  "Polluted Delta",
+                      "oracle_id":  "ef86989d-ce80-4e55-aece-7d11710eeffa",
+                      "priority_score":  0.01470588,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  8,
+                                          "source_score":  77,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  28,
+                      "name":  "Starting Town",
+                      "oracle_id":  "d04e0975-f401-41b8-a9db-9bcf9cbbce66",
+                      "priority_score":  0.01470588,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  8,
+                                          "source_score":  68,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  29,
+                      "name":  "Beast Within",
+                      "oracle_id":  "7735eeba-693b-47e2-bd51-414379cf1016",
+                      "priority_score":  0.01449275,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  9,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  30,
+                      "name":  "Misty Rainforest",
+                      "oracle_id":  "09dd85aa-47bc-4713-a9b9-8b52ff2285ed",
+                      "priority_score":  0.01449275,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  9,
+                                          "source_score":  65,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  31,
+                      "name":  "Shoot the Sheriff",
+                      "oracle_id":  "2038138e-2e52-41e4-90fc-443fa054c5c0",
+                      "priority_score":  0.01449275,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  9,
+                                          "source_score":  61,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  32,
+                      "name":  "Disruptor Flute",
+                      "oracle_id":  "d6c46906-1339-4440-8cd0-2bb9890d4975",
+                      "priority_score":  0.01428571,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  10,
+                                          "source_score":  63,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  33,
+                      "name":  "Talisman of Dominance",
+                      "oracle_id":  "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+                      "priority_score":  0.01428571,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  10,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  34,
+                      "name":  "Assassin\u0027s Trophy",
+                      "oracle_id":  "ac10d218-f9a6-4058-9cda-a15ca1b0b7b5",
+                      "priority_score":  0.01408451,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  11,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  35,
+                      "name":  "Thoughtseize",
+                      "oracle_id":  "edd8d1e8-be43-4c38-bb3a-83081fbaf0b5",
+                      "priority_score":  0.01408451,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  11,
+                                          "source_score":  63,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  36,
+                      "name":  "Torpor Orb",
+                      "oracle_id":  "97326cad-b13c-4e52-82ce-850a39e5ff08",
+                      "priority_score":  0.01408451,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  11,
+                                          "source_score":  56,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  37,
+                      "name":  "Bitter Triumph",
+                      "oracle_id":  "776341cb-d2ec-423f-9250-92dc8bd8d503",
+                      "priority_score":  0.01388889,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  12,
+                                          "source_score":  55,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  38,
+                      "name":  "Lotus Petal",
+                      "oracle_id":  "32e5339e-9e4f-46f8-b305-f9d6d3ba8bb5",
+                      "priority_score":  0.01388889,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  12,
+                                          "source_score":  61,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  39,
+                      "name":  "Nature\u0027s Lore",
+                      "oracle_id":  "78826359-fe63-44ad-adc4-a17ffcd710e4",
+                      "priority_score":  0.01388889,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  12,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  40,
+                      "name":  "Heroic Intervention",
+                      "oracle_id":  "24882fa2-3fe9-4c1b-aa3d-0e6488b9db27",
+                      "priority_score":  0.01369863,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  13,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  41,
+                      "name":  "Karakas",
+                      "oracle_id":  "59119143-c0fa-49dd-adf0-e2fd3029c48b",
+                      "priority_score":  0.01369863,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  13,
+                                          "source_score":  57,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "banned"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  42,
+                      "name":  "Rest in Peace",
+                      "oracle_id":  "087f9ad7-e74f-40e2-8102-1ed2925d0418",
+                      "priority_score":  0.01369863,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  13,
+                                          "source_score":  53,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  43,
+                      "name":  "Rampant Growth",
+                      "oracle_id":  "8539f295-5d58-4436-a73a-b9277c4c7795",
+                      "priority_score":  0.01351351,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  14,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  44,
+                      "name":  "Scalding Tarn",
+                      "oracle_id":  "cb027150-848c-4a66-88ad-e20222304dd8",
+                      "priority_score":  0.01351351,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  14,
+                                          "source_score":  57,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  45,
+                      "name":  "Watery Grave",
+                      "oracle_id":  "fc9ec820-4245-4a96-b009-5308a818ca58",
+                      "priority_score":  0.01351351,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  14,
+                                          "source_score":  52,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  46,
+                      "name":  "Ancient Tomb",
+                      "oracle_id":  "23467047-6dba-4498-b783-1ebc4f74b8c2",
+                      "priority_score":  0.01333333,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  15,
+                                          "source_score":  54,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  47,
+                      "name":  "Chaos Warp",
+                      "oracle_id":  "07a0cba9-8768-4fd9-a3d5-b0f83b4bf8e8",
+                      "priority_score":  0.01333333,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  15,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  48,
+                      "name":  "Seam Rip",
+                      "oracle_id":  "dfd5939e-a71a-4e16-9b93-752162be4ccd",
+                      "priority_score":  0.01333333,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  15,
+                                          "source_score":  51,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  49,
+                      "name":  "Birds of Paradise",
+                      "oracle_id":  "d3a0b660-358c-41bd-9cd2-41fbf3491b1a",
+                      "priority_score":  0.01315789,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  16,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  50,
+                      "name":  "Gloomlake Verge",
+                      "oracle_id":  "d71bda4c-3dee-4398-8fd0-f77d8743b887",
+                      "priority_score":  0.01315789,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  16,
+                                          "source_score":  50,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  51,
+                      "name":  "Burst Lightning",
+                      "oracle_id":  "ac2086fe-98ee-4280-9c7c-c5c2d6548a8b",
+                      "priority_score":  0.01298701,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  17,
+                                          "source_score":  49,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  52,
+                      "name":  "Talisman of Creativity",
+                      "oracle_id":  "14d2979d-5728-42d7-a027-0eb1f754655d",
+                      "priority_score":  0.01298701,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  17,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  53,
+                      "name":  "Underground Sea",
+                      "oracle_id":  "4b22be3a-8ce1-47d1-b82e-6c3ccfb0548b",
+                      "priority_score":  0.01298701,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  17,
+                                          "source_score":  49,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  54,
+                      "name":  "Daze",
+                      "oracle_id":  "70486bee-6ee7-41ea-b834-8caf4699302b",
+                      "priority_score":  0.01282051,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  18,
+                                          "source_score":  48,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  55,
+                      "name":  "Steam Vents",
+                      "oracle_id":  "17039058-822d-409f-938c-b727a366ba63",
+                      "priority_score":  0.01282051,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  18,
+                                          "source_score":  49,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  56,
+                      "name":  "Talisman of Indulgence",
+                      "oracle_id":  "1d9aeaaa-66f6-41cb-9bac-162d6fd8662c",
+                      "priority_score":  0.01282051,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  18,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  57,
+                      "name":  "Cavern of Souls",
+                      "oracle_id":  "89ca686a-7c72-4d8f-9290-e89635624a83",
+                      "priority_score":  0.01265823,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  19,
+                                          "source_score":  48,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  58,
+                      "name":  "Surgical Extraction",
+                      "oracle_id":  "3bfa088c-9a47-4123-aee5-4de44e355bef",
+                      "priority_score":  0.01265823,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  19,
+                                          "source_score":  46,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  59,
+                      "name":  "Talisman of Hierarchy",
+                      "oracle_id":  "b693c3de-2eaf-4850-b405-e79d00adefda",
+                      "priority_score":  0.01265823,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  19,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  60,
+                      "name":  "An Offer You Can\u0027t Refuse",
+                      "oracle_id":  "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+                      "priority_score":  0.0125,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  20,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  61,
+                      "name":  "Day of Black Sun",
+                      "oracle_id":  "dc857129-533c-41d1-8e8b-1c0443030d69",
+                      "priority_score":  0.0125,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  20,
+                                          "source_score":  47,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  62,
+                      "name":  "Pyroblast",
+                      "oracle_id":  "ecc435e2-deb1-420a-a79f-01dd08747314",
+                      "priority_score":  0.0125,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  20,
+                                          "source_score":  43,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  63,
+                      "name":  "Hydroblast",
+                      "oracle_id":  "b94c0336-2ca8-4bb1-bb1f-e9babd1826ad",
+                      "priority_score":  0.01234568,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  21,
+                                          "source_score":  43,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  64,
+                      "name":  "Swiftfoot Boots",
+                      "oracle_id":  "c8b143ad-43ec-4e0d-a440-e348daa31391",
+                      "priority_score":  0.01234568,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  21,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  65,
+                      "name":  "Wan Shi Tong, Librarian",
+                      "oracle_id":  "2bace3ea-7d28-4a1c-857a-d3c3a1c11b59",
+                      "priority_score":  0.01234568,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  21,
+                                          "source_score":  47,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  66,
+                      "name":  "Orcish Bowmasters",
+                      "oracle_id":  "ea5103f5-27e0-4eb1-902c-7f34652d6bf3",
+                      "priority_score":  0.01219512,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  22,
+                                          "source_score":  42,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  67,
+                      "name":  "Spell Pierce",
+                      "oracle_id":  "d64b0848-0193-4025-ba62-63ecd8fb9f50",
+                      "priority_score":  0.01219512,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  22,
+                                          "source_score":  44,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  68,
+                      "name":  "Talisman of Progress",
+                      "oracle_id":  "00e35322-1a9a-41e3-9ce1-359c8eaa3bc7",
+                      "priority_score":  0.01219512,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  22,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  69,
+                      "name":  "Dark Ritual",
+                      "oracle_id":  "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+                      "priority_score":  0.01204819,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  23,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  70,
+                      "name":  "Restless Reef",
+                      "oracle_id":  "df20f85b-5f81-4ee4-8487-55d90109ac36",
+                      "priority_score":  0.01204819,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  23,
+                                          "source_score":  42,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  71,
+                      "name":  "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+                      "oracle_id":  "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
+                      "priority_score":  0.01204819,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  23,
+                                          "source_score":  41,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  72,
+                      "name":  "Anguished Unmaking",
+                      "oracle_id":  "ad09b3c3-c8e7-481c-8c45-e7f234935117",
+                      "priority_score":  0.01190476,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  24,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  73,
+                      "name":  "Undercity Sewers",
+                      "oracle_id":  "08d80efc-9542-4ba2-824c-c8615d8d07f2",
+                      "priority_score":  0.01190476,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  24,
+                                          "source_score":  41,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  74,
+                      "name":  "Containment Priest",
+                      "oracle_id":  "8a76a9b9-3127-45fe-b20f-a8f643276281",
+                      "priority_score":  0.01176471,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  25,
+                                          "source_score":  40,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  75,
+                      "name":  "Ignoble Hierarch",
+                      "oracle_id":  "c8de43a3-ebd3-4000-b343-a6ffed11d34d",
+                      "priority_score":  0.01176471,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  25,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  76,
+                      "name":  "Sacred Foundry",
+                      "oracle_id":  "45181cb8-2090-4471-ba90-e5a8f04d525f",
+                      "priority_score":  0.01176471,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  25,
+                                          "source_score":  41,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  77,
+                      "name":  "Riverpyre Verge",
+                      "oracle_id":  "510a6ac5-f098-4145-ac07-771b1b6f7cdf",
+                      "priority_score":  0.01162791,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  26,
+                                          "source_score":  39,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  78,
+                      "name":  "Three Visits",
+                      "oracle_id":  "1b882a0e-0ede-4d1a-bd1a-9b7cffbcde8e",
+                      "priority_score":  0.01162791,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  26,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  79,
+                      "name":  "Volcanic Island",
+                      "oracle_id":  "c718911c-c955-4eb9-9e16-be4bd49a4e4e",
+                      "priority_score":  0.01162791,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  26,
+                                          "source_score":  39,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  80,
+                      "name":  "Blood Crypt",
+                      "oracle_id":  "43985bbc-a0f6-4812-984e-392bc8562633",
+                      "priority_score":  0.01149425,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  27,
+                                          "source_score":  38,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  81,
+                      "name":  "Kodama\u0027s Reach",
+                      "oracle_id":  "1593ea18-2f2f-4ab4-83fb-6ccc0bec8a90",
+                      "priority_score":  0.01149425,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  27,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  82,
+                      "name":  "Marsh Flats",
+                      "oracle_id":  "dab520d0-20b4-4273-ba6b-eb07f85ea433",
+                      "priority_score":  0.01149425,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  27,
+                                          "source_score":  38,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  83,
+                      "name":  "Fatal Push",
+                      "oracle_id":  "16437a83-be52-44cd-a768-a767c9347eb2",
+                      "priority_score":  0.01136364,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  28,
+                                          "source_score":  37,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  84,
+                      "name":  "Ghost Vacuum",
+                      "oracle_id":  "4ef583ab-e0a0-4e4b-bd65-af766038b1fd",
+                      "priority_score":  0.01136364,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  28,
+                                          "source_score":  38,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  85,
+                      "name":  "Lightning Greaves",
+                      "oracle_id":  "ca204b66-8d0c-431a-8d34-282f7c2d17da",
+                      "priority_score":  0.01136364,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  28,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  86,
+                      "name":  "Annul",
+                      "oracle_id":  "d08e9784-75f7-4164-ac48-d06160f8c56b",
+                      "priority_score":  0.01123596,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  29,
+                                          "source_score":  38,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  87,
+                      "name":  "Flow State",
+                      "oracle_id":  "e7194bca-0cf4-4a86-8b84-d2f9219a08b3",
+                      "priority_score":  0.01123596,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  29,
+                                          "source_score":  37,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  88,
+                      "name":  "Talisman of Conviction",
+                      "oracle_id":  "6c326439-5620-4ec6-a56a-fe9c3d5d2a46",
+                      "priority_score":  0.01123596,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  29,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  89,
+                      "name":  "Blazemire Verge",
+                      "oracle_id":  "977c2f33-b622-4172-9efb-7f523becd32b",
+                      "priority_score":  0.01111111,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  30,
+                                          "source_score":  36,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  90,
+                      "name":  "Dimir Signet",
+                      "oracle_id":  "7d881c57-0bd9-4c57-aa4a-b10808b86143",
+                      "priority_score":  0.01111111,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  30,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  91,
+                      "name":  "Wrath of the Skies",
+                      "oracle_id":  "21efa6f2-3e7c-4576-b5a3-0b75b2843442",
+                      "priority_score":  0.01111111,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  30,
+                                          "source_score":  34,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  92,
+                      "name":  "Mishra\u0027s Bauble",
+                      "oracle_id":  "63afc3d1-7653-476e-838f-fc18d4a62a21",
+                      "priority_score":  0.01098901,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  31,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  93,
+                      "name":  "Rakdos Signet",
+                      "oracle_id":  "3adb7681-977f-4a32-9ec8-51481b958268",
+                      "priority_score":  0.01098901,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  31,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  94,
+                      "name":  "Boseiju, Who Endures",
+                      "oracle_id":  "bf1341dd-41a3-49f6-87ec-63170dde4324",
+                      "priority_score":  0.01086957,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  32,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  95,
+                      "name":  "Hallowed Fountain",
+                      "oracle_id":  "f1750962-a87c-49f6-b731-02ae971ac6ea",
+                      "priority_score":  0.01086957,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  32,
+                                          "source_score":  35,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  96,
+                      "name":  "Rhystic Study",
+                      "oracle_id":  "53236dd7-845a-444c-96d5-f41ed7325d8f",
+                      "priority_score":  0.01086957,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  32,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  97,
+                      "name":  "Izzet Signet",
+                      "oracle_id":  "2fda4fe7-8b0c-489c-a000-6d358e614e34",
+                      "priority_score":  0.01075269,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  33,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  98,
+                      "name":  "Murktide Regent",
+                      "oracle_id":  "7f993ac7-c2cd-413c-a106-2c051a77ebf6",
+                      "priority_score":  0.01075269,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  33,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  99,
+                      "name":  "Soul-Guide Lantern",
+                      "oracle_id":  "1b5e6560-ff2e-4475-96cb-63f64c8a86db",
+                      "priority_score":  0.01075269,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  33,
+                                          "source_score":  35,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  100,
+                      "name":  "Get Lost",
+                      "oracle_id":  "522dd417-364b-44ab-8ca9-fb55db5f26a6",
+                      "priority_score":  0.0106383,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  34,
+                                          "source_score":  34,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  101,
+                      "name":  "Verdant Catacombs",
+                      "oracle_id":  "67d60b24-d429-4ded-90d9-06e49f28c396",
+                      "priority_score":  0.0106383,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  34,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  102,
+                      "name":  "Barrowgoyf",
+                      "oracle_id":  "74c0164c-130f-4572-9066-626c77f6e2ff",
+                      "priority_score":  0.01052632,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  35,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  103,
+                      "name":  "Boros Charm",
+                      "oracle_id":  "2679d0dd-ba30-4a1c-b6a0-b3ac6c790496",
+                      "priority_score":  0.01052632,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  35,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  104,
+                      "name":  "Spirebluff Canal",
+                      "oracle_id":  "eb0d8093-5f93-4b25-9384-08f9731bfb28",
+                      "priority_score":  0.01052632,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  35,
+                                          "source_score":  34,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  105,
+                      "name":  "Dismember",
+                      "oracle_id":  "fd74f8eb-0253-42dd-8277-186d4934da38",
+                      "priority_score":  0.01041667,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  36,
+                                          "source_score":  31,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  106,
+                      "name":  "Orzhov Signet",
+                      "oracle_id":  "de3dcb5d-775a-479f-99f5-d1883ed9b1b5",
+                      "priority_score":  0.01041667,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  36,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  107,
+                      "name":  "Overgrown Tomb",
+                      "oracle_id":  "975ec9a3-6f20-4177-8211-82526e092538",
+                      "priority_score":  0.01041667,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  36,
+                                          "source_score":  34,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  108,
+                      "name":  "Arcane Denial",
+                      "oracle_id":  "ab1cc360-b9de-48d9-9983-4dfe4a7d2a37",
+                      "priority_score":  0.01030928,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  37,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  109,
+                      "name":  "Surrak, Elusive Hunter",
+                      "oracle_id":  "7a0fe73f-6e08-4c9a-80e1-c2ead6cebe06",
+                      "priority_score":  0.01030928,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  37,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  110,
+                      "name":  "Urza\u0027s Saga",
+                      "oracle_id":  "4c6a0c30-b547-4eff-8ff4-0ca25803c076",
+                      "priority_score":  0.01030928,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  37,
+                                          "source_score":  31,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  111,
+                      "name":  "Bloodstained Mire",
+                      "oracle_id":  "fc0707c7-d504-4ccf-a0d2-3eb6e26e7a57",
+                      "priority_score":  0.01020408,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  38,
+                                          "source_score":  30,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  112,
+                      "name":  "Rhythm of the Wild",
+                      "oracle_id":  "acfa77fd-3610-4f12-9c3c-bd860ce91700",
+                      "priority_score":  0.01020408,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  38,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  113,
+                      "name":  "Voice of Victory",
+                      "oracle_id":  "b12cbda1-ac09-49eb-96b3-a4df27bc37ea",
+                      "priority_score":  0.01020408,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  38,
+                                          "source_score":  33,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  114,
+                      "name":  "Ba Sing Se",
+                      "oracle_id":  "de1ae205-ca5b-4d26-8194-ca85f1406e53",
+                      "priority_score":  0.01010101,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  39,
+                                          "source_score":  32,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  115,
+                      "name":  "Fellwar Stone",
+                      "oracle_id":  "95560508-7ac9-4be9-8a3f-3c7d5b52807b",
+                      "priority_score":  0.01010101,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  39,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  116,
+                      "name":  "Tundra",
+                      "oracle_id":  "02418479-9455-417f-a6a1-004356faff37",
+                      "priority_score":  0.01010101,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  39,
+                                          "source_score":  30,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  117,
+                      "name":  "Pithing Needle",
+                      "oracle_id":  "a188fe7e-68de-4c7c-806c-bfe8fc7b44bf",
+                      "priority_score":  0.01,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  40,
+                                          "source_score":  27,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  118,
+                      "name":  "Atraxa, Grand Unifier",
+                      "oracle_id":  "abbcb153-0763-44c6-964f-b4ff0eb64257",
+                      "priority_score":  0.00990099,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  41,
+                                          "source_score":  27,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  119,
+                      "name":  "Reanimate",
+                      "oracle_id":  "a044474a-cd72-4e9d-bd8d-a08f2de9cdc0",
+                      "priority_score":  0.00990099,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  41,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  120,
+                      "name":  "Soulstone Sanctuary",
+                      "oracle_id":  "3c0f99b8-0222-4fac-932a-eb5d77826564",
+                      "priority_score":  0.00990099,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  41,
+                                          "source_score":  30,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  121,
+                      "name":  "Faerie Macabre",
+                      "oracle_id":  "c7d8beb6-472c-4758-9876-e8cbf98f4f72",
+                      "priority_score":  0.00980392,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  42,
+                                          "source_score":  27,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  122,
+                      "name":  "Generous Gift",
+                      "oracle_id":  "fae37e28-e137-4177-b973-fa8b4dd8f409",
+                      "priority_score":  0.00980392,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  42,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  123,
+                      "name":  "Sunbillow Verge",
+                      "oracle_id":  "a202276b-1f1b-4277-95ee-26877a204f5e",
+                      "priority_score":  0.00980392,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  42,
+                                          "source_score":  30,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  124,
+                      "name":  "Cyclonic Rift",
+                      "oracle_id":  "d75b9c82-1b49-4c3e-a1b5-aeef57d6644b",
+                      "priority_score":  0.00970874,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  43,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  125,
+                      "name":  "Stomping Ground",
+                      "oracle_id":  "16052b52-ade1-406f-a06b-ce7ea607fb63",
+                      "priority_score":  0.00970874,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  43,
+                                          "source_score":  30,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  126,
+                      "name":  "Azorius Signet",
+                      "oracle_id":  "e018773f-95b3-49a3-9674-6f04ddef2092",
+                      "priority_score":  0.00961538,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  44,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  127,
+                      "name":  "Emeritus of Ideation // Ancestral Recall",
+                      "oracle_id":  "24a29be4-5bc2-469b-b2ce-2fb305c3facb",
+                      "priority_score":  0.00961538,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  44,
+                                          "source_score":  29,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  128,
+                      "name":  "City of Traitors",
+                      "oracle_id":  "f161111d-9747-47b3-bb10-3c8bded32e21",
+                      "priority_score":  0.00952381,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  45,
+                                          "source_score":  26,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  129,
+                      "name":  "Opt",
+                      "oracle_id":  "713332c1-5bd8-400f-bfff-c1ca0697a043",
+                      "priority_score":  0.00952381,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  45,
+                                          "source_score":  29,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  130,
+                      "name":  "Smothering Tithe",
+                      "oracle_id":  "153376c9-dffd-458c-8ce3-a4c8269bc4e9",
+                      "priority_score":  0.00952381,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  45,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  131,
+                      "name":  "Brazen Borrower // Petty Theft",
+                      "oracle_id":  "c7b044c3-3cfa-407e-bf20-2875e8e04b7b",
+                      "priority_score":  0.00943396,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  46,
+                                          "source_score":  26,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  132,
+                      "name":  "Fabled Passage",
+                      "oracle_id":  "0c85b8f7-0bd0-4680-9ec5-d4b110460a54",
+                      "priority_score":  0.00943396,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  46,
+                                          "source_score":  29,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  133,
+                      "name":  "Growth Spiral",
+                      "oracle_id":  "34bcc217-dd91-45a0-90d7-a94d02f1f317",
+                      "priority_score":  0.00943396,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  46,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  134,
+                      "name":  "Dovin\u0027s Veto",
+                      "oracle_id":  "1b388371-f9ef-45b4-82a3-ca20a8cd7807",
+                      "priority_score":  0.00934579,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  47,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  135,
+                      "name":  "Kozilek\u0027s Command",
+                      "oracle_id":  "2f2c549d-0293-4b9d-b9a8-ff392800f3a5",
+                      "priority_score":  0.00934579,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  47,
+                                          "source_score":  26,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  136,
+                      "name":  "Stormcarved Coast",
+                      "oracle_id":  "4722105b-0085-4bb8-bca1-9de0d3eb5600",
+                      "priority_score":  0.00934579,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  47,
+                                          "source_score":  29,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  137,
+                      "name":  "Blooming Marsh",
+                      "oracle_id":  "66fa2326-1b5d-41fb-b919-83bf9f383577",
+                      "priority_score":  0.00925926,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  48,
+                                          "source_score":  29,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  138,
+                      "name":  "Phelia, Exuberant Shepherd",
+                      "oracle_id":  "5d86a59a-ba1f-45f7-b829-dca6f9f3e624",
+                      "priority_score":  0.00925926,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  48,
+                                          "source_score":  25,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  139,
+                      "name":  "Terminate",
+                      "oracle_id":  "6257c2fd-005f-41e3-8a72-af76df1eb134",
+                      "priority_score":  0.00925926,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  48,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  140,
+                      "name":  "Arid Mesa",
+                      "oracle_id":  "c5acf2a5-40f4-433d-a74d-1cb56c521464",
+                      "priority_score":  0.00917431,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  49,
+                                          "source_score":  25,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  141,
+                      "name":  "Earthbender Ascension",
+                      "oracle_id":  "f8966fd5-2926-4ba0-b7d6-cfea40cd4e05",
+                      "priority_score":  0.00917431,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  49,
+                                          "source_score":  28,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  142,
+                      "name":  "Swan Song",
+                      "oracle_id":  "8ddfc283-c9b4-41a5-af88-cf0068e986cc",
+                      "priority_score":  0.00917431,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  49,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  143,
+                      "name":  "Esper Sentinel",
+                      "oracle_id":  "5def9f38-0a0b-4e8d-9f9d-29dcb46520b4",
+                      "priority_score":  0.00909091,
+                      "formats":  [
+                                      {
+                                          "format":  "commander",
+                                          "rank":  50,
+                                          "source_score":  null,
+                                          "source":  "edhrec",
+                                          "source_date":  "observed-2026-11-09"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "not_legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  144,
+                      "name":  "Leyline of the Void",
+                      "oracle_id":  "f4e32fc1-1b8d-441e-8e76-71f19f98e925",
+                      "priority_score":  0.00909091,
+                      "formats":  [
+                                      {
+                                          "format":  "legacy",
+                                          "rank":  50,
+                                          "source_score":  24,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-10-27"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  },
+                  {
+                      "global_rank":  145,
+                      "name":  "Shipwreck Marsh",
+                      "oracle_id":  "5f42b67f-87fd-4f98-a0e8-0c8313f4bbc8",
+                      "priority_score":  0.00909091,
+                      "formats":  [
+                                      {
+                                          "format":  "standard",
+                                          "rank":  50,
+                                          "source_score":  28,
+                                          "source":  "moxou",
+                                          "source_date":  "2026-11-04"
+                                      }
+                                  ],
+                      "legalities":  {
+                                         "standard":  "legal",
+                                         "legacy":  "legal",
+                                         "commander":  "legal"
+                                     },
+                      "source_format_legalities_verified":  true
+                  }
+              ]
+}

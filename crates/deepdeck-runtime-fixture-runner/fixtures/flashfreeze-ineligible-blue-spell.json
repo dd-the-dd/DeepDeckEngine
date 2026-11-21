@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "flashfreeze-rejects-blue-spell",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "targetSpell",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "spells",
+          "where": {
+            "kind": "or",
+            "operands": [
+              { "kind": "colorContains", "value": "Red" },
+              { "kind": "colorContains", "value": "Green" }
+            ]
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "counterSpell",
+      "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Flashfreeze pilot",
+        "manaPool": ["C", "U"],
+        "hand": [{
+          "id": "flashfreeze",
+          "name": "Flashfreeze",
+          "typeLine": "Instant",
+          "manaCost": "{1}{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "id": "targetSpell",
+                "kind": "chooseTargets",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "spells",
+                  "where": {
+                    "kind": "or",
+                    "operands": [
+                      { "kind": "colorContains", "value": "Red" },
+                      { "kind": "colorContains", "value": "Green" }
+                    ]
+                  }
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "counterSpell",
+              "spell": { "kind": "chosenTarget", "id": "targetSpell" }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "manaPool": ["U"],
+        "hand": [{
+          "id": "blue-spell",
+          "name": "Blue Test Spell",
+          "typeLine": "Instant",
+          "manaCost": "{U}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": []
+          }]
+        }]
+      }
+    ]
+  },
+  "actions": [{
+    "kind": "castSpell",
+    "controllerId": "player-1",
+    "sourceDefinitionId": "blue-spell"
+  }],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "flashfreeze",
+      "equals": false
+    },
+    { "kind": "stackDepth", "equals": 1 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "flashfreeze",
+      "equals": true
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

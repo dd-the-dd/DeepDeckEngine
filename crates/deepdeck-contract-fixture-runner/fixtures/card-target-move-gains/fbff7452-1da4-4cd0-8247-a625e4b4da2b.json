@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/fbff7452-1da4-4cd0-8247-a625e4b4da2b",
+  "cardName": "Crystal Chimes",
+  "oracleId": "fbff7452-1da4-4cd0-8247-a625e4b4da2b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "17a453d0-c195-47fd-ad6b-d31c86faef71",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Crystal Chimes",
+      "typeLine": "Artifact",
+      "manaCost": "{3}",
+      "oracleText": "{3}, {T}, Sacrifice this artifact: Return all enchantment cards from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

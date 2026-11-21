@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-composed/shuffleGraveyardIntoLibrary",
+  "cardName": "Synthetic acceptance contract only",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "shuffleGraveyardIntoLibrary",
+        "player": {
+          "kind": "abilityController"
+        }
+      }
+    ]
+  }
+}

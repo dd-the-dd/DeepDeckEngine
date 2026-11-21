@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/65d63518-3261-40b5-87b8-19c152b29ee3",
+  "cardName": "Roiling Regrowth",
+  "oracleId": "65d63518-3261-40b5-87b8-19c152b29ee3",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "2c446dbb-b883-47e9-aab3-ac921ff218f8",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Roiling Regrowth",
+      "typeLine": "Instant",
+      "manaCost": "{2}{G}",
+      "oracleText": "Sacrifice a land. Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

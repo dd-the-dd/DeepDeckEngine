@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "common-program/pure-resolution-slice",
+  "cases": [
+    {
+      "id": "full-source-collection-then-player-composition",
+      "request": {
+        "cardName": "Program Scope Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Look at the top two cards of your library. Reveal them. Target player gains 3 life and loses 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseTargets",
+                    "id": "targetPlayer",
+                    "minimum": 1,
+                    "maximum": 1,
+                    "candidates": {
+                      "kind": "players"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  }
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                },
+                {
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "player-use-before-producer",
+      "request": {
+        "cardName": "Program Scope Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "That player draws a card. Target player gains 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "optional-branch-cannot-produce-player",
+      "request": {
+        "cardName": "Program Scope Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You may draw a card and that player draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "collection-use-before-producer",
+      "request": {
+        "cardName": "Program Scope Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Reveal them. Look at the top two cards of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

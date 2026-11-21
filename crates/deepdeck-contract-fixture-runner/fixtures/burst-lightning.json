@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "burst-lightning/native-kicker-and-conditional-damage-are-executable",
+  "cardName": "Burst Lightning",
+  "oracleId": "ac2086fe-98ee-4280-9c7c-c5c2d6548a8b",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "keywordAbility",
+      "source": { "kind": "self" },
+      "ability": {
+        "kind": "kicker",
+        "cost": { "kind": "payMana", "manaCost": "{4}" },
+        "repeatable": false
+      }
+    },
+    {
+      "kind": "spellAbility",
+      "source": { "kind": "self" },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "id": "targetDamageable",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": { "kind": "anyTarget" }
+        }]
+      },
+      "effects": [{
+        "kind": "conditionalEffect",
+        "condition": {
+          "kind": "wasKicked",
+          "spell": { "kind": "self" }
+        },
+        "then": [{
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 4 },
+          "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+        }],
+        "else": [{
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 2 },
+          "recipient": { "kind": "chosenTarget", "id": "targetDamageable" }
+        }]
+      }]
+    }
+  ]
+}

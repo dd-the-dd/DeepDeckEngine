@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/ec8af1ca-a66b-46b6-86f3-1977be4475b1",
+  "cardName": "Human Rogue",
+  "oracleId": "ec8af1ca-a66b-46b6-86f3-1977be4475b1",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "495d1211-b5f2-4745-8391-b5331ded8545",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Human Rogue",
+      "typeLine": "Token Creature — Human Rogue",
+      "manaCost": "",
+      "oracleText": "Haste\nWhen this creature enters the battlefield, it deals 1 damage to any target.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

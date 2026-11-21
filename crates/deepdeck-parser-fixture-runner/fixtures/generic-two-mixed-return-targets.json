@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "synthetic/two-mixed-returns-independent-targets",
+  "cases": [
+    {
+      "id": "two-sentences-two-independent-mixed-targets",
+      "request": {
+        "cardName": "Synthetic Two Mixed Returns Sorcery",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return target spell or creature to its owner's hand. Return target spell or artifact to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetObject1"
+              },
+              {
+                "pointer": "/declaration/decisions/1/id",
+                "equals": "targetObject2"
+              },
+              {
+                "pointer": "/effects/0/object/id",
+                "equals": "targetObject1"
+              },
+              {
+                "pointer": "/effects/1/object/id",
+                "equals": "targetObject2"
+              }
+            ],
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "union",
+                      "sets": [
+                        {
+                          "kind": "spells"
+                        },
+                        {
+                          "kind": "permanents",
+                          "where": {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        }
+                      ]
+                    },
+                    "id": "targetObject1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "union",
+                      "sets": [
+                        {
+                          "kind": "spells"
+                        },
+                        {
+                          "kind": "permanents",
+                          "where": {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          }
+                        }
+                      ]
+                    },
+                    "id": "targetObject2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "id": "targetObject1",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "id": "targetObject2",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/5bd806e7-3f9b-4bb4-9708-f87a578f531e",
+  "cardName": "Fire Imp",
+  "oracleId": "5bd806e7-3f9b-4bb4-9708-f87a578f531e",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b1dbce3e-d88f-4fee-bf7d-8247f48d5c1a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Fire Imp",
+      "typeLine": "Creature — Imp",
+      "manaCost": "{2}{R}",
+      "oracleText": "When this creature enters, it deals 2 damage to target creature.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

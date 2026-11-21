@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "boros-charm-damage-mode-removes-four-loyalty-from-planeswalker",
+  "seed": 10304,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        { "id": "chosenModes", "kind": "chooseModes", "minimum": 1, "maximum": { "kind": "integer", "value": 1 }, "options": ["mode1", "mode2", "mode3"], "allowRepeated": false },
+        {
+          "id": "mode1:targetDamageable", "kind": "chooseTargets", "minimum": 1, "maximum": 1,
+          "candidates": { "kind": "union", "sets": [
+            { "kind": "players" },
+            { "kind": "permanents", "where": { "kind": "cardTypeContains", "value": "Planeswalker" } }
+          ]},
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" }
+        },
+        {
+          "id": "mode3:targetPermanent", "kind": "chooseTargets", "minimum": 1, "maximum": 1,
+          "candidates": { "kind": "permanents", "where": { "kind": "cardTypeContains", "value": "Creature" } },
+          "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode1" },
+        "then": [{ "kind": "dealDamage", "source": { "kind": "self" }, "amount": { "kind": "integer", "value": 4 }, "recipient": { "kind": "chosenTarget", "id": "mode1:targetDamageable" } }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode2" },
+        "then": [{
+          "kind": "grantKeyword",
+          "object": { "kind": "eachPermanent", "player": { "kind": "controllerOf", "object": { "kind": "self" } }, "where": null },
+          "keyword": "indestructible",
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": { "kind": "selectionContains", "selection": { "kind": "decisionResult", "decisionId": "chosenModes" }, "value": "mode3" },
+        "then": [{
+          "kind": "grantKeyword",
+          "object": { "kind": "chosenTarget", "id": "mode3:targetPermanent" },
+          "keyword": "doubleStrike",
+          "duration": { "kind": "untilEndOfCurrentTurn" }
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Boros Charm caster",
+        "hand": [{ "id": "boros-charm", "name": "Boros Charm", "typeLine": "Instant", "manaCost": "{R}{W}" }]
+      },
+      {
+        "id": "player-1",
+        "name": "Planeswalker controller",
+        "life": 20,
+        "battlefield": [{
+          "id": "target-planeswalker",
+          "name": "Target Planeswalker",
+          "typeLine": "Legendary Planeswalker — Test",
+          "counters": { "loyalty": 7 }
+        }]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "boros-charm",
+    "decisions": { "chosenModes": ["mode1"] },
+    "targets": { "mode1:targetDamageable": { "permanent": { "instanceId": "player-1:target-planeswalker:0" } } }
+  },
+  "assertions": [
+    { "kind": "permanentCounter", "playerId": "player-1", "definitionId": "target-planeswalker", "counter": "loyalty", "equals": 3 },
+    { "kind": "lifeTotal", "playerId": "player-1", "equals": 20 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

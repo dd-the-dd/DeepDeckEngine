@@ -1,0 +1,229 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger/permanent-entered-effect-sequence",
+  "cases": [
+    {
+      "id": "exact-tatyova-benthic-druid",
+      "request": {
+        "cardName": "Tatyova, Benthic Druid",
+        "typeLine": "Legendary Creature — Merfolk Druid",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Landfall — Whenever a land you control enters, you gain 1 life and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentEntered"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/event/where/kind",
+                "equals": "cardTypeContains"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Land"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/count/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-another-any-controller-sibling",
+      "request": {
+        "cardName": "Entry Observer",
+        "typeLine": "Creature — Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "When another creature enters, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentEntered"
+              },
+              {
+                "pointer": "/event/anyController",
+                "equals": true
+              },
+              {
+                "pointer": "/event/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-optional-single-effect-sibling",
+      "request": {
+        "cardName": "Wild Archivist",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a Beast enters, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/anyController",
+                "equals": true
+              },
+              {
+                "pointer": "/event/where/kind",
+                "equals": "subtypeContains"
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Beast"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "target-declaration-survives-parent",
+      "request": {
+        "cardName": "Constellation Guide",
+        "typeLine": "Enchantment Creature — Human",
+        "manaCost": "{2}{W}",
+        "oracleText": "Constellation — Whenever an enchantment you control enters, target creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetPermanent"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/id",
+                "equals": "targetPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "claimed-draw-near-miss",
+      "request": {
+        "cardName": "Malformed Explorer",
+        "typeLine": "Creature — Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a land you control enters, draw target card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "generic-trigger-program",
+            "state": "numeric.atom.start",
+            "expected": "integer, number word, or X",
+            "found": "target",
+            "tokenIndex": 8
+          }
+        ]
+      }
+    }
+  ]
+}

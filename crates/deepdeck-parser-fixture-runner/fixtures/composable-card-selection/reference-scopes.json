@@ -1,0 +1,413 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "reviewer-requested-scope-design-regressions-not-holdout",
+  "cases": [
+    {
+      "id": "plural-focus-selection-not-universe",
+      "request": {
+        "cardName": "Synthetic Collection Scope plural-focus-selection-not-universe",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top four cards of your library. Reveal two of them. Put them into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 4
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "nested-selection-source-and-local-complement",
+      "request": {
+        "cardName": "Synthetic Collection Scope nested-selection-source-and-local-complement",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top four cards of your library. Reveal two of them. Put one of them into your hand and the other into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 4
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  }
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand2",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "decisionResult",
+                          "decisionId": "cardsForHand"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand2"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand2"
+                    }
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "singular-focus-follows-other-complement",
+      "request": {
+        "cardName": "Synthetic Collection Scope singular-focus-follows-other-complement",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. Reveal it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    }
+                  },
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "revealCards",
+                  "cards": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "search-breaks-old-card-antecedent",
+      "request": {
+        "cardName": "Synthetic Collection Scope search-breaks-old-card-antecedent",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top two cards of your library. Search your library for a basic land card, reveal it, put it into your hand, then shuffle. Reveal it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

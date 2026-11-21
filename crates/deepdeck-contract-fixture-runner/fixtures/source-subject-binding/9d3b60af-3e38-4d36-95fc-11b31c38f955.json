@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/9d3b60af-3e38-4d36-95fc-11b31c38f955",
+  "cardName": "Festering Gulch",
+  "oracleId": "9d3b60af-3e38-4d36-95fc-11b31c38f955",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4ad841eb-da0d-43d4-8b60-efe30922990b",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Festering Gulch",
+      "typeLine": "Land — Desert",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {B} or {G}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

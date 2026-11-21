@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "native-cascade-bridge/resulting-spell-predicate-unsupported-kind",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "castOneCard",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "candidate"
+        },
+        "sourceZone": "exile",
+        "normalCostsApply": false,
+        "optional": true,
+        "bind": "cast",
+        "spellWhere": {
+          "kind": "unimplementedSpellCondition"
+        }
+      }
+    ]
+  }
+}

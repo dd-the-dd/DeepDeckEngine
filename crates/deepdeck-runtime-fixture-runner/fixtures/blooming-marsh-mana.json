@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "blooming-marsh-chooses-black-and-green-mana",
+  "seed": 13704,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": { "kind": "chooseOne", "options": ["{B}", "{G}"] }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Blooming Marsh pilot",
+        "battlefield": [
+          { "id": "blooming-marsh-black", "name": "Blooming Marsh", "typeLine": "Land" },
+          { "id": "blooming-marsh-green", "name": "Blooming Marsh", "typeLine": "Land" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "blooming-marsh-black",
+      "manaSymbols": ["B"]
+    },
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "blooming-marsh-green",
+      "manaSymbols": ["G"]
+    }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["B", "G"] },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "blooming-marsh-black",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "blooming-marsh-green",
+      "equals": true
+    },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

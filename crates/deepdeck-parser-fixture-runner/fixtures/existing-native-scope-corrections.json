@@ -1,0 +1,412 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/previously-native-selector-scope-corrections",
+  "cases": [
+    {
+      "id": "existing-native-22677153-bd87-4ff8-af92-ced4da2aac6c",
+      "request": {
+        "cardName": "Atraxa's Fall",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Destroy target artifact, battle, enchantment, or creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Battle"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-native-2a89feeb-9e66-4539-bd75-7d9d53f52d49",
+      "request": {
+        "cardName": "Shoot Down",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Exile target artifact, enchantment, or creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "exilePermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-native-5e316864-d55c-496f-8f46-773567896864",
+      "request": {
+        "cardName": "Broken Wings",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy target artifact, enchantment, or creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-native-722f2965-a1ec-4b97-a4bd-b99364f58b1e",
+      "request": {
+        "cardName": "Return to the Earth",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Destroy target artifact, enchantment, or creature with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "existing-native-72a0e0f1-e8be-441a-bcaf-029fb1bd1fd2",
+      "request": {
+        "cardName": "Airship Crash",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy target artifact, enchantment, or creature with flying.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Artifact"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Enchantment"
+                          },
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "hasKeyword",
+                                "value": "flying"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
+          }
+        ]
+      }
+    }
+  ]
+}

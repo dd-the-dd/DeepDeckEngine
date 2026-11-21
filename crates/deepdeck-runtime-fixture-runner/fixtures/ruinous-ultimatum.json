@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "ruinous-ultimatum-destroys-only-opponents-nonland-permanents",
+  "seed": 61120,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "not",
+          "operand": { "kind": "cardTypeContains", "value": "Land" }
+        },
+        "player": {
+          "kind": "opponentsOf",
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Ruinous Ultimatum caster",
+        "manaPool": ["R", "R", "W", "W", "W", "B", "B"],
+        "hand": [{
+          "id": "ruinous-ultimatum",
+          "name": "Ruinous Ultimatum",
+          "typeLine": "Sorcery",
+          "manaCost": "{R}{R}{W}{W}{W}{B}{B}",
+          "rules": [{
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+              "kind": "destroyPermanent",
+              "permanent": {
+                "kind": "eachPermanent",
+                "where": {
+                  "kind": "not",
+                  "operand": { "kind": "cardTypeContains", "value": "Land" }
+                },
+                "player": {
+                  "kind": "opponentsOf",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                }
+              }
+            }]
+          }]
+        }],
+        "battlefield": [
+          { "id": "casters-creature", "name": "Caster's Creature", "typeLine": "Creature — Test", "power": "2", "toughness": "2" },
+          { "id": "casters-artifact", "name": "Caster's Artifact", "typeLine": "Artifact" },
+          { "id": "casters-land", "name": "Caster's Land", "typeLine": "Land" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "First opponent",
+        "battlefield": [
+          { "id": "first-opponent-creature", "name": "First Opponent Creature", "typeLine": "Creature — Test", "power": "3", "toughness": "3" },
+          { "id": "first-opponent-land", "name": "First Opponent Land", "typeLine": "Land" }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Second opponent",
+        "battlefield": [
+          { "id": "second-opponent-enchantment", "name": "Second Opponent Enchantment", "typeLine": "Enchantment" },
+          { "id": "second-opponent-land", "name": "Second Opponent Land", "typeLine": "Land" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "ruinous-ultimatum" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "casters-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "casters-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "casters-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "first-opponent-creature", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "first-opponent-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-2", "zone": "graveyard", "definitionId": "second-opponent-enchantment", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-2", "zone": "battlefield", "definitionId": "second-opponent-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "ruinous-ultimatum", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 2 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

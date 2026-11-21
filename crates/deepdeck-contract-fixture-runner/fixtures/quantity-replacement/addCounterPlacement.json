@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired-quantity-addCounterPlacement",
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "addCounterPlacement",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "counter": "+1/+1",
+        "amount": 1,
+        "factor": 2
+      }
+    ]
+  },
+  "expectedExecutable": false
+}

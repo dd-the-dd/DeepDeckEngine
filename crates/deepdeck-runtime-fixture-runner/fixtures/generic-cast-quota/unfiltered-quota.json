@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cast-history/null-means-unfiltered-cast-quota",
+  "seed": 10944,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "kind": "castLimitPerTurn",
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "where": null
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "quota-source",
+            "name": "Rule of Law",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{W}",
+            "rules": [
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "kind": "castLimitPerTurn",
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "players": {
+                      "kind": "eachPlayer"
+                    },
+                    "where": null
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "spell-0",
+            "name": "spell-0",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "spell-1",
+            "name": "spell-1",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "creature",
+            "name": "creature",
+            "typeLine": "Creature",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "hand": [
+          {
+            "id": "opponent-instant",
+            "name": "opponent-instant",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-0"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell-1",
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p0",
+      "sourceDefinitionId": "creature",
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "p1",
+      "sourceDefinitionId": "opponent-instant",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

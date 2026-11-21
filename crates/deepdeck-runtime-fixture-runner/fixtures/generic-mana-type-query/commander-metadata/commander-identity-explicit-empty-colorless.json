@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "commander-identity-explicit-empty-colorless",
+  "seed": 1,
+  "rule": {
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "mana": {
+          "kind": "chooseCommanderColor",
+          "amount": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Arcane Signet pilot",
+        "library": [
+          {
+            "id": "red-blue-commander",
+            "name": "Colorless Commander",
+            "typeLine": "Legendary Creature",
+            "manaCost": "{4}",
+            "isCommander": true,
+            "rules": [
+              {
+                "kind": "rulesMarker",
+                "text": "Color identity",
+                "colorIdentity": []
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "arcane-signet",
+            "name": "Arcane Signet",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "arcane-signet",
+      "manaSymbols": []
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "arcane-signet",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentTapped",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAdded",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

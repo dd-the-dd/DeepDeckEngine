@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "player-set-damage/impact-complete-input",
+  "cardName": "Impact Tremors",
+  "oracleId": "9242cd3e-1a71-4700-8182-9c1005616033",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d0b7cecf-b51b-4d30-b7e9-cd7976271e07",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Impact Tremors",
+      "typeLine": "Enchantment",
+      "manaCost": "{1}{R}",
+      "oracleText": "Whenever a creature you control enters, this enchantment deals 1 damage to each opponent.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "collection-destroy/negative-color-qualifier-is-executable",
+  "cardName": "Mass Calcify",
+  "oracleId": "3ab3996f-aa3f-4041-8634-8e197d51f108",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": {
+          "kind": "and",
+          "operands": [
+            { "kind": "not", "operand": { "kind": "colorContains", "value": "White" } },
+            { "kind": "cardTypeContains", "value": "Creature" }
+          ]
+        }
+      }
+    }]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "lotus-petal/tap-sacrifice-color-choice-is-executable",
+  "cardName": "Lotus Petal",
+  "oracleId": "32e5339e-9e4f-46f8-b305-f9d6d3ba8bb5",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } },
+      { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+    ],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": { "kind": "chooseColor", "amount": 1 }
+    }]
+  }
+}

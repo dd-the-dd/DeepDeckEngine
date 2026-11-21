@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "query-numeric-rhs-gain/035bee4c-6f79-4123-9b6c-feba190052e8",
+  "cardName": "Curzon Dax, Bound by Blood",
+  "oracleId": "035bee4c-6f79-4123-9b6c-feba190052e8",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "cb369f4f-e20a-479d-8e35-8466b05375f7",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "3",
+    "loyalty": null,
+    "oracle": {
+      "cardName": "Curzon Dax, Bound by Blood",
+      "typeLine": "Legendary Creature — Trill Warrior",
+      "manaCost": "{2}{R}{W}",
+      "oracleText": "Whenever another Klingon or Warrior you control dies, Curzon Dax deals 1 damage to each opponent.\nWhen Curzon Dax dies, you may put a creature card with mana value 3 or less from your hand onto the battlefield.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

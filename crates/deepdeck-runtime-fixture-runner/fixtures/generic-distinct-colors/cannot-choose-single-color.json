@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "distinct-colors/cannot-choose-single-color",
+  "seed": 421,
+  "rule": {
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "mana": {
+          "kind": "eachColorAmongPermanents",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "manaAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "bloom-tender",
+            "name": "Bloom Tender",
+            "typeLine": "Creature — Elf Druid",
+            "manaCost": "{1}{G}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "eachColorAmongPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "red",
+            "name": "red",
+            "typeLine": "Artifact",
+            "manaCost": "{R}",
+            "rules": []
+          },
+          {
+            "id": "red-duplicate",
+            "name": "red-duplicate",
+            "typeLine": "Artifact",
+            "manaCost": "{R}",
+            "rules": []
+          },
+          {
+            "id": "white-red",
+            "name": "white-red",
+            "typeLine": "Artifact",
+            "manaCost": "{W}{R}",
+            "rules": []
+          },
+          {
+            "id": "colorless",
+            "name": "colorless",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": []
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "probeFailure",
+      "action": {
+        "kind": "activateManaAbility",
+        "controllerId": "player-0",
+        "sourceDefinitionId": "bloom-tender",
+        "manaSymbols": [
+          "G"
+        ]
+      },
+      "expectedErrorContains": "not currently legal"
+    }
+  ],
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "bloom-tender",
+      "equals": false
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "manaAbilityActivated",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

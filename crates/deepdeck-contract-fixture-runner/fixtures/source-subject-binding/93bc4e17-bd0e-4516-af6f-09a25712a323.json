@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/93bc4e17-bd0e-4516-af6f-09a25712a323",
+  "cardName": "Lightning Colt",
+  "oracleId": "93bc4e17-bd0e-4516-af6f-09a25712a323",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "1b7a9707-24fc-4214-8572-7ca47575b782",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Lightning Colt",
+      "typeLine": "Instant Creature — Horse",
+      "manaCost": "{3}{R}{R}",
+      "oracleText": "When Lightning Colt enters, it deals 3 damage to any target.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

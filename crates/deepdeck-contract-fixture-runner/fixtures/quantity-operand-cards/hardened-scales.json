@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "quantity-operand-cards/hardened-scales/complete-card",
+  "cardName": "Hardened Scales",
+  "oracleId": "a1f3da21-af6d-450e-bf0b-985d158418e6",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "kind": "staticAbility",
+      "modifiers": [
+        {
+          "event": {
+            "counter": "+1/+1",
+            "kind": "counterPlacement",
+            "minimum": 1,
+            "origin": "any",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "recipientKind": "permanent",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "kind": "replaceEventQuantity",
+          "quantity": {
+            "kind": "add",
+            "left": {
+              "kind": "eventQuantity"
+            },
+            "right": {
+              "kind": "integer",
+              "value": 1
+            }
+          }
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
+    }
+  ]
+}

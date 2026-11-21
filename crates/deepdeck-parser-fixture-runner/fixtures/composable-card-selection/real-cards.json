@@ -1,0 +1,602 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "composable-selection-four-known-design-cards",
+  "cases": [
+    {
+      "id": "impulse-complete-real-source",
+      "request": {
+        "cardName": "Impulse",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 4
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "remainderOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "remainderOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "bottom"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "remainderOrder"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "anticipate-complete-real-source",
+      "request": {
+        "cardName": "Anticipate",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "remainderOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "remainderOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "bottom"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "remainderOrder"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sleight-of-hand-complete-real-source",
+      "request": {
+        "cardName": "Sleight of Hand",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "chooseCards",
+                  "id": "cardsForHand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": {
+                    "kind": "boundObjects",
+                    "binding": "lookedCards"
+                  },
+                  "count": {
+                    "kind": "minimum",
+                    "operands": [
+                      {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      {
+                        "kind": "countObjects",
+                        "objects": {
+                          "kind": "boundObjects",
+                          "binding": "lookedCards"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "cardsForHand"
+                  },
+                  "to": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "cardsForHand"
+                    }
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "bottom"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "peer-through-depths-complete-real-source",
+      "request": {
+        "cardName": "Peer Through Depths",
+        "typeLine": "Instant — Arcane",
+        "manaCost": "{1}{U}",
+        "oracleText": "Look at the top five cards of your library. You may reveal an instant or sorcery card from among them and put it into your hand. Put the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "lookAtTopCards",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 5
+                  },
+                  "bind": "lookedCards"
+                },
+                {
+                  "kind": "bind",
+                  "id": "optionalCards",
+                  "value": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "chooseCards",
+                      "id": "cardsForHand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "from": {
+                        "kind": "boundObjects",
+                        "binding": "lookedCards"
+                      },
+                      "count": {
+                        "kind": "minimum",
+                        "operands": [
+                          {
+                            "kind": "integer",
+                            "value": 1
+                          },
+                          {
+                            "kind": "countObjects",
+                            "objects": {
+                              "kind": "filterObjects",
+                              "objects": {
+                                "kind": "boundObjects",
+                                "binding": "lookedCards"
+                              },
+                              "where": {
+                                "kind": "or",
+                                "operands": [
+                                  {
+                                    "kind": "cardTypeContains",
+                                    "value": "Instant"
+                                  },
+                                  {
+                                    "kind": "cardTypeContains",
+                                    "value": "Sorcery"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Instant"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Sorcery"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "kind": "revealCards",
+                      "cards": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardsForHand"
+                      }
+                    },
+                    {
+                      "kind": "moveCards",
+                      "cards": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardsForHand"
+                      },
+                      "to": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "bind",
+                      "id": "optionalCards",
+                      "value": {
+                        "kind": "decisionResult",
+                        "decisionId": "cardsForHand"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "chooseOrder",
+                  "id": "remainderOrder",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "objects": {
+                    "kind": "setDifference",
+                    "left": {
+                      "kind": "boundObjects",
+                      "binding": "lookedCards"
+                    },
+                    "right": {
+                      "kind": "boundObjects",
+                      "binding": "optionalCards"
+                    }
+                  }
+                },
+                {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "decisionResult",
+                    "decisionId": "remainderOrder"
+                  },
+                  "to": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "position": "bottom"
+                  },
+                  "order": {
+                    "kind": "decisionOrder",
+                    "decisionId": "remainderOrder"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

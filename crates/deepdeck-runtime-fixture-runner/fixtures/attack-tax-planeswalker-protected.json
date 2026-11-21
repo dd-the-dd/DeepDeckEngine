@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "attack-tax-explicitly-protects-planeswalker-but-not-battle",
+  "seed": 113,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 2 },
+      "protectPlaneswalkers": true
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Protected player",
+        "battlefield": [
+          {
+            "id": "wide-tax-source",
+            "name": "Wide Tax Source",
+            "typeLine": "Enchantment",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+              "modifiers": [{
+                "kind": "attackTax",
+                "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+                "amount": { "kind": "integer", "value": 2 },
+                "protectPlaneswalkers": true
+              }]
+            }]
+          },
+          {
+            "id": "protected-planeswalker",
+            "name": "Protected Planeswalker",
+            "typeLine": "Legendary Planeswalker - Test",
+            "rules": [],
+            "counters": { "loyalty": 4 }
+          },
+          {
+            "id": "unprotected-battle",
+            "name": "Unprotected Battle",
+            "typeLine": "Battle - Siege",
+            "rules": [],
+            "counters": { "defense": 4 }
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "protected-walker-draw", "name": "Protected Walker Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [{
+          "id": "battle-attacker",
+          "name": "Battle Attacker",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "decisions": [
+    { "kind": "chooseOption", "index": 0 },
+    { "kind": "chooseOption", "index": 0 }
+  ],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "playerId": "player-1", "equals": 1 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "permanentCounter", "playerId": "player-0", "definitionId": "protected-planeswalker", "counter": "loyalty", "equals": 4 },
+    { "kind": "decisionCount", "equals": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

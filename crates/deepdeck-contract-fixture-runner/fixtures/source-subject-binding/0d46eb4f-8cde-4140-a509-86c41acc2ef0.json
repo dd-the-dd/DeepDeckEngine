@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/0d46eb4f-8cde-4140-a509-86c41acc2ef0",
+  "cardName": "Imp",
+  "oracleId": "0d46eb4f-8cde-4140-a509-86c41acc2ef0",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "47a1385b-2be2-49a8-8400-186cd5525dad",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Imp",
+      "typeLine": "Token Creature — Imp",
+      "manaCost": "",
+      "oracleText": "When this creature dies, it deals 2 damage to each opponent.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

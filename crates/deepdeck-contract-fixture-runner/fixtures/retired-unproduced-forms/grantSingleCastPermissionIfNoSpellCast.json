@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retire-next/after/grantSingleCastPermissionIfNoSpellCast",
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetCard",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": {
+              "kind": "anyGraveyard"
+            },
+            "where": null
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "grantSingleCastPermissionIfNoSpellCast",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "card": {
+          "kind": "chosenTarget",
+          "id": "targetCard"
+        },
+        "expiresAfterTurn": {
+          "kind": "currentTurn"
+        },
+        "prohibitAdditionalSpells": true
+      }
+    ]
+  },
+  "expectedExecutable": false
+}

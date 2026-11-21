@@ -1,0 +1,204 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "source-combat-restriction/ability-loss-releases-blocking",
+  "seed": 1515,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "self"
+        },
+        "keyword": "cantBlock"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Payer",
+        "battlefield": [
+          {
+            "id": "feeder",
+            "name": "Carrion Feeder",
+            "typeLine": "Creature \u2014 Zombie",
+            "manaCost": "{B}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "self"
+                    },
+                    "keyword": "cantBlock"
+                  }
+                ]
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "id": "activationCostPermanent0",
+                      "kind": "chosenObject"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      },
+                      "id": "activationCostPermanent0",
+                      "kind": "chooseObjects",
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "counter": "+1/+1",
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "food",
+            "name": "Sacrifice Resource",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "suppressor",
+            "name": "Ability Suppressor",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "loseAllAbilities",
+                    "objects": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "nameEquals",
+                        "value": "Carrion Feeder"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "attacker",
+            "name": "Opponent Ground",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "feeder",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "attacker",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "feeder",
+      "keyword": "cantBlock",
+      "equals": false
+    }
+  ]
+}

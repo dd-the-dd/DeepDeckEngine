@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "bound-permanent-subject/partial-illegal-blink-first-target-second-still-resolves",
+  "seed": 251115,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent1",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        },
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent2",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Artifact"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent1"
+        },
+        "counter": "charge",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent1"
+        },
+        "keyword": "flying",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      },
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent2"
+        },
+        "counter": "charge",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent2"
+        },
+        "keyword": "haste",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "manaPool": [
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "repast",
+            "name": "Partial Legality Probe",
+            "typeLine": "Instant",
+            "manaCost": "{G}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent1",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent2",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent1"
+                    },
+                    "counter": "charge",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent1"
+                    },
+                    "keyword": "flying",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  },
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent2"
+                    },
+                    "counter": "charge",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent2"
+                    },
+                    "keyword": "haste",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "draw-filler",
+            "name": "Draw Filler",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "safe-artifact",
+            "name": "Safe Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "chosen-creature",
+            "name": "Chosen Creature",
+            "typeLine": "Creature ? Beast",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "repast"
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p1",
+        "sourceDefinitionId": "chosen-creature",
+        "targets": {
+          "departing": {
+            "permanent": {
+              "instanceId": "p1:chosen-creature:0"
+            }
+          }
+        }
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "exilePermanent",
+            "permanent": {
+              "kind": "chosenTarget",
+              "id": "departing"
+            },
+            "bind": "departedSubject"
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "boundObjects",
+              "binding": "departedSubject"
+            },
+            "to": {
+              "kind": "battlefield",
+              "player": {
+                "kind": "abilityController"
+              },
+              "tapped": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "p1",
+      "definitionId": "chosen-creature",
+      "counter": "charge",
+      "equals": 0
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "p1",
+      "definitionId": "chosen-creature",
+      "keyword": "flying",
+      "equals": false
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "safe-artifact",
+      "counter": "charge",
+      "equals": 1
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "p0",
+      "definitionId": "safe-artifact",
+      "keyword": "haste",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

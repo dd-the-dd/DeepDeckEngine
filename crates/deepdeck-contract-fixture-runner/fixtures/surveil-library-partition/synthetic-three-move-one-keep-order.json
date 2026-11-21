@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "primitive-surveil/synthetic-three-move-one-keep-order",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 3
+        },
+        "bind": "surveilLookedCards"
+      },
+      {
+        "kind": "chooseCards",
+        "id": "surveilGraveyardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "surveilLookedCards"
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "countObjects",
+          "objects": {
+            "kind": "boundObjects",
+            "binding": "surveilLookedCards"
+          }
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "surveilGraveyardOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "surveilGraveyardCards"
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "surveilGraveyardOrder"
+        },
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "surveilGraveyardOrder"
+        }
+      },
+      {
+        "kind": "chooseOrder",
+        "id": "surveilTopOrder",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "objects": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "surveilLookedCards"
+          },
+          "right": {
+            "kind": "decisionResult",
+            "decisionId": "surveilGraveyardCards"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "surveilTopOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "top"
+        },
+        "order": {
+          "kind": "decisionOrder",
+          "decisionId": "surveilTopOrder"
+        }
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "surveil",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  }
+}

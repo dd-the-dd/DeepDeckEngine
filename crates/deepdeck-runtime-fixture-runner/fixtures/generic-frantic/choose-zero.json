@@ -1,0 +1,329 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "frantic-real-provisional/choose-zero",
+  "seed": 7311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "discardCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "choosePermanents",
+        "id": "effect2:selectedPermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "candidates": {
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 3
+        }
+      },
+      {
+        "kind": "untapPermanents",
+        "objects": {
+          "kind": "decisionResult",
+          "decisionId": "effect2:selectedPermanents"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "manaPool": [
+          "U",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "frantic-real-source",
+            "name": "Frantic Search",
+            "typeLine": "Instant",
+            "manaCost": "{2}{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "discardCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "choosePermanents",
+                    "id": "effect2:selectedPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "maximum": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  },
+                  {
+                    "kind": "untapPermanents",
+                    "objects": {
+                      "kind": "decisionResult",
+                      "decisionId": "effect2:selectedPermanents"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "hand-a",
+            "name": "hand-a",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "hand-b",
+            "name": "hand-b",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "library-a",
+            "name": "library-a",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          },
+          {
+            "id": "library-b",
+            "name": "library-b",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "p0-land0",
+            "name": "p0-land0",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          },
+          {
+            "id": "p0-land1",
+            "name": "p0-land1",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "battlefield": [
+          {
+            "id": "p1-land0",
+            "name": "p1-land0",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          },
+          {
+            "id": "p1-land1",
+            "name": "p1-land1",
+            "typeLine": "Land",
+            "manaCost": "",
+            "tapped": true,
+            "counters": {
+              "stun": 0
+            },
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "forward"
+    },
+    {
+      "kind": "selectCards",
+      "count": 0,
+      "take": "reverse"
+    }
+  ],
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "frantic-real-source"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "equals": 2
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDiscarded",
+      "equals": 2
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "p0-land0",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p0",
+      "definitionId": "p0-land1",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "p1-land0",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "p1",
+      "definitionId": "p1-land1",
+      "equals": true
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p1",
+      "definitionId": "p1-land0",
+      "counter": "stun",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentUntapped",
+      "equals": 0
+    }
+  ]
+}

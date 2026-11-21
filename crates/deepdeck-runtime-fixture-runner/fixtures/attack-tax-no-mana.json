@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "propaganda-prevents-an-unpaid-attack",
+  "seed": 107,
+  "rule": {
+    "kind": "staticAbility",
+    "source": { "kind": "self" },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": { "kind": "self" },
+      "zone": { "kind": "battlefield" }
+    },
+    "modifiers": [{
+      "kind": "attackTax",
+      "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "amount": { "kind": "integer", "value": 2 }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Propaganda controller",
+        "battlefield": [{
+          "id": "propaganda",
+          "name": "Propaganda",
+          "typeLine": "Enchantment",
+          "rules": [{
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": {
+              "kind": "inZone",
+              "object": { "kind": "self" },
+              "zone": { "kind": "battlefield" }
+            },
+            "modifiers": [{
+              "kind": "attackTax",
+              "protectedPlayer": { "kind": "controllerOf", "object": { "kind": "self" } },
+              "amount": { "kind": "integer", "value": 2 }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Attacker",
+        "library": [{ "id": "unfunded-draw", "name": "Unfunded Draw", "typeLine": "Sorcery", "rules": [] }],
+        "battlefield": [{
+          "id": "unfunded-attacker",
+          "name": "Unfunded Attacker",
+          "typeLine": "Creature - Test",
+          "power": "2",
+          "toughness": "2",
+          "rules": []
+        }]
+      }
+    ]
+  },
+  "actions": [{ "kind": "runPostcombatMain", "maximumTurnNumber": 2 }],
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "attackerDeclared", "equals": 0 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "manaPoolEquals", "playerId": "player-1", "symbols": [] },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

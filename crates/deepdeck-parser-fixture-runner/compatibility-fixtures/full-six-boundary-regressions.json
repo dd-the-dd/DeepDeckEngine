@@ -1,0 +1,368 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "Full-only-exact-draw-zone-regressions",
+  "cases": [
+    {
+      "id": "exact-original-full-regression-1",
+      "request": {
+        "cardName": "Soul-Guide Lantern",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "When this artifact enters, exile target card from a graveyard.\n{T}, Sacrifice this artifact: Exile each opponent's graveyard.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "exceptPlayer": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "exileAllGraveyards"
+                }
+              ],
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-original-full-regression-2",
+      "request": {
+        "cardName": "Rush of Knowledge",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}",
+        "oracleText": "Draw cards equal to the greatest mana value among permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "legacy",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "greatestManaValue",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-original-full-regression-3",
+      "request": {
+        "cardName": "Sea Gate Restoration // Sea Gate, Reborn",
+        "typeLine": "Sorcery // Land",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "modal_dfc",
+        "faces": [
+          {
+            "id": "face-0",
+            "name": "Sea Gate Restoration",
+            "typeLine": "Sorcery",
+            "manaCost": "{4}{U}{U}{U}",
+            "oracleText": "Draw cards equal to the number of cards in your hand plus one. You have no maximum hand size for the rest of the game."
+          },
+          {
+            "id": "face-1",
+            "name": "Sea Gate, Reborn",
+            "typeLine": "Land",
+            "manaCost": "",
+            "oracleText": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "legacy",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "countCards",
+                      "where": null,
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "grantNoMaximumHandSize",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-original-full-regression-4",
+      "request": {
+        "cardName": "One with the Machine",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw cards equal to the greatest mana value among artifacts you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "legacy",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "greatestManaValue",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    }
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-original-full-regression-5",
+      "request": {
+        "cardName": "Life's Legacy",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature.\nDraw cards equal to the sacrificed creature's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "legacy",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-original-full-regression-6",
+      "request": {
+        "cardName": "Cosmic Epiphany",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Draw cards equal to the number of instant and sorcery cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "legacy",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "countCards",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Instant"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Sorcery"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

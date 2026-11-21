@@ -6,6 +6,7 @@ pub(super) fn draft(rule: Value, operations: &[&str]) -> CanonicalRuleDraft {
     CanonicalRuleDraft {
         operations: operations.iter().map(|value| value.to_string()).collect(),
         rule,
+        construction: Vec::new(),
     }
 }
 
@@ -63,14 +64,5 @@ pub(super) fn selection(decision_id: &str, value: &str) -> Value {
         "kind": "selectionContains",
         "selection": { "kind": "decisionResult", "decisionId": decision_id },
         "value": value,
-    })
-}
-
-pub(super) fn selection_count_at_least(decision_id: &str, value: &str, minimum: i64) -> Value {
-    json!({
-        "kind": "selectionCountAtLeast",
-        "selection": { "kind": "decisionResult", "decisionId": decision_id },
-        "value": value,
-        "minimum": integer(minimum),
     })
 }

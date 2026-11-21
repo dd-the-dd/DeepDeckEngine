@@ -1,0 +1,50 @@
+{
+    "schemaVersion":  "deepdeck-contract-fixture/v1",
+    "id":  "global-native-card/0230de18-8d15-4cfa-9d42-7ccddd9f9570/complete-rule-set",
+    "cardName":  "Supreme Verdict",
+    "oracleId":  "0230de18-8d15-4cfa-9d42-7ccddd9f9570",
+    "expectedExecutable":  true,
+    "rules":  [
+                  {
+                      "activeWhile":  {
+                                          "kind":  "inZone",
+                                          "object":  {
+                                                         "kind":  "self"
+                                                     },
+                                          "zone":  {
+                                                       "kind":  "stack"
+                                                   }
+                                      },
+                      "kind":  "staticAbility",
+                      "modifiers":  [
+                                        {
+                                            "kind":  "cantBeCountered",
+                                            "object":  {
+                                                           "kind":  "self"
+                                                       }
+                                        }
+                                    ],
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  },
+                  {
+                      "effects":  [
+                                      {
+                                          "kind":  "destroyPermanent",
+                                          "permanent":  {
+                                                            "kind":  "eachPermanent",
+                                                            "where":  {
+                                                                          "kind":  "cardTypeContains",
+                                                                          "value":  "Creature"
+                                                                      }
+                                                        }
+                                      }
+                                  ],
+                      "kind":  "spellAbility",
+                      "source":  {
+                                     "kind":  "self"
+                                 }
+                  }
+              ]
+}

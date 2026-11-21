@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "source-identity-does-not-launder-legacy-anaphor",
+  "cases": [
+    {
+      "id": "source-move-identity-is-not-provenance",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, exile it. Then it deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-sacrifice-identity-is-not-provenance",
+      "request": {
+        "cardName": "Source Binding Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever you cast a spell, sacrifice it. It deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

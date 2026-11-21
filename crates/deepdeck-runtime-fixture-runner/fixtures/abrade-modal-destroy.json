@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "abrade-destroy-mode-requires-only-its-artifact-target",
+  "seed": 81202,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "chosenModes",
+          "kind": "chooseModes",
+          "minimum": 1,
+          "maximum": { "kind": "integer", "value": 1 },
+          "options": ["mode1", "mode2"],
+          "allowRepeated": false
+        },
+        {
+          "id": "mode1:targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode1"
+          }
+        },
+        {
+          "id": "mode2:targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Artifact" }
+          },
+          "condition": {
+            "kind": "selectionContains",
+            "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+            "value": "mode2"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode1"
+        },
+        "then": [{
+          "kind": "dealDamage",
+          "source": { "kind": "self" },
+          "amount": { "kind": "integer", "value": 3 },
+          "recipient": { "kind": "chosenTarget", "id": "mode1:targetPermanent" }
+        }]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "selectionContains",
+          "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+          "value": "mode2"
+        },
+        "then": [{
+          "kind": "destroyPermanent",
+          "permanent": { "kind": "chosenTarget", "id": "mode2:targetPermanent" }
+        }]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Abrade caster",
+        "manaPool": ["R", "C"],
+        "hand": [
+          {
+            "id": "abrade",
+            "name": "Abrade",
+            "typeLine": "Instant",
+            "manaCost": "{1}{R}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "only-artifact",
+            "name": "Only Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "abrade",
+      "declarationDecisions": { "chosenModes": ["mode2"] }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "only-artifact", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "damageDealt", "equals": 0 },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/db2f3a06-f75e-4689-b147-9820aebb30e2",
+  "cardName": "Auriok Salvagers",
+  "oracleId": "db2f3a06-f75e-4689-b147-9820aebb30e2",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "befb996b-1da6-41a3-8d9a-a45c2353c401",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "2",
+    "toughness": "4",
+    "oracle": {
+      "cardName": "Auriok Salvagers",
+      "typeLine": "Creature — Human Soldier",
+      "manaCost": "{3}{W}",
+      "oracleText": "{1}{W}: Return target artifact card with mana value 1 or less from your graveyard to your hand.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

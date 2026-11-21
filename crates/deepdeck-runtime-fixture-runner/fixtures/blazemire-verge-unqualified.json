@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "blazemire-verge-red-is-unavailable-without-swamp-or-mountain",
+  "seed": 89,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "activationCondition": {
+      "kind": "controlsPermanent",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "where": {
+        "kind": "or",
+        "operands": [
+          { "kind": "subtypeContains", "value": "Swamp" },
+          { "kind": "subtypeContains", "value": "Mountain" }
+        ]
+      }
+    },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [{
+      "kind": "addMana",
+      "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "mana": "{R}"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Unqualified Blazemire Verge pilot",
+        "battlefield": [
+          {
+            "id": "blazemire-verge",
+            "name": "Blazemire Verge",
+            "typeLine": "Land"
+          },
+          {
+            "id": "forest-only",
+            "name": "Forest",
+            "typeLine": "Basic Land — Forest"
+          },
+          {
+            "id": "misleading-swamp-name",
+            "name": "Swamp",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "manaAbilityAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "blazemire-verge",
+      "manaSymbols": ["R"],
+      "equals": false
+    },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "blazemire-verge", "equals": false },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

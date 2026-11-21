@@ -1,0 +1,230 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared/damage-family-permission-support",
+  "cases": [
+    {
+      "id": "zero-interleaved",
+      "request": {
+        "cardName": "Synthetic damage allowance",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to any target and you gain 1 life and you may play zero additional lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.life.action",
+            "found": "may"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digit-zero-interleaved",
+      "request": {
+        "cardName": "Synthetic damage allowance",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to any target and you gain 1 life and you may play 0 additional lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.permission.temporary.shared-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "variable-interleaved",
+      "request": {
+        "cardName": "Synthetic damage allowance",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{R}",
+        "oracleText": "This spell deals 1 damage to any target and you gain 1 life and you may play X additional lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.permission.temporary.shared-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "two-interleaved",
+      "request": {
+        "cardName": "Synthetic damage allowance",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to any target and you gain 1 life and you may play two additional lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "anyTarget"
+                    },
+                    "id": "targetDamageable",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetDamageable",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "kind": "grantAdditionalLandPlays",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "old-damage-life-exact",
+      "request": {
+        "cardName": "Synthetic damage allowance",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "This spell deals 1 damage to any target and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "anyTarget"
+                    },
+                    "id": "targetDamageable",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetDamageable",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

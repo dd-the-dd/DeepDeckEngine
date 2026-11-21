@@ -1,0 +1,857 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/source-trigger-program",
+  "cases": [
+    {
+      "id": "exact-real-solemn-complete-oracle",
+      "request": {
+        "cardName": "Solemn Simulacrum",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{4}",
+        "oracleText": "When this creature enters, you may search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.\nWhen this creature dies, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "chooseCards",
+                      "id": "searchedCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "minimum": 0,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "cards",
+                        "zone": {
+                          "kind": "library",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "typeLineContains",
+                              "value": "Basic"
+                            },
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Land"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "kind": "moveCards",
+                      "cards": {
+                        "kind": "decisionResult",
+                        "decisionId": "searchedCards"
+                      },
+                      "to": {
+                        "kind": "battlefield",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "tapped": true
+                      }
+                    },
+                    {
+                      "kind": "shuffleZone",
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "recordLibrarySearch",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "cards": {
+                        "kind": "decisionResult",
+                        "decisionId": "searchedCards"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-may-exact-two",
+      "request": {
+        "cardName": "Synthetic optional amount source",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 2
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-may-up-to-two",
+      "request": {
+        "cardName": "Synthetic optional amount source",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw up to two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "chooseNumber",
+                  "id": "optionalDrawCount0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "decisionResult",
+                    "decisionId": "optionalDrawCount0"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-period-ends-permission",
+      "request": {
+        "cardName": "Synthetic optional amount source",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw a card. You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                },
+                {
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-named-source-with-comma",
+      "request": {
+        "cardName": "Memory Witness, Patient Automaton",
+        "typeLine": "Artifact Creature",
+        "manaCost": "{2}",
+        "oracleText": "When Memory Witness, Patient Automaton enters, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              },
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-and-permission-group-refused",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw a card and gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "amount": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "gainLife",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-comma-then-permission-group-refused",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw a card, then gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "amount": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "gainLife",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "permanentDied",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-compound-event-not-approximated",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters or dies, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "trigger.source-program.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-foreign-library-not-borrowed",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.library-search.possessive-library"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-permission-body-98ababb4-a027-4340-94f0-9a2359a8c48f",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "you may draw a card, then discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "discardCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-permission-body-e8fbcafd-3617-4cd7-b55d-457fb7b60162",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "you may draw a card and proliferate. Do this only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "contextual-effect-program",
+            "state": "program.optional.scope",
+            "expected": "one complete optional sentence without a later conditional or program continuation",
+            "found": "."
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-dying-source-preserves-hard-relative-target-support-limit",
+      "request": {
+        "cardName": "Synthetic source support boundary",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, target creature gets +1/+1 until end of turn. Another target creature gets -1/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.modify-stats.another-target-relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-optional-trigger-never-borrows-cast-x",
+      "request": {
+        "cardName": "Synthetic optional numeric boundary",
+        "typeLine": "Creature",
+        "manaCost": "{X}{U}",
+        "oracleText": "When this creature dies, you may draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.optional-draw.count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-optional-runtime-literal-overflow-refused",
+      "request": {
+        "cardName": "Synthetic optional numeric boundary",
+        "typeLine": "Creature",
+        "manaCost": "{2}",
+        "oracleText": "When this creature dies, you may draw 2147483648 cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.optional-draw.count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-optional-spell-retains-its-own-mana-x",
+      "request": {
+        "cardName": "Synthetic optional X spell",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "You may draw X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "effects": [
+                {
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "count": {
+                        "kind": "decisionResult",
+                        "decisionId": "xValue"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

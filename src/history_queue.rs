@@ -430,7 +430,10 @@ impl HistorySpool {
         })
     }
 
-    #[cfg(test)]
+    #[cfg(all(
+        test,
+        any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+    ))]
     fn pending_count(&self) -> u64 {
         self.connect()
             .and_then(|connection| {
@@ -834,7 +837,10 @@ fn wait_for_history_work(signal: &WorkSignal) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
 mod tests {
     use super::{
         DEFAULT_SPOOL_MAX_BYTES, DeliveryError, DeliveryErrorKind, HistoryEvent, HistoryQueue,
@@ -1094,6 +1100,12 @@ mod tests {
             thread::sleep(Duration::from_millis(5));
         }
         assert_eq!(delivered.lock().unwrap()[0][0].event_id, "writer:game:1");
+        // The sink records the batch inside `deliver`; the worker acknowledges
+        // (removes) it from the spool only after `deliver` returns.
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while queue.status().unwrap().pending_events > 0 && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(5));
+        }
         assert_eq!(queue.status().unwrap().pending_events, 0);
     }
 

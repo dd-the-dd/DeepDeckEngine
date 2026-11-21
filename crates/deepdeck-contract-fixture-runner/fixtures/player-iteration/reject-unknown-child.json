@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/player-loop/reject-unknown-child",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "forEachPlayer",
+        "players": {
+          "kind": "eachPlayer"
+        },
+        "bind": "loop:player",
+        "effects": [
+          {
+            "kind": "unknown-child"
+          }
+        ],
+        "collect": {
+          "bind": "kept",
+          "objects": {
+            "kind": "union",
+            "sets": [
+              {
+                "kind": "decisionResult",
+                "decisionId": "artifact"
+              },
+              {
+                "kind": "decisionResult",
+                "decisionId": "creature"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

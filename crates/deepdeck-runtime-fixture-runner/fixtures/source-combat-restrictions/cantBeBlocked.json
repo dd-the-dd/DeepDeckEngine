@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "source-combat-restriction/marker-cantBeBlocked",
+  "seed": 1515,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "grantKeyword",
+        "objects": {
+          "kind": "self"
+        },
+        "keyword": "cantBeBlocked"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Payer",
+        "battlefield": [
+          {
+            "id": "feeder",
+            "name": "Carrion Feeder",
+            "typeLine": "Creature \u2014 Zombie",
+            "manaCost": "{B}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "kind": "self"
+                    },
+                    "keyword": "cantBeBlocked"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "food",
+            "name": "Sacrifice Resource",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "attacker",
+            "name": "Opponent Ground",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "feeder",
+      "keyword": "cantBeBlocked",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "feeder",
+      "keyword": "defender",
+      "equals": false
+    },
+    {
+      "kind": "canBlock",
+      "blockerPlayerId": "player-0",
+      "blockerDefinitionId": "feeder",
+      "attackerPlayerId": "player-1",
+      "attackerDefinitionId": "attacker",
+      "equals": true
+    }
+  ]
+}

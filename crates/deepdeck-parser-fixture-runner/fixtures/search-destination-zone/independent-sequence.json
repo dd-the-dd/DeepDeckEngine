@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "independent-zone-search-sequence",
+  "cases": [
+    {
+      "id": "qualified-disjunction-graveyard-and-life-sequence",
+      "request": {
+        "cardName": "Archive of Branches",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for an artifact or creature card, put that card into your graveyard, then shuffle. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "effects": [
+                {
+                  "candidates": {
+                    "kind": "cards",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  "id": "searchedCards",
+                  "kind": "chooseCards",
+                  "maximum": 1,
+                  "minimum": 0,
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "shuffleZone",
+                  "zone": {
+                    "kind": "library",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "cards": {
+                    "decisionId": "searchedCards",
+                    "kind": "decisionResult"
+                  },
+                  "kind": "recordLibrarySearch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

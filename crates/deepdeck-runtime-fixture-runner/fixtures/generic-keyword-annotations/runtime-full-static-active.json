@@ -1,0 +1,324 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "keyword-annotation/full-real-card-static-modifier-active",
+  "seed": 1617,
+  "rule": {
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "kind": "staticAbility",
+    "modifiers": [
+      {
+        "keyword": "trample",
+        "kind": "grantKeyword",
+        "objects": {
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "kind": "permanents",
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        }
+      }
+    ],
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Controller",
+        "battlefield": [
+          {
+            "id": "collection-source",
+            "name": "Garruk's Uprising",
+            "typeLine": "Enchantment",
+            "manaCost": "{2}{G}",
+            "rules": [
+              {
+                "condition": {
+                  "kind": "compare",
+                  "left": {
+                    "excludeSource": false,
+                    "kind": "countPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "compare",
+                          "left": {
+                            "kind": "powerOf",
+                            "object": {
+                              "kind": "candidate"
+                            }
+                          },
+                          "operator": ">=",
+                          "right": {
+                            "kind": "integer",
+                            "value": 4
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "operator": ">=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "keyword": "trample",
+                    "kind": "grantKeyword",
+                    "objects": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    }
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "permanentEntered",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      },
+                      {
+                        "kind": "compare",
+                        "left": {
+                          "kind": "powerOf",
+                          "object": {
+                            "kind": "candidate"
+                          }
+                        },
+                        "operator": ">=",
+                        "right": {
+                          "kind": "integer",
+                          "value": 4
+                        }
+                      }
+                    ]
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          },
+          {
+            "id": "own-creature",
+            "name": "own creature",
+            "typeLine": "Creature — Scout",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "own-artifact",
+            "name": "own artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ],
+        "hand": [
+          {
+            "id": "remove-source",
+            "name": "remove source",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Enchantment"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "exilePermanent",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-creature",
+            "name": "opponent creature",
+            "typeLine": "Creature — Soldier",
+            "manaCost": "{0}",
+            "rules": [],
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "opponent-artifact",
+            "name": "opponent artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [],
+  "assertions": [
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "own-creature",
+      "keyword": "trample",
+      "equals": true
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "own-artifact",
+      "keyword": "trample",
+      "equals": false
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-1",
+      "definitionId": "opponent-creature",
+      "keyword": "trample",
+      "equals": false
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "remove-source",
+      "equals": true
+    }
+  ]
+}

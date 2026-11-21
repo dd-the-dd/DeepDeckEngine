@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "graveyard-destination-replacement-preserves-destroyed-but-not-died",
+  "seed": 604,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": { "kind": "castingDeclaration", "decisions": [] },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": { "kind": "cardTypeContains", "value": "Creature" }
+      },
+      "bind": "destroyedPermanents"
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [{
+          "id": "rip-batch-destroy",
+          "name": "RIP Batch Destroy",
+          "typeLine": "Sorcery",
+          "manaCost": ""
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Replacement controller",
+        "battlefield": [
+          {
+            "id": "stable-rip",
+            "name": "Stable Graveyard Replacement",
+            "typeLine": "Enchantment",
+            "rules": [{
+              "kind": "staticAbility",
+              "source": { "kind": "self" },
+              "activeWhile": { "kind": "inZone", "object": { "kind": "self" }, "zone": { "kind": "battlefield" } },
+              "modifiers": [{
+                "kind": "replaceGraveyardDestination",
+                "graveyardOwners": { "kind": "eachPlayer" },
+                "where": null,
+                "from": { "kind": "anyZone" },
+                "to": { "kind": "exile" }
+              }]
+            }]
+          },
+          {
+            "id": "rip-destroyed-creature-one",
+            "name": "RIP Destroyed Creature One",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          },
+          {
+            "id": "rip-destroyed-creature-two",
+            "name": "RIP Destroyed Creature Two",
+            "typeLine": "Creature - Test",
+            "power": "3",
+            "toughness": "3",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "rip-batch-destroy" },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "rip-destroyed-creature-one", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "rip-destroyed-creature-two", "equals": true },
+    { "kind": "eventCount", "eventKind": "permanentDestroyed", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

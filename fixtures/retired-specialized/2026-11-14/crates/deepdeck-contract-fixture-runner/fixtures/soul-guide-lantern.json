@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "soul-guide-lantern/all-native-rules-are-primitive-and-executable",
+  "cardName": "Soul-Guide Lantern",
+  "oracleId": "1b5e6560-ff2e-4475-96cb-63f64c8a86db",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "kind": "triggeredAbility",
+      "source": { "kind": "self" },
+      "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+      "declaration": {
+        "kind": "castingDeclaration",
+        "decisions": [{
+          "kind": "chooseTargets",
+          "id": "targetGraveyardCard",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "cards",
+            "zone": { "kind": "anyGraveyard" },
+            "where": null
+          }
+        }]
+      },
+      "effects": [{
+        "kind": "moveCards",
+        "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+          },
+          "faceDown": false
+        }
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [
+        { "kind": "tap", "object": { "kind": "self" } },
+        { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+      ],
+      "declaration": { "kind": "castingDeclaration", "decisions": [] },
+      "effects": [{
+        "kind": "exileAllGraveyards",
+        "exceptPlayer": { "kind": "controllerOf", "object": { "kind": "self" } }
+      }]
+    },
+    {
+      "kind": "activatedAbility",
+      "source": { "kind": "self" },
+      "costs": [
+        { "kind": "payMana", "manaCost": "{1}" },
+        { "kind": "tap", "object": { "kind": "self" } },
+        { "kind": "sacrificePermanent", "permanent": { "kind": "self" } }
+      ],
+      "declaration": { "kind": "castingDeclaration", "decisions": [] },
+      "effects": [{
+        "kind": "drawCards",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "count": { "kind": "integer", "value": 1 }
+      }]
+    }
+  ]
+}

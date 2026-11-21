@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "retired/copyTriggeringPermanentUntilEndOfTurn",
+  "cardName": "Retired specialized instruction",
+  "expectedExecutable": false,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "copyTriggeringPermanentUntilEndOfTurn",
+        "object": {
+          "kind": "self"
+        },
+        "optional": false
+      }
+    ]
+  }
+}

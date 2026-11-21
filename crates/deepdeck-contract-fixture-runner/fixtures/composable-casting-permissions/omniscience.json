@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-omniscience",
+  "cardName": "Omniscience",
+  "oracleId": "730e39e6-c61d-48b5-8827-bfd952bf1be7",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d33d91d0-1506-45e4-9def-975bf901815e",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Omniscience",
+      "typeLine": "Enchantment",
+      "manaCost": "{7}{U}{U}{U}",
+      "oracleText": "You may cast spells from your hand without paying their mana costs.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

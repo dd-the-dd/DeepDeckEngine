@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "soul-guide-lantern-entry-exiles-one-target-without-source-linkage",
+  "seed": 99,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "kind": "chooseTargets",
+        "id": "targetGraveyardCard",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "cards",
+          "zone": { "kind": "anyGraveyard" },
+          "where": null
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "moveCards",
+      "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+      "to": {
+        "kind": "exile",
+        "player": {
+          "kind": "ownerOf",
+          "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+        },
+        "faceDown": false
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Lantern pilot",
+        "manaPool": ["C"],
+        "hand": [{
+          "id": "soul-guide-lantern",
+          "name": "Soul-Guide Lantern",
+          "typeLine": "Artifact",
+          "manaCost": "{1}",
+          "rules": [{
+            "kind": "triggeredAbility",
+            "source": { "kind": "self" },
+            "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
+            "declaration": {
+              "kind": "castingDeclaration",
+              "decisions": [{
+                "kind": "chooseTargets",
+                "id": "targetGraveyardCard",
+                "minimum": 1,
+                "maximum": 1,
+                "candidates": {
+                  "kind": "cards",
+                  "zone": { "kind": "anyGraveyard" },
+                  "where": null
+                }
+              }]
+            },
+            "effects": [{
+              "kind": "moveCards",
+              "cards": { "kind": "chosenTargets", "id": "targetGraveyardCard" },
+              "to": {
+                "kind": "exile",
+                "player": {
+                  "kind": "ownerOf",
+                  "object": { "kind": "chosenTarget", "id": "targetGraveyardCard" }
+                },
+                "faceDown": false
+              }
+            }]
+          }]
+        }]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "graveyard": [{
+          "id": "graveyard-card",
+          "name": "Graveyard Card",
+          "typeLine": "Creature - Spirit",
+          "power": "2",
+          "toughness": "2"
+        }]
+      }
+    ]
+  },
+  "actions": [
+    { "kind": "castSpell", "controllerId": "player-0", "sourceDefinitionId": "soul-guide-lantern" },
+    { "kind": "resolveTopStack" },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "chooseOption", "index": 0 }],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "graveyard-card", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "exile", "definitionId": "graveyard-card", "equals": true },
+    { "kind": "eventCount", "eventKind": "cardExiledWithSource", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 1 }
+  ]
+}

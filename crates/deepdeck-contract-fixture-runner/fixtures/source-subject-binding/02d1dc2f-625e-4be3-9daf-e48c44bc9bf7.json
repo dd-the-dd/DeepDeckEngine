@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/02d1dc2f-625e-4be3-9daf-e48c44bc9bf7",
+  "cardName": "Devil",
+  "oracleId": "02d1dc2f-625e-4be3-9daf-e48c44bc9bf7",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "d7a88466-7f44-4535-a8d5-097ed747454d",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "1",
+    "oracle": {
+      "cardName": "Devil",
+      "typeLine": "Token Creature — Devil",
+      "manaCost": "",
+      "oracleText": "When this creature dies, it deals 1 damage to any target.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

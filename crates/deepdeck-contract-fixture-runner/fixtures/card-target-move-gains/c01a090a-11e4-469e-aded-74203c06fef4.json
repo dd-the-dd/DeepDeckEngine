@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/c01a090a-11e4-469e-aded-74203c06fef4",
+  "cardName": "Salvage",
+  "oracleId": "c01a090a-11e4-469e-aded-74203c06fef4",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "f3012e10-566b-447c-bb0a-dfc38c8e0fdf",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Salvage",
+      "typeLine": "Sorcery",
+      "manaCost": "{G}",
+      "oracleText": "Put target card from your graveyard on top of your library.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

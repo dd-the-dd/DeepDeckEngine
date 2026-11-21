@@ -1,0 +1,550 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-signed-numeric-stat-expressions",
+  "cases": [
+    {
+      "id": "exact-real-frantic",
+      "request": {
+        "cardName": "Frantic Confrontation",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +X/+0 and gains first strike and trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "decisionResult",
+                    "decisionId": "xValue"
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "firstStrike",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "symbolic-negative-toughness",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +0/-X until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "toughness": {
+                    "kind": "subtract",
+                    "left": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "right": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "arithmetic-precedence",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +(X plus two multiplied by three)/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "add",
+                    "left": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    },
+                    "right": {
+                      "kind": "multiply",
+                      "left": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 3
+                      }
+                    }
+                  },
+                  "toughness": {
+                    "kind": "subtract",
+                    "left": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "literal-existing-ir-exact",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +2/+0 and gains first strike and trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "firstStrike",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-property-resolution-time",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "{0}: This creature gets +(this creature's power)/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "activatedAbility",
+              "source": {
+                "kind": "self"
+              },
+              "costs": [
+                {
+                  "kind": "payMana",
+                  "manaCost": "{0}"
+                }
+              ],
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": []
+              },
+              "effects": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-numeric-producer",
+      "request": {
+        "cardName": "Signed Stat Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Target creature you control gets +X/+0 and gains first strike and trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-right-sign",
+      "request": {
+        "cardName": "Signed Stat Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +X/0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "malformed-arithmetic",
+      "request": {
+        "cardName": "Signed Stat Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "Target creature you control gets +(X plus)/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-envelope-not-silently-flattened",
+      "request": {
+        "cardName": "Signed Stat Near Miss",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}",
+        "oracleText": "If you control a creature, target creature you control gets +X/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-face-x-does-not-bind-stat-delta",
+      "request": {
+        "cardName": "Unbound Player Front // Bound Back",
+        "typeLine": "Sorcery // Sorcery",
+        "manaCost": "{0} // {X}",
+        "oracleText": "",
+        "layout": "split",
+        "faces": [
+          {
+            "id": "front",
+            "name": "Unbound Player Front",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}",
+            "oracleText": "Target creature you control gets +X/+0 and gains first strike and trample until end of turn."
+          },
+          {
+            "id": "back",
+            "name": "Bound Back",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}",
+            "oracleText": "Draw X cards."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

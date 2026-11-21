@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/a6e807d4-102a-4408-91e4-0cde7a51e845",
+  "cardName": "Meteorite",
+  "oracleId": "a6e807d4-102a-4408-91e4-0cde7a51e845",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "00b41ca9-0bf0-41fc-af65-854e602ee007",
+    "faceId": null,
+    "isToken": true,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Meteorite",
+      "typeLine": "Token Artifact",
+      "manaCost": "",
+      "oracleText": "When Meteorite enters the battlefield, it deals 2 damage to any target.\n{T}: Add one mana of any color.",
+      "layout": "token",
+      "faces": []
+    }
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "native-cascade-bridge/source-cast-x-captured-in-threshold",
+  "seed": 2981,
+  "rule": {
+    "ability": {
+      "kind": "cascade"
+    },
+    "kind": "keywordAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cascade controller",
+        "manaPool": [
+          "U",
+          "C",
+          "C",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "synthetic-x-source",
+            "name": "synthetic-x-source",
+            "typeLine": "Creature",
+            "manaCost": "{X}{U}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "cascade"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "four-mana-hit",
+            "name": "four-mana-hit",
+            "typeLine": "Creature",
+            "manaCost": "{4}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          },
+          {
+            "id": "x-top-land",
+            "name": "x-top-land",
+            "typeLine": "Land",
+            "manaCost": "",
+            "rules": []
+          }
+        ],
+        "battlefield": []
+      },
+      {
+        "id": "player-1",
+        "name": "Other player",
+        "library": [
+          {
+            "id": "opponent-library-untouched",
+            "name": "opponent-library-untouched",
+            "typeLine": "Creature",
+            "manaCost": "{1}",
+            "power": "1",
+            "toughness": "1",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "synthetic-x-source",
+      "declarationDecisions": {
+        "xValue": 4
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "cascadeTriggered",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsExiledFromTop",
+      "playerId": "player-0",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "library",
+      "definitionId": "opponent-library-untouched",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "synthetic-x-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "four-mana-hit",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "exile",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "spellCast",
+      "playerId": "player-0",
+      "equals": 2
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "player-0",
+      "symbols": []
+    }
+  ]
+}

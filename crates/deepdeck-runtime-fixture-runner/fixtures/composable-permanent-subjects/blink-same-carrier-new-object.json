@@ -1,0 +1,237 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "bound-permanent-subject/blink-same-carrier-new-object",
+  "seed": 251115,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "permanents",
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "counter": "+1/+1",
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "chosenTarget",
+          "id": "targetPermanent"
+        },
+        "keyword": "indestructible",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 2,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Caster",
+        "manaPool": [
+          "G"
+        ],
+        "hand": [
+          {
+            "id": "repast",
+            "name": "Revitalizing Repast",
+            "typeLine": "Instant",
+            "manaCost": "{B/G}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "targetPermanent",
+                      "kind": "chooseTargets",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "putCounters",
+                    "permanent": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "counter": "+1/+1",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "chosenTarget",
+                      "id": "targetPermanent"
+                    },
+                    "keyword": "indestructible",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "draw-filler",
+            "name": "Draw Filler",
+            "typeLine": "Instant",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "chosen-creature",
+            "name": "Chosen Creature",
+            "typeLine": "Creature ? Beast",
+            "manaCost": "{2}",
+            "power": "2",
+            "toughness": "2",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "repast"
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p1",
+        "sourceDefinitionId": "chosen-creature",
+        "targets": {
+          "departing": {
+            "permanent": {
+              "instanceId": "p1:chosen-creature:0"
+            }
+          }
+        }
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "exilePermanent",
+            "permanent": {
+              "kind": "chosenTarget",
+              "id": "departing"
+            },
+            "bind": "departedSubject"
+          },
+          {
+            "kind": "moveCards",
+            "cards": {
+              "kind": "boundObjects",
+              "binding": "departedSubject"
+            },
+            "to": {
+              "kind": "battlefield",
+              "player": {
+                "kind": "abilityController"
+              },
+              "tapped": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "battlefield",
+      "definitionId": "chosen-creature",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "countersPlaced",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "p1",
+      "definitionId": "chosen-creature",
+      "counter": "+1/+1",
+      "equals": 0
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "p1",
+      "definitionId": "chosen-creature",
+      "keyword": "indestructible",
+      "equals": false
+    }
+  ]
+}

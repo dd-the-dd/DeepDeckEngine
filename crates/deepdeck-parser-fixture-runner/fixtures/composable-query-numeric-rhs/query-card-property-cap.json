@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "query-card-property-cap",
+  "cases": [
+    {
+      "id": "power-source-counter",
+      "request": {
+        "cardName": "Query Property Capability",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "{T}: You may put a creature card with power equal to the number of charge counters on this artifact from your hand onto the battlefield."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.property-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "toughness-arithmetic-counter",
+      "request": {
+        "cardName": "Query Property Capability",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "{T}: You may put a creature card with toughness equal to the number of charge counters on this artifact plus one from your hand onto the battlefield."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.property-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "power-constant-expression",
+      "request": {
+        "cardName": "Query Property Capability",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "{T}: You may put a creature card with power equal to two plus one from your hand onto the battlefield."
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.property-context"
+          }
+        ]
+      }
+    }
+  ]
+}

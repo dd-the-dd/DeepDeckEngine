@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "synthetic-provisional/population-mana-x-and-life",
+  "seed": 12141,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "dealDamage",
+        "source": {
+          "kind": "self"
+        },
+        "amount": {
+          "kind": "decisionResult",
+          "decisionId": "xValue"
+        },
+        "recipient": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "decisionResult",
+          "decisionId": "xValue"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "manaPool": [
+          "R",
+          "C",
+          "C"
+        ],
+        "hand": [
+          {
+            "id": "spell",
+            "name": "Population Context Source",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "dealDamage",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "amount": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    },
+                    "recipient": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "decisionResult",
+                      "decisionId": "xValue"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1"
+      },
+      {
+        "id": "p2",
+        "name": "P2"
+      },
+      {
+        "id": "p3",
+        "name": "P3"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "spell",
+      "declarationDecisions": {
+        "xValue": 2
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 22
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p1",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p2",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p3",
+      "equals": 18
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "damageDealt",
+      "equals": 3
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p0",
+      "zone": "graveyard",
+      "definitionId": "spell",
+      "equals": true
+    },
+    {
+      "kind": "manaPoolEquals",
+      "playerId": "p0",
+      "symbols": []
+    }
+  ]
+}

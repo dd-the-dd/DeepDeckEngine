@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "tamiyo-attack-trigger-investigates-with-a-clue",
+  "seed": 7101,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": { "kind": "self" },
+    "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+    "effects": [{
+      "kind": "createTokens",
+      "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+      "quantity": { "kind": "integer", "value": 1 },
+      "token": { "kind": "namedToken", "name": "Clue" }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Tamiyo controller",
+        "battlefield": [{
+          "id": "tamiyo-front",
+          "name": "Tamiyo, Inquisitive Student",
+          "typeLine": "Legendary Creature - Moonfolk Wizard",
+          "manaCost": "{U}",
+          "power": "0",
+          "toughness": "3"
+        }]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "tamiyo-front"
+  },
+  "assertions": [
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    { "kind": "eventCount", "eventKind": "tokenCreated", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

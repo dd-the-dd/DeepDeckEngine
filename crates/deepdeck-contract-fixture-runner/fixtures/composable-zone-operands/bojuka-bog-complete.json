@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "compiled-input/04b7362d-0490-4cb0-b5d7-2a7732f659ce/complete",
+  "cardName": "Bojuka Bog",
+  "oracleId": "04b7362d-0490-4cb0-b5d7-2a7732f659ce",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "55b5b094-9d2d-4d96-b90c-78fecdae725a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Bojuka Bog",
+      "typeLine": "Land",
+      "manaCost": "",
+      "oracleText": "This land enters tapped.\nWhen this land enters, exile target player's graveyard.\n{T}: Add {B}.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

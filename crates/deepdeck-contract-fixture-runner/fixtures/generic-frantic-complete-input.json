@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "frantic/complete-exact-input",
+  "cardName": "Frantic Search",
+  "oracleId": "16e015b2-f8a3-4b1a-80be-58a8f5fb5e8c",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "4547db5f-f031-4dc1-8a61-532c9be4533a",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": null,
+    "toughness": null,
+    "oracle": {
+      "cardName": "Frantic Search",
+      "typeLine": "Instant",
+      "manaCost": "{2}{U}",
+      "oracleText": "Draw two cards, then discard two cards. Untap up to three lands.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

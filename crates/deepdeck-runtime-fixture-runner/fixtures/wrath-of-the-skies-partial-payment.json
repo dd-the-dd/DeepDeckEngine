@@ -1,0 +1,326 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "wrath-of-the-skies-partial-payment-leaves-energy-and-lowers-threshold",
+  "seed": 91,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "xValue",
+          "kind": "chooseNumber",
+          "minimum": 0
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "addPlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "counter": "energy",
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "xValue"
+        }
+      },
+      {
+        "kind": "chooseNumber",
+        "id": "paidPlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 0
+        },
+        "maximum": {
+          "kind": "countPlayerCounters",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "counter": "energy"
+        }
+      },
+      {
+        "kind": "removePlayerCounters",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "counter": "energy",
+        "count": {
+          "kind": "decisionResult",
+          "decisionId": "paidPlayerCounters"
+        }
+      },
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Artifact"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Enchantment"
+                  }
+                ]
+              },
+              {
+                "kind": "compare",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "operator": "<=",
+                "right": {
+                  "kind": "decisionResult",
+                  "decisionId": "paidPlayerCounters"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Wrath caster",
+        "hand": [
+          {
+            "id": "wrath-of-the-skies",
+            "name": "Wrath of the Skies",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{W}{W}",
+            "rules": [
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "id": "xValue",
+                      "kind": "chooseNumber",
+                      "minimum": 0
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "decisionId": "xValue",
+                      "kind": "decisionResult"
+                    },
+                    "counter": "energy",
+                    "kind": "addPlayerCounters",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "id": "paidPlayerCounters",
+                    "kind": "chooseNumber",
+                    "maximum": {
+                      "counter": "energy",
+                      "kind": "countPlayerCounters",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "minimum": {
+                      "kind": "integer",
+                      "value": 0
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "count": {
+                      "decisionId": "paidPlayerCounters",
+                      "kind": "decisionResult"
+                    },
+                    "counter": "energy",
+                    "kind": "removePlayerCounters",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "kind": "eachPermanent",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "or",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Artifact"
+                              },
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Enchantment"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "compare",
+                            "left": {
+                              "kind": "manaValueOf",
+                              "object": {
+                                "kind": "candidate"
+                              }
+                            },
+                            "operator": "<=",
+                            "right": {
+                              "decisionId": "paidPlayerCounters",
+                              "kind": "decisionResult"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Affected player",
+        "battlefield": [
+          {
+            "id": "mv-two-enchantment",
+            "name": "MV Two Enchantment",
+            "typeLine": "Enchantment",
+            "manaCost": "{1}{W}"
+          },
+          {
+            "id": "mv-three-artifact",
+            "name": "MV Three Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{3}"
+          },
+          {
+            "id": "mv-zero-land",
+            "name": "MV Zero Land",
+            "typeLine": "Land"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "wrath-of-the-skies",
+    "decisions": {
+      "xValue": 4
+    }
+  },
+  "decisions": [
+    {
+      "kind": "chooseNumber",
+      "value": 2
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "playerCounter",
+      "playerId": "player-0",
+      "counter": "energy",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "graveyard",
+      "definitionId": "mv-two-enchantment",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "mv-three-artifact",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "mv-zero-land",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "permanentDestroyed",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

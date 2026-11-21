@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cyclonic-rift-overload-returns-each-other-player-nonland",
+  "seed": 12401,
+  "rule": {
+    "kind": "keywordAbility",
+    "source": { "kind": "self" },
+    "ability": {
+      "kind": "alternativeCost",
+      "mode": "overload",
+      "costs": [{ "kind": "payMana", "manaCost": "{6}{U}" }]
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Cyclonic Rift pilot",
+        "manaPool": ["C", "C", "C", "C", "C", "C", "U"],
+        "hand": [{
+          "id": "cyclonic-rift",
+          "name": "Cyclonic Rift",
+          "typeLine": "Instant",
+          "manaCost": "{1}{U}",
+          "rules": [
+            {
+              "kind": "spellAbility",
+              "source": { "kind": "self" },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [{
+                  "id": "targetPermanent",
+                  "kind": "chooseTargets",
+                  "minimum": 1,
+                  "maximum": 1,
+                  "condition": {
+                    "kind": "not",
+                    "operand": { "kind": "wasCastWithAlternativeCost", "mode": "overload" }
+                  },
+                  "candidates": {
+                    "kind": "permanents",
+                    "controller": {
+                      "kind": "playersExcept",
+                      "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                    },
+                    "where": {
+                      "kind": "not",
+                      "operand": { "kind": "cardTypeContains", "value": "Land" }
+                    }
+                  }
+                }]
+              },
+              "effects": [{
+                "kind": "conditionalEffect",
+                "condition": { "kind": "wasCastWithAlternativeCost", "mode": "overload" },
+                "then": [{
+                  "kind": "returnToOwnersHand",
+                  "object": {
+                    "kind": "eachPermanent",
+                    "excludeSourceController": true,
+                    "where": {
+                      "kind": "not",
+                      "operand": { "kind": "cardTypeContains", "value": "Land" }
+                    }
+                  }
+                }],
+                "else": [{
+                  "kind": "returnToOwnersHand",
+                  "object": { "kind": "chosenTarget", "id": "targetPermanent" }
+                }]
+              }]
+            },
+            {
+              "kind": "keywordAbility",
+              "source": { "kind": "self" },
+              "ability": {
+                "kind": "alternativeCost",
+                "mode": "overload",
+                "costs": [{ "kind": "payMana", "manaCost": "{6}{U}" }]
+              }
+            }
+          ]
+        }],
+        "battlefield": [
+          { "id": "own-artifact", "name": "Own Artifact", "typeLine": "Artifact" },
+          { "id": "own-land", "name": "Own Land", "typeLine": "Land" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "First opponent",
+        "battlefield": [
+          { "id": "opponent-artifact", "name": "Opponent Artifact", "typeLine": "Artifact" },
+          { "id": "opponent-land", "name": "Opponent Land", "typeLine": "Land" }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Second opponent",
+        "battlefield": [
+          { "id": "other-enchantment", "name": "Other Enchantment", "typeLine": "Enchantment" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "cyclonic-rift",
+      "useAlternativeCost": true
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "hand", "definitionId": "opponent-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-2", "zone": "hand", "definitionId": "other-enchantment", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "own-artifact", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "own-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "opponent-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "cyclonic-rift", "equals": true },
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": [] },
+    { "kind": "eventCount", "eventKind": "alternativeCostPaid", "equals": 1 },
+    { "kind": "stackDepth", "equals": 0 },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

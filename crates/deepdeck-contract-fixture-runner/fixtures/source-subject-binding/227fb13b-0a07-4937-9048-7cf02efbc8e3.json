@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/227fb13b-0a07-4937-9048-7cf02efbc8e3",
+  "cardName": "Badgey, Malicious Glitch",
+  "oracleId": "227fb13b-0a07-4937-9048-7cf02efbc8e3",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "294e0651-99b4-4792-8ee8-107e7484117d",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "4",
+    "toughness": "3",
+    "oracle": {
+      "cardName": "Badgey, Malicious Glitch",
+      "typeLine": "Legendary Artifact Creature — Illusion Horror",
+      "manaCost": "{3}{B}",
+      "oracleText": "Whenever Badgey becomes tapped, each opponent loses 1 life and you gain 1 life.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

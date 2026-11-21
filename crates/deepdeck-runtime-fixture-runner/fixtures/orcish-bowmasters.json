@@ -1,0 +1,510 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "orcish-bowmasters-deals-damage-then-amasses-orcs",
+  "seed": 66,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "oneOf",
+      "events": [
+        {
+          "kind": "enterBattlefield",
+          "object": {
+            "kind": "self"
+          }
+        },
+        {
+          "kind": "cardDrawn",
+          "opponentOfSourceController": true,
+          "exceptFirstInDrawStep": true
+        }
+      ]
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "triggerDamageTarget",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "anyTarget"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "dealDamage",
+        "source": {
+          "kind": "self"
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        },
+        "recipient": {
+          "kind": "chosenTarget",
+          "id": "triggerDamageTarget"
+        }
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "not",
+          "operand": {
+            "kind": "controlsPermanent",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "subtypeContains",
+                  "subtypeClass": "creature",
+                  "value": "Army"
+                }
+              ]
+            }
+          }
+        },
+        "then": [
+          {
+            "kind": "createTokens",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "quantity": {
+              "kind": "integer",
+              "value": 1
+            },
+            "token": {
+              "name": "Orc Army Token",
+              "colors": [
+                "Black"
+              ],
+              "types": [
+                "Creature"
+              ],
+              "subtypes": [
+                "Orc",
+                "Army"
+              ],
+              "power": 0,
+              "toughness": 0
+            }
+          }
+        ]
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "controlsPermanent",
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              },
+              {
+                "kind": "subtypeContains",
+                "subtypeClass": "creature",
+                "value": "Army"
+              }
+            ]
+          }
+        },
+        "then": [
+          {
+            "kind": "choosePermanents",
+            "id": "triggerEffect1:amassedArmy",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "candidates": {
+              "kind": "permanents",
+              "controller": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "where": {
+                "kind": "and",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  },
+                  {
+                    "kind": "subtypeContains",
+                    "subtypeClass": "creature",
+                    "value": "Army"
+                  }
+                ]
+              }
+            },
+            "minimum": {
+              "kind": "integer",
+              "value": 1
+            },
+            "maximum": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          {
+            "kind": "putCounters",
+            "permanent": {
+              "kind": "decisionResult",
+              "decisionId": "triggerEffect1:amassedArmy"
+            },
+            "counter": "+1/+1",
+            "count": {
+              "kind": "integer",
+              "value": 1
+            }
+          },
+          {
+            "kind": "forEachObject",
+            "objects": {
+              "kind": "decisionResult",
+              "decisionId": "triggerEffect1:amassedArmy"
+            },
+            "bind": "triggerEffect1:amassedArmy:object",
+            "effects": [
+              {
+                "kind": "addSubtypeToPermanent",
+                "object": {
+                  "kind": "boundValue",
+                  "id": "triggerEffect1:amassedArmy:object"
+                },
+                "subtype": "Orc",
+                "duration": {
+                  "kind": "permanent"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "emitAbilitySignal",
+        "abilityId": "amass",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Bowmasters controller",
+        "battlefield": [
+          {
+            "id": "orcish-bowmasters",
+            "name": "Orcish Bowmasters",
+            "typeLine": "Creature — Orc Archer",
+            "manaCost": "{1}{B}",
+            "power": "1",
+            "toughness": "1",
+            "rules": [
+              {
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "ability": {
+                  "kind": "flash"
+                }
+              },
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "oneOf",
+                  "events": [
+                    {
+                      "kind": "enterBattlefield",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    {
+                      "kind": "cardDrawn",
+                      "opponentOfSourceController": true,
+                      "exceptFirstInDrawStep": true
+                    }
+                  ]
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "triggerDamageTarget",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "candidates": {
+                        "kind": "anyTarget"
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "dealDamage",
+                    "source": {
+                      "kind": "self"
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "recipient": {
+                      "kind": "chosenTarget",
+                      "id": "triggerDamageTarget"
+                    }
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "controlsPermanent",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "subtypeContains",
+                              "subtypeClass": "creature",
+                              "value": "Army"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "createTokens",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "quantity": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "token": {
+                          "name": "Orc Army Token",
+                          "colors": [
+                            "Black"
+                          ],
+                          "types": [
+                            "Creature"
+                          ],
+                          "subtypes": [
+                            "Orc",
+                            "Army"
+                          ],
+                          "power": 0,
+                          "toughness": 0
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "conditional",
+                    "condition": {
+                      "kind": "controlsPermanent",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "subtypeClass": "creature",
+                            "value": "Army"
+                          }
+                        ]
+                      }
+                    },
+                    "then": [
+                      {
+                        "kind": "choosePermanents",
+                        "id": "triggerEffect1:amassedArmy",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "candidates": {
+                          "kind": "permanents",
+                          "controller": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "where": {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              },
+                              {
+                                "kind": "subtypeContains",
+                                "subtypeClass": "creature",
+                                "value": "Army"
+                              }
+                            ]
+                          }
+                        },
+                        "minimum": {
+                          "kind": "integer",
+                          "value": 1
+                        },
+                        "maximum": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "putCounters",
+                        "permanent": {
+                          "kind": "decisionResult",
+                          "decisionId": "triggerEffect1:amassedArmy"
+                        },
+                        "counter": "+1/+1",
+                        "count": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      {
+                        "kind": "forEachObject",
+                        "objects": {
+                          "kind": "decisionResult",
+                          "decisionId": "triggerEffect1:amassedArmy"
+                        },
+                        "bind": "triggerEffect1:amassedArmy:object",
+                        "effects": [
+                          {
+                            "kind": "addSubtypeToPermanent",
+                            "object": {
+                              "kind": "boundValue",
+                              "id": "triggerEffect1:amassedArmy:object"
+                            },
+                            "subtype": "Orc",
+                            "duration": {
+                              "kind": "permanent"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "emitAbilitySignal",
+                    "abilityId": "amass",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Damage target"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "orcish-bowmasters",
+    "targets": {
+      "triggerDamageTarget": {
+        "player": {
+          "playerId": "player-1"
+        }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 19
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "equals": 2
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "abilityPerformed",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "amassed",
+      "equals": 0
+    },
+    {
+      "kind": "permanentCounter",
+      "playerId": "player-0",
+      "definitionId": "token:orc army token",
+      "counter": "+1/+1",
+      "equals": 1
+    }
+  ]
+}

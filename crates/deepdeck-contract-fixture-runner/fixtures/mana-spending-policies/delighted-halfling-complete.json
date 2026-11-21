@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "complete-real-delighted-halfling",
+  "cardName": "Delighted Halfling",
+  "oracleId": "f9d3b046-0b95-4103-a630-4b3fb88bb60b",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "71384418-173a-4f77-adab-56e52fa23692",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "1",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Delighted Halfling",
+      "typeLine": "Creature — Halfling Citizen",
+      "manaCost": "{G}",
+      "oracleText": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a legendary spell, and that spell can't be countered.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

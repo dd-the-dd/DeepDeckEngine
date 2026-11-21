@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "starting-town-taps-for-colorless-mana",
+  "seed": 28,
+  "rule": {
+    "kind": "manaAbility",
+    "source": { "kind": "self" },
+    "costs": [
+      { "kind": "tap", "object": { "kind": "self" } }
+    ],
+    "effects": [
+      {
+        "kind": "addMana",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "mana": "{C}"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Starting Town pilot",
+        "life": 20,
+        "battlefield": [
+          { "id": "starting-town", "name": "Starting Town", "typeLine": "Land — Town" }
+        ]
+      },
+      { "id": "player-1", "name": "Opponent" }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateManaAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "starting-town",
+      "manaSymbols": ["C"]
+    }
+  ],
+  "assertions": [
+    { "kind": "manaPoolEquals", "playerId": "player-0", "symbols": ["C"] },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 20 },
+    { "kind": "permanentTapped", "playerId": "player-0", "definitionId": "starting-town", "equals": true },
+    { "kind": "eventCount", "eventKind": "manaAbilityActivated", "equals": 1 },
+    { "kind": "eventCount", "eventKind": "permanentTapped", "equals": 1 },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

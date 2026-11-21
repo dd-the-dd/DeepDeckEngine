@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "synthetic/simultaneous-sacrifice/support-remove-type",
+  "expectedExecutable": true,
+  "rule": {
+    "kind": "staticAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activeWhile": {
+      "kind": "inZone",
+      "object": {
+        "kind": "self"
+      },
+      "zone": {
+        "kind": "battlefield"
+      }
+    },
+    "modifiers": [
+      {
+        "kind": "removeCardTypeWhile",
+        "cardType": "Creature",
+        "condition": {
+          "kind": "compare",
+          "operator": "==",
+          "left": {
+            "kind": "integer",
+            "value": 1
+          },
+          "right": {
+            "kind": "integer",
+            "value": 1
+          }
+        },
+        "object": {
+          "kind": "self"
+        }
+      }
+    ]
+  }
+}

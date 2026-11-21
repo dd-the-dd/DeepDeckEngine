@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "global-parser-gain/f46e9fa0-2ed7-4a94-8ad4-031e87a6da45",
+  "cardName": "Spireside Infiltrator",
+  "oracleId": "f46e9fa0-2ed7-4a94-8ad4-031e87a6da45",
+  "expectedExecutable": true,
+  "expectedParserStatus": "canonical",
+  "expectedEngineStatus": "executable",
+  "input": {
+    "id": "b9551190-9764-47a6-b414-8411beec89d2",
+    "faceId": null,
+    "isToken": false,
+    "isGamePiece": false,
+    "isSideboard": false,
+    "power": "3",
+    "toughness": "2",
+    "oracle": {
+      "cardName": "Spireside Infiltrator",
+      "typeLine": "Creature — Human Rogue",
+      "manaCost": "{2}{R}",
+      "oracleText": "Whenever this creature becomes tapped, it deals 1 damage to each opponent.",
+      "layout": "normal",
+      "faces": []
+    }
+  }
+}

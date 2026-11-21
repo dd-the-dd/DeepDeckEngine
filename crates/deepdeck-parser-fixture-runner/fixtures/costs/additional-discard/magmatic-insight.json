@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "additional-discard/magmatic-insight.json",
+  "cardName": "Magmatic Insight",
+  "oracleId": "6a9031b6-3f4d-4a36-90e1-ac77b8518cee",
+  "cases": [
+    {
+      "id": "complete-real-oracle",
+      "request": {
+        "cardName": "Magmatic Insight",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard a land card.\nDraw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              },
+              "declaration": {
+                "kind": "castingDeclaration",
+                "decisions": [
+                  {
+                    "kind": "chooseObjects",
+                    "id": "additionalCostCard",
+                    "candidates": {
+                      "kind": "cards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Land"
+                      }
+                    },
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "additionalCosts": [
+                  {
+                    "kind": "discardCard",
+                    "card": {
+                      "kind": "chosenObject",
+                      "id": "additionalCostCard"
+                    }
+                  }
+                ]
+              },
+              "effects": []
+            }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
