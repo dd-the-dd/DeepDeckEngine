@@ -131,7 +131,8 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
 }
 
 /// Events whose occurrence names exactly one player that the runtime records
-/// as the triggering player: the player dealt combat damage.
+/// as the triggering player: the player dealt combat damage, or the player
+/// whose turn step began when the step owner is not fixed to the controller.
 fn event_names_player(event: &GenericTriggerEventNode) -> bool {
     matches!(
         event,
@@ -142,6 +143,10 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
                     ..
                 }
         )
+    ) || matches!(
+        event,
+        GenericTriggerEventNode::Step(StepEventNode { player, .. })
+            if *player != StepPlayerScope::AbilityController
     )
 }
 
@@ -152,9 +157,16 @@ fn trigger_guard_context(event: &GenericTriggerEventNode) -> EffectRecognitionCo
         GenericTriggerEventNode::SourceTransition(_)
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked { .. })
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::CombatDamageToPlayer { .. })
-        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. }) => {
+        | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. })
+        | GenericTriggerEventNode::SourceEvent(_) => {
             EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
                 .with_source_event_subject(LocalObjectReference::SourceSelf)
+        }
+        // Any other battlefield trigger is observed by its source permanent:
+        // `this creature` names that owner (CR 109.2, 113.6). The event
+        // subject is someone else, so `it` is not bound to the source.
+        event if event.requires_permanent_face() => {
+            EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
         }
         _ => EffectRecognitionContext::default(),
     };

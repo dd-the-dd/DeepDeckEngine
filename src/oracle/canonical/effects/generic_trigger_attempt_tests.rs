@@ -25,10 +25,14 @@ fn typed_envelope_outcomes_are_not_inferred_from_consumed_token_count() {
         program("Draw a card.", "Creature"),
         GenericTriggerProgramAttempt::NotApplicable
     ));
-    assert!(matches!(
-        program("At the end of your turn, draw a card.", "Creature"),
-        GenericTriggerProgramAttempt::RejectedCandidate(_)
-    ));
+    // The trigger word claims the frame; the unread event is a committed,
+    // located diagnostic instead of an unclaimed ability (CR 603.1).
+    let GenericTriggerProgramAttempt::FailedCommitted(failure) =
+        program("At the end of your turn, draw a card.", "Creature")
+    else {
+        panic!("the trigger word claims the envelope")
+    };
+    assert_eq!(failure.state, "trigger.envelope.step-prefix");
     let GenericTriggerProgramAttempt::FailedCommitted(failure) =
         program("At the beginning of your upkeep draw a card.", "Creature")
     else {

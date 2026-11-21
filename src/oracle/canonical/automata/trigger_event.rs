@@ -62,6 +62,10 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
     SourceAttacked {
         source: LocalObjectReference,
     },
+    /// `you cycle SOURCE` (CR 702.29): functions while the card is cycled.
+    SourceCycled {
+        source: LocalObjectReference,
+    },
     LandPlayed {
         player: LocalPlayerReference,
         exclude_source: bool,
@@ -134,9 +138,25 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
     };
     cursor.advance_to(cursor.position() + 1)?;
     cursor.enter("event.attached-object.noun");
-    // Only the creature noun has a runtime matcher that needs no type filter.
-    cursor.consume("creature")?;
+    // The attachment fixes the object; the noun restates its card type. Only
+    // a creature takes part in combat, so other nouns admit only tapping.
+    let noun = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| {
+            ["creature", "land", "artifact", "enchantment", "permanent"].contains(&raw.as_str())
+        })
+        .ok_or_else(|| cursor.fail("an attached permanent noun"))?;
+    cursor.consume(&noun)?;
     cursor.enter("event.attached-object.action");
+    if noun != "creature" {
+        cursor.consume_phrase(&["becomes", "tapped"])?;
+        cursor.enter("event.attached-object.complete");
+        return Ok(LocalTriggerEventNode::AttachedObjectEvent {
+            role,
+            action: AttachedObjectEventAction::BecomeTapped,
+        });
+    }
     let action = if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("deals"))
@@ -366,7 +386,8 @@ enum OrdinalDrawState {
     Complete,
 }
 
-/// Recognizes `you draw your Nth card in a turn` as one reusable event atom.
+/// Recognizes `you draw your Nth card in a turn|each turn` as one reusable
+/// event atom (CR 121.2: the ordinal counts the draws in the current turn).
 /// Trigger words and the trailing comma remain parent-owned.
 pub(in crate::oracle::canonical) fn recognize_ordinal_card_drawn_event(
     cursor: &mut OracleTokenCursor<'_>,
@@ -402,8 +423,17 @@ pub(in crate::oracle::canonical) fn recognize_ordinal_card_drawn_event(
             }
             OrdinalDrawState::PeriodRelation => {
                 cursor.enter("event.ordinal-card-drawn.period-relation");
-                cursor.consume("in")?;
-                OrdinalDrawState::Article
+                // `in a turn` and `each turn` name the same counting period.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+                {
+                    cursor.consume("each")?;
+                    OrdinalDrawState::Period
+                } else {
+                    cursor.consume("in")?;
+                    OrdinalDrawState::Article
+                }
             }
             OrdinalDrawState::Article => {
                 cursor.enter("event.ordinal-card-drawn.article");

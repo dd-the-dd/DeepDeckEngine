@@ -136,9 +136,14 @@ fn indefinite_land_is_not_source_excluding_and_other_types_fail_locally() {
     let ability = &wrong_agreement.abilities[0];
     assert_eq!(ability.status, "unsupported");
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("event.land-played.action")
+    // The trigger frame tries every player-event family and reports the one
+    // that read furthest; the player-action families (`play a land`, `draw
+    // your Nth card`) all stop at the same verb, so the diagnostic is an
+    // event action slot at the misconjugated verb, whichever family won.
+    let state = ability.diagnostics[0].state.as_deref().unwrap_or_default();
+    assert!(
+        state.starts_with("event.") && state.ends_with(".action"),
+        "{state}"
     );
     assert_eq!(ability.diagnostics[0].found.as_deref(), Some("plays"));
 }

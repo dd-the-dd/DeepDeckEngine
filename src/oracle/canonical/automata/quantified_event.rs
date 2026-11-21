@@ -5,9 +5,11 @@
 //! Subject     := ("a" | "an") Query            -- singular, once per object
 //!              | "another" Query               -- singular, source excluded
 //!              | NUMBER "or" "more" ["other"] Collection  -- plural, once per event
-//! Verb        := leave(s) "your graveyard" | attack(s)
+//! Verb        := leave(s) ("your graveyard" | "the battlefield") | attack(s)
+//!              | block(s) | become(s) "blocked"
 //!              | deal(s) "combat damage to a player" | enter(s) | die(s)
 //!              | ("is" | "are") "dealt" ["combat" | "noncombat"] "damage"
+//!              | ("is" | "are") "put into a graveyard from the battlefield"
 //! ```
 //!
 //! The event kind is the verb; the subject is the shared numeric bound plus
@@ -39,9 +41,17 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     /// Leave the ability controller's graveyard (a look-back trigger, CR 603.10a).
     LeaveControllerGraveyard,
     Attack,
+    /// Declared as a blocker (CR 509.1a).
+    Block,
+    /// An attacking creature becomes blocked (CR 509.1h).
+    BecomeBlocked,
     DealCombatDamageToPlayer,
     Enter,
     Die,
+    /// Leaves the battlefield for any zone (CR 603.6c, 603.10a).
+    LeaveBattlefield,
+    /// `put into a graveyard from the battlefield`, for any permanent type.
+    PutIntoGraveyardFromBattlefield,
     /// Passive of `deal damage`: the subject is the damaged object (CR 120.3).
     BeDealtDamage(DamageEventKind),
 }
@@ -119,18 +129,27 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         .peek()
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| cursor.fail("an object event verb"))?;
+    let next_is = |word: &str| {
+        cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    };
     let (base, verb) = match raw.as_str() {
+        "leave" | "leaves" if next_is("the") => ("leave", ObjectEventVerb::LeaveBattlefield),
         "leave" | "leaves" => ("leave", ObjectEventVerb::LeaveControllerGraveyard),
         "attack" | "attacks" => ("attack", ObjectEventVerb::Attack),
+        "block" | "blocks" => ("block", ObjectEventVerb::Block),
+        "become" | "becomes" => ("become", ObjectEventVerb::BecomeBlocked),
         "deal" | "deals" => ("deal", ObjectEventVerb::DealCombatDamageToPlayer),
         "enter" | "enters" => ("enter", ObjectEventVerb::Enter),
         "die" | "dies" => ("die", ObjectEventVerb::Die),
+        "is" | "are" if next_is("put") => ("is", ObjectEventVerb::PutIntoGraveyardFromBattlefield),
         // Placeholder kind: the damage complement below fixes the real one.
         "is" | "are" => ("is", ObjectEventVerb::BeDealtDamage(DamageEventKind::Any)),
         _ => {
-            return Err(
-                cursor.fail("leave, attack, deal combat damage, enter, die or be dealt damage")
-            );
+            return Err(cursor.fail(
+                "leave, attack, block, become blocked, deal combat damage, enter, die, be put into a graveyard or be dealt damage",
+            ));
         }
     };
     cursor.enter("event.object.verb-agreement");
@@ -155,10 +174,24 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         ObjectEventVerb::LeaveControllerGraveyard => {
             cursor.consume_phrase(&["your", "graveyard"])?
         }
+        ObjectEventVerb::LeaveBattlefield => cursor.consume_phrase(&["the", "battlefield"])?,
+        ObjectEventVerb::BecomeBlocked => cursor.consume("blocked")?,
+        ObjectEventVerb::PutIntoGraveyardFromBattlefield => cursor.consume_phrase(&[
+            "put",
+            "into",
+            "a",
+            "graveyard",
+            "from",
+            "the",
+            "battlefield",
+        ])?,
         ObjectEventVerb::DealCombatDamageToPlayer => {
             cursor.consume_phrase(&["combat", "damage", "to", "a", "player"])?
         }
-        ObjectEventVerb::Attack | ObjectEventVerb::Enter | ObjectEventVerb::Die => {}
+        ObjectEventVerb::Attack
+        | ObjectEventVerb::Block
+        | ObjectEventVerb::Enter
+        | ObjectEventVerb::Die => {}
     }
     cursor.enter("event.object.complete");
     Ok(ObjectEventNode { subject, verb })
