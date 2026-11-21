@@ -34,49 +34,57 @@ fn sequence(text: &str) -> EffectSequenceParseAttempt {
 }
 
 #[test]
-fn collection_support_is_explicit_and_does_not_open_other_zone_actions() {
-    assert!(
-        zone_change(
-            "Destroy two target creatures",
-            ZoneChangeTargetSupport::Scalar
-        )
-        .is_err()
-    );
-    assert!(
-        zone_change(
-            "Exile two target creatures",
-            ZoneChangeTargetSupport::Scalar
-        )
-        .is_err()
-    );
-    assert!(
-        zone_change(
-            "Exile two target creatures",
-            ZoneChangeTargetSupport::DestroyCollection
-        )
-        .is_err()
-    );
-    assert!(
-        zone_change(
-            "Destroy target creature and target artifact",
-            ZoneChangeTargetSupport::DestroyCollection
-        )
-        .is_err()
-    );
-    assert!(
-        zone_change(
-            "Destroy two target noncreature",
-            ZoneChangeTargetSupport::DestroyCollection
-        )
-        .is_err()
-    );
+fn collection_support_is_explicit_and_opens_every_zone_action_and_slot() {
+    for text in [
+        "Destroy two target creatures",
+        "Exile two target creatures",
+        "Destroy target creature and target artifact",
+    ] {
+        assert!(
+            zone_change(text, ZoneChangeTargetSupport::Scalar).is_err(),
+            "{text}"
+        );
+    }
+    // CR 601.2c, 115.3: each slot is its own declaration; the collection
+    // parent receives every slot with its own cardinality.
+    let exile = zone_change(
+        "Exile two target creatures",
+        ZoneChangeTargetSupport::TargetCollection,
+    )
+    .expect("an exile collection is a target collection");
+    assert_eq!(exile.target.slots[0].cardinality.maximum, 2);
+    let slots = zone_change(
+        "Destroy target creature and target artifact",
+        ZoneChangeTargetSupport::TargetCollection,
+    )
+    .expect("two target slots in one instruction");
+    assert_eq!(slots.target.slots.len(), 2);
+    let returned = zone_change(
+        "Return up to two target creatures to their owners' hands",
+        ZoneChangeTargetSupport::TargetCollection,
+    )
+    .expect("a plural return agrees with its plural possessive");
+    assert_eq!(returned.target.slots[0].cardinality.minimum, 0);
+    // Near misses: number agreement, malformed selector, and an `other`
+    // relation to an earlier slot that no declaration represents.
+    for text in [
+        "Return two target creatures to its owner's hand",
+        "Return target creature to their owners' hands",
+        "Destroy two target noncreature",
+        "Destroy target creature and up to one other target creature",
+    ] {
+        assert!(
+            zone_change(text, ZoneChangeTargetSupport::TargetCollection).is_err(),
+            "{text}"
+        );
+    }
 }
 
 #[test]
 fn collection_operand_keeps_its_bounds_and_predicate_while_scalar_ir_stays_exact() {
     let collection = zone_change(
         "Destroy up to two target artifacts and/or enchantments",
-        ZoneChangeTargetSupport::DestroyCollection,
+        ZoneChangeTargetSupport::TargetCollection,
     )
     .expect("the same target-list query accepts a bounded collection");
     let (id, candidates, minimum, maximum) = lower_single_target(&collection.target);
@@ -93,7 +101,7 @@ fn collection_operand_keeps_its_bounds_and_predicate_while_scalar_ir_stays_exact
         &mut cursor,
         &collection,
         id,
-        ZoneChangeTargetSupport::DestroyCollection,
+        ZoneChangeTargetSupport::TargetCollection,
     )
     .unwrap();
     assert_eq!(reference, json!({"kind":"chosenTargets","id":id}));
@@ -116,7 +124,7 @@ fn collection_operand_keeps_its_bounds_and_predicate_while_scalar_ir_stays_exact
             &mut cursor,
             &scalar,
             id,
-            ZoneChangeTargetSupport::DestroyCollection,
+            ZoneChangeTargetSupport::TargetCollection,
         )
         .unwrap(),
         chosen_target(id)

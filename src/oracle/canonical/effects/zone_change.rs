@@ -34,7 +34,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_atomic_zone_change(
     let mut cursor = OracleTokenCursor::new("atomic-targeted-zone-change", input.tokens);
     let effect = recognize_zone_change_effect_with_policy(
         &mut cursor,
-        ZoneChangeTargetSupport::DestroyCollection,
+        ZoneChangeTargetSupport::TargetCollection,
         ZoneChangeDomains::SpellOrBattlefield,
     )?;
     let LocalEffectNode::ZoneChange(effect) = effect else {
@@ -54,17 +54,12 @@ pub(in crate::oracle::canonical) fn parse_promoted_atomic_zone_change(
     cursor.enter("effect.zone-change.full-consumption");
     cursor.finish()?;
 
-    cursor.enter("lower.zone-change.target-candidates");
-    let (target_id, candidates, minimum, maximum) = cursor.require_value(
-        lower_zone_change_target_candidates(&effect),
-        "a supported zone-change target candidate policy",
-    )?;
-    let target = lower_zone_change_target_operand(
-        &mut cursor,
-        &effect,
-        target_id,
-        ZoneChangeTargetSupport::DestroyCollection,
-    )?;
+    let mut used_base_ids = Vec::new();
+    let (decisions, target) = lower_zone_change_targets(&mut cursor, &effect, |base, total| {
+        let ordinal = used_base_ids.iter().filter(|used| **used == base).count();
+        used_base_ids.push(base);
+        super::effect_sequence::target_id_for_ordinal(base, ordinal, total)
+    })?;
     let operation = lower_targeted_zone_change_node(&mut cursor, &effect, target)?;
     let trace = cursor
         .transitions()
@@ -78,12 +73,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_atomic_zone_change(
             "source": self_ref(),
             "declaration": {
                 "kind": "castingDeclaration",
-                "decisions": [target_decision(
-                    target_id,
-                    candidates,
-                    minimum,
-                    maximum,
-                )],
+                "decisions": decisions,
             },
             "effects": [operation],
         }),
@@ -115,12 +105,50 @@ pub(in crate::oracle::canonical) fn lower_zone_change_target_operand(
         return Ok(chosen_target(target_id));
     }
     cursor.require(
-        slot.cardinality.maximum > 1
-            && effect.action == ZoneChangeAction::Destroy
-            && support == ZoneChangeTargetSupport::DestroyCollection,
-        "an explicitly supported plural destroy operand",
+        slot.cardinality.maximum > 1 && support == ZoneChangeTargetSupport::TargetCollection,
+        "an explicitly supported plural zone-change operand",
     )?;
     Ok(json!({"kind":"chosenTargets", "id":target_id}))
+}
+
+/// Declarations for every written target slot, in order, and the one operand
+/// the zone change acts on. `target_id(base, total)` names each declaration;
+/// `total` counts the slots of this list sharing that base identifier. A sole
+/// slot keeps its historical scalar or collection operand. Several slots form
+/// one simultaneous collection (CR 115.3, 608.2b): each slot remains its own
+/// declaration and an illegal member does not stop the others.
+pub(in crate::oracle::canonical) fn lower_zone_change_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    effect: &ZoneChangeEffectNode,
+    mut target_id: impl FnMut(&'static str, usize) -> String,
+) -> MachineResult<(Vec<Value>, Value)> {
+    cursor.enter("lower.zone-change.target-candidates");
+    let slots = effect
+        .target
+        .slots
+        .iter()
+        .map(|slot| lower_zone_change_slot_candidates(effect, slot))
+        .collect::<Option<Vec<_>>>();
+    let slots = cursor.require_value(slots, "a supported zone-change target candidate policy")?;
+    let mut decisions = Vec::new();
+    let mut members = Vec::new();
+    for (base, candidates, minimum, maximum) in &slots {
+        let total = slots.iter().filter(|(other, ..)| other == base).count();
+        let id = target_id(base, total);
+        decisions.push(target_decision(&id, candidates.clone(), *minimum, *maximum));
+        members.push(json!({"kind":"chosenTargets", "id":id}));
+    }
+    if let [decision] = decisions.as_slice() {
+        let id = decision["id"].as_str().unwrap_or_default().to_string();
+        let operand = lower_zone_change_target_operand(
+            cursor,
+            effect,
+            &id,
+            ZoneChangeTargetSupport::TargetCollection,
+        )?;
+        return Ok((decisions, operand));
+    }
+    Ok((decisions, json!({"kind":"union", "sets": members})))
 }
 
 pub(in crate::oracle::canonical) fn lower_targeted_zone_change_node(

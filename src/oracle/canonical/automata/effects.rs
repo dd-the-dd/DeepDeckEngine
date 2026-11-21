@@ -641,7 +641,9 @@ enum ZoneChangeState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ZoneChangeTargetSupport {
     Scalar,
-    DestroyCollection,
+    /// The parent lowers every target slot of the list and plural slots as
+    /// one target collection (destroy, exile, or return to hand).
+    TargetCollection,
 }
 
 /// Independent from target cardinality: a parent must have a proved lowerer
@@ -703,20 +705,40 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                 cursor.enter("effect.zone-change.target");
                 let targets = recognize_target_list(cursor)?;
                 cursor.enter("effect.zone-change.target.validation");
+                // CR 601.2c: one instruction may name several target slots
+                // (`target A and target B`) and each slot has its
+                // own cardinality. Only a parent that lowers the resulting
+                // target collection opts in; others keep one scalar object.
                 cursor.require(
-                    targets.slots.len() == 1,
+                    targets.slots.len() == 1
+                        || support == ZoneChangeTargetSupport::TargetCollection,
                     "exactly one target slot for a single-object zone change",
                 )?;
                 cursor.require(
-                    targets.slots.first().is_some_and(|slot| {
+                    targets.slots.iter().all(|slot| {
                         slot.cardinality.maximum == 1
-                            || (support == ZoneChangeTargetSupport::DestroyCollection
-                                && action == Some(ZoneChangeAction::Destroy))
+                            || support == ZoneChangeTargetSupport::TargetCollection
                     }),
-                    "a scalar zone change or a destroy collection supported by this parent",
+                    "a scalar zone change or a target collection supported by this parent",
                 )?;
+                for slot in targets.slots.iter().skip(1) {
+                    // A later slot's `other` relates it to the earlier target
+                    // (CR 115.3 lets one object fill several instances of
+                    // `target`). No distinct-target relation is lowered here.
+                    cursor.require(
+                        !slot.exclude_source,
+                        "a represented distinct-target relation for a later `other target` slot",
+                    )?;
+                    // The spell/permanent union stays a single-slot form.
+                    cursor.require(
+                        permanent_target_supported(&slot.selector),
+                        "a permanent target selector",
+                    )?;
+                }
                 let selector = &targets.slots[0].selector;
                 if domains == ZoneChangeDomains::SpellOrBattlefield
+                    && targets.slots.len() == 1
+                    && targets.slots[0].cardinality.maximum == 1
                     && matches!(
                         action,
                         Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand))
@@ -757,15 +779,26 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             }
             ZoneChangeState::DestinationObject => {
                 cursor.enter("effect.zone-change.destination.object");
-                cursor.consume("its")?;
+                // The possessive agrees with the target collection: one
+                // scalar object is `its`, a collection is `their`.
+                cursor.consume(if target_collection_is_plural(target.as_ref()) {
+                    "their"
+                } else {
+                    "its"
+                })?;
                 ZoneChangeState::DestinationPlayerRole
             }
             ZoneChangeState::DestinationPlayerRole => {
                 cursor.enter("effect.zone-change.destination.player-role");
+                let plural = target_collection_is_plural(target.as_ref());
                 let owner = cursor
                     .peek()
                     .filter(|raw| {
-                        raw.eq_ignore_ascii_case("owner's") || raw.eq_ignore_ascii_case("owner’s")
+                        raw.eq_ignore_ascii_case("owner's")
+                            || raw.eq_ignore_ascii_case("owner’s")
+                            || (plural
+                                && (raw.eq_ignore_ascii_case("owners'")
+                                    || raw.eq_ignore_ascii_case("owners’")))
                     })
                     .map(ToOwned::to_owned)
                     .ok_or_else(|| cursor.fail("`owner's`"))?;
@@ -774,7 +807,15 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             }
             ZoneChangeState::DestinationZone => {
                 cursor.enter("effect.zone-change.destination.zone");
-                cursor.consume("hand")?;
+                if target_collection_is_plural(target.as_ref())
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("hands"))
+                {
+                    cursor.consume("hands")?;
+                } else {
+                    cursor.consume("hand")?;
+                }
                 ZoneChangeState::Complete
             }
             ZoneChangeState::Complete => {
@@ -788,6 +829,14 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             }
         };
     }
+}
+
+/// True when the parsed target list denotes more than one object: several
+/// slots or one slot whose maximum exceeds one.
+fn target_collection_is_plural(target: Option<&super::TargetListNode>) -> bool {
+    target.is_some_and(|target| {
+        target.slots.len() > 1 || target.slots.iter().any(|slot| slot.cardinality.maximum > 1)
+    })
 }
 
 pub(in crate::oracle::canonical) fn permanent_target_supported(selector: &TargetSelector) -> bool {
