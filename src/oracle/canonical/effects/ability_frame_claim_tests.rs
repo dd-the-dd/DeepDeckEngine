@@ -24,13 +24,6 @@ fn single(name: &str, type_line: &str, text: &str) -> ParsedOracleAbility {
 #[test]
 fn unclaimed_abilities_are_owned_by_their_structural_frame() {
     let cases: &[(&str, &str, &str, &str, &str)] = &[
-        (
-            "Isao, Enlightened Bushi",
-            "Legendary Creature — Human Samurai",
-            "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of turn.)",
-            "ability-frame.keyword.expansion",
-            "Bushido",
-        ),
         // The colon inside a keyword reminder does not make an activated frame.
         (
             "Mobile Garrison",

@@ -80,23 +80,36 @@ fn read_reduction(
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("for"));
     let amount = if !fixed_amount_only {
-        cursor.consume("for")?;
-        let quantifier = cursor
-            .peek()
-            .map(str::to_owned)
-            .ok_or_else(|| cursor.fail("each or every before a counted query"))?;
-        cursor.require(
-            quantifier.eq_ignore_ascii_case("each") || quantifier.eq_ignore_ascii_case("every"),
-            "each or every before a counted query",
-        )?;
-        cursor.consume(&quantifier)?;
-        let query = recognize_scoped_object_query(cursor)?;
-        cursor.enter("casting-reduction.count-zone");
-        cursor.require(
-            !query.zones.contains(&CardZoneName::Library),
-            "a zone the casting-cost collection reader evaluates (not a library)",
-        )?;
-        let count = NumericExpression::CountQuery(Box::new(query));
+        let checkpoint = cursor.checkpoint();
+        let count = match read_zone_query_count(cursor) {
+            // A read zone the casting-cost reader cannot evaluate fails here;
+            // the battlefield reading below never claims it instead.
+            Ok(NumericExpression::CountQuery(query))
+                if query.zones.contains(&CardZoneName::Library) =>
+            {
+                cursor.enter("casting-reduction.count-zone");
+                return Err(cursor
+                    .fail("a zone the casting-cost collection reader evaluates (not a library)"));
+            }
+            Ok(count) => count,
+            Err(zone_failure) => {
+                // `for each artifact you control` counts battlefield permanents
+                // through the shared `for each` child; a card-zone query keeps
+                // its own diagnostic when neither reading applies. The child
+                // owns the amount only when it consumes the whole counted
+                // operand: a battlefield prefix such as `creature` must not
+                // drop a trailing `in your graveyard` scope.
+                let zone_cursor = cursor.clone();
+                cursor.rollback(checkpoint);
+                match cursor.attempt(recognize_for_each_count) {
+                    Ok(count) if reduction_amount_complete(cursor) => count,
+                    _ => {
+                        *cursor = zone_cursor;
+                        return Err(zone_failure);
+                    }
+                }
+            }
+        };
         if fixed == 1 {
             count
         } else {
@@ -169,6 +182,29 @@ fn read_reduction(
         condition,
         target_query,
     })
+}
+
+/// The counted amount ends at the reduction terminator or its condition.
+fn reduction_amount_complete(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw == "." || raw.eq_ignore_ascii_case("if"))
+}
+
+/// `for each|every QUERY` over a card zone or the battlefield (`on the`).
+fn read_zone_query_count(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    cursor.consume("for")?;
+    let quantifier = cursor
+        .peek()
+        .map(str::to_owned)
+        .ok_or_else(|| cursor.fail("each or every before a counted query"))?;
+    cursor.require(
+        quantifier.eq_ignore_ascii_case("each") || quantifier.eq_ignore_ascii_case("every"),
+        "each or every before a counted query",
+    )?;
+    cursor.consume(&quantifier)?;
+    let query = recognize_scoped_object_query(cursor)?;
+    Ok(NumericExpression::CountQuery(Box::new(query)))
 }
 
 pub(in crate::oracle::canonical) fn recognize_casting_cost_reduction(

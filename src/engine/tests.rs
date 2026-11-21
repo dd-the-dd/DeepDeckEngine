@@ -247,6 +247,10 @@ mod permanent_attacks_event_runtime;
 #[path = "tests/exalted_runtime.rs"]
 mod exalted_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/parameterized_keyword_runtime.rs"]
+mod parameterized_keyword_runtime;
+
 #[path = "tests/alternative_additional_cost_runtime.rs"]
 mod alternative_additional_cost_runtime;
 

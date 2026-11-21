@@ -18,6 +18,7 @@ mod keyword_native;
 mod mana_native;
 
 mod overload_native;
+mod parameterized_keyword_native;
 mod phyrexian_mana_native;
 
 mod replicate_native;
@@ -55,6 +56,7 @@ pub(super) use keyword_native::*;
 pub(super) use mana_native::*;
 
 pub(super) use overload_native::*;
+pub(super) use parameterized_keyword_native::*;
 pub(super) use phyrexian_mana_native::*;
 
 pub(super) use replicate_native::*;

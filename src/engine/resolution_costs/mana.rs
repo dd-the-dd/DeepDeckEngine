@@ -3,6 +3,9 @@
 use super::*;
 use crate::engine::mana_discovery_session::ManaDiscoverySession;
 
+/// Bounds a counted repetition of one mana cost (for example age counters).
+const MAX_REPEATED_RESOLUTION_PAYMENTS: i32 = 1_000;
+
 pub(in crate::engine) struct PreparedManaPayment {
     payer_id: String,
     player_index: usize,
@@ -38,6 +41,32 @@ impl GameEngine {
         let player_index = self.player_index(payer_id)?;
         let (oracle_cost, requirement) = match cost {
             ResolutionManaCost::Fixed { label, requirement } => (label, requirement),
+            ResolutionManaCost::Repeated {
+                label,
+                requirement,
+                times,
+            } => {
+                let times = self
+                    .checked_runtime_numeric_expression(
+                        &times,
+                        source,
+                        bindings,
+                        decisions,
+                        "repeated payment count",
+                    )?
+                    .max(0);
+                if times > MAX_REPEATED_RESOLUTION_PAYMENTS {
+                    return Err(EngineError::new(
+                        "repeated resolution mana payment exceeds its supported bound",
+                    ));
+                }
+                let mut total = ManaRequirement::default();
+                for _ in 0..times {
+                    total.add(&requirement);
+                }
+                // This string is a decision label only; the planner receives typed mana.
+                (label.repeat(times as usize), total)
+            }
             ResolutionManaCost::Generic(amount) => {
                 let amount = self
                     .checked_runtime_numeric_expression(
