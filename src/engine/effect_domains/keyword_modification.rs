@@ -23,7 +23,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
 
         Some("installLoseAllAbilities") => {
-            target_reference_supported(&effect["object"])
+            super::characteristic_object_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
         }
         Some("grantAbility") => {
@@ -227,10 +227,13 @@ impl GameEngine {
                 }
             }
             Some("installLoseAllAbilities") => {
-                if let Some(TargetRef::Permanent { instance_id }) =
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                    && self.permanent_position(&instance_id).is_some()
-                {
+                // CR 611.2c: the affected set is locked in at resolution.
+                for instance_id in self.characteristic_object_ids(
+                    &effect["object"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                ) {
                     self.state.rule_modifiers.push(json!({
                         "kind": "loseAllAbilities",
                         "cardInstanceId": instance_id,

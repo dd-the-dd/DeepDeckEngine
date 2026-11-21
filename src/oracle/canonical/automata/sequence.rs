@@ -21,9 +21,9 @@ use super::{
     recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
     recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
     recognize_set_ability_loss_effect, recognize_source_zone_move_effect, recognize_surveil_effect,
-    recognize_target_card_zone_change_effect, recognize_temporary_animation_effect,
-    recognize_temporary_power_toughness, recognize_transform_source_effect,
-    recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
+    recognize_target_card_zone_change_effect, recognize_temporary_power_toughness,
+    recognize_transform_source_effect, recognize_untap_permanent_effect,
+    recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
     signed_power_toughness_from_raw, source_or_anaphor_reference_starts_at,
     source_reference_starts_at, try_recognize_draw_cards_effect_with_context,
@@ -1786,33 +1786,6 @@ fn recognize_effect(
             );
         }
         return recognize_mill_cards_effect(cursor).map(LocalEffectNode::MillCards);
-    }
-    let source_animation_shape = (0..32).any(|offset| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|token| token.eq_ignore_ascii_case("becomes"))
-    }) && (0..32).any(|offset| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|token| token.eq_ignore_ascii_case("creature"))
-    }) && (0..32).any(|offset| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|token| token.eq_ignore_ascii_case("still"))
-    });
-    if source_animation_shape
-        && (cursor
-            .peek()
-            .is_some_and(|token| token.eq_ignore_ascii_case("until"))
-            || source_reference_starts_at(
-                cursor.position(),
-                cursor.peek(),
-                name_links,
-                name_failure,
-            ))
-    {
-        return recognize_temporary_animation_effect(cursor, name_links, name_failure)
-            .map(LocalEffectNode::AnimateSource);
     }
     if super::quantified_player_action_starts(cursor) {
         attempt_frame.commit();

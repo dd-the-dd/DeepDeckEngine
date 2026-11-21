@@ -134,7 +134,6 @@ mod static_spell_reduction;
 mod targeting_trigger;
 mod targetless;
 mod temporary_power_toughness;
-mod temporary_source_animation;
 mod trigger_multiplicity;
 
 mod top_card_partition;
@@ -276,7 +275,6 @@ pub(super) use static_spell_reduction::*;
 pub(super) use targeting_trigger::*;
 pub(super) use targetless::*;
 pub(super) use temporary_power_toughness::*;
-pub(super) use temporary_source_animation::*;
 pub(super) use trigger_multiplicity::*;
 
 pub(super) use top_card_partition::*;

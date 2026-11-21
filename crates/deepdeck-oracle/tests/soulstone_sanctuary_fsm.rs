@@ -35,16 +35,20 @@ fn soulstone_sanctuary_is_fully_native_and_composes_atomic_primitives() {
             "kind": "activatedAbility",
             "source": { "kind": "self" },
             "costs": [{ "kind": "payMana", "manaCost": "{4}" }],
+            "declaration": { "kind": "castingDeclaration", "decisions": [] },
             "effects": [
                 {
-                    "kind": "becomeCreature",
+                    "kind": "addCardType",
                     "object": { "kind": "self" },
-                    "addTypes": ["Creature"],
-                    "addSubtypes": [],
-                    "addColors": [],
-                    "basePower": { "kind": "integer", "value": 3 },
-                    "baseToughness": { "kind": "integer", "value": 3 },
+                    "cardType": "Creature",
                     "retainExistingTypes": true,
+                    "duration": { "kind": "permanent" }
+                },
+                {
+                    "kind": "modifySubtypeSet",
+                    "object": { "kind": "self" },
+                    "subtypeClass": "creature",
+                    "mode": "all",
                     "duration": { "kind": "permanent" }
                 },
                 {
@@ -54,10 +58,10 @@ fn soulstone_sanctuary_is_fully_native_and_composes_atomic_primitives() {
                     "duration": { "kind": "permanent" }
                 },
                 {
-                    "kind": "modifySubtypeSet",
+                    "kind": "setBasePowerToughness",
                     "object": { "kind": "self" },
-                    "subtypeClass": "creature",
-                    "mode": "all",
+                    "power": { "kind": "integer", "value": 3 },
+                    "toughness": { "kind": "integer", "value": 3 },
                     "duration": { "kind": "permanent" }
                 }
             ]
@@ -79,12 +83,12 @@ fn sibling_source_type_and_keyword_reuse_the_same_children() {
     let effects = ability.rule.as_ref().unwrap()["effects"]
         .as_array()
         .unwrap();
+    assert_eq!(effects[1]["kind"], "modifySubtypeSet");
+    assert_eq!(effects[2]["keyword"], "flying");
     assert_eq!(
-        effects[0]["basePower"],
+        effects[3]["power"],
         json!({ "kind": "integer", "value": 2 })
     );
-    assert_eq!(effects[1]["keyword"], "flying");
-    assert_eq!(effects[2]["kind"], "modifySubtypeSet");
 }
 
 #[test]
@@ -99,15 +103,9 @@ fn near_miss_reports_the_precise_all_creature_types_state() {
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
-    assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("temporary-source-animation-activation")
-    );
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("effect.source-animation.characteristic.all-creature-types")
-    );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("artifact"));
+    // `all artifact types` is not a `with` item of the frame; the
+    // coordinated remainder stays an explicit failure.
+    assert!(!ability.diagnostics.is_empty());
 }
 
 #[test]

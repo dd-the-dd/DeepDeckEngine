@@ -425,8 +425,9 @@ fn activation_body_context(
             | LocalActivationCostNode::RemoveSourceCounters(_)
             | LocalActivationCostNode::RemoveControlledCounters(_)
             | LocalActivationCostNode::ExileCards(_) => true,
+            // `Sacrifice another ...` cannot sacrifice the source (CR 109.1).
+            LocalActivationCostNode::SacrificeObject(selected) => selected.exclude_source,
             LocalActivationCostNode::SacrificeSelf(_)
-            | LocalActivationCostNode::SacrificeObject(_)
             | LocalActivationCostNode::DiscardSelf(_)
             | LocalActivationCostNode::ExileSelf(_) => false,
         });
