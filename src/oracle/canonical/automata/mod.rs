@@ -215,7 +215,6 @@ mod target_domain;
 mod target_list;
 mod target_untap;
 mod targeting_event;
-mod temporary_animation;
 mod temporary_power_toughness;
 mod token;
 mod token_characteristic;
@@ -452,7 +451,6 @@ pub(super) use target_domain::*;
 pub(super) use target_list::*;
 pub(super) use target_untap::*;
 pub(super) use targeting_event::*;
-pub(super) use temporary_animation::*;
 pub(super) use temporary_power_toughness::*;
 pub(super) use token::*;
 pub(super) use token_characteristic::*;
@@ -1731,7 +1729,6 @@ pub(super) enum LocalEffectNode {
     DiscardCards(PlayerDiscardEffectNode),
     OptionalDrawCards(OptionalDrawCardsEffectNode),
     MillCards(MillCardsEffectNode),
-    AnimateSource(TemporaryAnimationEffectNode),
     Amass(AmassEffectNode),
     EmpowerJace(EmpowerJaceEffectNode),
     Investigate(InvestigateEffectNode),

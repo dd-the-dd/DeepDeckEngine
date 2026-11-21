@@ -674,21 +674,6 @@ fn parse_existing_native_rule(
         };
     }
 
-    if ability_kind == "activatedAbility"
-        && claims_promoted_temporary_source_animation_family(input)
-    {
-        return match parse_promoted_temporary_source_animation(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     if ability_kind == "triggeredAbility" && claims_promoted_source_cast_x_entry_family(input) {
         return match parse_promoted_source_cast_x_entry(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

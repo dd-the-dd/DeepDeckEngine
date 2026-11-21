@@ -146,9 +146,6 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::ZoneChange(node) => {
             Local(singular_permanent_target(&node.target, effect_index))
         }
-        LocalEffectNode::AnimateSource(node) => {
-            Local(Some(PermanentEffectReference::Source(node.source)))
-        }
         LocalEffectNode::TransformPermanent(node) => {
             Local(Some(PermanentEffectReference::Source(node.permanent)))
         }

@@ -41,9 +41,10 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
     if let Some(reference) = context.verb_chain_subject
-        && cursor.peek().is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("gains") || raw.eq_ignore_ascii_case("becomes")
-        })
+        && (cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("gains"))
+            || super::become_types::characteristic_change_verb_starts(cursor))
     {
         return recognize_verb_chain_action(cursor, reference, context);
     }
@@ -68,7 +69,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let keyword = action.eq_ignore_ascii_case("gain") || action.eq_ignore_ascii_case("gains");
     let stats = action_offset == 0
         && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));
-    let becomes = action_offset == 0 && action.eq_ignore_ascii_case("becomes");
+    let becomes =
+        action_offset == 0 && super::become_types::characteristic_change_verb_starts(&subject_end);
     let deals = action_offset == 0
         && action.eq_ignore_ascii_case("deals")
         && matches!(
@@ -78,6 +80,14 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let fights = action_offset == 0
         && (action.eq_ignore_ascii_case("fights") || action.eq_ignore_ascii_case("fight"));
     if !keyword && !stats && !becomes && !deals && !fights {
+        return PermanentActionAttempt::NotClaimed;
+    }
+    // `each ... loses all abilities` keeps its set-binding owner, so a later
+    // `those creatures` still names the same bound set.
+    if becomes
+        && matches!(subject, PermanentOperandNode::Collection(_))
+        && action.eq_ignore_ascii_case("loses")
+    {
         return PermanentActionAttempt::NotClaimed;
     }
     if becomes {
@@ -258,10 +268,7 @@ fn recognize_verb_chain_action(
         other => PermanentOperandNode::BoundReference(other),
     };
     let mut trial = cursor.clone();
-    let node = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("becomes"))
-    {
+    let node = if super::become_types::characteristic_change_verb_starts(cursor) {
         super::become_types::recognize_become_types_subject(
             &mut trial,
             |_| Ok(subject.clone()),
