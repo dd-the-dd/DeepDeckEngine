@@ -90,9 +90,11 @@ pub(super) struct QuantityResolution {
     pub applied: Vec<String>,
 }
 
+/// Arithmetic over one event's quantity, shared by every event-quantity
+/// replacement (counters, tokens, damage).
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
-enum QuantityExpression {
+pub(super) enum QuantityExpression {
     EventQuantity,
     Integer {
         value: i32,
@@ -117,7 +119,7 @@ enum QuantityExpression {
 }
 
 impl QuantityExpression {
-    fn evaluate(&self, quantity: i32) -> Result<i32, EngineError> {
+    pub(super) fn evaluate(&self, quantity: i32) -> Result<i32, EngineError> {
         let (operation, left, right, round) = match self {
             Self::EventQuantity => return Ok(quantity),
             Self::Integer { value } => return Ok(*value),

@@ -2003,6 +2003,42 @@ fn parse_existing_native_rule(
         QuantityReplacementParseAttempt::NotClaimed => {}
     }
 
+    // CR 614.1a, 615.1a: a damage event (`would deal damage`, `damage would
+    // be dealt`) commits the damage replacement frame; other `if` envelopes
+    // are restored unchanged for the readers below.
+    match try_parse_damage_replacement(input) {
+        DamageReplacementParseAttempt::Parsed(draft) => {
+            return CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            };
+        }
+        DamageReplacementParseAttempt::Failed(failure) => {
+            return CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            };
+        }
+        DamageReplacementParseAttempt::NotClaimed => {}
+    }
+
+    // CR 614.1a: `PLAYER would gain life` commits the life-gain replacement.
+    match try_parse_life_gain_replacement(input) {
+        LifeGainReplacementParseAttempt::Parsed(draft) => {
+            return CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            };
+        }
+        LifeGainReplacementParseAttempt::Failed(failure) => {
+            return CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            };
+        }
+        LifeGainReplacementParseAttempt::NotClaimed => {}
+    }
+
     // A complete collection/keyword envelope proves the static context;
     // classification hints cannot substitute for this typed structural result.
     // Specific conditional, attached, Riot and temporary families run first.
