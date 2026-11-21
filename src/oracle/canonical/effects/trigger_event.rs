@@ -96,24 +96,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                 Ok(json!({"kind":"oneOf","events":events}))
             }
         }
-        GenericTriggerEventNode::Step(event) => {
-            let step = match event.step {
-                TurnStep::Upkeep => "upkeep",
-                TurnStep::Draw => "draw",
-                TurnStep::PrecombatMain => "precombatMain",
-                TurnStep::BeginCombat => "beginCombat",
-                TurnStep::PostcombatMain => "postcombatMain",
-                TurnStep::EndStep => "endStep",
-            };
-            let player = match event.player {
-                StepPlayerScope::AbilityController => controller(),
-                StepPlayerScope::EachPlayer => json!({"kind": "eachPlayer"}),
-                StepPlayerScope::OpponentsOfAbilityController => {
-                    json!({"kind": "opponentsOf", "player": controller()})
-                }
-            };
-            Ok(json!({"kind": "stepBegan", "step": step, "player": player}))
-        }
+        GenericTriggerEventNode::Step(event) => Ok(lower_step_event(*event)),
         GenericTriggerEventNode::PermanentTransition {
             kind,
             subjects,
@@ -147,7 +130,62 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
         }
         GenericTriggerEventNode::Local(event) => lower_local_event(cursor, event),
         GenericTriggerEventNode::Object(event) => lower_object_event(cursor, event),
+        GenericTriggerEventNode::SourceEvent(event) => lower_source_event_union(cursor, event),
     }
+}
+
+/// Each source verb maps to the runtime matcher that observes the source
+/// object itself; a union becomes `oneOf` in written order. Verbs without an
+/// inspected self matcher fail explicitly instead of widening the subject.
+fn lower_source_event_union(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &SourceEventUnionNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.source-event.subject-support");
+    cursor.require(
+        event.source == LocalObjectReference::SourceSelf && !event.verbs.is_empty(),
+        "the current source as event subject",
+    )?;
+    cursor.enter("trigger.source-event.verb-support");
+    let events = event
+        .verbs
+        .iter()
+        .map(|verb| {
+            let object = self_ref();
+            Ok(match verb {
+                SourceEventVerb::Entered => json!({"kind": "enterBattlefield", "object": object}),
+                SourceEventVerb::Died => json!({"kind": "permanentDied", "object": object}),
+                SourceEventVerb::Attacked => json!({"kind": "declaredAttacker", "object": object}),
+                SourceEventVerb::Blocked => json!({"kind": "declaredBlocker", "object": object}),
+                SourceEventVerb::BecameTapped => {
+                    json!({"kind": "permanentTapped", "object": object})
+                }
+                // CR 603.10a: leaves-the-battlefield abilities look back.
+                SourceEventVerb::LeftBattlefield => {
+                    json!({"kind": "permanentLeftBattlefield", "object": object})
+                }
+                SourceEventVerb::PutIntoGraveyardFromBattlefield => json!({
+                    "kind": "permanentLeftBattlefield",
+                    "object": object,
+                    "destination": "graveyard",
+                }),
+                // CR 509.1h: once per combat, when the first blocker is declared.
+                SourceEventVerb::BecameBlocked => {
+                    json!({"kind": "permanentBecameBlocked", "object": object})
+                }
+                SourceEventVerb::BecameUntapped => {
+                    return Err(cursor.fail(
+                        "a source event with a runtime self matcher (no became-untapped self matcher)",
+                    ));
+                }
+            })
+        })
+        .collect::<MachineResult<Vec<_>>>()?;
+    Ok(if events.len() == 1 {
+        events.into_iter().next().expect("one source event")
+    } else {
+        json!({"kind": "oneOf", "events": events})
+    })
 }
 
 /// Maps (verb, multiplicity) to the runtime matcher that already implements
@@ -199,6 +237,32 @@ fn lower_object_event(
         }
         return Ok(lowered);
     }
+    if let ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield =
+        event.verb
+    {
+        // The departure matcher observes permanents the ability controller
+        // controlled, with an explicit source exclusion (CR 603.10a).
+        cursor.enter("trigger.object-event.departure-support");
+        cursor.require(
+            !per_event
+                && subject.query.controller == Some(ObjectControllerScope::AbilityController)
+                && subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent),
+            "one permanent the ability controller controls (no other departure observer)",
+        )?;
+        let mut lowered = json!({
+            "kind": "controlledPermanentLeftBattlefield",
+            "player": controller(),
+            "where": lower_permanent_object_predicate(&subject.query.predicate),
+            "excludeSource": subject.exclude_source,
+        });
+        if event.verb == ObjectEventVerb::PutIntoGraveyardFromBattlefield {
+            lowered["destination"] = json!("graveyard");
+        }
+        return Ok(lowered);
+    }
     cursor.enter("trigger.object-event.source-exclusion-support");
     cursor.require(
         !subject.exclude_source,
@@ -247,6 +311,35 @@ fn lower_object_event(
                     "where": filter,
                 }),
             })
+        }
+        ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked => {
+            // One trigger per blocking creature, or once per combat for each
+            // attacking creature that becomes blocked (CR 509.1h).
+            cursor.require(
+                !per_event,
+                "a singular combat subject (no one-or-more block matcher)",
+            )?;
+            cursor.require(
+                subject.query.controller == Some(ObjectControllerScope::AbilityController)
+                    && subject
+                        .query
+                        .predicate
+                        .supports_domain(ObjectKind::Permanent),
+                "creatures the ability controller controls",
+            )?;
+            let kind = if event.verb == ObjectEventVerb::Block {
+                "controlledCreatureDeclaredBlocker"
+            } else {
+                "controlledCreatureBecameBlocked"
+            };
+            Ok(json!({
+                "kind": kind,
+                "player": controller(),
+                "where": lower_permanent_object_predicate(&subject.query.predicate),
+            }))
+        }
+        ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
+            unreachable!("departures are lowered before the per-verb support checks")
         }
         ObjectEventVerb::BeDealtDamage(damage) => {
             // One event per damaged object per damage event (CR 120.3, 603.2c).
@@ -435,6 +528,13 @@ fn lower_local_event(
             let mut lowered = json!({"kind": "permanentDealtDamage", "object": self_ref()});
             apply_damage_event_kind(cursor, &mut lowered, *damage)?;
             Ok(lowered)
+        }
+        LocalTriggerEventNode::SourceCycled { source } => {
+            cursor.require(
+                *source == LocalObjectReference::SourceSelf,
+                "the current cycled source",
+            )?;
+            Ok(json!({"kind": "sourceCycled", "object": self_ref()}))
         }
         LocalTriggerEventNode::LandPlayed {
             player,
