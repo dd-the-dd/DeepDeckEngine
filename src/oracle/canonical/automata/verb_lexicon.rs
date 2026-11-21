@@ -50,6 +50,22 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Create,
     /// `cycle` (CR 702.29: activating a cycling ability of a card).
     Cycle,
+    /// `attack` (CR 508.1).
+    Attack,
+    /// `block` (CR 509.1).
+    Block,
+    /// `become` (a state change: tapped, untapped, blocked, the target of).
+    Become,
+    /// `die` (CR 700.4).
+    Die,
+    /// `enter` (the battlefield, CR 603.6a).
+    Enter,
+    /// `leave` (a zone, CR 603.6c).
+    Leave,
+    /// `cast` (CR 601).
+    Cast,
+    /// `draw` (CR 121).
+    Draw,
 }
 
 /// One inflected form of a lemma.
@@ -124,6 +140,15 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     KeywordAmount,
     /// `TOKENS` (`create a 1/1 white Soldier creature token`).
     TokenCreation,
+    /// No object, or an optional counterpart (`attacks [alone]`, `dies`,
+    /// `enters [the battlefield]`, `blocks [a creature]`).
+    Intransitive,
+    /// `STATE` after `become` (`tapped`, `blocked [by ...]`, `the target of ...`).
+    StateChange,
+    /// `ZONE` after `leave` (`the battlefield`, `your graveyard`).
+    ZoneDeparture,
+    /// `SPELL` after `cast`.
+    SpellObject,
 }
 
 impl ArgumentFrame {
@@ -141,7 +166,11 @@ impl ArgumentFrame {
             | Self::CardCount
             | Self::ResourcePayment
             | Self::KeywordAmount
-            | Self::TokenCreation => None,
+            | Self::TokenCreation
+            | Self::Intransitive
+            | Self::StateChange
+            | Self::ZoneDeparture
+            | Self::SpellObject => None,
         }
     }
 }
@@ -418,7 +447,107 @@ const VERB_LEXICON: &[VerbEntry] = &[
         frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
+    VerbEntry {
+        lemma: VerbLemma::Attack,
+        forms: VerbForms {
+            base: "attack",
+            third_person_singular: "attacks",
+            past: "attacked",
+            past_participle: "attacked",
+            present_participle: "attacking",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Block,
+        forms: VerbForms {
+            base: "block",
+            third_person_singular: "blocks",
+            past: "blocked",
+            past_participle: "blocked",
+            present_participle: "blocking",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Become,
+        forms: VerbForms {
+            base: "become",
+            third_person_singular: "becomes",
+            past: "became",
+            past_participle: "become",
+            present_participle: "becoming",
+        },
+        frames: &[ArgumentFrame::StateChange],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Die,
+        forms: VerbForms {
+            base: "die",
+            third_person_singular: "dies",
+            past: "died",
+            past_participle: "died",
+            present_participle: "dying",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Enter,
+        forms: VerbForms {
+            base: "enter",
+            third_person_singular: "enters",
+            past: "entered",
+            past_participle: "entered",
+            present_participle: "entering",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Leave,
+        forms: VerbForms {
+            base: "leave",
+            third_person_singular: "leaves",
+            past: "left",
+            past_participle: "left",
+            present_participle: "leaving",
+        },
+        frames: &[ArgumentFrame::ZoneDeparture],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Cast,
+        forms: VerbForms {
+            base: "cast",
+            third_person_singular: "casts",
+            past: "cast",
+            past_participle: "cast",
+            present_participle: "casting",
+        },
+        frames: &[ArgumentFrame::SpellObject],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Draw,
+        forms: VerbForms {
+            base: "draw",
+            third_person_singular: "draws",
+            past: "drew",
+            past_participle: "drawn",
+            present_participle: "drawing",
+        },
+        frames: &[ArgumentFrame::CardCount],
+        voices: &[Voice::Active],
+    },
 ];
+
+/// Every lemma of the lexicon, in entry order.
+pub(in crate::oracle::canonical) static ALL_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
+    std::sync::LazyLock::new(|| VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
 
 pub(in crate::oracle::canonical) fn verb_entry(lemma: VerbLemma) -> &'static VerbEntry {
     VERB_LEXICON

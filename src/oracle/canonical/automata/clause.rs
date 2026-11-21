@@ -740,6 +740,54 @@ pub(in crate::oracle::canonical) fn consume_lemma(
     }
 }
 
+/// The diagnostic of a subject whose reader does not take the verb at
+/// `verb` (S2): state `clause.verb.unsupported`, naming the lexicon lemma
+/// (or the word when it has no entry) and the subject kind, instead of a
+/// verb another reader expected.
+pub(in crate::oracle::canonical) fn clause_verb_unsupported(
+    verb: &OracleTokenCursor<'_>,
+    subject: &str,
+) -> MachineFailure {
+    let mut at = verb.clone();
+    at.enter("clause.verb.unsupported");
+    let word = verb.peek().unwrap_or("").to_string();
+    let lemma = super::ALL_LEMMAS
+        .iter()
+        .find_map(|lemma| {
+            let entry = super::verb_entry(*lemma);
+            (!entry.forms_of(&word).is_empty()).then_some(entry.surface(VerbForm::Base))
+        })
+        .map_or_else(
+            || format!("`{word}` (no lexicon lemma)"),
+            |base| format!("lemma `{base}`"),
+        );
+    at.fail(&format!(
+        "a verb this subject reads: {lemma} is not read for {subject}"
+    ))
+}
+
+/// The token length of a player-set subject (`each player`, `each
+/// opponent`, `each other player`) at the cursor.
+pub(in crate::oracle::canonical) fn player_set_subject_length(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    let is = |offset: usize, word: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    };
+    if !is(0, "each") {
+        return None;
+    }
+    if is(1, "player") || is(1, "opponent") {
+        Some(2)
+    } else if is(1, "other") && (is(2, "player") || is(2, "opponent")) {
+        Some(3)
+    } else {
+        None
+    }
+}
+
 /// True when a clause of the frame is claimed at the cursor (recognized or
 /// failed after the claim). Reads a copy; the cursor is unchanged.
 pub(in crate::oracle::canonical) fn clause_starts(

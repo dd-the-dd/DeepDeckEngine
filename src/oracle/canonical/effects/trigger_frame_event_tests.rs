@@ -197,10 +197,11 @@ fn claimed_frames_report_the_furthest_event_failure() {
             "Whenever this creature becomes untapped, draw a card.",
             "trigger.source-event.verb-support",
         ),
-        // A blocker qualifier is not read as part of the union.
+        // A blocker qualifier is a typed counterpart of the event pattern;
+        // without a runtime matcher it is an engine gap, not a grammar gap.
         (
             "Whenever this creature blocks or becomes blocked by a nonblack creature, draw a card.",
-            "trigger.envelope.separator",
+            "trigger.event.engine-gap",
         ),
         (
             "When this creature is put into your graveyard from the battlefield, draw a card.",

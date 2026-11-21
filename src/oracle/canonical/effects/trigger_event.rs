@@ -215,6 +215,25 @@ fn lower_source_event_union(
         event.source == LocalObjectReference::SourceSelf && !event.verbs.is_empty(),
         "the current source as event subject",
     )?;
+    // A typed modifier the runtime has no matcher for is an engine gap,
+    // reported apart from grammar and never dropped.
+    if let Some(modifier) = event.modifiers.first() {
+        cursor.enter("trigger.event.engine-gap");
+        return Err(cursor.fail(match modifier {
+            SourceEventModifier::AttackingAlone => {
+                "an engine event matcher for `attacks alone` on the source"
+            }
+            SourceEventModifier::CounterpartQualifier => {
+                "an engine event matcher for a qualified block counterpart"
+            }
+            SourceEventModifier::NotBlocked => {
+                "an engine event matcher for `attacks and isn't blocked`"
+            }
+            SourceEventModifier::FirstTimeEachTurn => {
+                "an engine event matcher for `for the first time each turn`"
+            }
+        }));
+    }
     cursor.enter("trigger.source-event.verb-support");
     let events = event
         .verbs

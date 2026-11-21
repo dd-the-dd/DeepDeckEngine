@@ -191,3 +191,22 @@ thème.
   rappels de mots-clés), clés `match` de quelques lecteurs de famille ;
   `conjure` non ajouté (il faut un nœud d'effet, un lecteur de nom et une
   preuve runtime dépendante du catalogue, pas seulement une entrée de lexique).
+
+## Phase 5 (partielle) : motifs d'événement de la source, S5/S2
+
+- Lexique : `attack`, `block`, `become`, `die`, `enter`, `leave`, `cast`,
+  `draw` (cadres `Intransitive`, `StateChange`, `ZoneDeparture`,
+  `SpellObject`, `CardCount`).
+- Le lecteur d'événement de la source lit ses verbes par la proposition et
+  porte des modificateurs typés (`SourceEventModifier`) : contrepartie
+  (`blocks a creature` / `becomes blocked by a creature` est le même événement ;
+  un qualificatif est un manque moteur), `alone`, `and isn't blocked`,
+  `for the first time each turn`. Sans correspondant moteur, l'abaissement
+  échoue en `trigger.event.engine-gap`, distinct de la grammaire.
+- S5/S2 : `each player|opponent|other player` n'est jamais lu comme
+  quantificateur d'objets ; si le lecteur d'ensemble de joueurs ne prend pas le
+  verbe, l'échec est `clause.verb.unsupported` (lemme et genre de sujet).
+- Reste : un lecteur d'événement unique pour tous les sujets (quantifiés,
+  joueurs, attachés, sorts), les correspondants moteur des modificateurs, et
+  les lecteurs par verbe de `trigger_event.rs`, `quantified_event.rs`,
+  `player_event.rs`, `spell_cast_event.rs`, `targeting_event.rs`.

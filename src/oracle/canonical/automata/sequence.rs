@@ -1952,6 +1952,23 @@ fn recognize_effect(
         return recognize_quantified_player_action(cursor, context)
             .map(LocalEffectNode::QuantifiedPlayerAction);
     }
+    // `each player|opponent|other player ...` is a player-set subject, never
+    // an object quantifier. When the player-set reader does not take its
+    // verb, the failure names the verb and the subject kind (S5, S2).
+    if let Some(verb_offset) = super::player_set_subject_length(cursor) {
+        let mut verb = cursor.clone();
+        verb.advance_to(verb.position() + verb_offset)?;
+        if verb
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
+        {
+            verb.advance_to(verb.position() + 1)?;
+        }
+        return Err(super::clause_verb_unsupported(
+            &verb,
+            "a player set (`each player`)",
+        ));
+    }
     if cursor
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("each"))

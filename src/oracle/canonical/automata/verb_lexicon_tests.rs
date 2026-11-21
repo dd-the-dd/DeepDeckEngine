@@ -13,7 +13,8 @@ const ALL_FORMS: [VerbForm; 5] = [
 
 #[test]
 fn every_form_of_every_lemma_round_trips_through_lookup() {
-    for lemma in [VerbLemma::Gain, VerbLemma::Lose] {
+    assert!(ALL_LEMMAS.len() >= 26, "every migrated lemma has an entry");
+    for lemma in ALL_LEMMAS.iter().copied() {
         let entry = verb_entry(lemma);
         assert_eq!(entry.lemma, lemma);
         assert!(!entry.frames.is_empty() && !entry.voices.is_empty());
