@@ -300,6 +300,11 @@ impl GameEngine {
                         value_kind(event),
                         Some("declaredAttacker" | "controlledCreaturesAttacked")
                     )
+                })
+            || super::event_model::rule_combat_patterns(rule)
+                .iter()
+                .any(|pattern| {
+                    pattern.generic && pattern.lemma == super::event_model::CombatLemma::Attack
                 });
         let windcrag = if caused_by_attacker
             && snapshot.windcrag_count > 0

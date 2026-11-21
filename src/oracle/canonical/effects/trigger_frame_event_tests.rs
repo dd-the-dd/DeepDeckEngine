@@ -197,10 +197,10 @@ fn claimed_frames_report_the_furthest_event_failure() {
             "Whenever this creature becomes untapped, draw a card.",
             "trigger.source-event.verb-support",
         ),
-        // A blocker qualifier is a typed counterpart of the event pattern;
-        // without a runtime matcher it is an engine gap, not a grammar gap.
+        // A counterpart with a numeric characteristic is a typed attribute
+        // the runtime matcher cannot evaluate: an engine gap, not grammar.
         (
-            "Whenever this creature blocks or becomes blocked by a nonblack creature, draw a card.",
+            "Whenever this creature blocks or becomes blocked by a creature with power 1 or less, draw a card.",
             "trigger.event.engine-gap",
         ),
         (
@@ -293,5 +293,119 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         ),
     ] {
         assert_eq!(committed_state(text), state, "{text}");
+    }
+}
+
+fn source_pattern(lemma: &str, role: &str) -> Value {
+    json!({"kind": "eventPattern", "lemma": lemma,
+        "subject": {"role": role, "object": {"kind": "self"}}})
+}
+
+#[test]
+fn combat_modifiers_lower_to_generic_event_patterns() {
+    let mut alone = source_pattern("attack", "attacker");
+    alone["attackingAlone"] = json!(true);
+    let mut unblocked = source_pattern("becomeUnblocked", "attacker");
+    unblocked["declaredAttacker"] = json!(true);
+    let mut first_attack = source_pattern("attack", "attacker");
+    first_attack["turnOrdinal"] = json!(1);
+    let mut first_block = source_pattern("block", "blocker");
+    first_block["turnOrdinal"] = json!(1);
+    let mut alone_first = alone.clone();
+    alone_first["turnOrdinal"] = json!(1);
+    for (text, expected) in [
+        // Rogue Kavu, Eternal of Harsh Truths, Godo's ordinal.
+        (
+            "Whenever this creature attacks alone, draw a card.",
+            alone.clone(),
+        ),
+        (
+            "Whenever this creature attacks and isn't blocked, draw a card.",
+            unblocked,
+        ),
+        (
+            "Whenever this creature attacks for the first time each turn, draw a card.",
+            first_attack,
+        ),
+        // Siblings: the ordinal of a block, two modifiers together, and an
+        // unmodified verb of a modified union keeping its historical matcher.
+        (
+            "Whenever this creature blocks for the first time each turn, draw a card.",
+            first_block,
+        ),
+        (
+            "Whenever this creature attacks alone for the first time each turn, draw a card.",
+            alone_first,
+        ),
+        (
+            "Whenever this creature attacks alone or blocks, draw a card.",
+            json!({"kind": "oneOf", "events": [
+                alone,
+                {"kind": "declaredBlocker", "object": {"kind": "self"}},
+            ]}),
+        ),
+    ] {
+        assert_eq!(event(text, "Creature"), expected, "{text}");
+    }
+}
+
+#[test]
+fn block_counterparts_are_typed_queries_of_the_other_combatant() {
+    // Netcaster Spider: the attacker it blocks.
+    let spider = event(
+        "Whenever this creature blocks a creature with flying, draw a card.",
+        "Creature",
+    );
+    assert_eq!(spider["subject"]["role"], "blocker");
+    assert_eq!(spider["counterpart"]["role"], "attacker");
+    assert!(!spider["counterpart"]["where"].is_null());
+    assert!(spider["counterpart"].get("oneOrMore").is_none());
+    // `by a creature` is one event per blocker (CR 509.3d), not `becomes
+    // blocked` once per combat.
+    let wolverines = event(
+        "Whenever this creature becomes blocked by a creature, draw a card.",
+        "Creature",
+    );
+    assert_eq!(wolverines["lemma"], "block");
+    assert_eq!(wolverines["subject"]["role"], "attacker");
+    assert_eq!(wolverines["counterpart"]["role"], "blocker");
+    assert_eq!(
+        event(
+            "Whenever this creature becomes blocked, draw a card.",
+            "Creature"
+        ),
+        json!({"kind": "permanentBecameBlocked", "object": {"kind": "self"}})
+    );
+    // Dwarven Soldier: a trailing `one or more` counterpart is shared by the
+    // bare `blocks` of the union.
+    let soldier = event(
+        "Whenever this creature blocks or becomes blocked by one or more Orcs, draw a card.",
+        "Creature",
+    );
+    let branches = soldier["events"].as_array().expect("union");
+    assert_eq!(branches.len(), 2);
+    assert_eq!(branches[0]["subject"]["role"], "blocker");
+    assert_eq!(branches[1]["subject"]["role"], "attacker");
+    for branch in branches {
+        assert_eq!(branch["counterpart"]["oneOrMore"], true);
+        assert_eq!(
+            branch["counterpart"]["where"],
+            branches[0]["counterpart"]["where"]
+        );
+    }
+}
+
+#[test]
+fn combat_modifiers_without_a_runtime_matcher_remain_engine_gaps() {
+    for text in [
+        // No per-turn ordinal is recorded for a blocked attacker or tapping.
+        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        "Whenever this creature becomes tapped for the first time each turn, draw a card.",
+        // `and isn't blocked` completes one attack, not a union.
+        "Whenever this creature blocks or attacks and isn't blocked, draw a card.",
+        // Arrogant Bloodlord: a numeric counterpart characteristic.
+        "Whenever this creature becomes blocked by a creature with power 1 or less, draw a card.",
+    ] {
+        assert_eq!(committed_state(text), "trigger.event.engine-gap", "{text}");
     }
 }

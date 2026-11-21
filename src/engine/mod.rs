@@ -115,6 +115,7 @@ mod declaration_result;
 mod destruction_batch;
 mod effect_domains;
 mod event_batch;
+mod event_model;
 mod invariants;
 mod keyword_programs;
 mod landwalk;
@@ -4801,6 +4802,10 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    // Combat events are patterns of the generic event model.
+    if let Some(supported) = event_model::combat_event_supported(event) {
+        return supported;
+    }
     match value_kind(event) {
         Some("oneOf") => event["events"].as_array().is_some_and(|events| {
             !events.is_empty() && events.iter().all(triggered_event_supported)
@@ -4856,10 +4861,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 })
         }
         Some(
-            "declaredAttacker"
-            | "declaredBlocker"
-            | "permanentBecameBlocked"
-            | "permanentTapped"
+            "permanentTapped"
             | "manaAbilityActivated"
             | "attachedPermanentManaAbilityActivated"
             | "doorUnlocked",
@@ -4911,10 +4913,6 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("objectBecameTargetOfControlledAbility") => {
             player_reference_supported(&event["player"])
         }
-        Some("controlledCreatureBecameBlocked") => {
-            player_reference_supported(&event["player"])
-                && event.get("where").is_none_or(card_filter_supported)
-        }
         Some("controlledSourceDealtExactDamage") => {
             player_reference_supported(&event["player"])
                 && event["amount"].as_i64().is_some_and(|amount| amount > 0)
@@ -4951,12 +4949,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 || player_reference_supported(&event["player"]))
                 && card_filter_supported(&event["where"])
         }
-        Some(
-            "attachedCreatureBecameBlocked"
-            | "attachedCreatureBlocks"
-            | "attachedPermanentDealtDamage"
-            | "attachedPermanentTapped",
-        ) => {
+        Some("attachedPermanentDealtDamage" | "attachedPermanentTapped") => {
             value_kind(&event["attachment"]) == Some("self")
                 && event.get("where").is_none_or(card_filter_supported)
         }
@@ -5105,13 +5098,6 @@ fn triggered_event_supported(event: &Value) -> bool {
             matches!(value_kind(&event["source"]), Some("self" | "abilitySource"))
         }
         Some("opponentCombatDamageDuringControllerTurn") => true,
-        Some("controlledCreatureDeclaredAttacker" | "controlledCreatureDeclaredBlocker") => {
-            player_reference_supported(&event["player"])
-                && card_filter_supported(&event["where"])
-                && (value_kind(event) != Some("controlledCreatureDeclaredAttacker")
-                    || event.get("saddledOnly").is_none_or(Value::is_boolean)
-                        && event.get("faceDownOnly").is_none_or(Value::is_boolean))
-        }
         Some("stateConditionMet") => condition_supported(&event["condition"]),
         Some("classLeveled") => {
             value_kind(&event["object"]) == Some("self")
@@ -5182,13 +5168,10 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some(
             "permanentLeftBattlefield"
             | "attachedPermanentDied"
-            | "attachedPermanentDeclaredAttacker"
-            | "attachedPermanentDeclaredBlocker"
             | "attachedPermanentCombatDamageToPlayer"
             | "controlledCreatureDiedOrExiled"
             | "sourceDiedOrExiled"
             | "creatureExploited"
-            | "creatureAttacked"
             | "permanentTransformed",
         ) => {
             (event.get("object").is_none() || value_kind(&event["object"]) == Some("self"))
@@ -5196,7 +5179,6 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event.get("player").is_none_or(player_reference_supported)
                 && event.get("where").is_none_or(card_filter_supported)
                 && event.get("excludeSource").is_none_or(Value::is_boolean)
-                && event.get("attackingAlone").is_none_or(Value::is_boolean)
         }
         _ => false,
     }
@@ -24341,6 +24323,8 @@ impl GameEngine {
 
     fn enqueue_declared_attacker_triggers(&mut self, attacker_ids: &[String]) {
         let mut triggers = Vec::new();
+        // One typed record per declared attacker (event_model).
+        let attack_records = self.attack_records(attacker_ids);
         let attacking_controllers = attacker_ids
             .iter()
             .filter_map(|attacker_id| self.permanent_position(attacker_id))
@@ -24586,11 +24570,19 @@ impl GameEngine {
                     trigger_multiplicity::TriggerOrigin::ObjectAbility,
                 ));
             }
+            let record = attack_records
+                .iter()
+                .find(|record| record.attacker == *attacker_id);
             for rule in source.definition.rules.iter().filter(|rule| {
                 triggered_rule_supported(rule)
-                    && triggered_event_variants(&rule["event"])
-                        .iter()
-                        .any(|event| value_kind(event) == Some("declaredAttacker"))
+                    && record.is_some_and(|record| {
+                        self.rule_matches_combat_record(
+                            rule,
+                            event_model::PublicationGroup::AttackSource,
+                            record,
+                            &source,
+                        )
+                    })
                     && rule.get("condition").is_none_or(|condition| {
                         self.condition_value_with_source(
                             condition,
@@ -24621,50 +24613,26 @@ impl GameEngine {
                 .iter()
                 .filter(|rule| triggered_rule_supported(rule))
                 .filter(|rule| {
-                    triggered_event_variants(&rule["event"])
+                    event_model::rule_combat_patterns(rule)
                         .iter()
-                        .any(|event| {
-                            value_kind(event) == Some("controlledCreatureDeclaredAttacker")
+                        .any(|pattern| {
+                            pattern.group == event_model::PublicationGroup::AttackControlled
                         })
                 })
                 .cloned()
                 .collect::<Vec<_>>();
             for rule in rules {
-                let event = triggered_event_variants(&rule["event"])
-                    .into_iter()
-                    .find(|event| value_kind(event) == Some("controlledCreatureDeclaredAttacker"))
-                    .cloned()
-                    .unwrap_or(Value::Null);
-                let matching_attackers = attacker_ids
+                let matching_attackers = attack_records
                     .iter()
-                    .filter_map(|attacker_id| {
-                        self.permanent_position(attacker_id).and_then(
-                            |(player_index, card_index)| {
-                                let attacker =
-                                    &self.state.players[player_index].battlefield[card_index];
-                                (attacker.controller == source.controller
-                                    && self.permanent_matches_effective_filter(
-                                        attacker,
-                                        &event["where"],
-                                    )
-                                    && (event["saddledOnly"].as_bool() != Some(true)
-                                        || self.state.rule_modifiers.iter().any(|modifier| {
-                                            value_kind(modifier) == Some("saddled")
-                                                && modifier["cardInstanceId"].as_str()
-                                                    == Some(attacker.instance_id.as_str())
-                                                && modifier["expiresAfterTurn"].as_u64()
-                                                    == Some(u64::from(self.state.turn_number))
-                                        }))
-                                    && (event["faceDownOnly"].as_bool() != Some(true)
-                                        || attacker
-                                            .flags
-                                            .get("faceDown")
-                                            .copied()
-                                            .unwrap_or(false)))
-                                .then(|| attacker.clone())
-                            },
+                    .filter(|record| {
+                        self.rule_matches_combat_record(
+                            &rule,
+                            event_model::PublicationGroup::AttackControlled,
+                            record,
+                            source,
                         )
                     })
+                    .filter_map(|record| self.combat_attacker_instance(&record.attacker))
                     .collect::<Vec<_>>();
                 for attacker in matching_attackers {
                     self.put_triggered_ability_on_stack_with_decisions(
@@ -24736,8 +24704,16 @@ impl GameEngine {
         for source in battlefield_sources {
             for rule in source.definition.rules.iter().filter(|rule| {
                 triggered_rule_supported(rule)
-                    && triggered_event_variants(&rule["event"]).iter().any(
-                        |event| match value_kind(event) {
+                    && (attack_records.iter().any(|record| {
+                        self.rule_matches_combat_record(
+                            rule,
+                            event_model::PublicationGroup::AttackAttached,
+                            record,
+                            &source,
+                        )
+                    }) || triggered_event_variants(&rule["event"])
+                        .iter()
+                        .any(|event| match value_kind(event) {
                             Some("attackDeclaredWithSourceOrCommander") => {
                                 attacker_ids.contains(&source.instance_id)
                                     || attacker_ids.iter().any(|attacker_id| {
@@ -24750,14 +24726,6 @@ impl GameEngine {
                                             },
                                         )
                                     })
-                            }
-                            Some("creatureAttacked") => !attacker_ids.is_empty(),
-                            Some("attachedPermanentDeclaredAttacker") => {
-                                source.attached_to.as_ref().is_some_and(|attached_to| {
-                                    attacker_ids.contains(attached_to)
-                                        && (event["attackingAlone"].as_bool() != Some(true)
-                                            || attacker_ids.len() == 1)
-                                })
                             }
                             Some("controlledCreaturesAttacked") => {
                                 let controlled_attackers = attacker_ids
@@ -24804,8 +24772,7 @@ impl GameEngine {
                                         .is_none_or(|minimum| total_power >= minimum)
                             }
                             _ => false,
-                        },
-                    )
+                        }))
             }) {
                 if !triggers
                     .iter()
@@ -38124,128 +38091,9 @@ impl GameEngine {
                     Some(blocker_id.clone()),
                     json!({ "attackerId": attacker_id }),
                 );
-                if let Some((blocker_player_index, blocker_card_index)) =
-                    self.permanent_position(&blocker_id)
-                {
-                    let blocker = self.state.players[blocker_player_index].battlefield
-                        [blocker_card_index]
-                        .clone();
-                    let sources = self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter().cloned())
-                        .filter(|source| {
-                            source.controller == blocker.controller
-                                || source.attached_to.as_deref() == Some(blocker_id.as_str())
-                        })
-                        .collect::<Vec<_>>();
-                    for source in sources {
-                        let rules = source
-                            .definition
-                            .rules
-                            .iter()
-                            .filter(|rule| {
-                                triggered_rule_supported(rule)
-                                    && triggered_event_variants(&rule["event"]).iter().any(
-                                        |event| {
-                                            (value_kind(event) == Some("declaredBlocker")
-                                                && source.instance_id == blocker_id)
-                                                || (value_kind(event)
-                                                    == Some("attachedPermanentDeclaredBlocker")
-                                                    && source.attached_to.as_deref()
-                                                        == Some(blocker_id.as_str()))
-                                                || (value_kind(event)
-                                                    == Some("controlledCreatureDeclaredBlocker")
-                                                    && matches_permanent_filter(
-                                                        &blocker,
-                                                        &event["where"],
-                                                    ))
-                                        },
-                                    )
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        for rule in rules {
-                            self.put_triggered_ability_on_stack_with_decisions(
-                                &source,
-                                rule,
-                                BTreeMap::from([(
-                                    "triggeringPermanentId".to_string(),
-                                    Value::String(blocker_id.clone()),
-                                )]),
-                            );
-                            self.check_quantity_failure()?;
-                        }
-                    }
-                }
-                if self
-                    .state
-                    .combat
-                    .blockers
-                    .iter()
-                    .filter(|blocker| blocker.attacker_id == attacker_id)
-                    .count()
-                    == 1
-                    && let Some((attacker_player, attacker_index)) =
-                        self.permanent_position(&attacker_id)
-                {
-                    let attacker =
-                        self.state.players[attacker_player].battlefield[attacker_index].clone();
-                    let sources = self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|source| source.controller == attacker.controller)
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    for source in sources {
-                        let rules = source
-                            .definition
-                            .rules
-                            .iter()
-                            .filter(|rule| {
-                                triggered_rule_supported(rule)
-                                    && triggered_event_variants(&rule["event"]).iter().any(
-                                        |event| {
-                                            (value_kind(event)
-                                                == Some("controlledCreatureBecameBlocked")
-                                                && event.get("where").is_none_or(|filter| {
-                                                    matches_permanent_filter(&attacker, filter)
-                                                }))
-                                                // CR 509.1h: the source itself
-                                                // becomes blocked once per combat.
-                                                || (value_kind(event)
-                                                    == Some("permanentBecameBlocked")
-                                                    && source.instance_id == attacker_id)
-                                        },
-                                    )
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        for rule in rules {
-                            let mut decisions = BTreeMap::from([(
-                                "triggeringPermanentId".to_string(),
-                                Value::String(attacker_id.clone()),
-                            )]);
-                            if triggered_event_variants(&rule["event"])
-                                .iter()
-                                .any(|event| value_kind(event) == Some("permanentBecameBlocked"))
-                            {
-                                // The defending player of the blocked attacker.
-                                decisions.insert(
-                                    "triggeringPlayerId".to_string(),
-                                    Value::String(defender_id.clone()),
-                                );
-                            }
-                            self.put_triggered_ability_on_stack_with_decisions(
-                                &source, rule, decisions,
-                            );
-                            self.check_quantity_failure()?;
-                        }
-                    }
-                }
+                // One typed record per declared block pair (event_model).
+                let block_record = self.block_record(&attacker_id, &blocker_id, &defender_id);
+                self.publish_block_observer_triggers(&block_record)?;
                 if let Some((blocker_player_index, blocker_card_index)) =
                     self.permanent_position(&blocker_id)
                 {
@@ -38329,96 +38177,7 @@ impl GameEngine {
                     self.check_quantity_failure()?;
                 }
                 self.enqueue_ring_bearer_blocked_trigger(&attacker_id, &blocker_id);
-                let mut attachment_triggers = self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.battlefield.iter())
-                    .filter(|source| source.attached_to.as_deref() == Some(attacker_id.as_str()))
-                    .flat_map(|source| {
-                        source
-                            .definition
-                            .rules
-                            .iter()
-                            .filter(|rule| {
-                                triggered_rule_supported(rule)
-                                    && triggered_event_variants(&rule["event"]).iter().any(
-                                        |event| {
-                                            value_kind(event)
-                                                == Some("attachedCreatureBecameBlocked")
-                                                && self.permanent_position(&blocker_id).is_some_and(
-                                                    |(player_index, card_index)| {
-                                                        matches_card_filter(
-                                                            &self.state.players[player_index]
-                                                                .battlefield[card_index]
-                                                                .definition,
-                                                            &event["where"],
-                                                        )
-                                                    },
-                                                )
-                                        },
-                                    )
-                            })
-                            .cloned()
-                            .map(|rule| (source.clone(), rule))
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>();
-                attachment_triggers.extend(
-                    self.state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|source| source.attached_to.as_deref() == Some(blocker_id.as_str()))
-                        .flat_map(|source| {
-                            source
-                                .definition
-                                .rules
-                                .iter()
-                                .filter(|rule| {
-                                    triggered_rule_supported(rule)
-                                        && triggered_event_variants(&rule["event"]).iter().any(
-                                            |event| {
-                                                value_kind(event) == Some("attachedCreatureBlocks")
-                                                    && self
-                                                        .permanent_position(&attacker_id)
-                                                        .is_some_and(
-                                                            |(player_index, card_index)| {
-                                                                matches_card_filter(
-                                                                    &self.state.players
-                                                                        [player_index]
-                                                                        .battlefield[card_index]
-                                                                        .definition,
-                                                                    &event["where"],
-                                                                )
-                                                            },
-                                                        )
-                                            },
-                                        )
-                                })
-                                .cloned()
-                                .map(|rule| (source.clone(), rule))
-                                .collect::<Vec<_>>()
-                        }),
-                );
-                let decisions = BTreeMap::from([
-                    (
-                        "triggeringPermanentId".to_string(),
-                        Value::String(attacker_id.clone()),
-                    ),
-                    (
-                        "blockingPermanentId".to_string(),
-                        Value::String(blocker_id.clone()),
-                    ),
-                ]);
-                for (source, rule) in attachment_triggers {
-                    self.put_triggered_ability_on_stack_with_decisions(
-                        &source,
-                        rule,
-                        decisions.clone(),
-                    );
-                    self.check_quantity_failure()?;
-                }
+                self.publish_block_attachment_triggers(&block_record)?;
                 blocks.entry(attacker_id).or_default().push(blocker_id);
             }
             if !used_blockers.is_empty() {
@@ -38431,6 +38190,8 @@ impl GameEngine {
             }
         }
 
+        // CR 509.1h: attacking creatures without blockers become unblocked.
+        self.publish_unblocked_triggers(&blocks)?;
         self.run_priority_window(provider)?;
         if self.state.outcome.is_some() || self.force_end_turn {
             self.clear_combat_state();

@@ -1,0 +1,210 @@
+# Modèle d'événement générique du moteur (21 novembre 2026)
+
+Ce document fixe la cible du moteur pour les déclencheurs et l'état de sa
+première étape (famille combat). Il complète `oracle-clause-layer.md` : la
+couche de proposition lit un motif d'événement par lemme ; ce document décrit
+comment le moteur l'évalue.
+
+## Diagnostic
+
+Le moteur compare aujourd'hui chaque action à des `kind` d'événement en forme
+de phrase (`declaredAttacker`, `permanentBecameBlocked`,
+`controlledCreatureBecameBlocked`, `damageDealtBySource`, …). Chaque `kind` a
+son test d'admission dans `triggered_event_supported` et son test de
+correspondance écrit à la main au point où l'action a lieu (`src/engine/mod.rs`,
+`source_damage_observation.rs`, `counter_placement.rs`, …). Conséquences :
+
+- un modificateur (`alone`, `and isn't blocked`, `for the first time each
+  turn`, un bloqueur qualifié) exige du code moteur par `kind` ;
+- un même concept est lu avec des vues différentes selon le `kind` (définition
+  imprimée, état du permanent, caractéristiques effectives) ;
+- des champs sont admis sans être évalués (`creatureAttacked` acceptait
+  `attackingAlone` sans le lire) ;
+- l'analyseur reconnaît déjà ces modificateurs mais doit échouer en
+  `trigger.event.engine-gap` (73 cartes du corpus au départ de cette branche).
+
+## Cible
+
+### Enregistrement d'événement
+
+Chaque action du moteur publie **un** enregistrement typé, au moment où elle a
+lieu :
+
+| Champ | Contenu |
+|---|---|
+| lemme | l'action (`attack`, `block`, `becomeUnblocked`, puis `dealDamage`, `move`, `cast`, `putCounters`, …) |
+| acteur | le joueur qui accomplit l'action (attaquant qui déclare, joueur qui déclare le blocage, lanceur, …) |
+| objets par rôle | sujet, objet, attaquant, bloqueur, cible, source |
+| zones | origine et destination |
+| quantités | montant de dégâts, nombre de marqueurs, … |
+| drapeaux | `attacking_alone`, `declared_attacker`, premier blocage de l'attaquant ou du bloqueur, dégâts de combat |
+| ordinal | rang de cet événement pour ce lemme et cet objet (ou cet acteur) dans le tour |
+
+L'ordinal et les drapeaux sont calculés par l'émetteur, qui seul connaît la
+déclaration complète (CR 506.5 : une créature attaque seule si elle est la
+seule déclarée comme attaquante).
+
+### Motif d'événement
+
+Un déclencheur porte la même forme avec des prédicats à la place des valeurs :
+
+- lemme et **rôle** occupé par le sujet du déclencheur (`blocks` : sujet
+  bloqueur ; `becomes blocked` : sujet attaquant du même enregistrement de
+  blocage) ;
+- **relation** du sujet à la source : la source elle-même, le permanent auquel
+  elle est attachée, un permanent contrôlé par son contrôleur ;
+- **requêtes d'objets** sur le sujet et sur la contrepartie, évaluées par les
+  évaluateurs de filtres existants du moteur ;
+- relations de joueur, comparaisons de quantités ;
+- **modificateurs** : `alone`, `declaredAttacker` (`attacks and isn't
+  blocked`), une fois par combat (`blocks`, `becomes blocked`, CR 509.3a,
+  509.3c), une fois par paire (`blocks a creature`, `becomes blocked by a
+  creature`, CR 509.3b, 509.3d), `one or more` (une fois par combat, à la
+  première contrepartie qui satisfait la requête), ordinal du tour.
+
+Un seul correspondant évalue n'importe quel motif contre n'importe quel
+enregistrement. Un attribut que le correspondant ne sait pas évaluer rend le
+motif non admis (règle non exécutable) ; il n'est jamais ignoré.
+
+### Forme IR
+
+Les nouveaux motifs s'écrivent :
+
+```json
+{"kind": "eventPattern", "lemma": "block",
+ "subject": {"role": "attacker", "object": {"kind": "self"}},
+ "counterpart": {"role": "blocker", "where": FILTRE, "oneOrMore": true},
+ "attackingAlone": true, "declaredAttacker": true, "turnOrdinal": 1}
+```
+
+`subject.object` vaut `{"kind":"self"}`, `{"kind":"attachedPermanent",
+"attachment":{"kind":"self"}}` ou `{"kind":"controlledPermanent", "player":
+contrôleur de la source, "where": FILTRE}`. Les champs inconnus rendent le motif
+non admis.
+
+### Correspondance des anciens `kind`
+
+Les anciens `kind` restent des **alias** lus comme motifs : l'IR émise des
+cartes déjà supportées ne change pas. Chaque alias garde la vue d'objet de son
+ancien test pour garder un comportement identique :
+
+| Ancien `kind` | Lemme | Rôle du sujet | Relation | Filtres / modificateurs |
+|---|---|---|---|---|
+| `declaredAttacker` | attack | attaquant | source | — |
+| `controlledCreatureDeclaredAttacker` | attack | attaquant | contrôlé | `where` effectif, `saddledOnly`, `faceDownOnly` |
+| `attachedPermanentDeclaredAttacker` | attack | attaquant | attaché | `attackingAlone` |
+| `declaredBlocker` | block | bloqueur | source | une fois par combat |
+| `controlledCreatureDeclaredBlocker` | block | bloqueur | contrôlé | `where` (état du permanent), une fois par combat |
+| `attachedPermanentDeclaredBlocker` | block | bloqueur | attaché | une fois par combat |
+| `permanentBecameBlocked` | block | attaquant | source | une fois par combat |
+| `controlledCreatureBecameBlocked` | block | attaquant | contrôlé | `where` (état du permanent), une fois par combat |
+| `attachedCreatureBecameBlocked` | block | attaquant | attaché | contrepartie `where` (définition imprimée), par paire |
+| `attachedCreatureBlocks` | block | bloqueur | attaché | contrepartie `where` (définition imprimée), par paire |
+
+Les alias `controlled*` n'admettent plus que le contrôleur de la source comme
+joueur : c'était la seule relation évaluée (l'ancien test acceptait toute
+référence de joueur et l'ignorait) et la seule émise.
+
+### Ordre de publication
+
+Le correspondant est unique ; l'ordre d'empilement établi est conservé par un
+**groupe de publication** dérivé du motif (sujet source, sujet contrôlé,
+attachement, observateurs du bloqueur, observateurs de l'attaquant bloqué,
+attachements de chaque combattant, attaquant non bloqué). Chaque point
+d'émission parcourt les sources du champ de bataille dans l'ordre et publie
+les règles dont un motif du groupe correspond à l'enregistrement. Les liaisons
+de décision des alias (`triggeringPermanentId`, `triggeringPlayerId`,
+`blockingPermanentId`) sont celles des anciens tests ; un motif générique de
+blocage lie en plus `blockingPermanentId` et `blockedPermanentId`.
+
+### Retrait des tests par `kind`
+
+Pour une famille migrée : (1) les alias sont lus par `combat_event_pattern`,
+qui remplace leurs bras dans `triggered_event_supported` ; (2) les tests écrits
+à la main aux points d'émission sont remplacés par `combat_record_triggers` ou
+`rule_matches_combat_record` ; (3) un `kind` sans producteur est supprimé
+(`creatureAttacked`). Une famille suivante ne crée pas de nouveau `kind` : elle
+ajoute son lemme à l'enregistrement et au motif.
+
+## Information de dernier état et moment d'évaluation
+
+- CR 603.2 : un déclencheur se déclenche quand l'événement a lieu ; le motif
+  est évalué immédiatement à la publication de l'enregistrement, avant toute
+  résolution. Les filtres lisent l'état courant, qui est l'état de l'événement
+  (les déclencheurs sont collectés avant la fenêtre de priorité).
+- CR 603.10a : les déclencheurs de départ du champ de bataille « regardent en
+  arrière ». Pour les familles de changement de zone, l'enregistrement portera
+  l'instantané de l'objet avant le déplacement (les instantanés de
+  `source_lki.rs` et `death_trigger_batch.rs`) ; le correspondant évaluera les
+  requêtes sur cet instantané, pas sur l'objet dans sa nouvelle zone. La
+  famille combat n'a pas de départ : ses objets sont sur le champ de bataille.
+- L'ordinal est calculé depuis le journal du tour (`attackerDeclared`,
+  `blockerDeclared`), où l'événement courant est déjà inscrit.
+- `becomeUnblocked` est publié une fois tous les blocages déclarés (CR
+  509.1h), avant la fenêtre de priorité ; seul un attaquant déclaré satisfait
+  `declaredAttacker` (une créature mise sur le champ de bataille attaquante n'a
+  pas attaqué, CR 508.4).
+
+## Étape 1 réalisée : famille combat
+
+- `src/engine/event_model.rs` : `CombatEventRecord`, `CombatEventPattern`,
+  `combat_event_pattern` (alias + `eventPattern`), `combat_event_matches`,
+  enregistrements d'attaque, de blocage et d'attaquant non bloqué, publication
+  par groupe.
+- Points d'émission migrés : déclaration des attaquants (attaquant lui-même,
+  observateurs contrôlés, attachements), déclaration de chaque blocage
+  (observateurs du bloqueur, de l'attaquant bloqué, attachements),
+  attaquants non bloqués (nouveau).
+- Analyseur : la contrepartie d'un blocage est une requête typée
+  (`EventCounterpartNode`, `one or more` inclus), partagée par un `blocks` nu
+  dans `blocks or becomes blocked by QUERY`. `alone`, `and isn't blocked`, la
+  contrepartie et `for the first time each turn` (attaque, blocage) sont
+  abaissés en `eventPattern`. Restent en `trigger.event.engine-gap` :
+  l'ordinal sur `becomes blocked` et `isn't blocked`, une contrepartie avec
+  contrôleur ou caractéristique numérique, `and isn't blocked` après un autre
+  événement qu'une attaque seule.
+- Correction intentionnelle : `becomes blocked by a creature` se déclenchait
+  une fois par combat ; c'est un événement par bloqueur (CR 509.3d). L'IR de
+  ces cartes passe de `permanentBecameBlocked` à `eventPattern` avec
+  contrepartie.
+
+### Mesures (sondes ligue/corpus, base b84e6c7)
+
+| Mesure | Base | Après |
+|---|---|---|
+| Ligue, cartes supportées | 790/1664 | 790/1664 (0 gagnée, 0 perdue, 0 IR changée) |
+| Corpus, cartes supportées | 13608/35770 | 13633/35770 (+25, 0 perdue) |
+| Corpus, cartes en `trigger.event.engine-gap` | 73 | 1 (Arrogant Bloodlord : contrepartie numérique) |
+| Corpus, IR changée | — | 31 cartes : 25 gagnées, 4 corrigées (`becomes blocked by a creature`), 2 toujours en échec ailleurs |
+
+Les 47 autres cartes de l'ancienne file `engine-gap` échouent maintenant plus
+loin, sur une grammaire de corps distincte : référence à la contrepartie
+(`that creature`, 12 cartes), `assigns no combat damage`, `until end of
+combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
+
+### Tests par `kind` retirés et restants
+
+- Retirés : les bras de `triggered_event_supported` de `declaredAttacker`,
+  `declaredBlocker`, `permanentBecameBlocked`,
+  `controlledCreatureBecameBlocked`, `controlledCreatureDeclaredAttacker`,
+  `controlledCreatureDeclaredBlocker`, `attachedPermanentDeclaredAttacker`,
+  `attachedPermanentDeclaredBlocker`, `attachedCreatureBecameBlocked`,
+  `attachedCreatureBlocks` et le `kind` mort `creatureAttacked` ; les tests
+  écrits à la main de ces `kind` aux deux points d'émission.
+- Restants (famille combat, agrégats ou règles intégrées) :
+  `controlledCreaturesAttacked`, `attackDeclaredWithSourceOrCommander`,
+  `opponentSmallCreatureBlocks`, `permanentAttacks` (déclencheurs retardés),
+  les règles synthétisées pour exalted, annihilator, flanking et le porteur de
+  l'Anneau, et le test de cause d'attaque de `trigger_multiplicity.rs`.
+
+## Familles suivantes
+
+1. **Dégâts** : `damageDealtBySource`, `permanentDealtDamage`,
+   `combatDamageToPlayer`, `combatDamageReceived`, … → lemme `dealDamage`
+   (source, destinataire, montant, combat), unifiant les sélecteurs `objects`
+   et `permanents` notés en phase 2 de la couche de proposition.
+2. **Changements de zone** : `enterBattlefield`, `permanentDied`,
+   `permanentLeftBattlefield`, `cardsEnteredGraveyard`, … → lemme `move` avec
+   zones et instantané LKI (CR 603.10a).
+3. **Lancement** : `spellCast` et ses ordinaux → lemme `cast`.
+4. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`.

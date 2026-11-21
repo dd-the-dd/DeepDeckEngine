@@ -215,24 +215,11 @@ fn lower_source_event_union(
         event.source == LocalObjectReference::SourceSelf && !event.verbs.is_empty(),
         "the current source as event subject",
     )?;
-    // A typed modifier the runtime has no matcher for is an engine gap,
+    // A modified verb is a generic event pattern (docs/oracle-event-model.md);
+    // a modifier the runtime matcher cannot evaluate is an engine gap,
     // reported apart from grammar and never dropped.
-    if let Some(modifier) = event.modifiers.first() {
-        cursor.enter("trigger.event.engine-gap");
-        return Err(cursor.fail(match modifier {
-            SourceEventModifier::AttackingAlone => {
-                "an engine event matcher for `attacks alone` on the source"
-            }
-            SourceEventModifier::CounterpartQualifier => {
-                "an engine event matcher for a qualified block counterpart"
-            }
-            SourceEventModifier::NotBlocked => {
-                "an engine event matcher for `attacks and isn't blocked`"
-            }
-            SourceEventModifier::FirstTimeEachTurn => {
-                "an engine event matcher for `for the first time each turn`"
-            }
-        }));
+    if !event.modifiers.is_empty() {
+        return lower_source_event_patterns(cursor, event);
     }
     cursor.enter("trigger.source-event.verb-support");
     let events = event
@@ -269,6 +256,128 @@ fn lower_source_event_union(
             })
         })
         .collect::<MachineResult<Vec<_>>>()?;
+    Ok(if events.len() == 1 {
+        events.into_iter().next().expect("one source event")
+    } else {
+        json!({"kind": "oneOf", "events": events})
+    })
+}
+
+fn engine_gap(cursor: &mut OracleTokenCursor<'_>, expected: &str) -> MachineFailure {
+    cursor.enter("trigger.event.engine-gap");
+    cursor.fail(expected)
+}
+
+/// The source as the subject of a combat event pattern, with the typed
+/// modifiers the runtime matcher evaluates: `alone` (CR 506.5), `and isn't
+/// blocked` (CR 509.1h), a block counterpart (CR 509.3b, 509.3d) and the
+/// per-turn ordinal of attacks and blocks.
+fn lower_source_event_patterns(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &SourceEventUnionNode,
+) -> MachineResult<Value> {
+    let first_time = event
+        .modifiers
+        .contains(&SourceEventModifier::FirstTimeEachTurn);
+    let not_blocked = event.modifiers.contains(&SourceEventModifier::NotBlocked);
+    if not_blocked && event.verbs != [SourceEventVerb::Attacked] {
+        return Err(engine_gap(
+            cursor,
+            "an engine event matcher for `and isn't blocked` after an event other than one attack",
+        ));
+    }
+    let mut events = Vec::new();
+    for verb in &event.verbs {
+        let alone = *verb == SourceEventVerb::Attacked
+            && event
+                .modifiers
+                .contains(&SourceEventModifier::AttackingAlone);
+        let counterpart = event.modifiers.iter().find_map(|modifier| match modifier {
+            SourceEventModifier::Counterpart(node) if node.verb == *verb => Some(node),
+            _ => None,
+        });
+        let (lemma, role) = match verb {
+            SourceEventVerb::Attacked if not_blocked => ("becomeUnblocked", "attacker"),
+            SourceEventVerb::Attacked => ("attack", "attacker"),
+            SourceEventVerb::Blocked => ("block", "blocker"),
+            SourceEventVerb::BecameBlocked => ("block", "attacker"),
+            _ if first_time => {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an attack or a block",
+                ));
+            }
+            // An unmodified verb of a modified union keeps its own matcher.
+            _ => {
+                events.push(lower_source_event_union(
+                    cursor,
+                    &SourceEventUnionNode {
+                        source: event.source,
+                        verbs: vec![*verb],
+                        modifiers: Vec::new(),
+                    },
+                )?);
+                continue;
+            }
+        };
+        if !alone && counterpart.is_none() && !first_time && !not_blocked {
+            events.push(lower_source_event_union(
+                cursor,
+                &SourceEventUnionNode {
+                    source: event.source,
+                    verbs: vec![*verb],
+                    modifiers: Vec::new(),
+                },
+            )?);
+            continue;
+        }
+        let mut pattern = json!({
+            "kind": "eventPattern",
+            "lemma": lemma,
+            "subject": {"role": role, "object": self_ref()},
+        });
+        if alone {
+            pattern["attackingAlone"] = json!(true);
+        }
+        if not_blocked {
+            pattern["declaredAttacker"] = json!(true);
+        }
+        if first_time {
+            // The runtime records the ordinal of the attacker of an attack and
+            // of the blocker of a block.
+            if not_blocked || *verb == SourceEventVerb::BecameBlocked {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an attack or a block",
+                ));
+            }
+            pattern["turnOrdinal"] = json!(1);
+        }
+        if let Some(counterpart) = counterpart {
+            if counterpart.query.controller.is_some()
+                || counterpart.query.predicate.contains_numeric_comparison()
+                || !domain_filter_is_representable(&counterpart.query.predicate)
+            {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for a block counterpart without controller or numeric characteristics",
+                ));
+            }
+            let filter = lower_permanent_object_predicate(&counterpart.query.predicate);
+            if filter.is_null() {
+                return Err(engine_gap(cursor, "a lowered block counterpart predicate"));
+            }
+            let mut lowered = json!({
+                "role": if role == "attacker" { "blocker" } else { "attacker" },
+                "where": filter,
+            });
+            if counterpart.one_or_more {
+                lowered["oneOrMore"] = json!(true);
+            }
+            pattern["counterpart"] = lowered;
+        }
+        events.push(pattern);
+    }
     Ok(if events.len() == 1 {
         events.into_iter().next().expect("one source event")
     } else {

@@ -188,6 +188,13 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
                     ..
                 }
         )
+    ) || matches!(
+        // A modified attack of the source (`attacks alone`, `attacks and
+        // isn't blocked`): the generic attack and unblocked patterns record
+        // the defending player too.
+        event,
+        GenericTriggerEventNode::SourceEvent(node)
+            if node.verbs == [super::SourceEventVerb::Attacked]
     )
 }
 
