@@ -49,6 +49,11 @@ pub(super) fn event_is_aggregated(event: &Value) -> bool {
 }
 
 impl EventBatchState {
+    /// The simultaneous event currently open, if any.
+    pub(super) fn current_batch(&self) -> Option<u64> {
+        self.current
+    }
+
     fn allocate(&mut self) -> u64 {
         self.next += 1;
         self.next

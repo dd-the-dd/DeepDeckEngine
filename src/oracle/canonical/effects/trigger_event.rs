@@ -674,10 +674,18 @@ fn lower_damage_dealt_event(
     }
     cursor.enter("trigger.dealt-damage.recipient-support");
     // Without a recipient one event can damage several objects and players
-    // at once and must trigger only once; that aggregation is not proved.
-    let recipient = complement.recipient.as_ref().ok_or_else(|| {
-        cursor.fail("a damage recipient (no aggregation over every recipient is proved)")
-    })?;
+    // at once: the generic damage pattern triggers once per source and
+    // simultaneous event, with the total amount (docs/oracle-event-model.md).
+    let Some(recipient) = complement.recipient.as_ref() else {
+        let source = lowered["source"].take();
+        let mut pattern = json!({"kind": "eventPattern", "lemma": "dealDamage", "source": source});
+        for flag in ["combatOnly", "noncombatOnly"] {
+            if let Some(value) = lowered.get(flag) {
+                pattern[flag] = value.clone();
+            }
+        }
+        return Ok(pattern);
+    };
     lowered["recipient"] = match recipient {
         DamageRecipient::Player(actor) => {
             json!({"kind": "player", "player": event_actor_player(*actor)})

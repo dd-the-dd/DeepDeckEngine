@@ -223,6 +223,43 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   `at end of combat` ; Battering Ram (`that Wall`, nominal de sous-type, et
   banding) ; Catacomb Dragon (`non-Dragon`).
 
+## Étape 2 réalisée : famille dégâts
+
+- `src/engine/damage_events.rs` : `DamageEventRecord` (source, contrôleur de
+  la source au moment des dégâts — information de dernier état fournie par la
+  préparation des dégâts —, destinataire joueur ou permanent, montant,
+  combat, événement simultané), `DamageEventPattern`, un seul correspondant
+  `damage_event_matches`. Chaque dégât infligé à un destinataire publie un
+  enregistrement (`enqueue_source_damage_observers`, appelé par le chemin
+  unitaire et par le lot de dégâts aux joueurs).
+- Alias lus comme motifs, IR inchangée : `damageDealtBySource`,
+  `controlledPermanentDealtDamage`, `permanentDealtDamage`,
+  `combatDamageToPlayer`, `attachedPermanentCombatDamageToPlayer`. Les groupes
+  de publication gardent les points d'émission et liaisons établis.
+- Nouveau motif `{"kind":"eventPattern","lemma":"dealDamage","source":…}` :
+  sans destinataire, il observe tout l'événement de la source — un seul
+  déclenchement par source et événement simultané, montant total (`that
+  much`). L'événement simultané est le lot d'événements existant
+  (`event_batch.rs`) : une instruction, et désormais l'étape de dégâts de
+  combat (CR 510.2). Un déclenchement déjà publié pour la même source dans le
+  même événement voit son `damageAmount` augmenter.
+- Analyseur : `SOURCE deals [combat] damage` sans destinataire est abaissé en
+  ce motif (au lieu de `trigger.dealt-damage.recipient-support`).
+- `kind` sans producteur retirés avec leurs tests à la main :
+  `selfDealtDamage`, `sourceDealtDamageAtLeast`,
+  `sourceDealtDamageToPermanent`, `attachedPermanentDealtDamage`,
+  `controlledSourceDealtExactDamage` (ne réagissait qu'à 2 dégâts),
+  `controlledSourceDealtExactDamageToController`,
+  `opponentCombatDamageDuringControllerTurn`.
+- Restent par `kind` (agrégats par joueur ou groupe) : `opponentDealtDamage`,
+  `damageDealtToOpponent`, `combatDamageReceived`,
+  `controlledCreaturesCombatDamageToPlayer` ; et la file `one or more SOURCES
+  deal damage` (agrégat sur plusieurs sources, non prouvé).
+- Sondes : ligue inchangée ; corpus 13639 → 13656 (+17 : Armadillo Cloak,
+  Spirit Link, Vampiric Link, Exalted Angel, Drinker of Sorrow, Five-Alarm
+  Fire, …), 0 perdue, 30 IR changées (17 gagnées, 13 dont la capacité de
+  dégâts compile et une autre échoue ailleurs).
+
 ## Familles suivantes
 
 1. **Dégâts** : `damageDealtBySource`, `permanentDealtDamage`,

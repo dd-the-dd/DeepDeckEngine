@@ -340,7 +340,14 @@ pub(super) fn combat_event_pattern(event: &Value) -> Option<Result<CombatEventPa
                     )
                 })
         }
-        "eventPattern" => generic_combat_pattern(event),
+        "eventPattern"
+            if matches!(
+                event["lemma"].as_str(),
+                Some("attack" | "block" | "becomeUnblocked")
+            ) =>
+        {
+            generic_combat_pattern(event)
+        }
         _ => return None,
     };
     Some(pattern.ok_or(()))

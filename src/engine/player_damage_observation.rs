@@ -9,18 +9,6 @@ impl GameEngine {
                 for event in triggered_event_variants(&rule["event"]) {
                     if matches!(
                         value_kind(event),
-                        Some(
-                            "sourceDealtDamageAtLeast"
-                                | "controlledSourceDealtExactDamage"
-                                | "selfDealtDamage"
-                        )
-                    ) {
-                        return Err(EngineError::new(
-                            "damage batch observer needs explicit aggregate amount semantics",
-                        ));
-                    }
-                    if matches!(
-                        value_kind(event),
                         Some("damageDealtToOpponent" | "opponentDealtDamage")
                     ) && event
                         .get("aggregation")
@@ -144,47 +132,8 @@ impl GameEngine {
         &mut self,
         source_controller: &str,
         player_id: &str,
-        amount: i32,
         source: &str,
     ) {
-        if amount == 1 && source_controller == player_id {
-            let sahir_triggers = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .filter(|trigger_source| trigger_source.controller == player_id)
-                .flat_map(|trigger_source| {
-                    trigger_source
-                        .definition
-                        .rules
-                        .iter()
-                        .filter(|rule| {
-                            triggered_rule_supported(rule)
-                                && triggered_event_variants(&rule["event"])
-                                    .iter()
-                                    .any(|event| {
-                                        value_kind(event)
-                                            == Some("controlledSourceDealtExactDamageToController")
-                                            && event["amount"].as_i64() == Some(1)
-                                    })
-                        })
-                        .cloned()
-                        .map(|rule| (trigger_source.clone(), rule))
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-            for (trigger_source, rule) in sahir_triggers {
-                self.put_triggered_ability_on_stack_with_decisions(
-                    &trigger_source,
-                    rule,
-                    BTreeMap::from([("damageAmount".to_string(), Value::from(amount))]),
-                );
-                if self.check_quantity_failure().is_err() {
-                    return;
-                }
-            }
-        }
         let grants_draw =
             self.battlefield_static_modifiers()
                 .iter()

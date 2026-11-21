@@ -323,12 +323,12 @@ impl GameEngine {
                 self.enqueue_player_damage_extra_observers(
                     &batch.controller,
                     &r.player_id,
-                    r.amount,
                     &batch.source,
                 );
                 // One dealt-damage event per damaged player (CR 120.1).
                 self.enqueue_source_damage_observers(
                     &batch.source,
+                    Some(batch.controller.as_str()),
                     super::source_damage_observation::DamageRecipientRef::Player(&r.player_id),
                     r.amount,
                     false,

@@ -72,10 +72,6 @@ impl GameEngine {
             }
         }
         self.publish_prepared_damage_events(events, None);
-        let damaged_permanent_id = match &target {
-            TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
-            _ => None,
-        };
         let mut dealt_amount = 0;
         match target {
             TargetRef::Player { player_id } => {
@@ -140,6 +136,9 @@ impl GameEngine {
                 );
                 self.enqueue_source_damage_observers(
                     source,
+                    source_characteristics
+                        .as_ref()
+                        .map(|value| value.0.as_str()),
                     source_damage_observation::DamageRecipientRef::Player(&player_id),
                     amount,
                     combat,
@@ -155,7 +154,6 @@ impl GameEngine {
                     self.enqueue_player_damage_extra_observers(
                         source_controller,
                         &player_id,
-                        amount,
                         source,
                     );
                 }
@@ -249,8 +247,24 @@ impl GameEngine {
                     {
                         let damaged =
                             self.state.players[damaged_player].battlefield[damaged_index].clone();
+                        // One typed record of the damage family (damage_events).
+                        let record = damage_events::DamageEventRecord {
+                            source: source.to_string(),
+                            source_controller: source_characteristics
+                                .as_ref()
+                                .map(|value| value.0.clone()),
+                            recipient: damage_events::DamageRecipientRecord::Permanent(
+                                instance_id.clone(),
+                            ),
+                            amount,
+                            combat,
+                            batch: self.current_damage_batch(),
+                        };
                         self.enqueue_source_damage_observers(
                             source,
+                            source_characteristics
+                                .as_ref()
+                                .map(|value| value.0.as_str()),
                             source_damage_observation::DamageRecipientRef::Permanent(&damaged),
                             amount,
                             combat,
@@ -281,24 +295,14 @@ impl GameEngine {
                                 .filter(|rule| {
                                     triggered_rule_supported(rule)
                                         && self.rule_active_for_source(&ability_source, rule)
-                                        && triggered_event_variants(&rule["event"]).iter().any(
-                                            |event| {
-                                                value_kind(event)
-                                                    == Some("controlledPermanentDealtDamage")
-                                                    && ability_source.controller
-                                                        == damaged.controller
-                                                    && (!combat
-                                                        || event["noncombatOnly"].as_bool()
-                                                            != Some(true))
-                                                    && (combat
-                                                        || event["combatOnly"].as_bool()
-                                                            != Some(true))
-                                                    && self.permanent_matches_effective_filter(
-                                                        &damaged,
-                                                        &event["where"],
-                                                    )
-                                            },
-                                        )
+                                        && self
+                                            .rule_matches_damage_record(
+                                                rule,
+                                                damage_events::DamageGroup::ControlledRecipient,
+                                                &record,
+                                                &ability_source,
+                                            )
+                                            .is_some()
                                 })
                                 .cloned()
                                 .collect::<Vec<_>>();
@@ -312,60 +316,6 @@ impl GameEngine {
                             }
                         }
                     }
-                    if amount > 0
-                        && let Some((target_player, target_index)) =
-                            self.permanent_position(&instance_id)
-                    {
-                        let damaged =
-                            self.state.players[target_player].battlefield[target_index].clone();
-                        let rules = damaged
-                            .definition
-                            .rules
-                            .iter()
-                            .filter(|rule| {
-                                triggered_rule_supported(rule)
-                                    && triggered_event_variants(&rule["event"])
-                                        .iter()
-                                        .any(|event| value_kind(event) == Some("selfDealtDamage"))
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        for rule in rules {
-                            self.put_triggered_ability_on_stack_with_decisions(
-                                &damaged,
-                                rule,
-                                BTreeMap::from([("damageAmount".to_string(), Value::from(amount))]),
-                            );
-                            self.check_quantity_failure()?;
-                        }
-                    }
-                    let attachment_triggers = self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|attachment| {
-                            attachment.attached_to.as_deref() == Some(instance_id.as_str())
-                        })
-                        .flat_map(|attachment| {
-                            attachment
-                                .definition
-                                .rules
-                                .iter()
-                                .filter(|rule| {
-                                    triggered_rule_supported(rule)
-                                        && triggered_event_variants(&rule["event"]).iter().any(
-                                            |event| {
-                                                value_kind(event)
-                                                    == Some("attachedPermanentDealtDamage")
-                                            },
-                                        )
-                                })
-                                .cloned()
-                                .map(|rule| (attachment.clone(), rule))
-                                .collect::<Vec<_>>()
-                        })
-                        .collect::<Vec<_>>();
                     let decisions = BTreeMap::from([
                         (
                             "triggeringPermanentId".to_string(),
@@ -384,17 +334,24 @@ impl GameEngine {
                             .iter()
                             .filter(|rule| {
                                 triggered_rule_supported(rule)
-                                    && triggered_event_variants(&rule["event"]).iter().any(
-                                        |event| {
-                                            value_kind(event) == Some("permanentDealtDamage")
-                                                && value_kind(&event["object"]) == Some("self")
-                                                && (!combat
-                                                    || event["noncombatOnly"].as_bool()
-                                                        != Some(true))
-                                                && (combat
-                                                    || event["combatOnly"].as_bool() != Some(true))
-                                        },
-                                    )
+                                    && self
+                                        .rule_matches_damage_record(
+                                            rule,
+                                            damage_events::DamageGroup::RecipientSelf,
+                                            &damage_events::DamageEventRecord {
+                                                source: source.to_string(),
+                                                source_controller: None,
+                                                recipient:
+                                                    damage_events::DamageRecipientRecord::Permanent(
+                                                        instance_id.clone(),
+                                                    ),
+                                                amount,
+                                                combat,
+                                                batch: None,
+                                            },
+                                            &damaged,
+                                        )
+                                        .is_some()
                             })
                             .cloned()
                             .collect::<Vec<_>>();
@@ -406,14 +363,6 @@ impl GameEngine {
                             );
                             self.check_quantity_failure()?;
                         }
-                    }
-                    for (attachment, rule) in attachment_triggers {
-                        self.put_triggered_ability_on_stack_with_decisions(
-                            &attachment,
-                            rule,
-                            decisions.clone(),
-                        );
-                        self.check_quantity_failure()?;
                     }
                     if combat
                         && amount > 0
@@ -467,102 +416,6 @@ impl GameEngine {
             }
             TargetRef::Card { .. } => {}
             TargetRef::StackObject { .. } => {}
-        }
-        if dealt_amount > 0
-            && let Some((source_player, source_index)) = self.permanent_position(source)
-        {
-            let trigger_source =
-                self.state.players[source_player].battlefield[source_index].clone();
-            let rules = trigger_source
-                .definition
-                .rules
-                .iter()
-                .filter(|rule| {
-                    triggered_rule_supported(rule)
-                        && triggered_event_variants(&rule["event"])
-                            .iter()
-                            .any(|event| {
-                                value_kind(event) == Some("sourceDealtDamageAtLeast")
-                                    && integer_value(&event["amount"])
-                                        .is_some_and(|minimum| dealt_amount >= minimum)
-                                    || value_kind(event) == Some("sourceDealtDamageToPermanent")
-                                        && damaged_permanent_id.as_ref().is_some_and(
-                                            |instance_id| {
-                                                self.permanent_position(instance_id).is_some_and(
-                                                    |(player_index, card_index)| {
-                                                        self.permanent_matches_effective_filter(
-                                                            &self.state.players[player_index]
-                                                                .battlefield[card_index],
-                                                            &event["where"],
-                                                        )
-                                                    },
-                                                )
-                                            },
-                                        )
-                            })
-                })
-                .cloned()
-                .collect::<Vec<_>>();
-            for rule in rules {
-                let mut trigger_decisions =
-                    BTreeMap::from([("damageAmount".to_string(), Value::from(dealt_amount))]);
-                if let Some(instance_id) = &damaged_permanent_id {
-                    trigger_decisions.insert(
-                        "triggeringPermanentId".to_string(),
-                        Value::String(instance_id.clone()),
-                    );
-                }
-                self.put_triggered_ability_on_stack_with_decisions(
-                    &trigger_source,
-                    rule,
-                    trigger_decisions,
-                );
-                self.check_quantity_failure()?;
-            }
-        }
-        if dealt_amount == 2
-            && let Some((source_controller, _, _, _)) = &source_characteristics
-        {
-            let triggers = self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .filter(|permanent| permanent.controller == *source_controller)
-                .flat_map(|permanent| {
-                    permanent
-                        .definition
-                        .rules
-                        .iter()
-                        .filter(|rule| {
-                            triggered_rule_supported(rule)
-                                && triggered_event_variants(&rule["event"])
-                                    .iter()
-                                    .any(|event| {
-                                        value_kind(event)
-                                            == Some("controlledSourceDealtExactDamage")
-                                            && event["amount"].as_i64() == Some(2)
-                                    })
-                        })
-                        .cloned()
-                        .map(|rule| (permanent.clone(), rule))
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-            for (trigger_source, rule) in triggers {
-                self.put_triggered_ability_on_stack_with_decisions(
-                    &trigger_source,
-                    rule,
-                    BTreeMap::from([
-                        ("damageAmount".to_string(), Value::from(dealt_amount)),
-                        (
-                            "damagingSourceId".to_string(),
-                            Value::String(source.to_string()),
-                        ),
-                    ]),
-                );
-                self.check_quantity_failure()?;
-            }
         }
         if dealt_amount > 0
             && let Some((controller, _, true, _)) = source_characteristics

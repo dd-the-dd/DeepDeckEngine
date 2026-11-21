@@ -442,3 +442,47 @@ fn that_creature_after_a_block_counterpart_is_the_other_combatant() {
         );
     }
 }
+
+#[test]
+fn deals_damage_without_recipient_is_the_aggregated_damage_pattern() {
+    // Phantom Nishoba, Armadillo Cloak, and a combat-only sibling.
+    for (text, face, source, kind) in [
+        (
+            "Whenever this creature deals damage, you gain that much life.",
+            "Creature",
+            json!({"kind": "self"}),
+            None,
+        ),
+        (
+            "Whenever enchanted creature deals damage, you gain that much life.",
+            "Enchantment — Aura",
+            json!({"kind": "attachedPermanent", "attachment": {"kind": "self"}}),
+            None,
+        ),
+        (
+            "Whenever this creature deals combat damage, you gain that much life.",
+            "Creature",
+            json!({"kind": "self"}),
+            Some("combatOnly"),
+        ),
+    ] {
+        let mut expected = json!({"kind": "eventPattern", "lemma": "dealDamage", "source": source});
+        if let Some(flag) = kind {
+            expected[flag] = json!(true);
+        }
+        assert_eq!(event(text, face), expected, "{text}");
+    }
+    // A named recipient keeps the historical per-recipient kind.
+    assert_eq!(
+        event(
+            "Whenever this creature deals damage to a player, you gain that much life.",
+            "Creature"
+        )["kind"],
+        "damageDealtBySource"
+    );
+    // Near miss: a one-or-more source batch is still unproved.
+    assert_eq!(
+        committed_state("Whenever one or more creatures you control deal damage, you gain 1 life."),
+        "trigger.dealt-damage.source-support"
+    );
+}

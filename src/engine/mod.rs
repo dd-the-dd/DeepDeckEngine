@@ -107,6 +107,7 @@ mod cost_query;
 mod counter_placement;
 mod counter_protection;
 mod counter_selection;
+mod damage_events;
 mod damage_execution;
 mod damage_preparation;
 mod damage_replacement;
@@ -4807,6 +4808,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     if let Some(supported) = event_model::combat_event_supported(event) {
         return supported;
     }
+    if let Some(supported) = damage_events::damage_event_supported(event) {
+        return supported;
+    }
     match value_kind(event) {
         Some("oneOf") => event["events"].as_array().is_some_and(|events| {
             !events.is_empty() && events.iter().all(triggered_event_supported)
@@ -4914,43 +4918,22 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("objectBecameTargetOfControlledAbility") => {
             player_reference_supported(&event["player"])
         }
-        Some("controlledSourceDealtExactDamage") => {
-            player_reference_supported(&event["player"])
-                && event["amount"].as_i64().is_some_and(|amount| amount > 0)
-        }
         Some("nonManaAbilityActivatedWithX") => player_reference_supported(&event["player"]),
         Some("opponentLibraryCardsExiledByControlledEffect") => {
             player_reference_supported(&event["player"])
         }
-        Some(
-            "controlledSourceDealtExactDamageToController"
-            | "controlledEffectCausedExactLifeLossToController",
-        ) => {
+        Some("controlledEffectCausedExactLifeLossToController") => {
             player_reference_supported(&event["player"])
                 && event["amount"].as_i64().is_some_and(|amount| amount > 0)
         }
         Some("randomChoicePerformed") => player_reference_supported(&event["player"]),
         Some("dilemmaFaced") => player_reference_supported(&event["player"]),
-        Some("permanentDealtDamage") => {
-            value_kind(&event["object"]) == Some("self")
-                && event.get("noncombatOnly").is_none_or(Value::is_boolean)
-                && event.get("combatOnly").is_none_or(Value::is_boolean)
-        }
-        Some("controlledPermanentDealtDamage") => {
-            player_reference_supported(&event["player"])
-                && card_filter_supported(&event["where"])
-                && event.get("noncombatOnly").is_none_or(Value::is_boolean)
-                && event.get("combatOnly").is_none_or(Value::is_boolean)
-        }
-        Some("damageDealtBySource") => {
-            source_damage_observation::damage_dealt_by_source_event_supported(event)
-        }
         Some("controlledPermanentManaAbilityActivated") => {
             (event["anyPlayer"].as_bool() == Some(true)
                 || player_reference_supported(&event["player"]))
                 && card_filter_supported(&event["where"])
         }
-        Some("attachedPermanentDealtDamage" | "attachedPermanentTapped") => {
+        Some("attachedPermanentTapped") => {
             value_kind(&event["attachment"]) == Some("self")
                 && event.get("where").is_none_or(card_filter_supported)
         }
@@ -5095,10 +5078,6 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event.get("destination").is_none_or(Value::is_string)
         }
         Some("controlledObjectBecameTarget") => player_reference_supported(&event["player"]),
-        Some("combatDamageToPlayer") => {
-            matches!(value_kind(&event["source"]), Some("self" | "abilitySource"))
-        }
-        Some("opponentCombatDamageDuringControllerTurn") => true,
         Some("stateConditionMet") => condition_supported(&event["condition"]),
         Some("classLeveled") => {
             value_kind(&event["object"]) == Some("self")
@@ -5155,21 +5134,10 @@ fn triggered_event_supported(event: &Value) -> bool {
                     .is_none_or(|v| matches!(v.as_str(), Some("perRecipient" | "oneOrMore")))
         }
         Some("opponentSmallCreatureBlocks") => player_reference_supported(&event["player"]),
-        Some("selfDealtDamage") => {
-            matches!(value_kind(&event["object"]), Some("self" | "abilitySource"))
-        }
-        Some("sourceDealtDamageAtLeast") => {
-            value_kind(&event["object"]) == Some("self")
-                && integer_value(&event["amount"]).is_some_and(|amount| amount > 0)
-        }
-        Some("sourceDealtDamageToPermanent") => {
-            value_kind(&event["object"]) == Some("self") && card_filter_supported(&event["where"])
-        }
         Some("permanentSacrificed") => sacrifice::permanent_sacrificed_event_supported(event),
         Some(
             "permanentLeftBattlefield"
             | "attachedPermanentDied"
-            | "attachedPermanentCombatDamageToPlayer"
             | "controlledCreatureDiedOrExiled"
             | "sourceDiedOrExiled"
             | "creatureExploited"
@@ -24972,6 +24940,15 @@ impl GameEngine {
                 && modifier["expiresAfterCombatTurn"].as_u64()
                     == Some(u64::from(self.state.turn_number)))
         });
+        // One typed record of the damage family (damage_events).
+        let record = damage_events::DamageEventRecord {
+            source: source_id.to_string(),
+            source_controller: Some(damage_source.controller.clone()),
+            recipient: damage_events::DamageRecipientRecord::Player(player_id.to_string()),
+            amount,
+            combat: true,
+            batch: None,
+        };
         for source in sources {
             let rules = source
                 .definition
@@ -24979,40 +24956,37 @@ impl GameEngine {
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
-                        && triggered_event_variants(&rule["event"])
-                            .into_iter()
-                            .any(|event| match value_kind(event) {
-                                Some("combatDamageToPlayer") => {
-                                    source.instance_id == damage_source.instance_id
-                                }
-                                Some("attachedPermanentCombatDamageToPlayer") => {
-                                    source.attached_to.as_deref() == Some(source_id)
-                                }
-                                Some("controlledCreaturesCombatDamageToPlayer") => {
-                                    source.controller == damage_source.controller
-                                        && event.get("where").is_none_or(|where_filter| {
-                                            self.permanent_matches_effective_filter(
-                                                &damage_source,
-                                                where_filter,
-                                            )
-                                        })
-                                }
-                                Some("combatDamageReceived") => {
-                                    source.controller == player_id
-                                        && event.get("where").is_none_or(|where_filter| {
-                                            self.permanent_matches_effective_filter(
-                                                &damage_source,
-                                                where_filter,
-                                            )
-                                        })
-                                }
-                                Some("opponentCombatDamageDuringControllerTurn") => {
-                                    source.controller != player_id
-                                        && self.state.players[self.state.active_player].id
-                                            == source.controller
-                                }
-                                _ => false,
-                            })
+                        && (self
+                            .rule_matches_damage_record(
+                                rule,
+                                damage_events::DamageGroup::CombatToPlayer,
+                                &record,
+                                &source,
+                            )
+                            .is_some()
+                            || triggered_event_variants(&rule["event"])
+                                .into_iter()
+                                .any(|event| match value_kind(event) {
+                                    Some("controlledCreaturesCombatDamageToPlayer") => {
+                                        source.controller == damage_source.controller
+                                            && event.get("where").is_none_or(|where_filter| {
+                                                self.permanent_matches_effective_filter(
+                                                    &damage_source,
+                                                    where_filter,
+                                                )
+                                            })
+                                    }
+                                    Some("combatDamageReceived") => {
+                                        source.controller == player_id
+                                            && event.get("where").is_none_or(|where_filter| {
+                                                self.permanent_matches_effective_filter(
+                                                    &damage_source,
+                                                    where_filter,
+                                                )
+                                            })
+                                    }
+                                    _ => false,
+                                }))
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -25055,21 +25029,12 @@ impl GameEngine {
                 let grouped_trigger_already_pending = triggered_event_variants(&rule["event"])
                     .iter()
                     .any(|event| {
-                        matches!(
-                            value_kind(event),
-                            Some(
-                                "controlledCreaturesCombatDamageToPlayer"
-                                    | "opponentCombatDamageDuringControllerTurn"
-                            )
-                        )
+                        value_kind(event) == Some("controlledCreaturesCombatDamageToPlayer")
                     })
                     && self.state.stack.iter().any(|object| {
                         object.card.instance_id == source.instance_id
                             && object.ability_rule.as_ref() == Some(&rule)
-                            && (value_kind(&rule["event"])
-                                == Some("opponentCombatDamageDuringControllerTurn")
-                                || object.decisions["triggeringPlayerId"].as_str()
-                                    == Some(player_id))
+                            && object.decisions["triggeringPlayerId"].as_str() == Some(player_id)
                     });
                 if !grouped_trigger_already_pending {
                     self.put_triggered_ability_on_stack_with_decisions(
