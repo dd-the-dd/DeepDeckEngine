@@ -464,6 +464,53 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "proliferate", "player": lowered.player}));
                         continue;
                     }
+                    SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
+                        cursor.enter("lower.player-action.discard-hand");
+                        effects.push(json!({"kind": "discardHand", "player": lowered.player}));
+                        continue;
+                    }
+                    SingularPlayerAction::Hand(PlayerHandVerb::Reveal) => {
+                        cursor.enter("lower.player-action.reveal-hand");
+                        let id = collections.observe_revealed_hand();
+                        effects.push(json!({
+                            "kind": "revealHand",
+                            "player": lowered.player.clone(),
+                            "duration": {"kind": "untilEndOfCurrentTurn"},
+                        }));
+                        effects.push(json!({
+                            "kind": "bind",
+                            "id": id,
+                            "value": {
+                                "kind": "cardsInZone",
+                                "zone": {"kind": "hand", "player": lowered.player},
+                            },
+                        }));
+                        continue;
+                    }
+                    SingularPlayerAction::ReferencedCards { verb, cards } => {
+                        cursor.enter("lower.player-action.referenced-cards");
+                        let cards = collections
+                            .referenced_cards(cursor, *cards)
+                            .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                        effects.push(match verb {
+                            ReferencedCardVerb::Discard => json!({
+                                "kind": "discardCards",
+                                "player": lowered.player,
+                                "cards": cards,
+                            }),
+                            // Each card goes to its owner's exile (CR 400.3).
+                            ReferencedCardVerb::Exile => json!({
+                                "kind": "moveCards",
+                                "cards": cards,
+                                "to": {
+                                    "kind": "exile",
+                                    "player": {"kind": "ownerOf", "object": {"kind": "candidate"}},
+                                    "faceDown": false,
+                                },
+                            }),
+                        });
+                        continue;
+                    }
                     SingularPlayerAction::Venture(venture) => {
                         let mut effect =
                             json!({"kind": "ventureDungeon", "player": lowered.player});

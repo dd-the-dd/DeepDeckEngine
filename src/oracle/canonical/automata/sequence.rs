@@ -272,6 +272,9 @@ struct SequenceMemory {
     /// A preposed `At the beginning of ... ,` timing scoping the sentence
     /// being read, with the index of its first action.
     sentence_delay: Option<(usize, super::DelayedStepTimingNode)>,
+    /// The last action read after a causative `have`. A verb coordinated with
+    /// it (`have it get +2/+0 and gain haste`) keeps the bare agreement.
+    causative_effect: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -378,7 +381,9 @@ impl SequenceMemory {
                 LocalEffectNode::PlayerAction(action)
                     if matches!(
                         action.action,
-                        super::SingularPlayerAction::Draw(_) | super::SingularPlayerAction::Mill(_)
+                        super::SingularPlayerAction::Draw(_)
+                            | super::SingularPlayerAction::Mill(_)
+                            | super::SingularPlayerAction::Hand(_)
                     ) =>
                 {
                     return false;
@@ -620,6 +625,12 @@ fn recognize_effect_sequence_attempt_internal(
                     ) => Some(reference),
                     _ => None,
                 };
+                if action_context.verb_chain_subject.is_some()
+                    && memory.causative_effect == effect_index.checked_sub(1)
+                {
+                    action_context.subject_verb_agreement =
+                        super::SubjectVerbAgreement::BareInfinitive;
+                }
                 action_context.permanent_subject_selector = match memory.permanent_subject_scope {
                     super::PermanentSubjectScope::Local(Some(
                         super::PermanentEffectReference::Target(binding),
@@ -675,14 +686,29 @@ fn recognize_effect_sequence_attempt_internal(
                 let mut opened_preposed_duration = false;
                 let mut effect_start = cursor.position();
                 let mut distributed_rest = Vec::new();
+                let mut causative: bool;
                 let mut effect = loop {
                     if let Some(pending) = memory.distributed.pop() {
                         // A distributed per-player action is already read.
+                        causative = false;
                         break pending;
                     }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
+                    // `have SUBJECT VERB` (`you may have target player lose 3
+                    // life`): the causative only names the performer; the
+                    // ordinary subject-verb readers own the action with the
+                    // bare verb form. Its failure stays transactional.
+                    causative = super::causative_action_starts(cursor);
+                    if causative {
+                        action_context.subject_verb_agreement =
+                            super::SubjectVerbAgreement::BareInfinitive;
+                    }
                     let parsed = cursor.attempt(|attempt| {
+                        if causative {
+                            attempt.enter("effect.causative.verb");
+                            attempt.consume("have")?;
+                        }
                         // `sacrifice A, B, and C`: one verb, independent
                         // headed objects, each its own sacrifice action. Any
                         // other `and a ...` clause stays with the other readers.
@@ -1173,6 +1199,7 @@ fn recognize_effect_sequence_attempt_internal(
                             });
                     }
                 }
+                memory.causative_effect = causative.then_some(effect_index);
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
                     memory.else_candidate = None;
@@ -2203,11 +2230,12 @@ fn recognize_effect(
         name_links,
         name_failure,
     ) {
-        return super::effects::recognize_damage_effect_with_source_antecedent(
+        return super::effects::recognize_damage_effect_with_agreement(
             cursor,
             name_links,
             name_failure,
             super::permanent_subject::proven_permanent_antecedent(context),
+            context.subject_verb_agreement,
         );
     }
     let optional_action_offset = if cursor

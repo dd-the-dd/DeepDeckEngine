@@ -80,7 +80,9 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate => false,
+            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
             body.effects.iter().any(moves_cards_to_or_from_library)
@@ -89,6 +91,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             CardActionNode::Look { .. }
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
+            | CardActionNode::Choose(_)
             | CardActionNode::Permit(_) => false,
             CardActionNode::Shuffle { .. } => true,
             CardActionNode::Move { destination, .. } => destination.zone != CardZoneName::Library,

@@ -8,6 +8,10 @@ pub(in crate::oracle::canonical) enum CardCollectionReferenceNode {
     Remainder,
     Other,
     Selected,
+    /// `from it` naming an observed collection through a singular zone noun
+    /// (`target opponent reveals their hand. You choose a card from it`).
+    /// Only the selection operand reads it; the lowerer proves the zone.
+    Zone,
 }
 
 pub(in crate::oracle::canonical) enum CollectionOperandAttempt<T> {

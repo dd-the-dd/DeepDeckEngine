@@ -51,6 +51,10 @@ pub(in crate::oracle::canonical) enum CardActionNode {
         destination: CardMoveDestinationNode,
     },
     Permit(CardPermissionNode),
+    /// `[you] choose SELECTION` (CR 608.2d): the controller chooses cards from
+    /// an observed collection while the effect resolves. The choice is the
+    /// singular or plural antecedent of a later `that card`, `it` or `them`.
+    Choose(CardSelectionOperandNode),
     /// `shuffle [your library]` (CR 701.20a).
     Shuffle {
         owner: LocalPlayerReference,
@@ -119,6 +123,31 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     {
         return recognize_card_permission(cursor, supplied_duration)
             .map(|node| Some(CardActionNode::Permit(node)));
+    }
+    if head.eq_ignore_ascii_case("choose")
+        || (head.eq_ignore_ascii_case("you")
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("choose")))
+    {
+        // Only a selection from an observed collection belongs here; every
+        // other `choose` domain stays with the choose-instruction frame.
+        let mut trial = cursor.clone();
+        trial.enter("card-action.choose.verb");
+        if head.eq_ignore_ascii_case("you") {
+            trial.consume("you")?;
+        }
+        trial.consume("choose")?;
+        trial.enter("card-action.choose.selection");
+        return match try_recognize_card_selection_operand(&mut trial) {
+            CardSelectionOperandAttempt::Recognized(fragment) => {
+                *cursor = trial;
+                Ok(Some(CardActionNode::Choose(fragment.node)))
+            }
+            CardSelectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+            CardSelectionOperandAttempt::NotClaimed
+            | CardSelectionOperandAttempt::RejectedCandidate(_) => Ok(None),
+        };
     }
     if head.eq_ignore_ascii_case("shuffle") {
         cursor.enter("card-action.shuffle");

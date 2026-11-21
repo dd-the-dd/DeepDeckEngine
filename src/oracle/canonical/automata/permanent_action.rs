@@ -57,12 +57,17 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
+    let bare = context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive;
     if let Some(reference) = context.verb_chain_subject
-        && (cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("gains"))
-            || super::become_types::characteristic_change_verb_starts(cursor)
-            || super::combat_clause_starts(cursor))
+        && (cursor.peek().is_some_and(|raw| {
+            if bare {
+                raw.eq_ignore_ascii_case("gain")
+            } else {
+                raw.eq_ignore_ascii_case("gains")
+            }
+        }) || (!bare
+            && (super::become_types::characteristic_change_verb_starts(cursor)
+                || super::combat_clause_starts(cursor))))
     {
         return recognize_verb_chain_action(cursor, reference, context);
     }
@@ -116,20 +121,24 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
         };
     }
-    let keyword = action.eq_ignore_ascii_case("gain") || action.eq_ignore_ascii_case("gains");
+    // A causative subject takes the bare verb (`have target creature get`);
+    // the finite frame keeps both numbers (`it gets`, `creatures ... get`).
+    let keyword =
+        action.eq_ignore_ascii_case("gain") || (!bare && action.eq_ignore_ascii_case("gains"));
     let stats = action_offset == 0
-        && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));
-    let becomes =
-        action_offset == 0 && super::become_types::characteristic_change_verb_starts(&subject_end);
+        && (action.eq_ignore_ascii_case("get") || (!bare && action.eq_ignore_ascii_case("gets")));
+    let becomes = action_offset == 0
+        && !bare
+        && super::become_types::characteristic_change_verb_starts(&subject_end);
     let deals = action_offset == 0
-        && action.eq_ignore_ascii_case("deals")
+        && action.eq_ignore_ascii_case(if bare { "deal" } else { "deals" })
         && matches!(
             subject,
             PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
         );
     let fights = action_offset == 0
         && (action.eq_ignore_ascii_case("fights") || action.eq_ignore_ascii_case("fight"));
-    let combat = action_offset == 0 && super::combat_clause_starts(&subject_end);
+    let combat = action_offset == 0 && !bare && super::combat_clause_starts(&subject_end);
     if !keyword && !stats && !becomes && !deals && !fights && !combat {
         return PermanentActionAttempt::NotClaimed;
     }
@@ -211,8 +220,13 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
                 }
                 _ => DamageSourceAntecedent::Unavailable,
             };
-            recognize_damage_predicate(&mut trial, subject.clone(), antecedent)
-                .map(LocalEffectNode::DealDamage)
+            recognize_damage_predicate(
+                &mut trial,
+                subject.clone(),
+                antecedent,
+                context.subject_verb_agreement,
+            )
+            .map(LocalEffectNode::DealDamage)
         } else {
             recognize_fight_predicate(
                 &mut trial,

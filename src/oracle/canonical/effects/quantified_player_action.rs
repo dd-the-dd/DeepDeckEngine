@@ -84,6 +84,13 @@ fn lower_quantified_action(
             "kind":"mill", "player":player,
             "count":lower_targetless_numeric_expression(count, declarations)?,
         })],
+        QuantifiedPlayerAction::Hand(PlayerHandVerb::Discard) => {
+            vec![json!({"kind":"discardHand", "player":player})]
+        }
+        QuantifiedPlayerAction::Hand(PlayerHandVerb::Reveal) => vec![json!({
+            "kind":"revealHand", "player":player,
+            "duration":{"kind":"untilEndOfCurrentTurn"},
+        })],
         QuantifiedPlayerAction::Sacrifice(_) => unreachable!("handled by the procedure adapter"),
         QuantifiedPlayerAction::Discard(discard) => {
             // Validate declaration availability/bounds before delegating to
