@@ -18,14 +18,37 @@ impl GameEngine {
         origin: QuantityOrigin,
         provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<i32, EngineError> {
+        self.deal_damage_amount_with_source_profile(
+            target, amount, source, combat, origin, provider, None,
+        )
+    }
+    /// As above, with the effective characteristics of a source the engine
+    /// can no longer find in a zone (a resolving spell, CR 120.3).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn deal_damage_amount_with_source_profile(
+        &mut self,
+        target: TargetRef,
+        amount: i32,
+        source: &str,
+        combat: bool,
+        origin: QuantityOrigin,
+        provider: Option<&mut dyn DecisionProvider>,
+        source_profile: Option<&super::source_lki::ResolvedDamageSource>,
+    ) -> Result<i32, EngineError> {
         if amount <= 0 {
             return Ok(0);
         }
         let mut quantity_provider = quantity_replacement::OptionalQuantityProvider(provider);
         let (target, events) = self.prepare_damage_redirection(target, amount, source);
-        let frame = match self
-            .prepare_damage_to_redirected_target(target, amount, source, combat, None, events)?
-        {
+        let frame = match self.prepare_damage_to_redirected_target(
+            target,
+            amount,
+            source,
+            combat,
+            source_profile,
+            events,
+            &mut quantity_provider,
+        )? {
             super::damage_preparation::PreparedDamage::Prevented {
                 events,
                 draws,

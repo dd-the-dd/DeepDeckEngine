@@ -135,6 +135,7 @@ impl GameEngine {
                 false,
                 source_profile,
                 events,
+                &mut super::quantity_replacement::OptionalQuantityProvider(None),
             )? {
                 PreparedDamage::Prevented {
                     events,

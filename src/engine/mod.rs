@@ -108,6 +108,7 @@ mod counter_protection;
 mod counter_selection;
 mod damage_execution;
 mod damage_preparation;
+mod damage_replacement;
 mod death_trigger_batch;
 mod declaration_result;
 mod destruction_batch;
@@ -118,6 +119,7 @@ mod keyword_programs;
 mod landwalk;
 mod library_shuffle;
 mod life;
+mod life_gain_replacement;
 mod linked_exile_return;
 mod mana;
 mod mana_ability_execution;
@@ -5264,6 +5266,12 @@ fn static_keyword_selector_supported(objects: &Value) -> bool {
 fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
     if let Some(supported) = quantity_replacement::quantity_modifier_supported(modifier) {
         return supported;
+    }
+    if value_kind(modifier) == Some("replaceDamage") {
+        return damage_replacement::damage_replacement_modifier_supported(modifier);
+    }
+    if value_kind(modifier) == Some("replaceLifeGain") {
+        return life_gain_replacement::life_gain_replacement_modifier_supported(modifier);
     }
     match value_kind(modifier) {
         Some("commanderEligible") => true,
