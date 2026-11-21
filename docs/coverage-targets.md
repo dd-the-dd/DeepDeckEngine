@@ -208,7 +208,7 @@ branch `oracle/generalized-compiler` (PR #26).
 | `crates/deepdeck-oracle-engine-contracts/tests/plan_counter_reflexive.rs::filtered_group_tap_event_is_not_locked_to_creatures` | Rewrite History | Whenever one or more creatures you control become tapped, draw a card, then discard a card and put a plan counter on this enchantment. | generic-trigger-program / event.object.verb | leave, attack, deal combat damage, enter, die or be dealt damage / become | Same grammar gap as the deepdeck-oracle coverage target for this text. |
 | `crates/deepdeck-oracle-engine-contracts/tests/rest_in_peace.rs::rest_in_peace_native_rules_are_primitive_and_executable` | Rest in Peace | When this enchantment enters, exile all graveyards. | generic-trigger-program / lower.sentence-conditional.ranges (candidate entry-zone-batch.generic-movement-unavailable) | a supported atomic targetless effect / end of input | Same grammar gap as the deepdeck-oracle coverage target for this text. |
 
-## mtg-engine (tests/) (9)
+## mtg-engine (tests/) (8)
 
 | Test | Card | Failing ability text | Automaton / state | Expected / found | Note |
 |---|---|---|---|---|---|
@@ -218,6 +218,5 @@ branch `oracle/generalized-compiler` (PR #26).
 | `tests/backend_contract.rs::oracle_backend_preserves_during_combat_on_enter_triggers` | The Blue Spirit | Whenever a nontoken creature you control enters during combat, draw a card. | generic-trigger-program / trigger.envelope.separator | , / during |  |
 | `tests/backend_contract.rs::oracle_backend_recognizes_a_spell_self_exile_instruction` | Spirit Water Revival | Exile Spirit Water Revival. | contextual-effect-program / lower.sentence-conditional.ranges | a supported atomic targetless effect / end of input |  |
 | `tests/playable_model.rs::playable_card_compilation_preserves_both_room_doors` | Defiled Crypt // Cadaver Lab | When you unlock this door, return target creature card from your graveyard to your hand. | unclaimed (unsupported_oracle_ability) | No token-driven native automaton claimed this ability. |  |
-| `tests/playable_model.rs::playable_card_compilation_preserves_both_split_spells` | Expansion // Explosion | Copy target instant or sorcery spell with mana value 4 or less. You may choose new targets for the copy. | contextual-effect-program / effect.start | a supported effect subject / Copy | The Explosion half parses; assertions use the shared primitives. |
 | `tests/playable_model.rs::playable_card_compilation_preserves_transform_face_locality` | Sephiroth, Fabled SOLDIER | Whenever Sephiroth enters or attacks, you may sacrifice another creature. If you do, draw a card. | source-trigger-program / trigger.source-program.event-union | the other battlefield transition of the source (enters or dies) / , | Other face abilities also fail. |
 | `tests/playable_model.rs::playable_card_compilation_reports_offspring_as_executable` | Agate Instigator | Offspring {1}{R} (You may pay an additional {1}{R} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.) | unclaimed (unsupported_oracle_ability) | No token-driven native automaton claimed this ability. |  |

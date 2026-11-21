@@ -61,6 +61,7 @@ mod conditional_zone_change;
 mod conditional_zone_change_amendment;
 mod connector;
 mod contextual_list;
+mod control_change;
 mod controlled_count_entry;
 mod cost;
 mod cost_keyword;
@@ -194,6 +195,7 @@ mod source_trigger_envelope;
 mod source_zone_move;
 mod spell_cast_event;
 mod spell_cost_increase;
+mod stack_copy;
 mod static_collection_keyword;
 mod static_condition;
 mod static_granted_activation;
@@ -291,6 +293,7 @@ pub(super) use conditional_zone_change::*;
 pub(super) use conditional_zone_change_amendment::*;
 pub(super) use connector::*;
 pub(super) use contextual_list::*;
+pub(super) use control_change::*;
 pub(super) use controlled_count_entry::*;
 pub(super) use cost::*;
 pub(super) use cost_keyword::*;
@@ -422,6 +425,7 @@ pub(super) use source_trigger_envelope::*;
 pub(super) use source_zone_move::*;
 pub(super) use spell_cast_event::*;
 pub(super) use spell_cost_increase::*;
+pub(super) use stack_copy::*;
 pub(super) use static_collection_keyword::*;
 pub(super) use static_granted_activation::*;
 pub(super) use static_keyword_grant::*;
@@ -1679,6 +1683,10 @@ pub(super) enum LocalEffectNode {
     SelectedPermanents(SelectedPermanentsEffectNode),
     TapPermanents(TapPermanentsEffectNode),
     PermanentKeywordAction(PermanentKeywordActionNode),
+    /// `gain control of OBJECT` / `exchange control of OBJECT`.
+    ControlChange(ControlChangeEffectNode),
+    /// `copy TARGET` over a stack object.
+    CopyStackObject(CopyStackObjectEffectNode),
     PreventDamage(PreventDamageEffectNode),
     Attach(AttachEffectNode),
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),

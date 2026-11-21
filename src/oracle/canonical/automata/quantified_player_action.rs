@@ -99,14 +99,17 @@ pub(in crate::oracle::canonical) fn recognize_quantified_player_action(
         if comma {
             cursor.consume(",")?;
         }
+        // `and` or `then` (CR 608.2c: the order is the written order either
+        // way; each action still completes for every player before the next).
         let and = cursor
             .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then"));
         if and {
-            cursor.consume("and")?;
+            let connector = cursor.peek().expect("checked connector").to_string();
+            cursor.consume(&connector)?;
         }
         // A separator belongs to this list only before another action verb;
-        // any other continuation (`you`, `then`, a new clause) is the
+        // any other continuation (`you`, `then you`, a new clause) is the
         // enclosing sequence's, so the subject's scope ends here.
         if (!comma && !and) || !cursor.peek().is_some_and(is_quantified_action_verb) {
             cursor.rollback(checkpoint);
