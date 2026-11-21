@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     DestroyPermanentCollectionEffectNode, ObjectKind, recognize_object_collection,
-    recognize_object_query_before_separator_with_source,
+    recognize_object_query_before_separator_with_source, recognize_optional_source_exclusion,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,6 +31,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
 ) -> MachineResult<DestroyPermanentCollectionEffectNode> {
     let mut state = DestroyCollectionState::Action;
     let mut objects = None;
+    let mut exclude_source = false;
     loop {
         state = match state {
             DestroyCollectionState::Action => {
@@ -52,6 +53,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
             }
             DestroyCollectionState::ObjectCollection => {
                 cursor.enter("destroy.collection.objects");
+                exclude_source = recognize_optional_source_exclusion(cursor)?;
                 objects = Some(match cursor.attempt(recognize_object_collection) {
                     Ok(objects) => objects,
                     Err(_) if source_numeric_reads => {
@@ -78,6 +80,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
                 cursor.enter("destroy.collection.complete");
                 return Ok(DestroyPermanentCollectionEffectNode {
                     objects: cursor.require_value(objects, "a permanent object collection")?,
+                    exclude_source,
                 });
             }
         };

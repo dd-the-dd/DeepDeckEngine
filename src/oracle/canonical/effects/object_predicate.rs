@@ -77,11 +77,24 @@ fn lower_object_predicate(
         ObjectPredicate::Supertype(CardSupertype::Legendary) => {
             Some(json!({ "kind": "isLegendary" }))
         }
+        // CR 205.4a: the printed type line carries the snow supertype.
+        ObjectPredicate::Supertype(CardSupertype::Snow) => {
+            Some(json!({ "kind": "typeLineContains", "value": "Snow" }))
+        }
         ObjectPredicate::ExactManaCost(cost) => Some(json!({
             "kind": "manaCostEquals",
             "value": cost.as_oracle_cost(),
         })),
-        ObjectPredicate::Status(status) => Some(json!({ "kind": status.ir_kind() })),
+        ObjectPredicate::Status(status) => {
+            let (kind, negated) = status.ir_atom();
+            let atom = json!({ "kind": kind });
+            Some(if negated { not(atom) } else { atom })
+        }
+        ObjectPredicate::PermanentCard => Some(json!({ "kind": "isPermanentCard" })),
+        ObjectPredicate::HasCounter(counter) => Some(match counter {
+            Some(counter) => json!({ "kind": "hasCounter", "counter": counter.as_str() }),
+            None => json!({ "kind": "hasCounter" }),
+        }),
         ObjectPredicate::ChosenCreatureType => Some(json!({
             "kind": "chosenCreatureType",
             "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,

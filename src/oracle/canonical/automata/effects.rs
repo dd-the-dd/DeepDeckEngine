@@ -100,7 +100,10 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. } => true,
-        SelectorPredicate::Status(_) | SelectorPredicate::ChosenCreatureType => false,
+        SelectorPredicate::Status(_)
+        | SelectorPredicate::HasCounter(_)
+        | SelectorPredicate::ChosenCreatureType => false,
+        SelectorPredicate::PermanentCard => true,
         SelectorPredicate::Not(operand) => {
             matches!(
                 operand.as_ref(),
@@ -461,6 +464,8 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::Supertype(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::Status(_)
+        | SelectorPredicate::PermanentCard
+        | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. }
         | SelectorPredicate::ObjectKind(_)
@@ -811,6 +816,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
         | SelectorPredicate::Supertype(_)
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::Status(_)
+        | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. } => true,
         SelectorPredicate::ObjectKind(ObjectKind::Permanent) => {
@@ -819,6 +825,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
         }
         // A target selector is declared before any resolution choice.
         SelectorPredicate::CardType(_)
+        | SelectorPredicate::PermanentCard
         | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell) => false,
         SelectorPredicate::Not(operand) => matches!(
@@ -830,6 +837,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
                 | SelectorPredicate::Subtype(_)
                 | SelectorPredicate::CharacteristicBatch(_)
                 | SelectorPredicate::HasKeyword(_)
+                | SelectorPredicate::HasCounter(_)
                 | SelectorPredicate::IsCommander
                 | SelectorPredicate::IsToken
         ),

@@ -10,6 +10,9 @@ pub(in crate::oracle::canonical) fn lower_destroy_permanent_collection_effect(
     if let Some(controller_scope) = effect.objects.controller {
         permanent["player"] = lower_object_controller_scope(controller_scope);
     }
+    if effect.exclude_source {
+        permanent["excludeSource"] = json!(true);
+    }
     json!({
         "kind": "destroyPermanent",
         "permanent": permanent,

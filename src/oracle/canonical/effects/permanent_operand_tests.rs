@@ -1,10 +1,13 @@
 use super::*;
 
 fn collection(controller: Option<ObjectControllerScope>) -> PermanentOperandNode {
-    PermanentOperandNode::Collection(ObjectQueryNode {
-        predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
-        controller,
-    })
+    PermanentOperandNode::Collection {
+        objects: ObjectQueryNode {
+            predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
+            controller,
+        },
+        exclude_source: false,
+    }
 }
 
 #[test]
@@ -52,17 +55,20 @@ fn player_sets_are_refused_instead_of_becoming_all_players() {
 
 #[test]
 fn unsupported_declaration_dependent_predicate_is_not_replaced_with_zero() {
-    let operand = PermanentOperandNode::Collection(ObjectQueryNode {
-        predicate: ObjectPredicate::Intersection(vec![
-            ObjectPredicate::CardType(ObjectCardType::Creature),
-            ObjectPredicate::NumericComparison {
-                left: SelectorNumericProperty::Power,
-                operator: NumericComparisonOperator::LessThanOrEqual,
-                right: Box::new(NumericAtom::VariableX.into()),
-            },
-        ]),
-        controller: Some(ObjectControllerScope::AbilityController),
-    });
+    let operand = PermanentOperandNode::Collection {
+        objects: ObjectQueryNode {
+            predicate: ObjectPredicate::Intersection(vec![
+                ObjectPredicate::CardType(ObjectCardType::Creature),
+                ObjectPredicate::NumericComparison {
+                    left: SelectorNumericProperty::Power,
+                    operator: NumericComparisonOperator::LessThanOrEqual,
+                    right: Box::new(NumericAtom::VariableX.into()),
+                },
+            ]),
+            controller: Some(ObjectControllerScope::AbilityController),
+        },
+        exclude_source: false,
+    };
     assert_eq!(
         lower_nontargeted_permanent_operand(&operand).unwrap_err(),
         TargetlessLoweringError::UnsupportedCollectionPredicate,

@@ -92,7 +92,7 @@ pub(in crate::oracle::canonical) fn recognize_regenerate_reminder(
             PermanentOperandNode::Targets(targets) => {
                 targets.slots.len() == 1 && targets.slots[0].cardinality.maximum == 1
             }
-            PermanentOperandNode::Collection(_) => false,
+            PermanentOperandNode::Collection { .. } => false,
         },
         "a singular regenerated object for the printed reminder",
     )?;

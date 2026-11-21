@@ -600,7 +600,7 @@ fn lower_local_effect_sequence_with_collections(
                 let recipient_count = match &node.count {
                     NumericExpression::CountersOnRecipient { counter } => {
                         cursor.enter("lower.double-counters.recipient");
-                        if matches!(node.permanent, PermanentOperandNode::Collection(_)) {
+                        if matches!(node.permanent, PermanentOperandNode::Collection { .. }) {
                             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                 cursor.fail(
                                     "one doubled permanent; a per-member counter count over a collection has no runtime binding",

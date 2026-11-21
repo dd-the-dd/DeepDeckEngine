@@ -488,7 +488,7 @@ pub(in crate::oracle::canonical) fn recognize_labeled_controlled_entry_reflexive
                     .as_ref()
                     .and_then(|placement| match &placement.permanent {
                         super::PermanentOperandNode::Reference(reference) => Some(reference),
-                        super::PermanentOperandNode::Collection(_)
+                        super::PermanentOperandNode::Collection { .. }
                         | super::PermanentOperandNode::Targets(_)
                         | super::PermanentOperandNode::BoundReference(_) => None,
                     });

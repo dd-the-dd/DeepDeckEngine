@@ -107,7 +107,9 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
 /// colors, nominal subtype identity or source-dependent characteristic reads.
 fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
     match predicate {
-        ObjectPredicate::CardType(_) | ObjectPredicate::ObjectKind(ObjectKind::Card) => true,
+        ObjectPredicate::CardType(_)
+        | ObjectPredicate::PermanentCard
+        | ObjectPredicate::ObjectKind(ObjectKind::Card) => true,
         ObjectPredicate::Not(child) => card_count_predicate_supported(child),
         ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
             !children.is_empty() && children.iter().all(card_count_predicate_supported)
@@ -124,6 +126,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
+        | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)
         | ObjectPredicate::NumericComparison { .. } => false,
