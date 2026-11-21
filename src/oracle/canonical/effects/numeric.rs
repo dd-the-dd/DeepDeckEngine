@@ -143,6 +143,8 @@ fn lower_numeric_expression_in_context(
         } => Some(json!({
             "kind":"countCounters", "object":self_ref(), "counter":counter.as_str(),
         })),
+        // Bound per recipient by the enclosing action; never standalone.
+        NumericExpression::CountersOnRecipient { .. } => None,
         NumericExpression::PermanentCount(count) => lower_permanent_count(count),
         NumericExpression::SourceCastX => Some(json!({ "kind": "sourceCastXValue" })),
         NumericExpression::EventValue(EventNumericBinding::DamageAmount) => {

@@ -83,3 +83,7 @@ mod landwalk_tests;
 #[cfg(test)]
 #[path = "sunburst_keyword_tests.rs"]
 mod sunburst_tests;
+
+#[cfg(test)]
+#[path = "split_second_keyword_tests.rs"]
+mod split_second_tests;

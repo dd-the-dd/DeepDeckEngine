@@ -417,6 +417,10 @@ fn lower_local_effect_sequence_with_collections(
                         );
                         continue;
                     }
+                    SingularPlayerAction::Proliferate => {
+                        effects.push(json!({"kind": "proliferate", "player": lowered.player}));
+                        continue;
+                    }
                     SingularPlayerAction::Venture(venture) => {
                         let mut effect =
                             json!({"kind": "ventureDungeon", "player": lowered.player});
@@ -574,13 +578,32 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::PutCounters(node) => {
-                let amount = lower_sequence_bound_amount(
-                    cursor,
-                    &node.count,
-                    sequence,
-                    &target_bindings,
-                    context,
-                )?;
+                // CR 701.10e: a doubled object's count is read from that same
+                // object, so it is bound per lowered recipient below.
+                let recipient_count = match &node.count {
+                    NumericExpression::CountersOnRecipient { counter } => {
+                        cursor.enter("lower.double-counters.recipient");
+                        if matches!(node.permanent, PermanentOperandNode::Collection(_)) {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(
+                                    "one doubled permanent; a per-member counter count over a collection has no runtime binding",
+                                ),
+                            ));
+                        }
+                        Some(counter.as_str())
+                    }
+                    _ => None,
+                };
+                let amount = match recipient_count {
+                    Some(_) => Value::Null,
+                    None => lower_sequence_bound_amount(
+                        cursor,
+                        &node.count,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?,
+                };
                 let objects = lower_ordinary_permanent_subject(
                     cursor,
                     &node.permanent,
@@ -592,7 +615,13 @@ fn lower_local_effect_sequence_with_collections(
                     &mut target_bindings,
                 )?;
                 for object in objects {
-                    effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":amount}));
+                    let count = match recipient_count {
+                        Some(counter) => json!({
+                            "kind": "counterCountOf", "object": object.clone(), "counter": counter,
+                        }),
+                        None => amount.clone(),
+                    };
+                    effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
                 }
             }
             LocalEffectNode::ControllerLibrarySearch(search) => {

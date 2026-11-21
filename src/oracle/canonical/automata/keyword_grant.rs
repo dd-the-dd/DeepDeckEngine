@@ -109,6 +109,9 @@ pub(in crate::oracle::canonical) fn recognize_parameterless_keyword(
     } else if normalized == "umbra" {
         cursor.consume_phrase(&["umbra", "armor"])?;
         GrantedKeyword::UmbraArmor
+    } else if normalized == "split" {
+        cursor.consume_phrase(&["split", "second"])?;
+        GrantedKeyword::SplitSecond
     } else {
         let keyword = parameterless_keyword_from_oracle_word(raw)
             .ok_or_else(|| cursor.fail("a supported parameterless keyword"))?;

@@ -115,6 +115,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         | NumericExpression::QualifiedTargetProperty { .. }
         | NumericExpression::CountQuery(_)
         | NumericExpression::CountCounters { .. }
+        | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)

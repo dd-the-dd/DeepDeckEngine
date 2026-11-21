@@ -189,7 +189,8 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "blightEachOpponent"
             | "removeAllCounters"
             | "addPlayerCounters"
-            | "removePlayerCounters",
+            | "removePlayerCounters"
+            | "proliferate",
         ) => Some(Domain::Counters),
         Some(
             "removeKeywordsFromPermanents"
