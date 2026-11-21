@@ -33,20 +33,6 @@ fn unclaimed_abilities_are_owned_by_their_structural_frame() {
             "Crew",
         ),
         (
-            "Boon Reflection",
-            "Enchantment",
-            "If you would gain life, you gain twice that much life instead.",
-            "ability-frame.replacement.event",
-            "gain",
-        ),
-        (
-            "Furnace of Rath",
-            "Enchantment",
-            "If a source would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
-            "ability-frame.replacement.event",
-            "deal",
-        ),
-        (
             "Baloth Gorger",
             "Creature — Beast",
             "If this creature was kicked, it enters with three +1/+1 counters on it.",

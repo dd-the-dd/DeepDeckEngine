@@ -408,7 +408,15 @@ impl GameEngine {
         let actual = if prevented {
             0
         } else {
-            amount
+            // CR 614.1a: static life-gain replacements. The fixed-order legacy
+            // multiplier cannot be interleaved with them (CR 616.1).
+            let (replaced, applied) = self.apply_life_gain_replacements(player_id, amount)?;
+            if applied && multiplier != 1 {
+                return Err(EngineError::new(
+                    "life gain has competing replacements requiring the affected player's choice",
+                ));
+            }
+            replaced
                 .checked_mul(multiplier)
                 .ok_or_else(|| EngineError::new("modified life gain overflow"))?
         };

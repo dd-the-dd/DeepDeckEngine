@@ -122,6 +122,13 @@ impl GameEngine {
                 }
                 let damage_source_id =
                     resolved_source.unwrap_or_else(|| stack_object.card.instance_id.clone());
+                // A resolving spell has left the stack; its characteristics
+                // remain those of the spell for replacement effects that
+                // examine the damage source (CR 120.3, 609.7).
+                let spell_profile = (damage_source_id == stack_object.card.instance_id
+                    && stack_object_is_spell(stack_object))
+                .then(|| self.resolve_damage_source_lki(stack_object).ok())
+                .flatten();
                 if value_kind(&effect["recipient"]) == Some("eachPlayer") {
                     let player_ids = self
                         .state
@@ -131,11 +138,14 @@ impl GameEngine {
                         .map(|player| player.id.clone())
                         .collect::<Vec<_>>();
                     for player_id in player_ids {
-                        self.deal_damage_from_effect(
+                        self.deal_damage_amount_with_source_profile(
                             TargetRef::Player { player_id },
                             amount,
                             &damage_source_id,
-                            provider,
+                            false,
+                            QuantityOrigin::Effect,
+                            Some(provider),
+                            spell_profile.as_ref(),
                         )?;
                     }
                 } else if value_kind(&effect["recipient"]) == Some("eachPermanent") {
@@ -148,11 +158,14 @@ impl GameEngine {
                         decisions,
                     )?;
                     for instance_id in instance_ids {
-                        self.deal_damage_from_effect(
+                        self.deal_damage_amount_with_source_profile(
                             TargetRef::Permanent { instance_id },
                             amount,
                             &damage_source_id,
-                            provider,
+                            false,
+                            QuantityOrigin::Effect,
+                            Some(provider),
+                            spell_profile.as_ref(),
                         )?;
                     }
                 } else if let Some(target) =
@@ -176,11 +189,14 @@ impl GameEngine {
                         }
                         _ => None,
                     };
-                    let dealt = self.deal_damage_amount_from_effect(
+                    let dealt = self.deal_damage_amount_with_source_profile(
                         target,
                         amount,
                         &damage_source_id,
-                        provider,
+                        false,
+                        QuantityOrigin::Effect,
+                        Some(provider),
+                        spell_profile.as_ref(),
                     )?;
                     if let (Some(binding), Some(lethal)) =
                         (effect["bindExcessAs"].as_str(), lethal_threshold)

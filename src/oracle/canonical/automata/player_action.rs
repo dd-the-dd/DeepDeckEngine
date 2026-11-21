@@ -226,8 +226,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     // counted exile (`exiles a card from their hand`) has no reader yet.
     let exile_form = if bare { "exile" } else { "exiles" };
     let is_referenced_exile = verb == exile_form && referenced_card_operand_follows(cursor);
-    let is_proliferate = verb == if bare { "proliferate" } else { "proliferates" }
-        || (!bare && verb == "proliferate");
+    let is_proliferate = verb == "proliferate" || (!bare && verb == "proliferates");
     let claimed = is_draw
         || is_life
         || is_mill
