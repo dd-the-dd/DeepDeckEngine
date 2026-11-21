@@ -125,3 +125,29 @@ thème.
 - Restent hors lexique : `PayLifeVerbForm`, `DiscardVerbForm`,
   `SubjectVerbAgreement`, `TypeChangeNumber` et les sens « mot-clé » de
   `gain`/`lose` (`gains flying`, `loses all abilities`).
+
+## Phase 2 réalisée : cadres multiples et lemme dégâts (`deal`)
+
+- Lexique : une entrée porte un **ensemble** de cadres (`gain` : vie, liste de
+  mots-clés, contrôle ; `lose` : vie, capacités ; `deal` : dégâts) et ses voix
+  (`deal` : actif et passif). Le parent déclare les cadres qu'il interprète
+  (`ClauseFrame::arguments`) ; le lecteur choisit, dans l'ordre du lexique, le
+  premier cadre accepté dont les arguments commencent après le verbe. Un cadre
+  déclaré sans lecteur (`ClauseArguments::Unread`) est revendiqué puis échoue
+  explicitement au lieu d'être pris pour un autre.
+- Voix passive : auxiliaire `is`/`are` accordé au sujet, `be` après `would`,
+  puis participe passé. Sujet « dégâts » (`[combat] damage would be dealt to
+  R`) : politique `DamageTheme`.
+- `damage_clause.rs` : politiques du cadre `DamageDealt` (effet, complément
+  d'événement, passif, événement et destinataires de remplacement, quantité
+  d'événement, montant atomique, relative à objet extrait) appelant les
+  enfants existants. Un seul `DamageKind` remplace `DamageEventKind` et
+  `DamageKindFilter`.
+- Parents migrés : effet (`recognize_damage_predicate`, causatif, revendication
+  de `permanent_action`), déclencheurs (`trigger_event` source/attaché,
+  `quantified_event`, `player_event`), remplacement (`damage_replacement`
+  actif, passif et modification), condition (`conditional.rs`), prévention
+  (relatives `would deal` / `that would be dealt`). IR inchangée.
+- Suite (moteur) : les sélecteurs de source `objects` (remplacement, sorts
+  admis) et `permanents` (observation de déclencheur, champ de bataille) ont
+  une sémantique différente ; les unifier changerait le JSON émis.

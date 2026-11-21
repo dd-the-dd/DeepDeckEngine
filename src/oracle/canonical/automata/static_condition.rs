@@ -17,6 +17,7 @@ use super::{
     recognize_quantified_player_condition, recognize_search_card_selector,
     recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
 };
+use super::{ClauseArguments, Voice};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 /// A state of the ability's own source that a static condition can test.
@@ -490,7 +491,8 @@ fn life_history_frame() -> ClauseFrame<'static> {
         subject: ClauseSubjectPolicy::PlayerScope,
         modality: ClauseModality::Indicative,
         tense: ClauseTense::PastThisTurn,
-        amount: ClauseAmountPolicy::Threshold,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Threshold)],
         lemmas: LIFE_LEMMAS,
     }
 }
@@ -512,7 +514,9 @@ fn try_recognize_life_history_atom(
         return Ok(None);
     };
     cursor.enter("condition.static.life-history");
-    let ClauseAction::LifeTotalChange { direction, amount } = clause.action;
+    let ClauseAction::LifeTotalChange { direction, amount } = clause.action else {
+        return Err(cursor.fail("a life-total change"));
+    };
     let ClauseSubject::Scope {
         actor,
         one_or_more: false,

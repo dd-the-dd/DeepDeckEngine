@@ -18,8 +18,11 @@ pub(in crate::oracle::canonical) fn claims_promoted_optional_bound_mill_family(
             input.name_resolution_failure,
         )
         && input.tokens.windows(3).any(|window| {
-            window[0].raw.eq_ignore_ascii_case("deals")
-                && window[1].raw.eq_ignore_ascii_case("combat")
+            is_verb_form(
+                &window[0].raw,
+                VerbLemma::Deal,
+                VerbForm::ThirdPersonSingular,
+            ) && window[1].raw.eq_ignore_ascii_case("combat")
                 && window[2].raw.eq_ignore_ascii_case("damage")
         })
         && input.tokens.windows(4).any(|window| {

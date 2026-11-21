@@ -135,7 +135,6 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DamageState {
-    Action,
     Amount,
     Resource,
     Destination,
@@ -225,27 +224,55 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
         name_failure,
         source_antecedent,
     )?;
-    recognize_damage_frame(
+    recognize_damage_predicate(
         cursor,
         super::PermanentOperandNode::Reference(source),
         DamageSourceAntecedent::Reference(source),
-        DamageState::Action,
         agreement,
     )
     .map(LocalEffectNode::DealDamage)
 }
 
-/// `deals AMOUNT damage to RECIPIENTS` after an already recognized source.
-/// The subject reader (ability source or permanent subject) owns the source
-/// and the verb agreement; this frame owns the amount, the resource and the
-/// recipient queries.
+/// `deals AMOUNT damage to RECIPIENTS` after an already recognized source:
+/// the shared clause with the subject's agreement (`deals`, or the bare
+/// `deal` after a causative) and the effect policy of the damage frame. The
+/// subject reader (ability source or permanent subject) owns the source.
 pub(in crate::oracle::canonical) fn recognize_damage_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
     agreement: super::SubjectVerbAgreement,
 ) -> MachineResult<DamageEffectNode> {
-    recognize_damage_frame(cursor, source, antecedent, DamageState::Action, agreement)
+    cursor.enter("effect.damage.action");
+    let frame = super::damage_effect_clause_frame(agreement, antecedent);
+    let clause = super::recognize_clause(cursor, &frame)
+        .into_result()?
+        .ok_or_else(|| cursor.fail("a damage clause (`deals` AMOUNT `damage to` RECIPIENT)"))?;
+    let super::ClauseAction::DealDamage(super::DamageClauseArguments::Effect(arguments)) =
+        clause.action
+    else {
+        return Err(cursor.fail("the effect arguments of the damage frame"));
+    };
+    Ok(DamageEffectNode {
+        source,
+        amount: arguments.amount,
+        recipient: arguments.recipient,
+    })
+}
+
+/// The effect arguments of a damage clause: amount, resource and recipients.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DamageEffectArguments {
+    pub amount: NumericExpression,
+    pub recipient: DamageRecipientNode,
+}
+
+/// `AMOUNT damage to RECIPIENTS` / `damage equal to E to R` after the verb.
+pub(in crate::oracle::canonical) fn recognize_damage_effect_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: DamageSourceAntecedent,
+) -> MachineResult<DamageEffectArguments> {
+    recognize_damage_frame(cursor, antecedent)
 }
 
 /// `... and AMOUNT damage to RECIPIENT`: a gapped damage predicate whose
@@ -268,34 +295,22 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
             }),
         "an amount followed by `damage`",
     )?;
-    recognize_damage_frame(
-        cursor,
+    let arguments = recognize_damage_frame(cursor, antecedent)?;
+    Ok(DamageEffectNode {
         source,
-        antecedent,
-        DamageState::Amount,
-        super::SubjectVerbAgreement::Finite,
-    )
+        amount: arguments.amount,
+        recipient: arguments.recipient,
+    })
 }
 
 fn recognize_damage_frame(
     cursor: &mut OracleTokenCursor<'_>,
-    source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
-    initial: DamageState,
-    agreement: super::SubjectVerbAgreement,
-) -> MachineResult<DamageEffectNode> {
-    let mut state = initial;
+) -> MachineResult<DamageEffectArguments> {
+    let mut state = DamageState::Amount;
     let mut memory = DamageMemory::default();
     loop {
         state = match state {
-            DamageState::Action => {
-                cursor.enter("effect.damage.action");
-                cursor.consume(match agreement {
-                    super::SubjectVerbAgreement::Finite => "deals",
-                    super::SubjectVerbAgreement::BareInfinitive => "deal",
-                })?;
-                DamageState::Amount
-            }
             DamageState::Amount => {
                 cursor.enter("effect.damage.amount");
                 // `deals damage equal to ...` defers the amount to its
@@ -380,8 +395,7 @@ fn recognize_damage_frame(
                         DamageRecipientNode::All(memory.recipients)
                     }
                 };
-                return Ok(DamageEffectNode {
-                    source,
+                return Ok(DamageEffectArguments {
                     amount: cursor.require_value(memory.amount, "a populated damage amount")?,
                     recipient,
                 });

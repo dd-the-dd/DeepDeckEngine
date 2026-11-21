@@ -130,8 +130,16 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let becomes = action_offset == 0
         && !bare
         && super::become_types::characteristic_change_verb_starts(&subject_end);
+    // `deals AMOUNT damage`: claimed when the shared damage clause starts
+    // after the subject (the clause owns the verb form and its frame).
     let deals = action_offset == 0
-        && action.eq_ignore_ascii_case(if bare { "deal" } else { "deals" })
+        && super::clause_starts(
+            &subject_end,
+            &super::damage_effect_clause_frame(
+                context.subject_verb_agreement,
+                DamageSourceAntecedent::Unavailable,
+            ),
+        )
         && matches!(
             subject,
             PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)

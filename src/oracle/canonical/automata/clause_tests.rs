@@ -23,7 +23,8 @@ fn frame(
         subject,
         modality,
         tense,
-        amount,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(amount)],
         lemmas: LIFE_LEMMAS,
     }
 }
@@ -201,6 +202,43 @@ fn agreement_is_derived_from_the_subject() {
     // A causative names its performer: no imperative reading.
     assert!(matches!(
         read("lose 2 life", &causative),
+        (ClauseRecognition::NotClaimed, 0)
+    ));
+}
+
+#[test]
+fn the_frame_is_chosen_from_the_tokens_after_the_verb() {
+    // A parent accepting the life frame and the (declared, unread) control
+    // frame of the same lemma: each sentence selects its own frame.
+    let frame = ClauseFrame {
+        arguments: vec![
+            ClauseArguments::Life(ClauseAmountPolicy::Expression { antecedent: None }),
+            ClauseArguments::Unread(ArgumentFrame::Control),
+        ],
+        ..frame(
+            effect_player(),
+            ClauseModality::Indicative,
+            ClauseTense::Present,
+            ClauseAmountPolicy::Expression { antecedent: None },
+        )
+    };
+    assert!(matches!(
+        read("gain 3 life", &frame).0,
+        ClauseRecognition::Recognized(Clause {
+            action: ClauseAction::LifeTotalChange { .. },
+            ..
+        })
+    ));
+    // The control frame is claimed (not taken for life) and fails in its
+    // own unread state.
+    let (ClauseRecognition::Failed(failure), _) = read("gain control of target creature", &frame)
+    else {
+        panic!("control frame claimed");
+    };
+    assert_eq!(failure.state, "clause.arguments.unread");
+    // A frame the parent does not accept is no claim at all.
+    assert!(matches!(
+        read("gains flying", &frame),
         (ClauseRecognition::NotClaimed, 0)
     ));
 }

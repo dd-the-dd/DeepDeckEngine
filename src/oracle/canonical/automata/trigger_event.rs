@@ -4,6 +4,7 @@ use crate::oracle::{
 };
 
 use super::super::{MachineResult, OracleTokenCursor, parse_ordinal_word};
+use super::DamageKind;
 use super::{
     EventNumericBinding, LocalObjectReference, LocalPlayerReference, ObjectKind, ObjectPredicate,
     PlayerPredicate, SpellCastEventCaster, SpellCastOrdinalSupport, recognize_ordinal_atom,
@@ -18,36 +19,6 @@ pub(in crate::oracle::canonical) enum DrawEventException {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DrawPeriod {
     Turn,
-}
-
-/// Which damage a `dealt` event observes (CR 120.2). The complement is a
-/// shared atom: object, source and player events all read it the same way.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum DamageEventKind {
-    Any,
-    Combat,
-    Noncombat,
-}
-
-/// Reads `damage`, `combat damage` or `noncombat damage` after `dealt`.
-pub(in crate::oracle::canonical) fn recognize_dealt_damage_complement(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<DamageEventKind> {
-    cursor.enter("event.dealt-damage.kind");
-    let kind = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("combat") => {
-            cursor.consume("combat")?;
-            DamageEventKind::Combat
-        }
-        Some("noncombat") => {
-            cursor.consume("noncombat")?;
-            DamageEventKind::Noncombat
-        }
-        _ => DamageEventKind::Any,
-    };
-    cursor.enter("event.dealt-damage.noun");
-    cursor.consume("damage")?;
-    Ok(kind)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,7 +54,7 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
     /// dealt amount is exported for later `that much` expressions.
     SourceDealtDamage {
         source: LocalObjectReference,
-        damage: DamageEventKind,
+        damage: DamageKind,
         amount: EventNumericBinding,
     },
     /// `ACTOR VERB [or VERB]... [CARD]` player event: one shared actor reader
@@ -174,12 +145,7 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
             action: AttachedObjectEventAction::BecomeTapped,
         });
     }
-    let action = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("deals"))
-    {
-        cursor.consume("deals")?;
-        let complement = super::recognize_damage_dealt_complement(cursor)?;
+    let action = if let Some(complement) = recognize_dealt_event_complement(cursor)? {
         if !complement.is_combat_damage_to_any_player() {
             cursor.enter("event.attached-object.complete");
             return Ok(LocalTriggerEventNode::DamageDealt {
@@ -224,8 +190,17 @@ pub(in crate::oracle::canonical) fn recognize_source_dealt_damage_event(
     cursor.enter("event.source-dealt-damage.source");
     let source = recognize_source_reference(cursor, name_links, name_failure)?;
     cursor.enter("event.source-dealt-damage.passive");
-    cursor.consume_phrase(&["is", "dealt"])?;
-    let damage = recognize_dealt_damage_complement(cursor)?;
+    let frame = super::supplied_damage_frame(
+        super::VerbAgreement::ThirdPersonSingular,
+        super::Voice::Passive,
+        super::ClauseModality::Indicative,
+        super::DamageArguments::PassiveKind,
+    );
+    let Some(super::DamageClauseArguments::Kind(damage)) =
+        super::recognize_supplied_damage_clause(cursor, &frame)?
+    else {
+        return Err(cursor.fail("`is dealt` and the damage it is dealt"));
+    };
     cursor.enter("event.source-dealt-damage.complete");
     Ok(LocalTriggerEventNode::SourceDealtDamage {
         source,
@@ -246,8 +221,8 @@ pub(in crate::oracle::canonical) fn recognize_combat_damage_to_player_event(
     cursor.enter("event.combat-damage.source");
     let source = recognize_source_reference(cursor, name_links, name_failure)?;
     cursor.enter("event.combat-damage.action");
-    cursor.consume("deals")?;
-    let complement = super::recognize_damage_dealt_complement(cursor)?;
+    let complement = recognize_dealt_event_complement(cursor)?
+        .ok_or_else(|| cursor.fail("`deals` and the damage it deals"))?;
     cursor.enter("event.combat-damage.complete");
     if complement.is_combat_damage_to_any_player() {
         return Ok(LocalTriggerEventNode::CombatDamageToPlayer {
@@ -259,6 +234,24 @@ pub(in crate::oracle::canonical) fn recognize_combat_damage_to_player_event(
         subject: DamageDealer::Source(source),
         complement,
     })
+}
+
+/// `deals [KIND] damage [to RECIPIENT]` after a singular object subject:
+/// the shared damage clause with the event-complement policy.
+fn recognize_dealt_event_complement(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<super::DamageDealtComplement>> {
+    let frame = super::supplied_damage_frame(
+        super::VerbAgreement::ThirdPersonSingular,
+        super::Voice::Active,
+        super::ClauseModality::Indicative,
+        super::DamageArguments::EventComplement,
+    );
+    match super::recognize_supplied_damage_clause(cursor, &frame)? {
+        Some(super::DamageClauseArguments::Complement(complement)) => Ok(Some(complement)),
+        Some(_) => Err(cursor.fail("a damage event complement")),
+        None => Ok(None),
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

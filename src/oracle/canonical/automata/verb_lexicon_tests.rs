@@ -53,5 +53,28 @@ fn words_outside_the_requested_lemmas_make_no_claim() {
         VerbLemma::Gain,
         VerbForm::ThirdPersonSingular
     ));
-    assert_eq!(ArgumentFrame::LifeTotalChange.resource_noun(), "life");
+    assert_eq!(ArgumentFrame::LifeTotalChange.marker_noun(), Some("life"));
+}
+
+#[test]
+fn a_lemma_holds_a_set_of_frames_and_its_voices() {
+    assert_eq!(
+        verb_entry(VerbLemma::Gain).frames,
+        [
+            ArgumentFrame::LifeTotalChange,
+            ArgumentFrame::KeywordList,
+            ArgumentFrame::Control
+        ]
+    );
+    assert_eq!(
+        verb_entry(VerbLemma::Lose).frames,
+        [ArgumentFrame::LifeTotalChange, ArgumentFrame::Abilities]
+    );
+    let deal = verb_entry(VerbLemma::Deal);
+    assert_eq!(deal.frames, [ArgumentFrame::DamageDealt]);
+    assert_eq!(deal.voices, [Voice::Active, Voice::Passive]);
+    assert_eq!(deal.surface(VerbForm::PastParticiple), "dealt");
+    // Every frame but the keyword list has a marker noun to claim on.
+    assert_eq!(ArgumentFrame::Control.marker_noun(), Some("control"));
+    assert_eq!(ArgumentFrame::KeywordList.marker_noun(), None);
 }

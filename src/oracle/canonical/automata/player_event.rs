@@ -20,11 +20,12 @@ use crate::oracle::ability_catalog::{AbilitySignalPolicy, lookup_exact_lexeme, l
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ClauseAction, ClauseAmountPolicy, ClauseFrame, ClauseModality, ClauseSubjectPolicy,
-    ClauseTense, DamageEventKind, EventActorScope, LIFE_LEMMAS, LocalTriggerEventNode, ObjectKind,
-    ObjectQueryNode, TargetPlayerLifeAction, VerbAgreement, recognize_clause,
-    recognize_object_query_before_separator, try_recognize_event_actor_scope,
-    try_recognize_plural_event_actor_scope,
+    ClauseAction, ClauseAmountPolicy, ClauseArguments, ClauseFrame, ClauseModality,
+    ClauseSubjectPolicy, ClauseTense, DamageArguments, DamageClauseArguments, DamageKind,
+    EventActorScope, LIFE_LEMMAS, LocalTriggerEventNode, ObjectKind, ObjectQueryNode,
+    TargetPlayerLifeAction, VerbAgreement, Voice, recognize_clause,
+    recognize_object_query_before_separator, recognize_supplied_damage_clause,
+    supplied_damage_frame, try_recognize_event_actor_scope, try_recognize_plural_event_actor_scope,
 };
 
 /// Player-event verbs. Each is a vocabulary atom; the actor, the object and
@@ -36,7 +37,7 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     DrawCard,
     Attack,
     FaceDilemma,
-    BeDealtDamage(DamageEventKind),
+    BeDealtDamage(DamageKind),
     /// `discard CARD` (CR 701.9).
     DiscardCard,
     /// `cycle CARD` (CR 702.29): activating a cycling ability.
@@ -56,25 +57,12 @@ impl PlayerEventAction {
             (Self::Attack, true) => &["attacks"],
             (Self::FaceDilemma, false) => &["face", "a", "dilemma"],
             (Self::FaceDilemma, true) => &["faces", "a", "dilemma"],
-            (Self::BeDealtDamage(DamageEventKind::Any), false) => &["are", "dealt", "damage"],
-            (Self::BeDealtDamage(DamageEventKind::Any), true) => &["is", "dealt", "damage"],
-            (Self::BeDealtDamage(DamageEventKind::Combat), false) => {
-                &["are", "dealt", "combat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Combat), true) => {
-                &["is", "dealt", "combat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Noncombat), false) => {
-                &["are", "dealt", "noncombat", "damage"]
-            }
-            (Self::BeDealtDamage(DamageEventKind::Noncombat), true) => {
-                &["is", "dealt", "noncombat", "damage"]
-            }
             // Life verbs are the shared life clause's; object and named
             // verbs are union verbs.
             (
                 Self::GainLife
                 | Self::LoseLife
+                | Self::BeDealtDamage(_)
                 | Self::DiscardCard
                 | Self::CycleCard
                 | Self::NamedAction(_),
@@ -102,13 +90,10 @@ impl PlayerEventAction {
     }
 }
 
-const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 6] = [
+const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 3] = [
     PlayerEventAction::DrawCard,
     PlayerEventAction::Attack,
     PlayerEventAction::FaceDilemma,
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Any),
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Combat),
-    PlayerEventAction::BeDealtDamage(DamageEventKind::Noncombat),
 ];
 
 /// The card a player discards or cycles. `another` excludes the ability source.
@@ -216,25 +201,48 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
     cursor.enter("event.player.action");
     // `gain(s) life` / `lose(s) life`: the shared life clause with the actor
     // as its supplied subject; the pattern has no amount.
+    let life_agreement = if third_person {
+        VerbAgreement::ThirdPersonSingular
+    } else {
+        VerbAgreement::Base
+    };
     let life_frame = ClauseFrame {
-        subject: ClauseSubjectPolicy::Supplied(if third_person {
-            VerbAgreement::ThirdPersonSingular
-        } else {
-            VerbAgreement::Base
-        }),
+        subject: ClauseSubjectPolicy::Supplied(life_agreement),
         modality: ClauseModality::Indicative,
         tense: ClauseTense::Present,
-        amount: ClauseAmountPolicy::Absent,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Absent)],
         lemmas: LIFE_LEMMAS,
     };
     if let Some(clause) = recognize_clause(cursor, &life_frame).into_result()? {
-        let ClauseAction::LifeTotalChange { direction, .. } = clause.action;
+        let ClauseAction::LifeTotalChange { direction, .. } = clause.action else {
+            return Err(cursor.fail("a life-total change"));
+        };
         return Ok(LocalTriggerEventNode::PlayerEvent {
             actor,
             actions: vec![match direction {
                 TargetPlayerLifeAction::Gain => PlayerEventAction::GainLife,
                 TargetPlayerLifeAction::Lose => PlayerEventAction::LoseLife,
             }],
+            one_or_more,
+            card: None,
+        });
+    }
+    // `is|are dealt [combat|noncombat] damage`: the passive damage clause
+    // with the actor as its supplied subject (the recipient).
+    let damage_frame = supplied_damage_frame(
+        life_agreement,
+        Voice::Passive,
+        ClauseModality::Indicative,
+        DamageArguments::PassiveKind,
+    );
+    if let Some(arguments) = recognize_supplied_damage_clause(cursor, &damage_frame)? {
+        let DamageClauseArguments::Kind(kind) = arguments else {
+            return Err(cursor.fail("the kind of damage a player is dealt"));
+        };
+        return Ok(LocalTriggerEventNode::PlayerEvent {
+            actor,
+            actions: vec![PlayerEventAction::BeDealtDamage(kind)],
             one_or_more,
             card: None,
         });

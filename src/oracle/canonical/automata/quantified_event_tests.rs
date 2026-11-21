@@ -80,17 +80,17 @@ fn passive_received_damage_agrees_with_the_subject_and_reads_the_shared_compleme
     for (text, kind, multiplicity) in [
         (
             "a creature you control is dealt damage",
-            DamageEventKind::Any,
+            DamageKind::Any,
             EventMultiplicity::PerObject,
         ),
         (
             "another creature is dealt noncombat damage",
-            DamageEventKind::Noncombat,
+            DamageKind::Noncombat,
             EventMultiplicity::PerObject,
         ),
         (
             "one or more creatures you control are dealt combat damage",
-            DamageEventKind::Combat,
+            DamageKind::Combat,
             EventMultiplicity::PerEvent { minimum: 1 },
         ),
     ] {
@@ -99,10 +99,11 @@ fn passive_received_damage_agrees_with_the_subject_and_reads_the_shared_compleme
         assert_eq!(parsed.subject.multiplicity, multiplicity, "{text}");
     }
     for (text, state) in [
-        ("a creature are dealt damage", "event.object.verb-agreement"),
+        // The shared clause owns the passive auxiliary's agreement.
+        ("a creature are dealt damage", "clause.passive-auxiliary"),
         (
             "one or more creatures is dealt damage",
-            "event.object.verb-agreement",
+            "clause.passive-auxiliary",
         ),
         ("a creature is dealt", "event.dealt-damage.noun"),
         ("a creature is dealt life", "event.dealt-damage.noun"),

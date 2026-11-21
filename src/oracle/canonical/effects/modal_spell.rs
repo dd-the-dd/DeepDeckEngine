@@ -202,7 +202,11 @@ fn claims_damage_mode(
         });
     action_offset
         .and_then(|offset| mode.get(offset))
-        .is_some_and(|action| modal_token_is(action, "deal") || modal_token_is(action, "deals"))
+        .is_some_and(|action| {
+            [VerbForm::Base, VerbForm::ThirdPersonSingular]
+                .into_iter()
+                .any(|form| is_verb_form(&action.raw, VerbLemma::Deal, form))
+        })
         && !mode.iter().any(|token| modal_token_is(token, "then"))
 }
 

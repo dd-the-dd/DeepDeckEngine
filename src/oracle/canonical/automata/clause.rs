@@ -9,10 +9,13 @@
 //!                PLAYERS` (PlayerScope), or a subject the parent already
 //!                read with its agreement (Supplied: player sets, coordinated
 //!                subjects, event actors)
+//!            | `[KIND] damage` (DamageTheme, the passive's damage subject)
 //! Modality  := "would" (replacement)                -> bare verb
 //!            | "have" | "has" | `you've` (past history) -> past participle
+//! Voice     := active | passive: ("is" | "are" | "be") + past participle
 //! Verb      := a lemma of the frame in the form the subject and tense require
-//! Arguments := the lemma's typed argument frame
+//! Arguments := one of the lemma's argument frames that the parent accepts,
+//!              chosen from the tokens after the verb
 //! TimeFrame := "this" "turn" (past history)
 //! ```
 //!
@@ -23,6 +26,10 @@
 //! frame's own explicit diagnostic. Subjects and amounts come from the
 //! existing shared children; this module adds no subject or numeric grammar.
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
+use super::damage_clause::{
+    DamageArguments, DamageClauseArguments, damage_arguments_claim, read_damage_arguments,
+    recognize_damage_theme,
+};
 use super::source_sacrifice::atomic_action::player_subject::{
     ObjectSubjectAntecedent, defending_player_starts, object_related_player_head_length,
     recognize_defending_player_subject, recognize_object_related_player_subject,
@@ -32,7 +39,7 @@ use super::verb_lexicon::{
     ArgumentFrame, VerbAgreement, VerbEntry, VerbForm, VerbLemma, Voice, lookup_verb,
 };
 use super::{
-    ControlledCountDirection, EventActorScope, LocalPlayerReference, NumericExpression,
+    ControlledCountDirection, DamageKind, EventActorScope, LocalPlayerReference, NumericExpression,
     PermanentEffectReference, PlayerBinding, PlayerEffectSubject, TargetBinding,
     TargetPlayerLifeAction, recognize_count_comparison, recognize_event_quantity_expression,
     recognize_numeric_expression, recognize_player_reference, try_recognize_event_actor_scope,
@@ -52,6 +59,9 @@ pub(in crate::oracle::canonical) enum ClauseSubjectPolicy<'a> {
     /// subject, the subject inherited from the previous clause, or the
     /// performer named by a causative `have`.
     EffectPlayer(EffectSubjectContext<'a>),
+    /// The passive whose subject is the damage itself (`combat damage would
+    /// be dealt to ...`).
+    DamageTheme,
 }
 
 /// Bindings the effect parent proved for the player subject readers.
@@ -109,12 +119,34 @@ pub(in crate::oracle::canonical) enum ClauseAmountPolicy {
     Gapped,
 }
 
+/// One argument frame the parent interprets, with its slot policy.
+#[derive(Clone, Copy, Debug)]
+pub(in crate::oracle::canonical) enum ClauseArguments<'a> {
+    Life(ClauseAmountPolicy),
+    Damage(DamageArguments<'a>),
+    /// A declared frame with no interpretation yet: claiming it fails
+    /// explicitly instead of being taken for another frame.
+    Unread(ArgumentFrame),
+}
+
+impl ClauseArguments<'_> {
+    pub(in crate::oracle::canonical) fn frame(&self) -> ArgumentFrame {
+        match self {
+            Self::Life(_) => ArgumentFrame::LifeTotalChange,
+            Self::Damage(_) => ArgumentFrame::DamageDealt,
+            Self::Unread(frame) => *frame,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(in crate::oracle::canonical) struct ClauseFrame<'a> {
     pub subject: ClauseSubjectPolicy<'a>,
     pub modality: ClauseModality,
     pub tense: ClauseTense,
-    pub amount: ClauseAmountPolicy,
+    pub voice: Voice,
+    /// The argument frames this parent interprets.
+    pub arguments: Vec<ClauseArguments<'a>>,
     /// The lemmas this parent can interpret.
     pub lemmas: &'static [VerbLemma],
 }
@@ -138,6 +170,8 @@ pub(in crate::oracle::canonical) enum ClauseSubject {
         actor: EventActorScope,
         one_or_more: bool,
     },
+    /// The damage itself, subject of a passive (`combat damage would be dealt`).
+    DamageTheme(DamageKind),
 }
 
 /// The amount slot of a quantity frame as written.
@@ -163,6 +197,8 @@ pub(in crate::oracle::canonical) enum ClauseAction {
         direction: TargetPlayerLifeAction,
         amount: ClauseAmount,
     },
+    /// CR 120.1: an object deals damage; the arguments follow the policy.
+    DealDamage(DamageClauseArguments),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -172,6 +208,7 @@ pub(in crate::oracle::canonical) struct Clause {
     pub action: ClauseAction,
     pub modality: ClauseModality,
     pub tense: ClauseTense,
+    pub voice: Voice,
 }
 
 pub(in crate::oracle::canonical) enum ClauseRecognition {
@@ -222,6 +259,28 @@ fn read_subject(cursor: &mut OracleTokenCursor<'_>, frame: &ClauseFrame<'_>) -> 
         }
         ClauseSubjectPolicy::PlayerScope => read_player_scope(cursor),
         ClauseSubjectPolicy::EffectPlayer(context) => read_effect_player(cursor, frame, context),
+        ClauseSubjectPolicy::DamageTheme => {
+            cursor.enter("clause.subject.damage-theme");
+            let start = cursor.checkpoint();
+            let theme = cursor
+                .peek_ahead(usize::from(cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("combat") || raw.eq_ignore_ascii_case("noncombat")
+                })))
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"));
+            if !theme {
+                return SubjectRead::Absent;
+            }
+            match recognize_damage_theme(cursor) {
+                Ok(kind) => SubjectRead::Read(
+                    ClauseSubject::DamageTheme(kind),
+                    VerbAgreement::ThirdPersonSingular,
+                ),
+                Err(_) => {
+                    cursor.rollback(start);
+                    SubjectRead::Absent
+                }
+            }
+        }
     }
 }
 
@@ -357,13 +416,23 @@ fn is_clause_boundary(raw: &str) -> bool {
 }
 
 /// True when the argument frame starts after the verb (cursor on the
-/// token after the verb). Numeric children are tried on a copy only.
-fn argument_frame_claims(
-    cursor: &OracleTokenCursor<'_>,
-    frame: ArgumentFrame,
-    amount: ClauseAmountPolicy,
-) -> bool {
-    let noun = frame.resource_noun();
+/// token after the verb). Children are tried on a copy only.
+fn arguments_claim(cursor: &OracleTokenCursor<'_>, arguments: ClauseArguments<'_>) -> bool {
+    match arguments {
+        ClauseArguments::Life(amount) => life_frame_claims(cursor, amount),
+        ClauseArguments::Damage(policy) => damage_arguments_claim(cursor, policy),
+        // A declared frame claims at its marker noun (`control`, `all
+        // abilities`); a keyword list has no marker until its reader exists.
+        ClauseArguments::Unread(frame) => frame.marker_noun().is_some_and(|noun| {
+            (0..2)
+                .filter_map(|offset| cursor.peek_ahead(offset))
+                .any(|raw| raw.eq_ignore_ascii_case(noun))
+        }),
+    }
+}
+
+fn life_frame_claims(cursor: &OracleTokenCursor<'_>, amount: ClauseAmountPolicy) -> bool {
+    let noun = "life";
     let noun_at = |cursor: &OracleTokenCursor<'_>| {
         cursor
             .peek()
@@ -447,68 +516,113 @@ pub(in crate::oracle::canonical) fn recognize_clause(
         perfect = true;
     }
     // The amount's anaphora follow a possessive subject's object.
-    let amount_policy = match (&subject, frame.amount) {
-        (
-            Some(ClauseSubject::Player(PlayerEffectSubject::ObjectRelation {
-                object: PermanentEffectReference::Target(binding),
-                ..
-            })),
-            ClauseAmountPolicy::Expression { .. },
-        ) => ClauseAmountPolicy::Expression {
-            antecedent: Some(*binding),
-        },
-        (
-            Some(ClauseSubject::Player(PlayerEffectSubject::ObjectRelation { .. })),
-            ClauseAmountPolicy::Expression { .. },
-        ) => ClauseAmountPolicy::Expression { antecedent: None },
-        (_, amount) => amount,
+    let possessive_antecedent = match &subject {
+        Some(ClauseSubject::Player(PlayerEffectSubject::ObjectRelation { object, .. })) => {
+            Some(match object {
+                PermanentEffectReference::Target(binding) => Some(*binding),
+                _ => None,
+            })
+        }
+        _ => None,
     };
+    let arguments = frame
+        .arguments
+        .iter()
+        .map(|arguments| match (arguments, possessive_antecedent) {
+            (ClauseArguments::Life(ClauseAmountPolicy::Expression { .. }), Some(antecedent)) => {
+                ClauseArguments::Life(ClauseAmountPolicy::Expression { antecedent })
+            }
+            (arguments, _) => *arguments,
+        })
+        .collect::<Vec<_>>();
     cursor.enter("clause.modality");
     if frame.modality == ClauseModality::Would && cursor.consume("would").is_err() {
         return not_claimed(cursor);
     }
+    // The passive auxiliary: bare `be` after a modal, else `is` / `are`.
+    let auxiliary = if frame.voice == Voice::Passive {
+        cursor.enter("clause.passive-auxiliary");
+        let Some(raw) = cursor
+            .peek()
+            .map(str::to_ascii_lowercase)
+            .filter(|raw| matches!(raw.as_str(), "is" | "are" | "be"))
+        else {
+            return not_claimed(cursor);
+        };
+        let position = cursor.checkpoint();
+        if cursor.advance_to(cursor.position() + 1).is_err() {
+            return not_claimed(cursor);
+        }
+        Some((raw, position))
+    } else {
+        None
+    };
     cursor.enter("clause.verb");
-    // Every frame here reads the active voice; passive lemmas (`is dealt`)
-    // declare their voice in the lexicon and arrive with their frames.
     let Some((entry, forms)) = cursor
         .peek()
         .and_then(|raw| lookup_verb(raw, frame.lemmas))
-        .filter(|(entry, _)| entry.voices.contains(&Voice::Active))
+        .filter(|(entry, _)| entry.voices.contains(&frame.voice))
     else {
         return not_claimed(cursor);
     };
     let verb_position = cursor.checkpoint();
     let mut after_verb = cursor.clone();
-    if after_verb.advance_to(after_verb.position() + 1).is_err()
-        || !entry
-            .frames
-            .iter()
-            .any(|argument| argument_frame_claims(&after_verb, *argument, amount_policy))
-    {
+    // The lemma's frames, in lexicon order, that the parent interprets; the
+    // first one whose arguments start after the verb is the clause's.
+    let chosen = if after_verb.advance_to(after_verb.position() + 1).is_ok() {
+        entry.frames.iter().find_map(|lemma_frame| {
+            arguments
+                .iter()
+                .find(|arguments| {
+                    arguments.frame() == *lemma_frame && arguments_claim(&after_verb, **arguments)
+                })
+                .copied()
+        })
+    } else {
+        None
+    };
+    let Some(chosen) = chosen else {
         return not_claimed(cursor);
-    }
+    };
     // Claimed: the verb and its argument frame belong to this reader.
     if let Some(failure) = tentative {
         return ClauseRecognition::Failed(failure);
     }
     let subject = subject.expect("a read subject");
-    let expected = match (frame.modality, frame.tense) {
-        (ClauseModality::Would, _) => VerbForm::Base,
-        (_, ClauseTense::PastThisTurn) if perfect => VerbForm::PastParticiple,
-        (_, ClauseTense::PastThisTurn) => VerbForm::Past,
-        (ClauseModality::Indicative, ClauseTense::Present) => agreement.form(),
+    if let Some((raw, position)) = auxiliary {
+        let expected = match (frame.modality, agreement) {
+            (ClauseModality::Would, _) => "be",
+            (_, VerbAgreement::Base) => "are",
+            (_, VerbAgreement::ThirdPersonSingular) => "is",
+        };
+        if raw != expected {
+            cursor.rollback(position);
+            return ClauseRecognition::Failed(cursor.fail(match expected {
+                "be" => "`be`, the passive auxiliary after a modal",
+                "are" => "`are`, the passive auxiliary its subject requires",
+                _ => "`is`, the passive auxiliary its subject requires",
+            }));
+        }
+    }
+    let expected = match (frame.voice, frame.modality, frame.tense) {
+        (Voice::Passive, _, _) => VerbForm::PastParticiple,
+        (Voice::Active, ClauseModality::Would, _) => VerbForm::Base,
+        (Voice::Active, _, ClauseTense::PastThisTurn) if perfect => VerbForm::PastParticiple,
+        (Voice::Active, _, ClauseTense::PastThisTurn) => VerbForm::Past,
+        (Voice::Active, ClauseModality::Indicative, ClauseTense::Present) => agreement.form(),
     };
     cursor.rollback(verb_position);
     if !forms.contains(&expected) {
         return ClauseRecognition::Failed(cursor.fail(agreement_expectation(entry, expected)));
     }
-    match read_predicate(cursor, entry, amount_policy, frame.tense) {
+    match read_predicate(cursor, entry, chosen, frame.tense) {
         Ok(action) => ClauseRecognition::Recognized(Clause {
             subject,
             lemma: entry.lemma,
             action,
             modality: frame.modality,
             tense: frame.tense,
+            voice: frame.voice,
         }),
         Err(failure) => ClauseRecognition::Failed(failure),
     }
@@ -526,6 +640,11 @@ fn agreement_expectation(entry: &VerbEntry, expected: VerbForm) -> &'static str 
             "`loses`, the verb form its subject requires"
         }
         (VerbLemma::Lose, _) => "`lost`, the verb form its tense requires",
+        (VerbLemma::Deal, VerbForm::Base) => "`deal`, the verb form its subject requires",
+        (VerbLemma::Deal, VerbForm::ThirdPersonSingular) => {
+            "`deals`, the verb form its subject requires"
+        }
+        (VerbLemma::Deal, _) => "`dealt`, the verb form its voice requires",
     }
 }
 
@@ -546,20 +665,27 @@ pub(in crate::oracle::canonical) fn clause_starts(
 fn read_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     entry: &VerbEntry,
-    amount: ClauseAmountPolicy,
+    arguments: ClauseArguments<'_>,
     tense: ClauseTense,
 ) -> MachineResult<ClauseAction> {
     cursor.enter("clause.verb.claimed");
     cursor.advance_to(cursor.position() + 1)?;
-    let action = match entry.frames {
-        [ArgumentFrame::LifeTotalChange] => ClauseAction::LifeTotalChange {
+    let action = match arguments {
+        ClauseArguments::Life(amount) => ClauseAction::LifeTotalChange {
             direction: match entry.lemma {
                 VerbLemma::Gain => TargetPlayerLifeAction::Gain,
                 VerbLemma::Lose => TargetPlayerLifeAction::Lose,
+                VerbLemma::Deal => return Err(cursor.fail("a life-total lemma")),
             },
             amount: read_life_amount(cursor, amount)?,
         },
-        _ => return Err(cursor.fail("a lexicon lemma with one argument frame")),
+        ClauseArguments::Damage(policy) => {
+            ClauseAction::DealDamage(read_damage_arguments(cursor, policy)?)
+        }
+        ClauseArguments::Unread(_) => {
+            cursor.enter("clause.arguments.unread");
+            return Err(cursor.fail("an argument frame this parent interprets"));
+        }
     };
     if tense == ClauseTense::PastThisTurn {
         cursor.enter("clause.time-frame");

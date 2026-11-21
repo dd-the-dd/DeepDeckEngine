@@ -2,7 +2,6 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     DamageEffectNode, DamageRecipientNode, LocalConditionNode, LocalEffectNode, NumericExpression,
     PlayerPredicate, SelectorPredicate, TargetListNode, TargetSelector, recognize_kicked_condition,
-    recognize_numeric_atom,
 };
 use crate::oracle::{
     characteristic_vocabulary::PlayerRole,
@@ -21,8 +20,6 @@ enum ReplacementState {
     Condition,
     SourceAnaphor,
     Action,
-    Amount,
-    Resource,
     TargetAnaphorOrInstead,
     Instead,
     Terminator,
@@ -65,18 +62,21 @@ pub(in crate::oracle::canonical) fn recognize_conditional_damage_replacement(
                 ReplacementState::Action
             }
             ReplacementState::Action => {
+                // `deals N damage`: the shared damage clause with the
+                // anaphoric source as its supplied subject.
                 cursor.enter("replacement.damage.action");
-                cursor.consume("deals")?;
-                ReplacementState::Amount
-            }
-            ReplacementState::Amount => {
-                cursor.enter("replacement.damage.amount");
-                memory.amount = Some(NumericExpression::Atom(recognize_numeric_atom(cursor)?));
-                ReplacementState::Resource
-            }
-            ReplacementState::Resource => {
-                cursor.enter("replacement.damage.resource");
-                cursor.consume("damage")?;
+                let frame = super::supplied_damage_frame(
+                    super::VerbAgreement::ThirdPersonSingular,
+                    super::Voice::Active,
+                    super::ClauseModality::Indicative,
+                    super::DamageArguments::AtomAmount,
+                );
+                let Some(super::DamageClauseArguments::Amount(amount)) =
+                    super::recognize_supplied_damage_clause(cursor, &frame)?
+                else {
+                    return Err(cursor.fail("`deals` and an amount of damage"));
+                };
+                memory.amount = Some(amount);
                 ReplacementState::TargetAnaphorOrInstead
             }
             ReplacementState::TargetAnaphorOrInstead => {

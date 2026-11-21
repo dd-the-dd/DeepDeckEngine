@@ -41,7 +41,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_damage_life_family(
         })
         && tokens
             .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("deals"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Deal, VerbForm::ThirdPersonSingular))
         && tokens
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("damage"))
@@ -68,13 +68,13 @@ pub(in crate::oracle::canonical) fn claims_promoted_conditional_damage_family(
     starts_with_effect_subject(input)
         && antecedent
             .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("deals"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Deal, VerbForm::ThirdPersonSingular))
         && antecedent
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("damage"))
         && replacement
             .iter()
-            .any(|token| token.raw.eq_ignore_ascii_case("deals"))
+            .any(|token| is_verb_form(&token.raw, VerbLemma::Deal, VerbForm::ThirdPersonSingular))
         && replacement
             .iter()
             .any(|token| token.raw.eq_ignore_ascii_case("damage"))
@@ -96,13 +96,11 @@ pub(in crate::oracle::canonical) fn claims_promoted_plain_damage_family(
         return false;
     };
     let body = &tokens[subject_end..];
-    tokens
-        .get(subject_end)
-        .is_some_and(|token| token.raw.eq_ignore_ascii_case("deals"))
-        && body.windows(2).any(|window| {
-            window[0].raw.eq_ignore_ascii_case("damage") && window[1].raw.eq_ignore_ascii_case("to")
-        })
-        && tokens.last().is_some_and(|token| token.raw == ".")
+    tokens.get(subject_end).is_some_and(|token| {
+        is_verb_form(&token.raw, VerbLemma::Deal, VerbForm::ThirdPersonSingular)
+    }) && body.windows(2).any(|window| {
+        window[0].raw.eq_ignore_ascii_case("damage") && window[1].raw.eq_ignore_ascii_case("to")
+    }) && tokens.last().is_some_and(|token| token.raw == ".")
         && body.iter().filter(|token| token.raw == ".").count() == 1
         && !body.iter().any(|token| {
             matches!(token.raw.as_str(), "," | ";" | "•")

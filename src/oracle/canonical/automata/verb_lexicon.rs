@@ -1,5 +1,6 @@
 //! Verb lexicon (data): one entry per lemma with every surface form, the
-//! typed argument frame the lemma takes and the voices it admits.
+//! set of typed argument frames the lemma takes and the voices it admits.
+//! The clause reader picks the frame from the tokens after the verb.
 //!
 //! The lexicon supplies forms and categories; the clause grammar
 //! (`clause.rs`) decides their role. A parent never tests a verb word: it
@@ -17,6 +18,8 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Gain,
     /// `lose` (CR 119.3 a player loses life).
     Lose,
+    /// `deal` (CR 120.1 an object deals damage).
+    Deal,
 }
 
 /// One inflected form of a lemma.
@@ -55,29 +58,45 @@ impl VerbAgreement {
     }
 }
 
-/// The typed argument frame a lemma takes after its verb.
+/// One typed argument frame a lemma can take after its verb.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `AMOUNT life` | `life equal to AMOUNT` | bare `life` in patterns: a
     /// change of the acting player's life total (CR 119.3). The slot is the
     /// amount; the resource noun `life` marks the frame.
     LifeTotalChange,
+    /// `[AMOUNT] [combat|noncombat] damage [to RECIPIENT]` (CR 120.1); the
+    /// passive takes the recipient as subject (`is dealt damage`) or the
+    /// damage as subject (`damage would be dealt to RECIPIENT`).
+    DamageDealt,
+    /// `KEYWORD[, KEYWORD and KEYWORD]` (`gains flying`): declared, not yet
+    /// read by the clause (the keyword-grant readers still own it).
+    KeywordList,
+    /// `control of OBJECT` (`gain control of`): declared, not yet read.
+    Control,
+    /// `all abilities` (`loses all abilities`): declared, not yet read.
+    Abilities,
 }
 
 impl ArgumentFrame {
-    /// The resource noun that marks the frame, when it has one.
-    pub(in crate::oracle::canonical) fn resource_noun(self) -> &'static str {
+    /// The noun that marks the frame after the verb, when it has one.
+    pub(in crate::oracle::canonical) fn marker_noun(self) -> Option<&'static str> {
         match self {
-            Self::LifeTotalChange => "life",
+            Self::LifeTotalChange => Some("life"),
+            Self::DamageDealt => Some("damage"),
+            Self::Control => Some("control"),
+            Self::Abilities => Some("abilities"),
+            Self::KeywordList => None,
         }
     }
 }
 
-/// Voices a lemma admits. Passive frames (`is dealt`) arrive with the lemmas
-/// that need them.
+/// Voices a lemma admits. The passive reads `be` agreeing with the subject
+/// (or bare after a modal) and the past participle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(in crate::oracle::canonical) enum Voice {
     Active,
+    Passive,
 }
 
 #[derive(Debug)]
@@ -133,7 +152,11 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "gained",
             present_participle: "gaining",
         },
-        frames: &[ArgumentFrame::LifeTotalChange],
+        frames: &[
+            ArgumentFrame::LifeTotalChange,
+            ArgumentFrame::KeywordList,
+            ArgumentFrame::Control,
+        ],
         voices: &[Voice::Active],
     },
     VerbEntry {
@@ -145,8 +168,20 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "lost",
             present_participle: "losing",
         },
-        frames: &[ArgumentFrame::LifeTotalChange],
+        frames: &[ArgumentFrame::LifeTotalChange, ArgumentFrame::Abilities],
         voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Deal,
+        forms: VerbForms {
+            base: "deal",
+            third_person_singular: "deals",
+            past: "dealt",
+            past_participle: "dealt",
+            present_participle: "dealing",
+        },
+        frames: &[ArgumentFrame::DamageDealt],
+        voices: &[Voice::Active, Voice::Passive],
     },
 ];
 

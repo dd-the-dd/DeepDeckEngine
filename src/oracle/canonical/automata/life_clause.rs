@@ -18,6 +18,7 @@ use super::clause::{
 };
 use super::source_sacrifice::atomic_action::player_subject::ObjectSubjectAntecedent;
 use super::verb_lexicon::{VerbAgreement, VerbLemma};
+use super::{ClauseArguments, Voice};
 use super::{
     EffectRecognitionContext, GainLifeEffectNode, LocalEffectNode, LocalPlayerReference,
     LoseLifeEffectNode, NumericExpression, PlayerActionNode, PlayerBinding, PlayerEffectSubject,
@@ -40,6 +41,7 @@ pub(in crate::oracle::canonical) struct LifeActionNode {
 fn life_action(clause_action: ClauseAction) -> Option<(TargetPlayerLifeAction, ClauseAmount)> {
     match clause_action {
         ClauseAction::LifeTotalChange { direction, amount } => Some((direction, amount)),
+        ClauseAction::DealDamage(_) => None,
     }
 }
 
@@ -51,7 +53,10 @@ fn supplied_frame(
         subject: ClauseSubjectPolicy::Supplied(agreement),
         modality: ClauseModality::Indicative,
         tense: ClauseTense::Present,
-        amount: ClauseAmountPolicy::Expression { antecedent },
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Expression {
+            antecedent,
+        })],
         lemmas: LIFE_LEMMAS,
     }
 }
@@ -143,9 +148,10 @@ pub(in crate::oracle::canonical) fn try_recognize_life_effect_clause(
         }),
         modality: ClauseModality::Indicative,
         tense: ClauseTense::Present,
-        amount: ClauseAmountPolicy::Expression {
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Expression {
             antecedent: bindings.object_antecedent,
-        },
+        })],
         lemmas: LIFE_LEMMAS,
     };
     let Some(clause) = recognize_clause(cursor, &frame).into_result()? else {
@@ -202,7 +208,7 @@ pub(in crate::oracle::canonical) fn try_recognize_life_effect_clause(
             })
         }
         ClauseSubject::Player(player) => player_action(player, amount),
-        ClauseSubject::Supplied | ClauseSubject::Scope { .. } => {
+        ClauseSubject::Supplied | ClauseSubject::Scope { .. } | ClauseSubject::DamageTheme(_) => {
             return Err(cursor.fail("an effect player subject"));
         }
     }))

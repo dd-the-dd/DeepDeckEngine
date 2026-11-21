@@ -16,6 +16,7 @@ use super::{
     ClauseSubjectPolicy, ClauseTense, EffectSubjectContext, EventActorScope, NumericExpression,
     PlayerEffectSubject, TargetPlayerLifeAction, VerbLemma, recognize_clause,
 };
+use super::{ClauseArguments, Voice};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum LifeGainPlayer {
@@ -66,7 +67,8 @@ fn recognize_life_gain_replacement(
         subject: ClauseSubjectPolicy::PlayerScope,
         modality: ClauseModality::Would,
         tense: ClauseTense::Present,
-        amount: ClauseAmountPolicy::Absent,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Absent)],
         lemmas: GAIN,
     };
     let event = recognize_clause(cursor, &event_frame);
@@ -96,7 +98,8 @@ fn recognize_life_gain_replacement(
         }),
         modality: ClauseModality::Indicative,
         tense: ClauseTense::Present,
-        amount: ClauseAmountPolicy::EventQuantity,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::EventQuantity)],
         lemmas: GAIN,
     };
     // The clause head (subject and verb, amount slot not read) is checked
@@ -104,7 +107,8 @@ fn recognize_life_gain_replacement(
     let head = recognize_clause(
         &mut cursor.clone(),
         &ClauseFrame {
-            amount: ClauseAmountPolicy::Gapped,
+            voice: Voice::Active,
+            arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Gapped)],
             ..replacing_frame.clone()
         },
     );

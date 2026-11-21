@@ -11,10 +11,42 @@
 //! are independent attributes shared by every subject.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamageEventKind, EventActorScope, ObjectKind, ObjectQueryNode,
-    recognize_dealt_damage_complement, recognize_object_query_before_separator,
+    EventActorScope, ObjectKind, ObjectQueryNode, recognize_object_query_before_separator,
     try_recognize_event_actor_scope,
 };
+
+/// Which damage an event, pattern or replacement admits (CR 120.2, 510.2).
+/// One modifier type for every damage role.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DamageKind {
+    Any,
+    Combat,
+    Noncombat,
+}
+
+/// The optional `combat` / `noncombat` modifier of the damage noun.
+pub(in crate::oracle::canonical) fn recognize_damage_kind(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DamageKind> {
+    cursor.enter("damage.kind");
+    let kind = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("combat") => DamageKind::Combat,
+        Some("noncombat") => DamageKind::Noncombat,
+        _ => return Ok(DamageKind::Any),
+    };
+    cursor.advance_to(cursor.position() + 1)?;
+    Ok(kind)
+}
+
+/// `[combat|noncombat] damage`.
+pub(in crate::oracle::canonical) fn recognize_dealt_damage_complement(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DamageKind> {
+    let kind = recognize_damage_kind(cursor)?;
+    cursor.enter("event.dealt-damage.noun");
+    cursor.consume("damage")?;
+    Ok(kind)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DamageRecipient {
@@ -24,7 +56,7 @@ pub(in crate::oracle::canonical) enum DamageRecipient {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct DamageDealtComplement {
-    pub kind: DamageEventKind,
+    pub kind: DamageKind,
     /// `None` for `deals damage` without a recipient.
     pub recipient: Option<DamageRecipient>,
 }
@@ -32,7 +64,7 @@ pub(in crate::oracle::canonical) struct DamageDealtComplement {
 impl DamageDealtComplement {
     /// The established `combat damage to a player` shape.
     pub(in crate::oracle::canonical) fn is_combat_damage_to_any_player(&self) -> bool {
-        self.kind == DamageEventKind::Combat
+        self.kind == DamageKind::Combat
             && self.recipient == Some(DamageRecipient::Player(EventActorScope::AnyPlayer))
     }
 }

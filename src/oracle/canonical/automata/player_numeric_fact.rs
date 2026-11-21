@@ -14,6 +14,7 @@ use super::{
     ClauseSubjectPolicy, ClauseTense, EventActorScope, LIFE_LEMMAS, LocalPlayerReference,
     NumericExpression, PlayerNumericFact, TargetPlayerLifeAction, clause_starts, recognize_clause,
 };
+use super::{ClauseArguments, Voice};
 
 const AMOUNT_OF_LIFE: &[&str] = &["the", "amount", "of", "life"];
 const LIFE_TOTAL: &[&str] = &["your", "life", "total"];
@@ -31,7 +32,8 @@ fn relative_life_frame() -> ClauseFrame<'static> {
         subject: ClauseSubjectPolicy::PlayerScope,
         modality: ClauseModality::Indicative,
         tense: ClauseTense::PastThisTurn,
-        amount: ClauseAmountPolicy::Gapped,
+        voice: Voice::Active,
+        arguments: vec![ClauseArguments::Life(ClauseAmountPolicy::Gapped)],
         lemmas: LIFE_LEMMAS,
     }
 }
@@ -63,7 +65,9 @@ pub(in crate::oracle::canonical) fn recognize_player_numeric_fact(
         let clause = recognize_clause(cursor, &relative_life_frame())
             .into_result()?
             .ok_or_else(|| cursor.fail("a past life clause after `the amount of life`"))?;
-        let ClauseAction::LifeTotalChange { direction, .. } = clause.action;
+        let ClauseAction::LifeTotalChange { direction, .. } = clause.action else {
+            return Err(cursor.fail("a life-total change"));
+        };
         cursor.require(
             clause.subject
                 == ClauseSubject::Scope {
