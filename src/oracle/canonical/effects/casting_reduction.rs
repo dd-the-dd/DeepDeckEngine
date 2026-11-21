@@ -44,7 +44,16 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
         CastingReductionSubject::CurrentSpell => {
             let mut modifier = json!({"kind":"reduceOwnGenericCastingCost","amount":amount});
             if let Some(condition) = &node.condition {
-                modifier["condition"] = lower_trigger_guard(condition);
+                cursor.enter("casting-reduction.condition-lowering");
+                modifier["condition"] = lower_sentence_condition(
+                    cursor,
+                    condition,
+                    &ConditionObjectBindings {
+                        permanent_targets: &[],
+                        card_targets: &[],
+                        card_focus: None,
+                    },
+                )?;
             }
             if let Some(query) = &node.target_query {
                 let filter = lower_permanent_object_predicate(&query.predicate);

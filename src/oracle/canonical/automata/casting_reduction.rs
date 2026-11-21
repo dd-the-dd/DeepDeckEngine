@@ -161,9 +161,20 @@ fn read_reduction(
             None
         } else {
             cursor.enter("casting-reduction.condition.boolean-program");
+            // The spell's cost is determined before any effect introduces an
+            // object, so the shared atoms see no sequence antecedent.
+            let effects = EffectRecognitionContext::default();
+            let context = SentenceConditionContext {
+                name_links: &[],
+                name_failure: None,
+                effects: &effects,
+                card_target: None,
+                card_focus: false,
+                departed_targets: &[],
+            };
             Some(recognize_boolean_condition_list_before_separator(
                 cursor,
-                recognize_trigger_guard_atom,
+                |cursor| recognize_sentence_condition_atom(cursor, &context),
             )?)
         }
     } else {

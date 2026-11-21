@@ -28512,10 +28512,6 @@ fn parsed_targeted_sacrifice_is_chosen_by_the_target_opponent() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Dreaded Bat-Cloud; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -28550,6 +28546,9 @@ fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
         "player-0",
     ));
     engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture permanent is admitted");
+    engine
         .move_permanent_to_graveyard("morbid-artifact", "destroyed")
         .expect("the noncreature permanent leaves the battlefield");
     assert_eq!(
@@ -28563,6 +28562,9 @@ fn parsed_morbid_casting_reduction_changes_cost_only_after_a_creature_dies() {
         test_definition("morbid-creature", "Creature - Elf"),
         "player-1",
     ));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture permanent is admitted");
     engine
         .move_permanent_to_graveyard("morbid-creature", "destroyed")
         .expect("the creature dies");
@@ -33125,6 +33127,9 @@ mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/intervening_if_condition_runtime.rs"]
 mod intervening_if_condition_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_quantified_condition_runtime.rs"]
+mod player_quantified_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_combat_restriction_runtime.rs"]
 mod source_combat_restriction_runtime;

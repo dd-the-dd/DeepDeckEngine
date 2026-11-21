@@ -5,8 +5,9 @@ use crate::oracle::{
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalObjectReference, ObjectCardType, recognize_controller_turn_proposition,
-    recognize_source_reference,
+    EffectRecognitionContext, LocalObjectReference, ObjectCardType, SentenceConditionContext,
+    SentenceConditionNode, recognize_boolean_condition_list_before_separator,
+    recognize_sentence_condition_atom, recognize_source_reference,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,11 +29,14 @@ pub(in crate::oracle::canonical) struct SourceEntryStateNode {
     pub condition: Option<SourceEntryConditionNode>,
 }
 
-/// The entry applies only when `it is the controller's turn` equals this
-/// value (`if it's not your turn` and `unless it's your turn` both give false).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The shared sentence condition program of an `if` / `unless` clause. The
+/// replacement applies while the program holds (`if`) or fails (`unless`).
+/// No effect has introduced an object yet, so `it` may denote only what the
+/// shared atoms resolve without a sequence antecedent.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SourceEntryConditionNode {
-    pub applies_during_controller_turn: bool,
+    pub condition: SentenceConditionNode,
+    pub unless: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -207,9 +211,22 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_state(
                     "a conditional clause only on the `tapped` entering state",
                 )?;
                 cursor.consume(if unless { "unless" } else { "if" })?;
-                let proposition = recognize_controller_turn_proposition(cursor)?;
+                let effects = EffectRecognitionContext::default();
+                let context = SentenceConditionContext {
+                    name_links,
+                    name_failure,
+                    effects: &effects,
+                    card_target: None,
+                    card_focus: false,
+                    departed_targets: &[],
+                };
+                let program =
+                    recognize_boolean_condition_list_before_separator(cursor, |cursor| {
+                        recognize_sentence_condition_atom(cursor, &context)
+                    })?;
                 condition = Some(SourceEntryConditionNode {
-                    applies_during_controller_turn: proposition.is_controller_turn != unless,
+                    condition: program,
+                    unless,
                 });
                 SourceEntryMachineState::Terminator
             }
