@@ -104,6 +104,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect
                     .get("trackedObject")
                     .is_none_or(target_reference_supported)
+                && effect.get("turnOf").is_none_or(player_reference_supported)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
@@ -554,9 +555,21 @@ impl GameEngine {
                 } else {
                     None
                 };
+                // `your next STEP` (CR 603.7): only that player's step wakes it.
+                let turn_player_id = match effect.get("turnOf") {
+                    Some(player) => {
+                        let Some(player_id) = self.resolve_player(player, stack_object, bindings)
+                        else {
+                            return Ok(());
+                        };
+                        Some(player_id)
+                    }
+                    None => None,
+                };
                 let modifier = json!({
                     "kind": "delayedStepTrigger",
                     "step": effect["step"],
+                    "turnPlayerId": turn_player_id,
                     "controllerId": controller_id,
                     "effects": delayed_effects,
                     "sourceCard": stack_object.card,

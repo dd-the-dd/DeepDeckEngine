@@ -50,6 +50,7 @@ mod graveyard_characteristic;
 mod graveyard_destination;
 mod named_token_creation;
 mod program_resolution;
+mod rebound;
 mod sacrifice;
 mod sentence_condition;
 mod static_condition;
@@ -73,7 +74,6 @@ mod landfall_reflexive_counter;
 mod library_partition;
 mod library_search_move;
 mod library_search_partition;
-mod linked_entry_exile;
 mod linked_exile_return;
 mod loyalty_ability;
 
@@ -194,6 +194,7 @@ pub(super) use graveyard_characteristic::*;
 pub(super) use graveyard_destination::*;
 pub(super) use named_token_creation::*;
 pub(super) use program_resolution::*;
+pub(super) use rebound::*;
 pub(super) use sacrifice::*;
 pub(super) use zone_prohibition::*;
 
@@ -212,7 +213,6 @@ pub(super) use landfall_reflexive_counter::*;
 pub(super) use library_partition::*;
 pub(super) use library_search_move::*;
 pub(super) use library_search_partition::*;
-pub(super) use linked_entry_exile::*;
 pub(super) use linked_exile_return::*;
 pub(super) use loyalty_ability::*;
 

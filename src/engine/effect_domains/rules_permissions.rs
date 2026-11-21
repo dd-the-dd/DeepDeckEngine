@@ -71,9 +71,12 @@ fn supports_known_effect(effect: &Value) -> bool {
             (target_reference_supported(&effect["permanent"])
                 || object_expression_supported(&effect["permanent"]))
                 && player_reference_supported(&effect["controller"])
-                && effect
-                    .get("duration")
-                    .is_none_or(|duration| value_kind(duration) == Some("untilEndOfCurrentTurn"))
+                && effect.get("duration").is_none_or(|duration| {
+                    matches!(
+                        value_kind(duration),
+                        Some("untilEndOfCurrentTurn" | "whileSourceControlled")
+                    )
+                })
         }
         Some("exchangeControl") => {
             value_kind(&effect["objects"]) == Some("chosenTargets")
@@ -247,6 +250,21 @@ impl GameEngine {
                             })
                     })
                     .unwrap_or_default();
+                // CR 611.2b: `for as long as you control SOURCE` never starts
+                // unless that same source object is controlled now.
+                let while_source_controlled =
+                    value_kind(&effect["duration"]) == Some("whileSourceControlled");
+                if while_source_controlled
+                    && !(self.linked_source_is_same_battlefield_object(&stack_object.card)
+                        && self
+                            .permanent_position(&stack_object.card.instance_id)
+                            .is_some_and(|(player_index, card_index)| {
+                                self.state.players[player_index].battlefield[card_index].controller
+                                    == controller_id
+                            }))
+                {
+                    return Ok(());
+                }
                 for instance_id in instance_ids {
                     let original_controller =
                         self.permanent_position(&instance_id)
@@ -261,6 +279,19 @@ impl GameEngine {
                     {
                         let temporary =
                             value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
+                        if while_source_controlled
+                            && let Some(original_controller) = original_controller.clone()
+                            && original_controller != controller_id
+                        {
+                            self.state.rule_modifiers.push(json!({
+                                "kind": "controlWhileSourceControlled",
+                                "sourceCardInstanceId": stack_object.card.instance_id,
+                                "sourceIdentity": Self::tracked_zone_identity(&stack_object.card),
+                                "sourceController": controller_id,
+                                "targetCardInstanceId": instance_id,
+                                "originalController": original_controller,
+                            }));
+                        }
                         if temporary
                             && let Some(original_controller) = original_controller
                             && original_controller != controller_id

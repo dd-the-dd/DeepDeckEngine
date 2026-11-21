@@ -1,0 +1,239 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/linked-durations-and-delayed-frames",
+  "cases": [
+    {
+      "id": "exact-silkwrap-until-source-leaves",
+      "request": {
+        "cardName": "Silkwrap",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this enchantment enters, exile target creature with mana value 3 or less an opponent controls until this enchantment leaves the battlefield. (That creature returns under its owner's control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/0/until/kind",
+                "equals": "sourceLeavesBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flickerwisp-delayed-return",
+      "request": {
+        "cardName": "Flickerwisp",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Flying\nWhen this creature enters, exile another target permanent. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/step",
+                "equals": "endStep"
+              },
+              {
+                "pointer": "/effects/1/captureBindings/0",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "moveCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-shock-brigade-mobilize-one",
+      "request": {
+        "cardName": "Shock Brigade",
+        "typeLine": "Creature — Goblin Soldier",
+        "manaCost": "{1}{R}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nMobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "sacrificePermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-generic-linked-exile",
+      "request": {
+        "cardName": "Retired Native Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "When this enchantment enters, exile target creature until this enchantment leaves the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/until/kind",
+                "equals": "sourceLeavesBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-preposed-controller-upkeep",
+      "request": {
+        "cardName": "Test Slow Return",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Exile target creature. At the beginning of your next upkeep, return that card to the battlefield under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/step",
+                "equals": "upkeep"
+              },
+              {
+                "pointer": "/effects/1/turnOf/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-delayed-declared-target",
+      "request": {
+        "cardName": "Test Late Removal",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Draw a card. Destroy target creature at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.delayed.object-references"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-until-other-zone",
+      "request": {
+        "cardName": "Test Broken Seal",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "When this enchantment enters, exile target creature until this enchantment leaves your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "zone-change.until.zone"
+          }
+        ]
+      }
+    }
+  ]
+}

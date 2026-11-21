@@ -45,7 +45,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Value {
         EffectDurationNode::UntilEndOfCurrentTurn => {
             json!({ "kind": "untilEndOfCurrentTurn" })
         }
-        EffectDurationNode::UntilEndOfNextTurn { .. } => {
+        EffectDurationNode::UntilEndOfNextTurn { .. }
+        | EffectDurationNode::WhileSourceControlled => {
             unreachable!("protected-attack grammar reads only the continuous-effect durations")
         }
     }
