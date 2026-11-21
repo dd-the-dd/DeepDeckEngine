@@ -190,15 +190,29 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     // only. Without an outcome connector, a later sentence is an independent
     // program step that runs whether or not the permission was used (CR
     // 608.2c). A conditional or another permission inside the same sentence
-    // has no enclosing frame here and stays unsupported.
+    // has no enclosing frame here and stays unsupported. Reminder text and
+    // quoted abilities are nested scopes (CR 207.2a, 113.1): their own `if`
+    // or `may` is not a second frame of this sentence. The body reader still
+    // reads and validates every reminder it owns.
     cursor.enter("program.optional.scope");
     let body_end = sentence_end_with_reminders(cursor);
     let mut offset = 0;
+    let mut depth = 0_usize;
+    let mut quoted = false;
     while cursor.position() + offset < body_end {
         let Some(raw) = cursor.peek_ahead(offset) else {
             break;
         };
-        if raw.eq_ignore_ascii_case("if") || raw.eq_ignore_ascii_case("may") {
+        match raw {
+            "\"" => quoted = !quoted,
+            "(" if !quoted => depth += 1,
+            ")" if !quoted => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+        if depth == 0
+            && !quoted
+            && (raw.eq_ignore_ascii_case("if") || raw.eq_ignore_ascii_case("may"))
+        {
             cursor.advance_to(cursor.position() + offset)?;
             return Err(cursor
                 .fail("one optional sentence without an inner conditional or second permission"));
@@ -483,3 +497,7 @@ fn sentence_end_with_reminders(cursor: &OracleTokenCursor<'_>) -> usize {
 #[cfg(test)]
 #[path = "effect_program_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "effect_program_reminder_scope_tests.rs"]
+mod reminder_scope_tests;
