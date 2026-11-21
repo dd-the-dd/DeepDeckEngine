@@ -321,6 +321,9 @@ mod league_regression_concepts_tests;
 #[path = "player_permission_selection_tests.rs"]
 mod player_permission_selection_tests;
 #[cfg(test)]
+#[path = "quantity_result_reuse_tests.rs"]
+mod quantity_result_reuse_tests;
+#[cfg(test)]
 #[path = "regenerate_tests.rs"]
 mod regenerate_tests;
 #[cfg(test)]

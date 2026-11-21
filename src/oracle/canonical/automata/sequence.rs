@@ -1435,7 +1435,33 @@ fn recognize_effect_sequence_attempt_internal(
                         // The introducer is structural: the count child owns
                         // the countable, this frame owns which action it scales.
                         attempt_frame.commit();
-                        let count = recognize_for_each_count(cursor)?;
+                        let restates_result = {
+                            let mut countable = cursor.clone();
+                            countable.advance_to(countable.position() + 2).is_ok()
+                                && super::action_result_reference_starts(&countable)
+                        };
+                        let count = if restates_result {
+                            // CR 608.2c: `OBJECTS VERBed this way` counts what an
+                            // earlier action of this program affected; this frame
+                            // owns the earlier actions, so it resolves which.
+                            cursor.enter("sequence.for-each.action-result");
+                            cursor.consume_phrase(&["for", "each"])?;
+                            let reference = super::recognize_action_result_reference(cursor)?;
+                            cursor.enter("sequence.for-each.action-result.antecedent");
+                            let (effect_index, filter) = cursor.require_value(
+                                super::resolve_action_result_antecedent(
+                                    &memory.effects,
+                                    &reference,
+                                ),
+                                "an earlier action of this program whose affected objects the phrase restates",
+                            )?;
+                            super::NumericExpression::ActionResultCount {
+                                effect_index,
+                                filter,
+                            }
+                        } else {
+                            recognize_for_each_count(cursor)?
+                        };
                         cursor.enter("sequence.for-each.action");
                         let scaled = memory
                             .effects

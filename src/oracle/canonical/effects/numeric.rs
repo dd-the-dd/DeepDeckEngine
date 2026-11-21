@@ -33,6 +33,12 @@ pub(in crate::oracle::canonical) fn sacrificed_cost_object_binding(
     }
 }
 
+/// Compiler-assigned identifier of the objects action `effect_index` of a
+/// program affected. The program lowering installs it as that action's `bind`.
+pub(in crate::oracle::canonical) fn action_result_binding(effect_index: usize) -> String {
+    format!("actionResult:{effect_index}")
+}
+
 /// Lowers expressions that do not require a target-property binding. The
 /// caller retains ownership of binding-aware forms such as `PowerOf`.
 pub(in crate::oracle::canonical) fn lower_numeric_expression(
@@ -125,7 +131,7 @@ fn lower_numeric_expression_in_context(
         NumericExpression::Atom(atom) => Some(lower_numeric_atom(atom.clone())),
         NumericExpression::CountQuery(query) => match query_support {
             NumericQueryLoweringSupport::CastingCost => lower_scoped_object_query_count(query),
-            NumericQueryLoweringSupport::Unavailable => None,
+            NumericQueryLoweringSupport::Unavailable => lower_scoped_object_query_amount(query),
         },
         NumericExpression::ObjectProperty {
             object: LocalObjectReference::SourceSelf,
@@ -184,6 +190,26 @@ fn lower_numeric_expression_in_context(
             "where": Value::Null,
         })),
         NumericExpression::CardsInZone { .. } => None,
+        NumericExpression::ActionResultCount {
+            effect_index,
+            filter,
+        } => {
+            let bound = json!({
+                "kind": "boundObjects",
+                "binding": action_result_binding(*effect_index),
+            });
+            Some(json!({
+                "kind": "countObjects",
+                "objects": match filter {
+                    ActionResultFilter::All => bound,
+                    ActionResultFilter::Cards(predicate) => json!({
+                        "kind": "filterObjects",
+                        "objects": bound,
+                        "where": lower_card_object_predicate(predicate),
+                    }),
+                },
+            }))
+        }
         NumericExpression::PlayerFact {
             player: LocalPlayerReference::Controller,
             fact,
