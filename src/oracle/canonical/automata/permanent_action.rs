@@ -40,9 +40,14 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
+    let bare = context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive;
     if let Some(reference) = context.verb_chain_subject
         && cursor.peek().is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("gains") || raw.eq_ignore_ascii_case("becomes")
+            if bare {
+                raw.eq_ignore_ascii_case("gain")
+            } else {
+                raw.eq_ignore_ascii_case("gains") || raw.eq_ignore_ascii_case("becomes")
+            }
         })
     {
         return recognize_verb_chain_action(cursor, reference, context);
@@ -65,10 +70,13 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let Some(action) = subject_end.peek_ahead(action_offset) else {
         return PermanentActionAttempt::NotClaimed;
     };
-    let keyword = action.eq_ignore_ascii_case("gain") || action.eq_ignore_ascii_case("gains");
+    // A causative subject takes the bare verb (`have target creature get`);
+    // the finite frame keeps both numbers (`it gets`, `creatures ... get`).
+    let keyword =
+        action.eq_ignore_ascii_case("gain") || (!bare && action.eq_ignore_ascii_case("gains"));
     let stats = action_offset == 0
-        && (action.eq_ignore_ascii_case("get") || action.eq_ignore_ascii_case("gets"));
-    let becomes = action_offset == 0 && action.eq_ignore_ascii_case("becomes");
+        && (action.eq_ignore_ascii_case("get") || (!bare && action.eq_ignore_ascii_case("gets")));
+    let becomes = action_offset == 0 && !bare && action.eq_ignore_ascii_case("becomes");
     if !keyword && !stats && !becomes {
         return PermanentActionAttempt::NotClaimed;
     }

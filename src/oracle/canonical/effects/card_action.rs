@@ -10,6 +10,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// The zone holding the observed cards when the producing action proves
     /// it (drawn cards are in hand). Readers needing a zone require it.
     view_zone: Option<CardZoneName>,
+    /// The view is a whole zone named by a singular noun (`their hand`), so
+    /// `from it` may name the collection, not one card.
+    view_zone_noun: bool,
     selected: Vec<Value>,
     complement_basis: Option<(Value, Option<i64>)>,
     complement_exclusions: Vec<Value>,
@@ -78,6 +81,7 @@ impl CardCollectionMemory {
         self.view_maximum = snapshot.view_maximum;
         self.view_verb = snapshot.view_verb;
         self.view_zone = snapshot.view_zone;
+        self.view_zone_noun = snapshot.view_zone_noun;
         self.selected = snapshot.selected.clone();
         self.complement_basis = snapshot.complement_basis.clone();
         self.complement_exclusions = snapshot.complement_exclusions.clone();
@@ -92,6 +96,7 @@ impl CardCollectionMemory {
             && self.view_maximum == other.view_maximum
             && self.view_verb == other.view_verb
             && self.view_zone == other.view_zone
+            && self.view_zone_noun == other.view_zone_noun
             && self.selected == other.selected
             && self.complement_basis == other.complement_basis
             && self.complement_exclusions == other.complement_exclusions
@@ -108,9 +113,35 @@ impl CardCollectionMemory {
         self.view_maximum = None;
         self.view_verb = None;
         self.view_zone = None;
+        self.view_zone_noun = false;
         self.singular_focus = None;
         self.plural_focus = None;
         self.removed_up_to_size = 0;
+    }
+
+    /// A player's revealed hand (CR 701.20a) is the observed collection: its
+    /// identities are fixed when revealed (CR 608.2c), and `from it` names
+    /// the whole hand. Returns the binding that records those cards.
+    pub(in crate::oracle::canonical) fn observe_revealed_hand(&mut self) -> String {
+        let id = fresh("revealedHand", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        self.observe(&id, None);
+        self.view_verb = Some(CardCollectionVerb::Revealed);
+        self.view_zone = Some(CardZoneName::Hand);
+        self.view_zone_noun = true;
+        id
+    }
+
+    /// The cards a lexical reference (`that card`, `them`) names for an action
+    /// performed by another lowering family, such as a player's discard.
+    pub(in crate::oracle::canonical) fn referenced_cards(
+        &mut self,
+        cursor: &OracleTokenCursor<'_>,
+        reference: CardCollectionReferenceNode,
+    ) -> MachineResult<Value> {
+        let value = self.reference(cursor, reference)?;
+        self.mention(value.clone());
+        Ok(value.0)
     }
 
     /// The cards a controller draw just put into hand become the observed
@@ -165,6 +196,16 @@ impl CardCollectionMemory {
                 .singular_focus
                 .clone()
                 .ok_or_else(|| cursor.fail("a singular card antecedent in the current scope")),
+            CardCollectionReferenceNode::Zone => {
+                cursor.require(
+                    self.view_zone_noun,
+                    "an observed zone named by a singular noun (a revealed hand) for `from it`",
+                )?;
+                Ok((
+                    self.view.clone().expect("checked observed collection"),
+                    self.view_maximum,
+                ))
+            }
             CardCollectionReferenceNode::Remainder | CardCollectionReferenceNode::Other => {
                 cursor.require(
                     !self.complement_exclusions.is_empty(),
@@ -454,9 +495,12 @@ impl CardCollectionMemory {
             self.complement_exclusions.clear();
             self.removed_up_to_size = 0;
         }
+        // A bare `card` noun is the domain itself and filters nothing; any
+        // other predicate keeps its lowering, never silently dropped.
         let predicate = selection
             .predicate
             .as_ref()
+            .filter(|predicate| **predicate != ObjectPredicate::ObjectKind(ObjectKind::Card))
             .map(lower_card_object_predicate);
         if let CardSelectionQuantityNode::All { via } = &selection.quantity {
             // No player choice: the selected set is the filtered view itself,
@@ -679,6 +723,18 @@ impl CardCollectionMemory {
                 self.selected.push(matching.clone());
                 self.complement_exclusions.push(matching.clone());
                 self.mention((matching, maximum));
+            }
+            CardActionNode::Choose(selection) => {
+                cursor.enter("lower.card-action.choose");
+                // The choice itself is the action: the operand child emits
+                // `chooseCards` and records its result as the antecedent.
+                self.operand(
+                    cursor,
+                    &CardOperandNode::Selection(selection.clone()),
+                    declarations,
+                    &mut effects,
+                    target_decisions,
+                )?;
             }
             CardActionNode::Shuffle { owner } => {
                 cursor.enter("lower.card-action.shuffle");

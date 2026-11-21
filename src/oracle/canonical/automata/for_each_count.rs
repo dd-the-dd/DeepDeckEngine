@@ -251,7 +251,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             SingularPlayerAction::Life(life) => &mut life.amount,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
-            | SingularPlayerAction::Venture(_) => return false,
+            | SingularPlayerAction::Venture(_)
+            | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,
     };

@@ -40,6 +40,7 @@ mod cast_prohibition;
 mod cast_quota;
 mod casting_permission;
 mod casting_reduction;
+mod causative;
 mod characteristic;
 mod choose_instruction;
 mod chosen_card_name;
@@ -269,6 +270,7 @@ pub(super) use cast_prohibition::*;
 pub(super) use cast_quota::*;
 pub(super) use casting_permission::*;
 pub(super) use casting_reduction::*;
+pub(in crate::oracle::canonical) use causative::causative_action_starts;
 pub(super) use characteristic::*;
 pub(super) use choose_instruction::*;
 pub(super) use chosen_card_name::*;
@@ -564,6 +566,23 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// damage), so `that player` without a local antecedent denotes it.
     /// Set only by the trigger parent from its typed event.
     pub event_player: bool,
+    /// Agreement of the verb that follows an explicit subject. The sequence
+    /// sets `BareInfinitive` after a causative `have` (`you may have target
+    /// player lose 3 life`); every subject-verb frame then reads its own verb
+    /// in the bare form instead of the finite one.
+    pub subject_verb_agreement: SubjectVerbAgreement,
+}
+
+/// Surface agreement of an action verb with its explicit grammatical subject.
+/// The action and its arguments are the same; only the verb form differs.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SubjectVerbAgreement {
+    /// `target player loses`, `it deals`, `creatures you control get`.
+    #[default]
+    Finite,
+    /// The bare infinitive after a causative verb: `have target player lose`,
+    /// `have it deal`.
+    BareInfinitive,
 }
 
 /// Only a parent whose actions are lowered by the shared sequence lowering,

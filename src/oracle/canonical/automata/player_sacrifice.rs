@@ -23,11 +23,18 @@ pub(in crate::oracle::canonical) struct PlayerSacrificeActionNode {
 pub(in crate::oracle::canonical::automata) fn recognize_player_sacrifice_action(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PlayerSacrificeActionNode> {
-    let action = recognize_sacrifice_action_with_form(
-        cursor,
-        DiscardVerbForm::ThirdPersonSingular,
-        |cursor| recognize_selected_sacrifice_operand(cursor, SacrificeOperandOwner::ActingPlayer),
-    )?;
+    recognize_player_sacrifice_action_with_form(cursor, DiscardVerbForm::ThirdPersonSingular)
+}
+
+/// The same action tail with the verb form chosen by the subject's frame:
+/// finite `sacrifices`, or the bare `sacrifice` after a causative `have`.
+pub(in crate::oracle::canonical::automata) fn recognize_player_sacrifice_action_with_form(
+    cursor: &mut OracleTokenCursor<'_>,
+    verb_form: DiscardVerbForm,
+) -> MachineResult<PlayerSacrificeActionNode> {
+    let action = recognize_sacrifice_action_with_form(cursor, verb_form, |cursor| {
+        recognize_selected_sacrifice_operand(cursor, SacrificeOperandOwner::ActingPlayer)
+    })?;
     cursor.enter("player-sacrifice.chooser");
     let explicit_choice = recognize_acting_player_choice_marker(cursor)?;
     let SacrificeEffectNode::Selected { object, count } = action.operand else {

@@ -215,7 +215,9 @@ fn quantified_list_near_misses_stay_explicit_failures() {
     for text in [
         "When this creature dies, each player sacrifices a creature and loses.",
         "When this creature dies, each opponent discards a card and sings a song.",
-        "When this creature dies, each player sacrifices a creature, then loses 2 life.",
+        // `, then VERB` continues the same subject's list (Smallpox); an
+        // unrepresented verb after it still fails explicitly.
+        "When this creature dies, each player sacrifices a creature, then sings a song.",
     ] {
         assert!(parse(text).is_err(), "{text}");
     }

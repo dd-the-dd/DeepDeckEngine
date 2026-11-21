@@ -4,7 +4,7 @@ use super::card_collection_operand::{
 };
 use super::{
     NumericExpression, ObjectKind, ObjectPredicate, RecognizedEffectFragment,
-    recognize_numeric_expression, recognize_object_query_before_separator,
+    recognize_numeric_expression, recognize_object_query_before_cost_separator,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,6 +86,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
         trial.enter("collection.selection.predicate-or-source");
         let mut quantity = quantity;
         let mut this_way_source = false;
+        let mut zone_source = false;
         let predicate = if matches!(quantity, CardSelectionQuantityNode::All { .. })
             && trial
                 .peek()
@@ -108,7 +109,9 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             committed = true;
             None
         } else {
-            let query = recognize_object_query_before_separator(&mut trial)?;
+            // A comma continues a coordinated type list (`an artifact,
+            // instant, or sorcery card`); any other comma is the parent's.
+            let query = recognize_object_query_before_cost_separator(&mut trial)?;
             trial.require(
                 query.controller.is_none(),
                 "an unscoped predicate over the bound card collection",
@@ -128,12 +131,30 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 quantity = CardSelectionQuantityNode::All {
                     via: Some(recognize_this_way_verb(&mut trial)?),
                 };
+            } else if trial
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
+                && trial
+                    .peek_ahead(1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+            {
+                // `from it`: the pronoun names a collection only through a
+                // singular zone noun (`their hand`); the lowerer proves it.
+                trial.consume_phrase(&["from", "it"])?;
+                zone_source = true;
             } else {
                 trial.consume_phrase(&["from", "among"])?;
             }
             committed = true;
             Some(query.predicate)
         };
+        if zone_source {
+            return Ok(CardSelectionOperandNode {
+                quantity,
+                predicate,
+                from: CardCollectionReferenceNode::Zone,
+            });
+        }
         if this_way_source {
             // `VERBed this way` restates the antecedent scope itself.
             return Ok(CardSelectionOperandNode {
