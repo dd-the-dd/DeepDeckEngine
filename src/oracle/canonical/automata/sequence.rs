@@ -1314,12 +1314,29 @@ fn recognize_effect_sequence_attempt_internal(
                             // action and is validated against its object.
                             super::recognize_regenerate_reminder(cursor, &regenerate.targets)?;
                         }
+                        // Only an `(Activate ...)` parenthetical is an
+                        // activation annotation; any other one is reminder text.
+                        let activation_annotation_follows = stop_before_activation_annotation
+                            && cursor.peek() == Some("(")
+                            && cursor
+                                .peek_ahead(1)
+                                .is_some_and(|raw| raw.eq_ignore_ascii_case("activate"));
+                        // `manifest dread` restates its own look in its
+                        // reminder (CR 701.62a); a library-look reminder is
+                        // otherwise owned by the scry/surveil validation above.
+                        let reminder_owned_by_action = matches!(
+                            memory.effects.last(),
+                            Some(LocalEffectNode::ControllerKeywordAction(
+                                super::ControllerKeywordActionNode {
+                                    action: super::ControllerKeywordAction::ManifestDread,
+                                    ..
+                                }
+                            ))
+                        );
                         if cursor.peek() == Some("(")
-                            && (!stop_before_activation_annotation
-                                || !cursor
-                                    .peek_ahead(1)
-                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("activate")))
-                            && !library_look_reminder_starts_at(cursor)
+                            && !activation_annotation_follows
+                            && (reminder_owned_by_action
+                                || !library_look_reminder_starts_at(cursor))
                         {
                             // CR 207.2: reminder text has no rules meaning.
                             // Typed reminders above keep their validation;
@@ -1341,7 +1358,11 @@ fn recognize_effect_sequence_attempt_internal(
                                 .peek_ahead(2)
                                 .is_some_and(|raw| raw.eq_ignore_ascii_case("costs"));
                         if at_activation_reduction
-                            || (stop_before_activation_annotation && cursor.peek() == Some("("))
+                            || (stop_before_activation_annotation
+                                && cursor.peek() == Some("(")
+                                && cursor
+                                    .peek_ahead(1)
+                                    .is_some_and(|raw| raw.eq_ignore_ascii_case("activate")))
                         {
                             SequenceState::Complete
                         } else if (context.ability_restriction_owner
@@ -1574,6 +1595,40 @@ fn recognize_effect(
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("discard")))
     {
         return super::recognize_ordinary_player_discard(cursor).map(LocalEffectNode::DiscardCards);
+    }
+
+    // Keyword actions (CR 701) are ordinary verbs: the verb owns the claim and
+    // its operand comes from the shared permanent operand or numeric grammar.
+    if cursor.peek().is_some_and(|raw| {
+        super::PermanentKeywordAction::from_imperative_object_verb(raw).is_some()
+    }) {
+        return super::recognize_imperative_permanent_keyword_action(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )
+        .map(LocalEffectNode::PermanentKeywordAction);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| super::PermanentKeywordAction::from_self_quantity_verb(raw).is_some())
+    {
+        return super::recognize_self_quantity_keyword_action(cursor, antecedent, context)
+            .map(LocalEffectNode::PermanentKeywordAction);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| super::ControllerKeywordAction::from_imperative_verb(raw).is_some())
+    {
+        return super::recognize_controller_keyword_action(cursor, antecedent)
+            .map(LocalEffectNode::ControllerKeywordAction);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("support"))
+    {
+        return super::recognize_support_action(cursor, context).map(LocalEffectNode::PutCounters);
     }
 
     match try_recognize_temporary_player_permission(cursor) {

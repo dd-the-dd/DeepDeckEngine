@@ -918,9 +918,20 @@ fn lower_local_effect_sequence_with_collections(
                 }));
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
+                let quantity = match &keyword_action.quantity {
+                    Some(quantity) => Some(lower_sequence_bound_amount(
+                        cursor,
+                        quantity,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?),
+                    None => None,
+                };
                 cursor.enter(match keyword_action.action {
                     PermanentKeywordAction::Regenerate => "lower.regenerate.object",
                     PermanentKeywordAction::Goad => "lower.goad.object",
+                    _ => "lower.keyword-action.object",
                 });
                 let objects = lower_ordinary_permanent_subject(
                     cursor,
@@ -932,12 +943,50 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
-                for object in objects {
-                    effects.push(lower_permanent_keyword_action(
-                        keyword_action.action,
-                        object,
-                    ));
+                for (ordinal, object) in objects.into_iter().enumerate() {
+                    let scope = format!(
+                        "effect{effect_index}:{}{ordinal}",
+                        keyword_action.action.name()
+                    );
+                    effects.extend(
+                        lower_permanent_keyword_action(
+                            keyword_action.action,
+                            object,
+                            quantity.clone(),
+                            &scope,
+                        )
+                        .map_err(|expected| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(&expected),
+                            )
+                        })?,
+                    );
                 }
+            }
+            LocalEffectNode::ControllerKeywordAction(keyword_action) => {
+                let quantity = match &keyword_action.quantity {
+                    Some(quantity) => Some(lower_sequence_bound_amount(
+                        cursor,
+                        quantity,
+                        sequence,
+                        &target_bindings,
+                        context,
+                    )?),
+                    None => None,
+                };
+                cursor.enter("lower.keyword-action.controller");
+                effects.extend(
+                    lower_controller_keyword_action(
+                        keyword_action.action,
+                        quantity,
+                        &format!("effect{effect_index}"),
+                    )
+                    .map_err(|expected| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail(&expected),
+                        )
+                    })?,
+                );
             }
             LocalEffectNode::Attach(attach) => {
                 cursor.enter("lower.attach.attachment");
@@ -2258,18 +2307,6 @@ fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: 
 }
 
 /// One primitive per keyword action over its lowered permanent operand.
-pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
-    action: PermanentKeywordAction,
-    object: Value,
-) -> Value {
-    match action {
-        PermanentKeywordAction::Regenerate => lower_regeneration_shield(object),
-        // CR 701.38a: the ability controller goads; the designation lasts
-        // until that player's next turn (engine `goaded` modifier).
-        PermanentKeywordAction::Goad => json!({"kind": "goadPermanents", "objects": object}),
-    }
-}
-
 pub(in crate::oracle::canonical) fn lower_regeneration_shield(object: Value) -> Value {
     let duration = json!({"kind": "untilEndOfCurrentTurn"});
     match object["kind"].as_str() {
