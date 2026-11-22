@@ -10000,12 +10000,15 @@ impl GameEngine {
                     _ => return None,
                 };
                 let player_index = self.player_index(controller_id).ok()?;
+                // CR 700.5: each mana symbol of that color in the mana costs
+                // of the player's permanents (a hybrid symbol counts for each
+                // of its colors); not the number of permanents of the color.
                 Some(
                     self.state.players[player_index]
                         .battlefield
                         .iter()
-                        .flat_map(|card| card_color_symbols(&card.definition))
-                        .filter(|candidate| candidate == symbol)
+                        .flat_map(|card| parse_mana_symbols(&card.definition.mana_cost))
+                        .filter(|mana| mana.split('/').any(|part| part == symbol))
                         .count() as i32,
                 )
             }
@@ -32143,6 +32146,11 @@ impl GameEngine {
                 | "countOpponentsDealtDamageThisTurn"
                 | "countOpponentsAttackedThisCombat",
             ) => self.numeric_expression(expression, &stack_object.controller),
+            // CR 700.5: the devotion of the player the expression names.
+            Some("devotion") => {
+                let player = self.resolve_player(&expression["player"], stack_object, bindings)?;
+                self.numeric_expression(expression, &player)
+            }
             Some("sourceCastXValue") => {
                 self.source_cast_x_value(&stack_object.card.instance_id, decisions)
             }

@@ -123,6 +123,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
+        | NumericExpression::Devotion(_)
         | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::Add { .. }
         | NumericExpression::Subtract { .. }

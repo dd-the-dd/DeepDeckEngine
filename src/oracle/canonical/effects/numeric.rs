@@ -177,6 +177,11 @@ fn lower_numeric_expression_in_context(
             "reader": reader_effect,
             "quantity": quantity.ir_name(),
         })),
+        NumericExpression::Devotion(color) => Some(json!({
+            "kind": "devotion",
+            "player": controller(),
+            "color": canonical_color_name(*color),
+        })),
         NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisCombat) => {
             Some(json!({ "kind": "countOpponentsAttackedThisCombat", "player": controller() }))
         }
