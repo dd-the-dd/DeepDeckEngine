@@ -137,6 +137,21 @@ définition compilée ne publie pas d'événement du seul fait du mot-clé.
 
 ## Migration des programmes natifs
 
-`abilities/parameterized_keyword_native.rs` reste pour les mots-clés dont la
-définition ne compile pas encore à l'identique ou dont le moteur possède une
-règle intrinsèque. Voir l'état courant plus bas.
+Une ligne remplace un programme natif seulement si la définition compilée
+donne une IR exécutable équivalente, prouvée par test.
+
+| Mot-clé | Décision | Preuve / raison |
+|---|---|---|
+| Bushido (702.45a) | migré | IR identique à l'ancien programme natif (`keyword_template_fsm.rs`), tests runtime de blocage existants |
+| Living weapon (702.92a) | migré | IR identique ; `faceSubtype: Equipment` conserve le refus d'une face non-Équipement |
+| Afterlife (702.135a) | migré, correction assumée | la CR dit « put into a graveyard from the battlefield » : `permanentLeftBattlefield` vers le cimetière au lieu de `permanentDied` (créature seulement). Même comportement pour une créature (preuve runtime : deux Esprits volants à la destruction) ; correct aussi pour un permanent non-créature |
+| Soulshift (702.46a) | migré, même correction | même événement que la définition CR |
+| Toxic (702.164) | natif | pas de définition « means » : capacité statique dont la règle est intrinsèque (CR 702.164c, 120.3) |
+| Annihilator (702.86a) | natif | la définition compile en un déclencheur différent du mot-clé intrinsèque `annihilator` du moteur ; équivalence non prouvée |
+| Afflict (702.130a) | natif | `defending player` après `becomes blocked` non lié (`player-subject.defending-player`) |
+| Riot (702.136a) | natif | choix d'entrée « If you don't, it gains haste » (`ability-frame.entry-replacement.modification`) |
+| Echo (702.30a) | natif | condition « came under your control since the beginning of your last upkeep » (`condition.sentence.object.verb`) |
+| Cumulative upkeep (702.24a) | natif | paiement « for each age counter » (`selector.predicate.start`) |
+| Buyback, Evoke, Offspring | natifs | cadres de coût additionnel/alternatif à la permission (`ability-frame.permission.action`, `effect.start`) |
+| Affinity (702.41a) | natif | IR identique pour « artifacts », mais « for each [text] » exige le singulier de la qualité imprimée ; le nœud typé natif l'évite |
+| Cascade (`keyword_programs.rs`) | natif | programme moteur paramétré par la valeur de mana capturée au lancement, pas un texte Oracle |

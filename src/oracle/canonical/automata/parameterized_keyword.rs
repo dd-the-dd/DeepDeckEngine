@@ -35,20 +35,12 @@ pub(in crate::oracle::canonical) enum ParameterizedKeyword {
     Echo,
     /// CR 702.41: affinity for [quality].
     Affinity,
-    /// CR 702.45: bushido N.
-    Bushido,
-    /// CR 702.46: soulshift N.
-    Soulshift,
     /// CR 702.74: evoke [cost].
     Evoke,
     /// CR 702.86: annihilator N.
     Annihilator,
-    /// CR 702.92: living weapon.
-    LivingWeapon,
     /// CR 702.130: afflict N.
     Afflict,
-    /// CR 702.135: afterlife N.
-    Afterlife,
     /// CR 702.136: riot.
     Riot,
     /// CR 702.164: toxic N.
@@ -94,18 +86,8 @@ const KEYWORDS: &[KeywordEntry] = &[
         parameter: ParameterKind::Quality,
     },
     KeywordEntry {
-        keyword: ParameterizedKeyword::Bushido,
-        lexeme: &["bushido"],
-        parameter: ParameterKind::Count,
-    },
-    KeywordEntry {
         keyword: ParameterizedKeyword::Afflict,
         lexeme: &["afflict"],
-        parameter: ParameterKind::Count,
-    },
-    KeywordEntry {
-        keyword: ParameterizedKeyword::Soulshift,
-        lexeme: &["soulshift"],
         parameter: ParameterKind::Count,
     },
     KeywordEntry {
@@ -116,16 +98,6 @@ const KEYWORDS: &[KeywordEntry] = &[
     KeywordEntry {
         keyword: ParameterizedKeyword::Annihilator,
         lexeme: &["annihilator"],
-        parameter: ParameterKind::Count,
-    },
-    KeywordEntry {
-        keyword: ParameterizedKeyword::LivingWeapon,
-        lexeme: &["living", "weapon"],
-        parameter: ParameterKind::None,
-    },
-    KeywordEntry {
-        keyword: ParameterizedKeyword::Afterlife,
-        lexeme: &["afterlife"],
         parameter: ParameterKind::Count,
     },
     KeywordEntry {
@@ -153,13 +125,9 @@ impl ParameterizedKeyword {
             Self::Buyback => "702.27",
             Self::Echo => "702.30",
             Self::Affinity => "702.41",
-            Self::Bushido => "702.45",
-            Self::Soulshift => "702.46",
             Self::Evoke => "702.74",
             Self::Annihilator => "702.86",
-            Self::LivingWeapon => "702.92",
             Self::Afflict => "702.130",
-            Self::Afterlife => "702.135",
             Self::Riot => "702.136",
             Self::Toxic => "702.164",
             Self::Offspring => "702.175",
@@ -172,13 +140,9 @@ impl ParameterizedKeyword {
             Self::Buyback => "buyback",
             Self::Echo => "echo",
             Self::Affinity => "affinity",
-            Self::Bushido => "bushido",
-            Self::Soulshift => "soulshift",
             Self::Evoke => "evoke",
             Self::Annihilator => "annihilator",
-            Self::LivingWeapon => "livingWeapon",
             Self::Afflict => "afflict",
-            Self::Afterlife => "afterlife",
             Self::Riot => "riot",
             Self::Toxic => "toxic",
             Self::Offspring => "offspring",
@@ -391,37 +355,10 @@ fn reminder_renderings(
             "Whenever this creature attacks, defending player sacrifices {} of their choice.",
             counted(count?, "a permanent", "permanents")?
         )],
-        ParameterizedKeyword::Afterlife => {
-            let tokens = counted(
-                count?,
-                "a 1/1 white and black Spirit creature token",
-                "1/1 white and black Spirit creature tokens",
-            )?;
-            vec![
-                format!("When this creature dies, create {tokens} with flying."),
-                format!(
-                    "When this permanent is put into a graveyard from the battlefield, create {tokens} with flying."
-                ),
-            ]
-        }
-        ParameterizedKeyword::Bushido => {
-            let n = count?;
-            vec![format!(
-                "Whenever this creature blocks or becomes blocked, it gets +{n}/+{n} until end of turn."
-            )]
-        }
         ParameterizedKeyword::Afflict => vec![format!(
             "Whenever this creature becomes blocked, defending player loses {} life.",
             count?
         )],
-        ParameterizedKeyword::Soulshift => vec![format!(
-            "When this creature dies, you may return target Spirit card with mana value {} or less from your graveyard to your hand.",
-            count?
-        )],
-        ParameterizedKeyword::LivingWeapon => vec![
-            "When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it."
-                .to_string(),
-        ],
         ParameterizedKeyword::Riot => vec![
             "This creature enters with your choice of a +1/+1 counter or haste.".to_string(),
             "This creature enters with your choice of an additional +1/+1 counter or haste."

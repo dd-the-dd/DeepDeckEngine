@@ -98,3 +98,55 @@ fn accorder_paladin_battle_cry_pumps_each_other_attacker_once() {
     assert_eq!(power_toughness(&engine, "home"), (2, 2));
     assert_eq!(power_toughness(&engine, "opposing-attacker"), (2, 2));
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn migrated_afterlife_creates_its_spirits_when_its_creature_is_destroyed() {
+    // CR 702.135a: the definition's zone-change wording still triggers on a
+    // creature's death and creates N flying Spirits for its controller.
+    let seraph = compiled(
+        "Seraph of the Scales",
+        "Creature \u{2014} Angel",
+        ("4", "3"),
+        "Afterlife 2 (When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.)",
+    );
+    assert_eq!(seraph.rules[0]["keywordProvenance"]["keyword"], "afterlife");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![test_instance("seraph-of-the-scales", seraph, "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let killer = StackObject {
+        id: "stack:killer".to_string(),
+        controller: "player-1".to_string(),
+        card: creature("killer", "player-1"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .destroy_permanent_from_stack("seraph-of-the-scales", &killer)
+        .expect("the destruction resolves");
+    assert!(engine.permanent_position("seraph-of-the-scales").is_none());
+    assert_eq!(engine.state.stack.len(), 1, "one afterlife trigger");
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("afterlife resolves");
+    let spirits = engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|permanent| {
+            permanent.definition.is_token && permanent.definition.type_line.contains("Spirit")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(spirits.len(), 2);
+    assert!(
+        spirits
+            .iter()
+            .all(|spirit| engine.permanent_has_keyword(spirit, "flying"))
+    );
+}
