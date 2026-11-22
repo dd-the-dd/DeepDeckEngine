@@ -118,6 +118,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             SingularPlayerAction::Life(life) => independent_number(&life.amount),
             // Choice-bearing player actions keep the native lowering boundary.
             // A revealed hand and a referenced discard bind card collections.
+            SingularPlayerAction::Counters(node) => independent_number(&node.count),
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
@@ -209,6 +210,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::Fight(_)
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
+        | LocalEffectNode::UntapRestriction(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
@@ -445,6 +447,7 @@ fn resolve_sequence(
             | LocalEffectNode::Fight(_)
             | LocalEffectNode::SelectedPermanents(_)
             | LocalEffectNode::TapPermanents(_)
+            | LocalEffectNode::UntapRestriction(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::CopyStackObject(_)

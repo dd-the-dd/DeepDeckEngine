@@ -202,6 +202,15 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             one_or_more: false,
             ..
         }) if actions.iter().all(|action| action.records_acting_player())
+    ) || matches!(
+        event,
+        // `a creature you control deals combat damage to a player`: each
+        // damage record names the damaged player (CR 510.2).
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            verb: ObjectEventVerb::DealCombatDamageToPlayer,
+            subject,
+            ..
+        }) if subject.multiplicity == EventMultiplicity::PerObject
     ) || event_damage_complement(event)
         .is_some_and(|complement| matches!(complement.recipient, Some(DamageRecipient::Player(_))))
         // The drawing player (CR 121.1) and the caster of a cast spell (CR

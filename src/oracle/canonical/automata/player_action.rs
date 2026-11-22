@@ -1,6 +1,7 @@
 //! A singular grammatical player subject followed by one independent action.
 //! Sequence owns subject lifetime; target declarations remain separate bindings.
 use super::super::{MachineResult, OracleTokenCursor};
+use super::recognize_counter_name;
 use super::source_sacrifice::atomic_action::ActingSubject;
 use super::source_sacrifice::atomic_action::counted_card::recognize_card_count_noun;
 use super::source_sacrifice::atomic_action::player_discard::{
@@ -19,7 +20,8 @@ use super::{
     recognize_supplied_life_action, supplied_life_action_starts,
     try_recognize_card_collection_reference,
 };
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form, lookup_verb};
+use crate::oracle::counter_name::CounterName;
 
 /// Lexicon lemmas this child dispatches on (other verbs keep their readers).
 const MIGRATED_PLAYER_LEMMAS: &[VerbLemma] = &[
@@ -28,6 +30,7 @@ const MIGRATED_PLAYER_LEMMAS: &[VerbLemma] = &[
     VerbLemma::Sacrifice,
     VerbLemma::Exile,
     VerbLemma::Reveal,
+    VerbLemma::Get,
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,6 +61,112 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
         verb: ReferencedCardVerb,
         cards: CardCollectionReferenceNode,
     },
+    /// `gets N KIND counter(s)` | `gets {E}{E}` (CR 122.1): counters placed
+    /// on the acting player.
+    Counters(PlayerCountersNode),
+}
+
+/// Counters a player gets: the canonical counter name and the amount.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerCountersNode {
+    pub counter: CounterName,
+    pub count: NumericExpression,
+}
+
+/// True when the `get` at the cursor takes player counters: a counter
+/// symbol, or a counted counter noun before any clause boundary that is not
+/// placed `on` or taken `from` an object.
+pub(in crate::oracle::canonical) fn player_counters_follow(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor
+        .peek()
+        .is_none_or(|raw| lookup_verb(raw, &[VerbLemma::Get]).is_none())
+    {
+        return false;
+    }
+    if cursor
+        .token_slice(cursor.position() + 1, cursor.position() + 2)
+        .first()
+        .is_some_and(|token| token.token_type == "counterSymbol")
+    {
+        return true;
+    }
+    for offset in 1..6 {
+        let Some(raw) = cursor.peek_ahead(offset) else {
+            return false;
+        };
+        if matches!(raw, "." | "," | ";" | ":" | "(") {
+            return false;
+        }
+        if raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters") {
+            return !cursor.peek_ahead(offset + 1).is_some_and(|next| {
+                next.eq_ignore_ascii_case("on") || next.eq_ignore_ascii_case("from")
+            });
+        }
+    }
+    false
+}
+
+/// `get(s) {E}{E} [(two energy counters)]` | `get(s) N KIND counter(s)`.
+pub(in crate::oracle::canonical) fn recognize_player_counters_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: VerbAgreement,
+) -> MachineResult<PlayerCountersNode> {
+    cursor.enter("player-action.counters.verb");
+    cursor.consume(super::verb_entry(VerbLemma::Get).surface(form.form()))?;
+    cursor.enter("player-action.counters.symbol");
+    let mut symbols = 0_i64;
+    while cursor
+        .peek_token()
+        .is_some_and(|token| token.token_type == "counterSymbol")
+    {
+        let symbol = cursor.consume_type("counterSymbol")?;
+        cursor.require(
+            symbol.raw.eq_ignore_ascii_case("{E}"),
+            "the registered energy-counter symbol `{E}`",
+        )?;
+        symbols += 1;
+    }
+    if symbols > 0 {
+        let counter = CounterName::from_parts(["energy"]).expect("a non-empty counter name");
+        // CR 207.2: the reminder restates the symbols; it must agree.
+        if cursor.peek() == Some("(") {
+            cursor.enter("player-action.counters.reminder");
+            cursor.consume("(")?;
+            let count = recognize_numeric_expression(cursor, None)?;
+            cursor.require(
+                count == NumericExpression::Atom(super::NumericAtom::Integer(symbols)),
+                "a reminder that counts the energy symbols",
+            )?;
+            let name = cursor.consume_type("counterTypeWord")?;
+            cursor.require(
+                name.raw.eq_ignore_ascii_case("energy"),
+                "the energy counter the symbols name",
+            )?;
+            recognize_counter_noun(cursor, &count)?;
+            cursor.consume(")")?;
+        }
+        return Ok(PlayerCountersNode {
+            counter,
+            count: NumericExpression::Atom(super::NumericAtom::Integer(symbols)),
+        });
+    }
+    cursor.enter("player-action.counters.count");
+    let count = recognize_numeric_expression(cursor, None)?;
+    cursor.enter("player-action.counters.name");
+    let counter = recognize_counter_name(cursor)?;
+    recognize_counter_noun(cursor, &count)?;
+    Ok(PlayerCountersNode { counter, count })
+}
+
+/// `counter` after one, `counters` otherwise.
+fn recognize_counter_noun(
+    cursor: &mut OracleTokenCursor<'_>,
+    count: &NumericExpression,
+) -> MachineResult<()> {
+    cursor.enter("player-action.counters.noun");
+    let singular = *count == NumericExpression::Atom(super::NumericAtom::Integer(1));
+    cursor.consume(if singular { "counter" } else { "counters" })?;
+    Ok(())
 }
 
 /// A verb whose object is the acting player's whole hand (`their hand`).
@@ -161,12 +270,23 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
     let explicit_you = inherited.is_some() && head.eq_ignore_ascii_case("you");
+    // `they` (CR 109.5: singular they) names the same player `that player`
+    // would: the program's player binding, else the event's player. It takes
+    // the plural verb form; without such a player it is not claimed here.
+    let explicit_they = !bare
+        && head.eq_ignore_ascii_case("they")
+        && (antecedent.is_some() || context.frame.event_player);
+    let plural = bare || explicit_they;
     let object_relation = object_related_player_head_length(cursor).is_some();
     let defending = defending_player_starts(cursor);
     let player = if explicit_target || explicit_bound || explicit_you {
         // Binding validation is tentative until this child owns the action.
         // Another parent may supply a different typed player relationship.
         recognize_player_effect_subject(cursor, binding, antecedent, context.frame.event_player)
+    } else if explicit_they {
+        cursor.enter("player-subject.pronoun");
+        cursor.consume("they")?;
+        Ok(antecedent.map_or(PlayerEffectSubject::EventPlayer, PlayerEffectSubject::Bound))
     } else if defending {
         match recognize_defending_player_subject(cursor, context.frame.defending_player) {
             Ok(player) => Ok(player),
@@ -191,6 +311,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     } else if let Some(player) = inherited {
         Ok(player.clone())
     } else if is_verb_form(&head, VerbLemma::Mill, VerbForm::Base)
+        || (is_verb_form(&head, VerbLemma::Get, VerbForm::Base) && player_counters_follow(cursor))
         || head.eq_ignore_ascii_case("venture")
         || head.eq_ignore_ascii_case("proliferate")
     {
@@ -214,7 +335,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     let is_mill = lemma == Some(VerbLemma::Mill);
     // `reveals|discards their hand`: the possessive must name the acting
     // player's own hand; other objects stay with their own readers.
-    let hand_form = if bare {
+    let hand_form = if plural {
         VerbAgreement::Base
     } else {
         VerbAgreement::ThirdPersonSingular
@@ -226,7 +347,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             .is_some_and(|raw| raw.eq_ignore_ascii_case("into"));
     // Imperative `discard`/`sacrifice` of the controller keeps its established
     // readers; these third-person actions belong to a non-controller subject.
-    let agreement = if bare {
+    let agreement = if plural {
         VerbAgreement::Base
     } else {
         VerbAgreement::ThirdPersonSingular
@@ -243,8 +364,10 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     let is_referenced_exile =
         crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Exile, agreement)
             && referenced_card_operand_follows(cursor);
-    let is_proliferate = verb == "proliferate" || (!bare && verb == "proliferates");
-    let claimed = is_draw
+    let is_proliferate = verb == "proliferate" || (!plural && verb == "proliferates");
+    let is_counters = lemma == Some(VerbLemma::Get) && player_counters_follow(cursor);
+    let claimed = is_counters
+        || is_draw
         || is_mill
         || is_venture
         || is_proliferate
@@ -279,7 +402,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     }
     let player = player?;
     let form = match player {
-        _ if bare => VerbAgreement::Base,
+        _ if plural => VerbAgreement::Base,
         PlayerEffectSubject::Controller => VerbAgreement::Base,
         PlayerEffectSubject::DeclaredTarget { .. }
         | PlayerEffectSubject::Bound(_)
@@ -288,7 +411,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     };
     // `ActingSubject` is the shared conjugation of the selecting verbs: the
     // bare surface keeps the third-person chooser (`of their choice`).
-    let other_form = if bare {
+    let other_form = if plural {
         ActingSubject::THIRD_PLURAL
     } else {
         ActingSubject::THIRD_SINGULAR
@@ -329,6 +452,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         SingularPlayerAction::Proliferate
     } else if is_venture {
         SingularPlayerAction::Venture(recognize_venture_action_fragment(cursor, form)?)
+    } else if is_counters {
+        SingularPlayerAction::Counters(recognize_player_counters_fragment(cursor, form)?)
     } else if lemma == Some(VerbLemma::Discard) {
         SingularPlayerAction::Discard(recognize_player_discard_action_fragment(
             cursor,

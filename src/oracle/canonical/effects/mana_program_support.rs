@@ -56,6 +56,7 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::TemporaryPlayerPermission(_)
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
+        | LocalEffectNode::UntapRestriction(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
@@ -83,6 +84,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
             | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
@@ -200,6 +202,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         | LocalEffectNode::TemporaryPlayerPermission(_)
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
+        | LocalEffectNode::UntapRestriction(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)

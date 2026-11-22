@@ -1991,6 +1991,8 @@ pub(super) enum LocalEffectNode {
     UntapTarget(UntapTargetEffectNode),
     SelectedPermanents(SelectedPermanentsEffectNode),
     TapPermanents(TapPermanentsEffectNode),
+    /// `OBJECTS don't untap during their controller's next untap step`.
+    UntapRestriction(UntapRestrictionNode),
     PermanentKeywordAction(PermanentKeywordActionNode),
     /// `gain control of OBJECT` / `exchange control of OBJECT`.
     ControlChange(ControlChangeEffectNode),
@@ -2311,6 +2313,11 @@ pub(super) use unsupported_word::*;
 mod target_card_sequence_tests;
 
 mod permanent_action;
+mod untap_restriction;
+pub(in crate::oracle::canonical) use untap_restriction::{
+    SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
+    untap_restriction_starts,
+};
 mod permanent_subject;
 mod token_window;
 mod unsupported_word;

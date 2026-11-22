@@ -394,6 +394,19 @@ fn read_effect_player(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
     };
+    // `they`: the player `that player` would name, with the plural verb.
+    if !context.causative
+        && head_is(0, "they")
+        && (context.player_antecedent.is_some() || context.frame.event_player)
+    {
+        if cursor.consume("they").is_err() {
+            return SubjectRead::Absent;
+        }
+        let player = context
+            .player_antecedent
+            .map_or(PlayerEffectSubject::EventPlayer, PlayerEffectSubject::Bound);
+        return SubjectRead::Read(ClauseSubject::Player(player), VerbAgreement::Base);
+    }
     if !(head_is(0, "you") || head_is(0, "target") || (head_is(0, "that") && head_is(1, "player")))
     {
         return SubjectRead::Absent;
@@ -764,6 +777,47 @@ pub(in crate::oracle::canonical) fn clause_verb_unsupported(
     ))
 }
 
+/// True when `you` is the explicit subject of a finite verb at the cursor
+/// (`you mill two cards`): the controller's clause, read like the
+/// imperative. Modal, negated and relative continuations (`you may`, `you
+/// don't`, `you control`) belong to their own frames.
+pub(in crate::oracle::canonical) fn controller_subject_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    const NOT_A_VERB: &[&str] = &[
+        "may",
+        "can",
+        "can't",
+        "cannot",
+        "could",
+        "do",
+        "don't",
+        "does",
+        "did",
+        "didn't",
+        "would",
+        "will",
+        "won't",
+        "control",
+        "controlled",
+        "own",
+        "owned",
+        "have",
+        "had",
+        "and",
+        "or",
+        "also",
+        "each",
+    ];
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.chars().all(|character| character.is_ascii_alphabetic())
+                && !NOT_A_VERB.iter().any(|word| raw.eq_ignore_ascii_case(word))
+        })
+}
+
 /// The token length of a player-set subject (`each player`, `each
 /// opponent`, `each other player`) at the cursor.
 pub(in crate::oracle::canonical) fn player_set_subject_length(
@@ -897,3 +951,7 @@ mod tests;
 #[cfg(test)]
 #[path = "effect_clause_tests.rs"]
 mod effect_tests;
+
+#[cfg(test)]
+#[path = "effect_subject_tests.rs"]
+mod subject_tests;

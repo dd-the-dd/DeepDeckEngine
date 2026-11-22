@@ -70,6 +70,9 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Draw,
     /// `exploit` (CR 702.110b: the named action of the exploit keyword).
     Exploit,
+    /// `get` (CR 122.1: a player gets counters; `{E}` is an energy counter,
+    /// CR 107.14).
+    Get,
 }
 
 /// One inflected form of a lemma.
@@ -153,6 +156,8 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     ZoneDeparture,
     /// `SPELL` after `cast`.
     SpellObject,
+    /// `N KIND counter(s)` | `{E}...` given to the acting player (CR 122.1).
+    PlayerCounters,
 }
 
 impl ArgumentFrame {
@@ -174,7 +179,8 @@ impl ArgumentFrame {
             | Self::Intransitive
             | Self::StateChange
             | Self::ZoneDeparture
-            | Self::SpellObject => None,
+            | Self::SpellObject
+            | Self::PlayerCounters => None,
         }
     }
 }
@@ -569,6 +575,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "exploiting",
         },
         frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Get,
+        forms: VerbForms {
+            base: "get",
+            third_person_singular: "gets",
+            past: "got",
+            past_participle: "gotten",
+            present_participle: "getting",
+        },
+        frames: &[ArgumentFrame::PlayerCounters],
         voices: &[Voice::Active],
     },
 ];

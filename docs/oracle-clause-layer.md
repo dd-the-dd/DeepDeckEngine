@@ -210,3 +210,102 @@ thème.
   joueurs, attachés, sorts), les correspondants moteur des modificateurs, et
   les lecteurs par verbe de `trigger_event.rs`, `quantified_event.rs`,
   `player_event.rs`, `spell_cast_event.rs`, `targeting_event.rs`.
+
+## Phase 6 (en cours) : politique de sujet d'effet
+
+Mesure sur la chaîne après #54 : 3 149 cartes échouent au moins une fois en
+`effect.start` « expected a supported effect subject », dont 1 986 n'ont que
+ce bloqueur. Une phrase d'effet est `Sujet + Proposition` ; le sujet est
+l'impératif ou `you`, une référence du résolveur de liaisons, un ensemble
+quantifié (joueurs, objets, cadre distributif `for each X, …`) ou un groupe
+nominal défini lié au cadre. La proposition prend son accord du sujet.
+
+### Étape 13 : `you` sujet explicite
+
+- `you VERB …` est la proposition de l'impératif accomplie par le
+  contrôleur (CR 109.5) : quand aucun lecteur ne prend la phrase, la séquence
+  consomme `you` (`effect.subject.controller`) et relit la même proposition
+  avec le contrôleur comme sujet hérité. Un sujet explicite remplace celui
+  qu'une proposition précédente prêterait (`target player draws …, then you
+  mill …`). `controller_subject_starts` (`clause.rs`) exclut les suites
+  modales, négatives et relatives (`you may`, `you don't`, `you control`).
+- Un verbe qu'aucun lecteur ne prend échoue en `clause.verb.unsupported`
+  (lemme ou mot, sujet « the controller (`you`) ») au lieu de
+  `effect.start`.
+- Sonde : ligue 809 → 809, corpus 14319 → 14329 (+10), 0 perte, IR des
+  cartes supportées inchangée. Preuve : IR identique entre `you VERB` et
+  l'impératif (cartes réelles et recombinaisons inédites), sujet hérité
+  remplacé, quasi-échec `you get an emblem`.
+
+### Étape 14 : lemme `get`, cadre compteurs de joueur
+
+- Lexique : `get` (cadre `PlayerCounters`, CR 122.1). Le lecteur d'action
+  de joueur et la liste quantifiée partagent un enfant
+  (`recognize_player_counters_fragment`) : `{E}{E} [(two energy counters)]`
+  (le rappel doit compter les symboles, CR 207.2) ou `N KIND counter(s)` par
+  le nom de compteur partagé. Tous les sujets de joueur l'atteignent :
+  impératif, `you`, `that player`, `its controller`, `target player`,
+  `each opponent`. Abaissement : primitive moteur existante
+  `addPlayerCounters` (poison et énergie déjà exécutés, CR 704.5c).
+- `put … counter on OBJECT` reste au cadre de placement : la revendication
+  exige un nom de compteur sans `on`/`from` après lui.
+- Sonde : ligue 809 → 809, corpus 14329 → 14363 (+34), 0 perte, IR des
+  cartes supportées inchangée. Preuves : cartes réelles (Pit Scorpion,
+  Pistus Strike, Aethertorch Renegade), recombinaisons inédites
+  (`each opponent gets two rad counters`, `you get an experience counter`),
+  quasi-échec (rappel qui ne compte pas les symboles), exécution
+  (`effect_subject_runtime.rs` : poison au joueur de l'événement, énergie
+  au contrôleur).
+
+### Étape 15 : `they` sujet joueur, joueur des dégâts d'une population
+
+- `they` (CR 109.5, « they » singulier) nomme le joueur que nommerait
+  `that player` : la liaison de joueur du programme, sinon le joueur de
+  l'événement ; il prend la forme verbale plurielle. Lu par le même lecteur
+  de sujet que les actions de joueur et la proposition de vie ; sans joueur
+  lié, il n'est pas revendiqué (les antécédents d'objets pluriels gardent
+  leurs lecteurs).
+- Cadre : `a creature you control deals combat damage to a player` (par
+  objet) publie le joueur blessé ; chaque enregistrement de dégâts du moteur
+  porte déjà `triggeringPlayerId` (CR 510.2).
+- Sonde : ligue 809 → 809, corpus 14363 → 14371 (+8, dont Sheoldred, the
+  Apocalypse et Larceny), 0 perte, IR des cartes supportées inchangée.
+  Preuves : IR identique entre `they` et `that player` (cartes réelles et
+  recombinaison inédite après `target player`), quasi-échecs sans joueur
+  lié, exécution (le joueur qui pioche perd la vie).
+
+### Étape 16 : `For each X, ACTION.` préposé
+
+- Introducteur structurel de phrase, lu comme `Until …,` après le refus
+  des lecteurs ordinaires : le dénombrable est l'enfant partagé
+  (`recognize_for_each_count`, ou `OBJECTS VERBed this way` résolu contre
+  les actions du programme une fois l'action lue) et multiplie la quantité
+  de l'unique action de sa phrase par `apply_for_each_multiplier`, comme le
+  multiplicateur postposé. Une seconde action dans la phrase ou une action
+  sans quantité littérale échoue en `sequence.for-each.preposed-action`.
+- Une population de joueurs (`For each opponent, …`) n'est pas un
+  dénombrable : c'est le cadre distributif (étape suivante).
+- Sonde : ligue 809 → 809, corpus 14371 → 14375 (+4), 0 perte, IR des
+  cartes supportées inchangée. Preuve : IR identique à la forme postposée
+  (déjà exécutée), quasi-échecs (deux actions, population de joueurs).
+- Restes mesurés : jetons nommés (`create a Treasure token`) sans quantité
+  numérique, compteurs `on it` d'une source morte, `card exiled this way`.
+
+### Étape 17 : proposition négative `OBJECT doesn't untap during …`
+
+- Sujet permanent partagé (`that creature`, `it`, `that land`, cible) suivi
+  de la négation accordée au nombre du sujet (`doesn't` / `don't`), du lemme
+  `untap` du lexique et de la fenêtre `during its controller's next untap
+  step` ou `during its controller's untap step for as long as you control
+  SOURCE` (durée partagée, CR 611.2b). Nœud `UntapRestriction`, revendiqué
+  par le lecteur d'action de permanent après son sujet ; abaissement vers la
+  primitive moteur existante `installUntapRestriction` (CR 502.3), une par
+  objet du sujet.
+- Sonde : ligue 809 → 811 (+2 : Ty Lee, Chi Blocker ; Skyline Cascade),
+  corpus 14375 → 14421 (+46), 0 perte, IR des cartes supportées inchangée.
+  Preuves : cartes réelles (Frost Lynx, Chill of the Grave, Tidebinder Mage),
+  recombinaison inédite après un changement de caractéristiques,
+  quasi-échecs (accord, autre pas de dégagement), exécution (`skipNextUntap`
+  installé sur la cible engagée).
+- Reste : `Those creatures don't …` après une cible plurielle
+  (antécédent pluriel non lié).

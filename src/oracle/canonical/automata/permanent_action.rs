@@ -107,6 +107,34 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let Some(action) = subject_end.peek_ahead(action_offset) else {
         return PermanentActionAttempt::NotClaimed;
     };
+    if action_offset == 0 && super::untap_restriction_starts(&subject_end) {
+        // `SUBJECT doesn't untap during ...`: the negated untap clause owns
+        // the claim; the subject's number selects the negation.
+        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
+            return PermanentActionAttempt::FailedCommitted(failure);
+        }
+        let number = match &subject {
+            PermanentOperandNode::BoundReference(_) | PermanentOperandNode::Reference(_) => {
+                super::SubjectNumber::Written
+            }
+            operand if permanent_operand_is_plural(operand) => super::SubjectNumber::Plural,
+            _ => super::SubjectNumber::Singular,
+        };
+        let mut trial = subject_end.clone();
+        return match super::recognize_untap_restriction(
+            &mut trial,
+            subject,
+            number,
+            name_links,
+            name_failure,
+        ) {
+            Ok(node) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(LocalEffectNode::UntapRestriction(node))
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
+    }
     if action_offset == 0 && PermanentKeywordAction::from_subject_verb(action).is_some() {
         // `SUBJECT explores|connives|endures`: the subject and verb own the
         // claim; the keyword child reads its own numeric argument.

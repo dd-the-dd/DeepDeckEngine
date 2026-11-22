@@ -437,6 +437,10 @@ fn lower_local_effect_sequence_with_collections(
                 let (kind, field, amount) = match &action.action {
                     SingularPlayerAction::Draw(count) => ("drawCards", "count", count),
                     SingularPlayerAction::Mill(count) => ("mill", "count", count),
+                    // CR 122.1: counters on the acting player.
+                    SingularPlayerAction::Counters(node) => {
+                        ("addPlayerCounters", "count", &node.count)
+                    }
                     SingularPlayerAction::Life(life) => (
                         match life.action {
                             TargetPlayerLifeAction::Gain => "gainLife",
@@ -553,6 +557,9 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 let mut effect = json!({"kind": kind, "player": lowered.player});
                 effect[field] = amount;
+                if let SingularPlayerAction::Counters(node) = &action.action {
+                    effect["counter"] = json!(node.counter.as_str());
+                }
                 // `draw N cards and reveal them`: the drawn cards are the
                 // antecedent of the next card action, never otherwise bound.
                 if let SingularPlayerAction::Draw(count) = &action.action
@@ -992,6 +999,32 @@ fn lower_local_effect_sequence_with_collections(
                             cursor.fail("a supported keyword-grant duration and granted rule")
                         })?,
                     );
+                }
+            }
+            LocalEffectNode::UntapRestriction(restriction) => {
+                cursor.enter("lower.untap-restriction.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &restriction.objects,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                // CR 502.3: the permanent stays tapped during its
+                // controller's untap step for the stated window.
+                let duration = match restriction.duration {
+                    UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
+                    UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
+                };
+                for object in objects {
+                    effects.push(json!({
+                        "kind": "installUntapRestriction",
+                        "permanent": object,
+                        "duration": {"kind": duration},
+                    }));
                 }
             }
             LocalEffectNode::TapPermanents(tap) => {
@@ -2839,6 +2872,7 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],
         LocalEffectNode::PutCounters(node) => vec![&node.permanent],
         LocalEffectNode::TapPermanents(node) => vec![&node.targets],
+        LocalEffectNode::UntapRestriction(node) => vec![&node.objects],
         LocalEffectNode::PermanentKeywordAction(node) => vec![&node.targets],
         // `create a token, then attach this to it` (CR 702.92a, 702.163a):
         // the attach reads the created token as its recipient or attachment.
