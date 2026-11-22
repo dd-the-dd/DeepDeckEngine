@@ -507,6 +507,17 @@ modificateurs actifs).
   Devourer of Memory, Pedantic Learning, Field of Souls, …), 0 perdue,
   10 IR changées dont 0 déjà supportée.
 
+## Étape 14 réalisée : lots `one or more` de blocage
+
+- La déclaration des bloqueurs de tous les joueurs défenseurs est un seul
+  événement simultané (CR 509.1). `one or more PERMANENTS block / become
+  blocked` est le motif de blocage générique agrégé (`aggregation:
+  oneOrMore`), réclamé une fois par source, règle et déclaration.
+- Lots de marqueurs : non faits (les cartes du corpus échouent avant
+  l'événement, sur le nom du marqueur ou le destinataire).
+- Sondes : ligue et corpus inchangés (800, 13851), 0 perdue, 2 IR changées :
+  ces cartes échouent ensuite dans leur corps.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

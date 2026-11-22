@@ -37785,6 +37785,9 @@ impl GameEngine {
                     .any(|attack| attack.defending_player_id == self.state.players[*index].id)
             })
             .collect::<Vec<_>>();
+        // Blockers are declared simultaneously (CR 509.1): one event for
+        // observers that aggregate the declaration.
+        let block_declaration = self.begin_event_batch();
         for defending_index in defending_indices {
             let defender_id = self.state.players[defending_index].id.clone();
             let block_chooser_id = self
@@ -37960,6 +37963,7 @@ impl GameEngine {
             }
         }
 
+        self.end_event_batch(block_declaration);
         // CR 509.1h: attacking creatures without blockers become unblocked.
         self.publish_unblocked_triggers(&blocks)?;
         self.run_priority_window(provider)?;

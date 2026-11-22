@@ -746,3 +746,35 @@ fn one_attacking_creature_is_one_record_for_any_controller_relation() {
         assert_eq!(object.decisions["triggeringPlayerId"], "player-1");
     }
 }
+
+#[test]
+fn one_or_more_blocked_creatures_trigger_once_per_block_declaration() {
+    let rules = parsed_rules(
+        "Blocked Watcher",
+        "Enchantment",
+        "Whenever one or more creatures you control become blocked, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["aggregation"], "oneOrMore");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance(
+            "watcher",
+            CardDefinition {
+                rules,
+                ..test_definition("watcher", "Enchantment")
+            },
+            "player-0",
+        ),
+        vanilla("a", "player-0"),
+        vanilla("b", "player-0"),
+    ];
+    engine.state.players[1].battlefield =
+        vec![vanilla("wall-a", "player-1"), vanilla("wall-b", "player-1")];
+    declare_attack(&mut engine, &["a", "b"]);
+    // Both blocks belong to one simultaneous declaration (CR 509.1).
+    let scope = engine.begin_event_batch();
+    declare_block(&mut engine, "a", "wall-a");
+    declare_block(&mut engine, "b", "wall-b");
+    engine.end_event_batch(scope);
+    assert_eq!(engine.state.stack.len(), 1);
+}

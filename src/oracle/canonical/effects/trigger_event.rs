@@ -753,13 +753,52 @@ fn lower_object_event(
                 }),
             })
         }
+        // `one or more PERMANENTS block / become blocked`: the generic block
+        // pattern, once per declare-blockers event (CR 509.1, 603.2c).
+        ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked if per_event => {
+            cursor.enter("trigger.object-event.block-batch");
+            cursor.require(
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent)
+                    && !subject.exclude_source
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "a representable combatant predicate without source exclusion",
+            )?;
+            let mut object = json!({"kind": "permanents"});
+            match subject.query.controller {
+                None => {}
+                Some(ObjectControllerScope::AbilityController) => {
+                    object["controller"] = controller()
+                }
+                Some(ObjectControllerScope::OpponentOfAbilityController) => {
+                    object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+                }
+                Some(ObjectControllerScope::NotAbilityController) => {
+                    return Err(cursor.fail("a positive controller relation for a combatant"));
+                }
+            }
+            if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+                let filter = lower_permanent_object_predicate(&subject.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered combatant predicate")?;
+                object["where"] = filter;
+            }
+            let role = if event.verb == ObjectEventVerb::Block {
+                "blocker"
+            } else {
+                "attacker"
+            };
+            Ok(json!({
+                "kind": "eventPattern",
+                "lemma": "block",
+                "subject": {"role": role, "object": object},
+                "aggregation": "oneOrMore",
+            }))
+        }
         ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked => {
             // One trigger per blocking creature, or once per combat for each
             // attacking creature that becomes blocked (CR 509.1h).
-            cursor.require(
-                !per_event,
-                "a singular combat subject (no one-or-more block matcher)",
-            )?;
             cursor.require(
                 subject.query.controller == Some(ObjectControllerScope::AbilityController)
                     && subject

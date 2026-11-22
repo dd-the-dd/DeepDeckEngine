@@ -380,6 +380,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             "attackingAlone",
             "declaredAttacker",
             "turnOrdinal",
+            "aggregation",
         ],
     ) {
         return None;
@@ -477,6 +478,13 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             Some(usize::try_from(ordinal).ok()?)
         }
     };
+    // `one or more`: one trigger per declare-blockers event, claimed by the
+    // publication site (CR 603.2c).
+    if !event_batch::event_aggregation_supported(event)
+        || (event_batch::event_is_aggregated(event) && lemma != CombatLemma::Block)
+    {
+        return None;
+    }
     let attacking_alone = optional_flag(event, "attackingAlone")?;
     let declared_attacker = optional_flag(event, "declaredAttacker")?;
     if (attacking_alone || declared_attacker) && subject_role != Attacker {
@@ -992,6 +1000,9 @@ impl GameEngine {
         let blocker_id = record.blocker.clone().unwrap_or_default();
         for (source, rule) in self.combat_record_triggers(record, PublicationGroup::BlockerDeclared)
         {
+            if self.aggregated_trigger_already_claimed(&source.instance_id, &rule) {
+                continue;
+            }
             let mut decisions = BTreeMap::from([(
                 "triggeringPermanentId".to_string(),
                 Value::String(blocker_id.clone()),
@@ -1007,6 +1018,9 @@ impl GameEngine {
         }
         for (source, rule) in self.combat_record_triggers(record, PublicationGroup::AttackerBlocked)
         {
+            if self.aggregated_trigger_already_claimed(&source.instance_id, &rule) {
+                continue;
+            }
             let mut decisions = BTreeMap::from([(
                 "triggeringPermanentId".to_string(),
                 Value::String(record.attacker.clone()),

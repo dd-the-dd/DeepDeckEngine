@@ -277,16 +277,10 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["excludeSource"].as_bool(), exclude_source, "{text}");
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
-    for (text, state) in [
-        (
-            "Whenever a creature an opponent controls becomes tapped, draw a card.",
-            "event.object.complement",
-        ),
-        (
-            "Whenever one or more creatures you control become blocked, draw a card.",
-            "trigger.object-event.verb-support",
-        ),
-    ] {
+    for (text, state) in [(
+        "Whenever a creature an opponent controls becomes tapped, draw a card.",
+        "event.object.complement",
+    )] {
         assert_eq!(committed_state(text), state, "{text}");
     }
 }
@@ -824,4 +818,29 @@ fn arrival_origins_and_exile_departures_are_typed() {
     ] {
         assert_eq!(committed_state(text), state, "{text}");
     }
+}
+
+#[test]
+fn one_or_more_block_events_are_aggregated_block_patterns() {
+    let blocked = event(
+        "Whenever one or more creatures you control become blocked, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(blocked["lemma"], "block");
+    assert_eq!(blocked["subject"]["role"], "attacker");
+    assert_eq!(blocked["subject"]["object"]["controller"], controller());
+    assert_eq!(blocked["aggregation"], "oneOrMore");
+    let blocking = event(
+        "Whenever one or more creatures an opponent controls block, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(blocking["subject"]["role"], "blocker");
+    // The singular form keeps its historical kind.
+    assert_eq!(
+        event(
+            "Whenever a creature you control becomes blocked, draw a card.",
+            "Enchantment"
+        )["kind"],
+        "controlledCreatureBecameBlocked"
+    );
 }
