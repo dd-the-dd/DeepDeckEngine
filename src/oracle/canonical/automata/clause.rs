@@ -79,10 +79,8 @@ pub(in crate::oracle::canonical) struct EffectSubjectContext<'a> {
     /// The object binding of the legacy `its controller` player reference
     /// and the default antecedent of the amount's anaphora.
     pub object_antecedent: Option<TargetBinding>,
-    /// The triggering event names a player `that player` may denote.
-    pub event_player: bool,
-    /// The triggering event records a defending player.
-    pub defending_player: bool,
+    /// What the triggering event binds (event player, defending player).
+    pub frame: super::FrameBindings,
     /// After a causative `have`: an explicit subject and the bare verb.
     pub causative: bool,
 }
@@ -383,7 +381,7 @@ fn read_effect_player(
         }
     }
     if defending_player_starts(cursor) {
-        return match recognize_defending_player_subject(cursor, context.defending_player) {
+        return match recognize_defending_player_subject(cursor, context.frame.defending_player) {
             Ok(player) => SubjectRead::Read(
                 ClauseSubject::Player(player),
                 bare(VerbAgreement::ThirdPersonSingular),
@@ -404,7 +402,7 @@ fn read_effect_player(
         cursor,
         context.declared_target.unwrap_or(PlayerBinding(usize::MAX)),
         context.player_antecedent,
-        context.event_player,
+        context.frame.event_player,
     ) {
         Ok(player) => {
             let agreement = bare(agreement_of_player(&player));

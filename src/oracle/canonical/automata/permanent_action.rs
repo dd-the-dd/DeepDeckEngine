@@ -136,10 +136,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     let deals = action_offset == 0
         && super::clause_starts(
             &subject_end,
-            &super::damage_effect_clause_frame(
-                context.subject_verb_agreement,
-                DamageSourceAntecedent::Unavailable,
-            ),
+            &super::damage_effect_clause_frame(context.subject_verb_agreement),
         )
         && matches!(
             subject,
@@ -212,30 +209,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     if deals || fights {
         let mut trial = subject_end.clone();
         let result = if deals {
-            let antecedent = match &subject {
-                PermanentOperandNode::Targets(targets) => {
-                    match (targets.slots.as_slice(), context.current_effect_index) {
-                        ([_], Some(effect_index)) => {
-                            DamageSourceAntecedent::Target(TargetBinding {
-                                effect_index,
-                                slot_index: 0,
-                            })
-                        }
-                        _ => DamageSourceAntecedent::Unavailable,
-                    }
-                }
-                PermanentOperandNode::BoundReference(PermanentEffectReference::Target(binding)) => {
-                    DamageSourceAntecedent::Target(*binding)
-                }
-                _ => DamageSourceAntecedent::Unavailable,
-            };
-            recognize_damage_predicate(
-                &mut trial,
-                subject.clone(),
-                antecedent,
-                context.subject_verb_agreement,
-            )
-            .map(LocalEffectNode::DealDamage)
+            recognize_damage_predicate(&mut trial, subject.clone(), context.subject_verb_agreement)
+                .map(LocalEffectNode::DealDamage)
         } else {
             recognize_fight_predicate(
                 &mut trial,

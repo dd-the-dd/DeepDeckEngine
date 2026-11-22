@@ -185,6 +185,39 @@ impl CardCollectionMemory {
         cursor: &OracleTokenCursor<'_>,
         reference: CardCollectionReferenceNode,
     ) -> MachineResult<(Value, Option<i64>)> {
+        // `the exiled card(s)` restates this program's exile; without one it
+        // names the cards a linked ability exiled (CR 607.2a), proved by the
+        // card-composition pass. `cards exiled with this` is always linked.
+        let linked = json!({"kind":"cardsExiledWithSource", "link": "face"});
+        match reference {
+            CardCollectionReferenceNode::Linked => return Ok((linked, None)),
+            CardCollectionReferenceNode::Exiled
+                if self.view.is_none() || self.view_verb != Some(CardCollectionVerb::Exiled) =>
+            {
+                return Ok((linked, None));
+            }
+            CardCollectionReferenceNode::Exiled => {
+                return self
+                    .singular_focus
+                    .clone()
+                    .or_else(|| self.plural_focus.clone())
+                    .ok_or_else(|| cursor.fail("the cards this program exiled"));
+            }
+            _ => {}
+        }
+        // Without an observed collection, `it` / `that card` is the card the
+        // triggering zone change put into a public zone (CR 400.7).
+        if self.view.is_none()
+            && matches!(
+                reference,
+                CardCollectionReferenceNode::Selected | CardCollectionReferenceNode::Antecedent
+            )
+            && cursor
+                .binding_environment()
+                .is_some_and(|environment| environment.frame.event_card.is_some())
+        {
+            return Ok((json!({"kind":"triggeringCard"}), Some(1)));
+        }
         self.view.as_ref().ok_or_else(|| {
             cursor.fail("an observed card collection in the current lexical scope")
         })?;
@@ -196,6 +229,9 @@ impl CardCollectionMemory {
                 .singular_focus
                 .clone()
                 .ok_or_else(|| cursor.fail("a singular card antecedent in the current scope")),
+            CardCollectionReferenceNode::Exiled | CardCollectionReferenceNode::Linked => {
+                unreachable!("linked and exiled references are resolved above")
+            }
             CardCollectionReferenceNode::Zone => {
                 cursor.require(
                     self.view_zone_noun,
@@ -822,14 +858,9 @@ impl CardCollectionMemory {
                     CardMoveOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
                     // Exile in each owner's exile zone, or the battlefield
                     // under each owner's control (CR 110.2a).
+                    // A hand, library or graveyard is always its owner's
+                    // (CR 400.3); exile and the battlefield name it.
                     CardMoveOwnerNode::EachCardOwner => {
-                        cursor.require(
-                            matches!(
-                                destination.zone,
-                                CardZoneName::Exile | CardZoneName::Battlefield
-                            ),
-                            "a per-card owner destination supported by this movement boundary",
-                        )?;
                         json!({"kind":"ownerOf","object":{"kind":"candidate"}})
                     }
                     _ => return Err(cursor.fail("a supported explicit destination owner")),
@@ -882,6 +913,15 @@ impl CardCollectionMemory {
                         CardOperandNode::Selection(_)
                         | CardOperandNode::Targets(_)
                         | CardOperandNode::ZoneCollection(_) => true,
+                        // The card a zone change put into a public zone.
+                        CardOperandNode::Reference(_)
+                            if matches!(
+                                value_kind_name(&cards),
+                                Some("triggeringCard" | "cardsExiledWithSource")
+                            ) =>
+                        {
+                            true
+                        }
                         CardOperandNode::Reference(_) => {
                             self.view_verb == Some(CardCollectionVerb::Exiled)
                                 && self.view_zone == Some(CardZoneName::Exile)

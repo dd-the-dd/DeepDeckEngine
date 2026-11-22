@@ -33,8 +33,9 @@ pub(in crate::oracle::canonical) enum StepPlayerScope {
     EachPlayer,
     OpponentsOfAbilityController,
     /// The controller of the permanent the source is attached to
-    /// (`the upkeep of enchanted creature's controller`, CR 303.4).
-    AttachedPermanentController,
+    /// (`the upkeep of enchanted creature's controller`, CR 303.4), with
+    /// the nominal the text wrote for that permanent.
+    AttachedPermanentController(super::TargetNominal),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,18 +134,24 @@ fn recognize_attached_controller(
     cursor.enter("event.step.attached-controller");
     cursor.consume_phrase(&["of", "enchanted"])?;
     cursor.enter("event.step.attached-controller.object");
-    cursor.require(
-        cursor.peek().is_some_and(|raw| {
-            ["creature", "artifact", "enchantment", "land", "permanent"]
-                .iter()
-                .any(|noun| is_possessive(raw, noun))
-        }),
-        "an enchanted permanent's possessive",
-    )?;
+    let noun = ["creature", "artifact", "enchantment", "land", "permanent"]
+        .into_iter()
+        .find(|noun| cursor.peek().is_some_and(|raw| is_possessive(raw, noun)))
+        .ok_or_else(|| cursor.fail("an enchanted permanent's possessive"))?;
+    let nominal =
+        match crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(noun) {
+            Some(crate::oracle::characteristic_vocabulary::CharacteristicLexeme::CardType(
+                value,
+            )) => super::TargetNominal::CardType(value),
+            Some(crate::oracle::characteristic_vocabulary::CharacteristicLexeme::ObjectDomain(
+                value,
+            )) => super::TargetNominal::Domain(value),
+            _ => return Err(cursor.fail("a registered enchanted permanent nominal")),
+        };
     consume_current(cursor)?;
     cursor.enter("event.step.attached-controller.relation");
     cursor.consume("controller")?;
-    Ok(StepPlayerScope::AttachedPermanentController)
+    Ok(StepPlayerScope::AttachedPermanentController(nominal))
 }
 
 /// Recognizes the player-owned turn-step phrase after `At the beginning of`.

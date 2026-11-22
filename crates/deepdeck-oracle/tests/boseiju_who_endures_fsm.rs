@@ -161,11 +161,13 @@ fn that_player_without_target_binding_is_a_structured_reference_failure() {
 
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
+    // The shared binding environment resolves `that player`: no player was
+    // declared and no event records one, so the reference itself fails.
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("reference.player.that-player")
+        Some("player-subject.bound.resolve")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("may"));
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("That"));
 }
 
 #[test]

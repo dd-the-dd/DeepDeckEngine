@@ -71,7 +71,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_draw_move(
 
     let player = match draw.player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOfQualified(_) | LocalPlayerReference::Bound(_) => {
             return Err(cursor.fail("an unqualified draw-move actor"));
         }
         LocalPlayerReference::ControllerOf(_) => {

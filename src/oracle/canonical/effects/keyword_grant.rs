@@ -25,7 +25,8 @@ fn lower_keyword_grant_duration(duration: EffectDurationNode) -> Option<Value> {
             "kind": "untilNextTurn",
             "player": match player {
                 LocalPlayerReference::Controller => controller(),
-                LocalPlayerReference::ControllerOfQualified(_) => return None,
+                LocalPlayerReference::ControllerOfQualified(_)
+            | LocalPlayerReference::Bound(_) => return None,
                 LocalPlayerReference::ControllerOf(_) => {
                     unreachable!("keyword grant duration cannot require a target binding")
                 }

@@ -3,7 +3,9 @@ use super::super::*;
 fn lower_player(reference: &LocalPlayerReference) -> Value {
     match reference {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("protected-attack grammar binds the ability controller")
         }
     }

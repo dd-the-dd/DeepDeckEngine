@@ -13,10 +13,9 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ClauseAction, ClauseArguments, ClauseFrame, ClauseModality, ClauseSubjectPolicy, ClauseTense,
     DamageDealtComplement, DamageEffectArguments, DamageEventRecipient, DamageKind,
-    DamageReplacementContext, DamageSourceAntecedent, NumericExpression, SubjectVerbAgreement,
-    VerbAgreement, VerbLemma, Voice, recognize_clause, recognize_damage_dealt_complement,
-    recognize_damage_effect_arguments, recognize_damage_kind,
-    recognize_damage_replacement_recipients, recognize_damage_threshold,
+    DamageReplacementContext, NumericExpression, SubjectVerbAgreement, VerbAgreement, VerbLemma,
+    Voice, recognize_clause, recognize_damage_dealt_complement, recognize_damage_effect_arguments,
+    recognize_damage_kind, recognize_damage_replacement_recipients, recognize_damage_threshold,
     recognize_dealt_damage_complement, recognize_event_quantity_expression, recognize_numeric_atom,
 };
 
@@ -27,8 +26,9 @@ pub(in crate::oracle::canonical) const DEAL: &[VerbLemma] = &[VerbLemma::Deal];
 #[derive(Clone, Copy)]
 pub(in crate::oracle::canonical) enum DamageArguments<'a> {
     /// One-shot effect: `AMOUNT damage to RECIPIENTS` / `damage equal to E`.
-    /// The antecedent is the damage source for a possessive amount.
-    Effect(DamageSourceAntecedent),
+    /// The clause subject of the binding environment is the damage source
+    /// a possessive amount names.
+    Effect,
     /// Event pattern: `[Kind] damage [to RECIPIENT]`.
     EventComplement,
     /// Passive event (the subject is the recipient): `[Kind] damage`.
@@ -49,7 +49,7 @@ pub(in crate::oracle::canonical) enum DamageArguments<'a> {
 impl std::fmt::Debug for DamageArguments<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::Effect(_) => "Effect",
+            Self::Effect => "Effect",
             Self::EventComplement => "EventComplement",
             Self::PassiveKind => "PassiveKind",
             Self::ReplacementEvent(_) => "ReplacementEvent",
@@ -118,8 +118,8 @@ pub(in crate::oracle::canonical) fn read_damage_arguments(
     policy: DamageArguments<'_>,
 ) -> MachineResult<DamageClauseArguments> {
     Ok(match policy {
-        DamageArguments::Effect(antecedent) => {
-            DamageClauseArguments::Effect(recognize_damage_effect_arguments(cursor, antecedent)?)
+        DamageArguments::Effect => {
+            DamageClauseArguments::Effect(recognize_damage_effect_arguments(cursor)?)
         }
         DamageArguments::EventComplement => {
             DamageClauseArguments::Complement(recognize_damage_dealt_complement(cursor)?)
@@ -188,7 +188,6 @@ pub(in crate::oracle::canonical) fn supplied_damage_frame<'a>(
 /// after a causative `have`.
 pub(in crate::oracle::canonical) fn damage_effect_clause_frame(
     agreement: SubjectVerbAgreement,
-    antecedent: DamageSourceAntecedent,
 ) -> ClauseFrame<'static> {
     supplied_damage_frame(
         match agreement {
@@ -197,7 +196,7 @@ pub(in crate::oracle::canonical) fn damage_effect_clause_frame(
         },
         Voice::Active,
         ClauseModality::Indicative,
-        DamageArguments::Effect(antecedent),
+        DamageArguments::Effect,
     )
 }
 

@@ -4,7 +4,7 @@
 use super::super::super::OracleTokenCursor;
 use super::super::{
     ClauseRecognition, ClauseSubject, DamageEventRecipient, DamagePlayerRecipient,
-    DamageReplacementContext, DamageSourceAntecedent, recognize_clause,
+    DamageReplacementContext, recognize_clause,
 };
 use super::*;
 use crate::oracle::syntax::recognize_entities;
@@ -103,19 +103,13 @@ fn the_damage_can_be_the_subject_of_a_modal_passive() {
 
 #[test]
 fn the_active_frame_serves_the_effect_and_the_replacement_policies() {
-    let effect = damage_effect_clause_frame(
-        SubjectVerbAgreement::Finite,
-        DamageSourceAntecedent::Unavailable,
-    );
+    let effect = damage_effect_clause_frame(SubjectVerbAgreement::Finite);
     assert!(matches!(
         arguments(read("deals 3 damage to any target", &effect).0),
         DamageClauseArguments::Effect(_)
     ));
     // After a causative only the bare verb agrees.
-    let causative = damage_effect_clause_frame(
-        SubjectVerbAgreement::BareInfinitive,
-        DamageSourceAntecedent::Unavailable,
-    );
+    let causative = damage_effect_clause_frame(SubjectVerbAgreement::BareInfinitive);
     assert!(matches!(
         read("deals 3 damage to any target", &causative).0,
         ClauseRecognition::Failed(_)

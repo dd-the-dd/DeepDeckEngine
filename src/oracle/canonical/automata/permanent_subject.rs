@@ -62,14 +62,15 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
             // object, else the object that is the event's subject.
             SourceAnaphorBinding::Unproved => context
                 .observed_event_object
+                .map(PermanentEffectReference::Observed)
                 .or_else(|| {
                     context
+                        .frame
                         .event_object
                         .as_ref()
                         .filter(|slot| slot.subject)
                         .map(|slot| slot.reference)
-                })
-                .map(PermanentEffectReference::Observed),
+                }),
         },
     };
     // This is the existing genuine entry alias, combined with explicit source-
@@ -154,6 +155,13 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             _ => None,
         }),
         LocalEffectNode::Fight(_) => Local(None),
+        // The single protected target is the next action's antecedent.
+        LocalEffectNode::PreventDamage(node) => Local(match &node.recipient {
+            Some(super::DamagePartyNode::Targets(targets)) => {
+                singular_permanent_target(targets, effect_index)
+            }
+            _ => None,
+        }),
         LocalEffectNode::ZoneChange(node) => {
             Local(singular_permanent_target(&node.target, effect_index))
         }
@@ -162,10 +170,12 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         }
         LocalEffectNode::PlayerAction(node) => match &node.action {
             super::SingularPlayerAction::Life(_) => previous,
+            // Drawing, milling and discarding move cards, never a
+            // permanent: the permanent antecedent stays.
             super::SingularPlayerAction::Draw(_)
             | super::SingularPlayerAction::Mill(_)
-            | super::SingularPlayerAction::Discard(_)
-            | super::SingularPlayerAction::Sacrifice(_)
+            | super::SingularPlayerAction::Discard(_) => previous,
+            super::SingularPlayerAction::Sacrifice(_)
             | super::SingularPlayerAction::Venture(_)
             | super::SingularPlayerAction::Proliferate
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
@@ -203,7 +213,6 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::Scry(_)
         | LocalEffectNode::Surveil(_)
         | LocalEffectNode::Earthbend(_)
-        | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::MoveCards(_)
         | LocalEffectNode::ZoneBatch(_)
@@ -300,6 +309,13 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         }
         LocalEffectNode::CounterSpell(node) => {
             return node.target.slots.get(slot_index).map(|slot| &slot.selector);
+        }
+        LocalEffectNode::PreventDamage(node) => {
+            return match &node.recipient {
+                Some(super::DamagePartyNode::Targets(targets)) => targets.slots.get(slot_index),
+                _ => None,
+            }
+            .map(|slot| &slot.selector);
         }
         _ => return None,
     };

@@ -620,10 +620,6 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// left the battlefield to pay a cost, can answer numeric reads such as
     /// its counters (CR 608.2h, 112.7a). Set only by a permanent's activation.
     pub source_numeric_reads: bool,
-    /// The triggering event names one player (the player dealt combat
-    /// damage), so `that player` without a local antecedent denotes it.
-    /// Set only by the trigger parent from its typed event.
-    pub event_player: bool,
     /// Index of the action being read in the enclosing sequence, set only by
     /// the sequence machine. A subject target binds `its` to this action;
     /// other parents leave it unset and that binding fails explicitly.
@@ -633,26 +629,17 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// by parents that read the face type line; `enchanted`/`equipped`
     /// references are rejected without it.
     pub source_attachment: Option<AttachedObjectRole>,
-    /// The triggering event is an attack by the source or the creature it is
-    /// attached to; `defending player` names the player that creature attacks
-    /// (CR 506.2), which the runtime records as the triggering player.
-    pub defending_player: bool,
-    /// The triggering block event names the other combatant of the source in
-    /// every branch; `that creature` without a local antecedent denotes it.
-    /// Set only by the trigger parent from its typed event.
-    pub combat_counterpart: bool,
-    /// The object the triggering event record binds, with the predicate the
-    /// event wrote for it (`that creature` must follow from it). Set only by
-    /// the trigger parent from its typed event.
-    pub event_object: Option<EventObjectSlot>,
-    /// The triggering event is the cast of one spell whose record the
-    /// runtime keeps (`that spell`). Set only by the trigger parent.
-    pub event_spell: bool,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb
     /// in the bare form instead of the finite one.
     pub subject_verb_agreement: SubjectVerbAgreement,
+    /// What the triggering event binds (`binding_environment.rs`): the
+    /// event player, the defending player, the other combatant, the event
+    /// object, the cast spell and the card a zone change made. Set only by
+    /// the trigger parent from its typed event; the single source of truth
+    /// every reference reader resolves against.
+    pub frame: FrameBindings,
 }
 
 /// Surface agreement of an action verb with its explicit grammatical subject.
@@ -766,6 +753,9 @@ pub(super) enum LocalPlayerReference {
     Controller,
     ControllerOf(TargetBinding),
     ControllerOfQualified(TypedTargetReference),
+    /// A player the binding environment names without a target slot of this
+    /// reader (`that player` naming the event's player).
+    Bound(BoundPlayerReference),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1485,6 +1475,9 @@ pub(super) struct EarlyTurnEntryNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct CounterEffectNode {
     pub target: TargetListNode,
+    /// `counter that spell`: the spell the triggering cast record binds,
+    /// not a declared target (the target list is then empty).
+    pub event_spell: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

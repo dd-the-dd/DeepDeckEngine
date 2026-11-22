@@ -35,7 +35,7 @@ fn lower_delayed_player(
 ) -> MachineResult<Value> {
     match player {
         LocalPlayerReference::Controller => Ok(controller()),
-        LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOfQualified(_) | LocalPlayerReference::Bound(_) => {
             Err(cursor.fail("a proved nominal/controller binding for the delayed drawing player"))
         }
         LocalPlayerReference::ControllerOf(binding) => {

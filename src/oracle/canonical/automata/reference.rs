@@ -284,9 +284,14 @@ pub(in crate::oracle::canonical) fn recognize_player_reference_with_support(
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("player")))
     {
         cursor.enter("reference.player.that-player");
+        // Without this reader's own target binding, `that player` is the
+        // player the shared binding environment names.
+        let Some(object) = antecedent else {
+            let environment = super::installed_binding_environment(cursor);
+            return super::recognize_that_player(cursor, &environment)
+                .map(LocalPlayerReference::Bound);
+        };
         cursor.consume_phrase(&["that", "player"])?;
-        let object =
-            antecedent.ok_or_else(|| cursor.fail("a prior target binding for `that player`"))?;
         cursor.enter("reference.player.complete");
         return Ok(LocalPlayerReference::ControllerOf(object));
     }

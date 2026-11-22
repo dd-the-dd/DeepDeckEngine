@@ -63,7 +63,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_activation_prohibition_famil
 fn lower_player(reference: &LocalPlayerReference) -> Value {
     match reference {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("card-name entry choices bind the entering object's controller")
         }
     }

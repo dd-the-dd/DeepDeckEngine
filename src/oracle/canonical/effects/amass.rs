@@ -10,7 +10,9 @@ pub(in crate::oracle::canonical) fn lower_amass_effects(
 ) -> Result<Vec<Value>, TargetlessLoweringError> {
     let player = match effect.player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             return Err(TargetlessLoweringError::RequiresTarget);
         }
     };

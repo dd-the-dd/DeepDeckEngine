@@ -13,7 +13,9 @@ pub(in crate::oracle::canonical) use no_maximum_hand_size::{
 fn lower_player(reference: &LocalPlayerReference) -> Value {
     match reference {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("emblem grammar binds the ability controller")
         }
     }

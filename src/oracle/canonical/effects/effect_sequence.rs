@@ -53,7 +53,9 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         }),
         EffectDurationNode::UntilNextTurn {
             player:
-                LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
+                LocalPlayerReference::ControllerOf(_)
+                | LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_),
         } => return None,
         // No continuous-effect primitive reads the end-of-next-turn window.
         EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
@@ -596,6 +598,13 @@ fn lower_local_effect_sequence_with_collections(
                 )?);
                 effects.push(json!({"kind":"optionalEffects", "player":controller(), "effects":lowered.effects}));
             }
+            LocalEffectNode::CounterSpell(counter) if counter.event_spell => {
+                // The spell the triggering cast record binds (CR 701.6a).
+                effects.push(json!({
+                    "kind": "counterSpell",
+                    "spell": {"kind": "triggeringStackObject"},
+                }));
+            }
             LocalEffectNode::CounterSpell(counter) => {
                 cursor.enter("lower.counter.target");
                 let [slot] = counter.target.slots.as_slice() else {
@@ -1117,7 +1126,10 @@ fn lower_local_effect_sequence_with_collections(
             LocalEffectNode::PreventDamage(prevent) => {
                 cursor.enter("lower.prevent.parties");
                 let mut parties = Vec::with_capacity(2);
-                for party in [&prevent.recipient, &prevent.source] {
+                for (party_index, party) in [&prevent.recipient, &prevent.source]
+                    .into_iter()
+                    .enumerate()
+                {
                     parties.push(match party {
                         None => None,
                         Some(DamagePartyNode::Targets(targets)) => {
@@ -1142,6 +1154,20 @@ fn lower_local_effect_sequence_with_collections(
                                 i64::from(slot.cardinality.minimum),
                                 i64::from(slot.cardinality.maximum),
                             ));
+                            // A singular protected target is the antecedent
+                            // a later `that creature` names.
+                            if party_index == 0
+                                && targets.slots.len() == 1
+                                && slot.cardinality == TargetCardinality::EXACTLY_ONE
+                            {
+                                target_bindings.push((
+                                    TargetBinding {
+                                        effect_index,
+                                        slot_index: 0,
+                                    },
+                                    target_id.clone(),
+                                ));
+                            }
                             Some(chosen_target(&target_id))
                         }
                         Some(DamagePartyNode::Object(PermanentOperandNode::BoundReference(
@@ -1560,7 +1586,8 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.create-named-token.controller");
                 let token_controller = match creation.player {
                     LocalPlayerReference::Controller => controller(),
-                    LocalPlayerReference::ControllerOfQualified(_) => {
+                    LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => {
                         cursor.enter("sequence.player-reference.qualified-controller-support");
                         return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
                             "a proved nominal/controller snapshot binding for this program parent")));
@@ -1759,6 +1786,7 @@ fn lower_local_effect_sequence_with_collections(
         &sequence.where_x,
         &action_starts,
         &decisions,
+        &sequence_numeric_target_slots(sequence, &target_bindings),
         &mut effects,
     )?;
     cursor.enter("lower.ability-loss.later-grant");
@@ -1991,6 +2019,7 @@ fn apply_where_x_bindings(
     bindings: &[WhereXBindingNode],
     action_starts: &[(usize, usize)],
     decisions: &[Value],
+    target_slots: &[NumericTargetSlot],
     effects: &mut Vec<Value>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
     let mut binds = Vec::new();
@@ -2007,11 +2036,23 @@ fn apply_where_x_bindings(
             ));
         }
         cursor.enter("lower.where-x.definition");
-        let value = lower_numeric_expression(&binding.expression).ok_or_else(|| {
-            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail("a definition of X that the shared numeric lowering represents"),
-            )
-        })?;
+        // A property of a declared target reads the slot that declared it
+        // (its last known information once it left, CR 608.2h).
+        let value = lower_numeric_expression(&binding.expression)
+            .or_else(|| {
+                binding
+                    .expression
+                    .requires_target_binding()
+                    .then(|| {
+                        lower_numeric_expression_for_targets(&binding.expression, target_slots).ok()
+                    })
+                    .flatten()
+            })
+            .ok_or_else(|| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a definition of X that the shared numeric lowering represents"),
+                )
+            })?;
         let id = if ordinal == 0 {
             WHERE_X_BINDING_ID.to_owned()
         } else {
@@ -2475,7 +2516,7 @@ fn lower_sequence_bound_life(
 ) -> Result<Value, EffectSequenceLoweringFailure> {
     let player = match player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOfQualified(_) | LocalPlayerReference::Bound(_) => {
             cursor.enter("sequence.player-reference.qualified-controller-support");
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                 cursor.fail("a proved nominal/controller snapshot binding for this program parent"),

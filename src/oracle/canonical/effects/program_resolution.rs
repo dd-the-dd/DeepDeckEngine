@@ -156,7 +156,8 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
                         | CardMoveOwnerNode::EachCardOwner => true,
                         CardMoveOwnerNode::Player(
                             LocalPlayerReference::ControllerOf(_)
-                            | LocalPlayerReference::ControllerOfQualified(_),
+                            | LocalPlayerReference::ControllerOfQualified(_)
+                            | LocalPlayerReference::Bound(_),
                         ) => false,
                     }
             }
@@ -253,6 +254,10 @@ impl CollectionScope {
         reference: CardCollectionReferenceNode,
     ) -> Result<Option<i64>, ProgramResolutionError> {
         const STATE: &str = "lower.card-action.bindings";
+        // A linked set is not an observation of this program (CR 607.2a).
+        if reference == CardCollectionReferenceNode::Linked {
+            return Ok(None);
+        }
         if !self.observation {
             return Err(error(
                 STATE,
@@ -271,7 +276,9 @@ impl CollectionScope {
                 .ok_or_else(|| error(STATE, "a singular card antecedent in the current scope")),
             CardCollectionReferenceNode::Remainder
             | CardCollectionReferenceNode::Other
-            | CardCollectionReferenceNode::Zone => {
+            | CardCollectionReferenceNode::Zone
+            | CardCollectionReferenceNode::Exiled
+            | CardCollectionReferenceNode::Linked => {
                 unreachable!("structurally outside the checked scope slice")
             }
         }

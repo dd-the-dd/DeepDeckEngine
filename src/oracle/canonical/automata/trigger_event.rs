@@ -673,7 +673,8 @@ pub(in crate::oracle::canonical) fn recognize_land_played_event(
                         "the second-person `play` action",
                     )?,
                     LocalPlayerReference::ControllerOf(_)
-                    | LocalPlayerReference::ControllerOfQualified(_) => cursor.require(
+                    | LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => cursor.require(
                         action.raw.eq_ignore_ascii_case("plays"),
                         "the third-person `plays` action",
                     )?,

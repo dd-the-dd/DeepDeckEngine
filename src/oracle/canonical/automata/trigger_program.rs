@@ -102,13 +102,14 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         .with_unless_frames();
     // This parent reads `This ability triggers only ...` after the body.
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
-    context.event_player = event_names_player(&event.value);
+    context.frame.event_player = event_names_player(&event.value);
     context.source_attachment = source_attachment;
-    context.defending_player = event_names_defending_player(&event.value);
-    context.combat_counterpart = event_names_combat_counterpart(&event.value);
-    context.event_object = event_object_slot(&event.value);
+    context.frame.defending_player = event_names_defending_player(&event.value);
+    context.frame.combat_counterpart = event_names_combat_counterpart(&event.value);
+    context.frame.event_object = event_object_slot(&event.value);
+    context.frame.event_card = event_card_zone(&event.value);
     // A cast record binds its spell; a copy has no cast record.
-    context.event_spell = matches!(
+    context.frame.event_spell = matches!(
         &event.value,
         GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
     );
@@ -225,6 +226,45 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
     )
 }
 
+/// The public zone a battlefield departure put the event's object into: a
+/// death puts it into its owner's graveyard (CR 700.4). A departure to an
+/// unwritten zone, or from another zone, binds no card.
+pub(in crate::oracle::canonical) fn event_card_zone(
+    event: &GenericTriggerEventNode,
+) -> Option<CardZoneName> {
+    if let GenericTriggerEventNode::SourceEvent(node) = event {
+        return match node.verbs.as_slice() {
+            [
+                super::SourceEventVerb::Died
+                | super::SourceEventVerb::PutIntoGraveyardFromBattlefield,
+            ] => Some(CardZoneName::Graveyard),
+            [super::SourceEventVerb::PutIntoExileFromBattlefield] => Some(CardZoneName::Exile),
+            _ => None,
+        };
+    }
+    let died = match event {
+        GenericTriggerEventNode::SourceTransition(node) => {
+            node.event == SourceTriggerEventKind::Died && !node.is_union()
+        }
+        GenericTriggerEventNode::PermanentTransition {
+            kind: PermanentTransitionKind::Died,
+            union_kind: None,
+            ..
+        } => true,
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            subject,
+            verb: ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield,
+            ..
+        }) => subject.multiplicity == EventMultiplicity::PerObject,
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            action: AttachedObjectEventAction::Die,
+            ..
+        }) => true,
+        _ => false,
+    };
+    died.then_some(CardZoneName::Graveyard)
+}
+
 /// The object the event record binds, with the predicate the event wrote for
 /// it. The entering permanent keeps its observed reference; every other
 /// record binds its object as the triggering permanent: the damaged
@@ -233,7 +273,7 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
 fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot> {
     let permanent = |predicate: ObjectPredicate, subject: bool| {
         Some(EventObjectSlot {
-            reference: TypedObservedEventObject::EventPermanent,
+            reference: PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent),
             predicate,
             subject,
         })
@@ -262,10 +302,10 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 _ => ObjectPredicate::Union(predicates),
             };
             Some(EventObjectSlot {
-                reference: match kind {
+                reference: PermanentEffectReference::Observed(match kind {
                     PermanentTransitionKind::Entered => TypedObservedEventObject::EnteringPermanent,
                     PermanentTransitionKind::Died => TypedObservedEventObject::EventPermanent,
-                },
+                }),
                 predicate,
                 subject: true,
             })
@@ -294,6 +334,16 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone(), false),
             DamageRecipient::Player(_) => None,
         },
+        // `the upkeep of enchanted creature's controller`: the event names the
+        // permanent the source enchants with that nominal (CR 303.4).
+        GenericTriggerEventNode::Step(StepEventNode {
+            player: StepPlayerScope::AttachedPermanentController(nominal),
+            ..
+        }) => Some(EventObjectSlot {
+            reference: PermanentEffectReference::Attached(AttachedObjectRole::Enchanted),
+            predicate: nominal.as_predicate(),
+            subject: false,
+        }),
         GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
             action:
                 AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,

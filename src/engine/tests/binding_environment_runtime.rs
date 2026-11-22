@@ -268,3 +268,159 @@ fn genitive_power_of_a_dead_creature_is_its_last_known_power() {
     resolve_stack(&mut engine);
     assert_eq!(engine.state.players[0].life, expected);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn it_is_the_card_the_death_put_into_the_graveyard() {
+    // Endless Cockroaches: the card returns from the graveyard to its
+    // owner's hand, but only while it is still the card the death made
+    // (CR 400.7): moved elsewhere first, it is a new object.
+    let rules = parsed_rules(
+        "Creature - Insect",
+        "When this creature dies, return it to its owner's hand.",
+    );
+    for moved_first in [false, true] {
+        let mut engine = test_engine(2);
+        engine.state.players[1].battlefield.push(permanent(
+            "roach",
+            "Creature - Insect",
+            rules.clone(),
+            "player-1",
+        ));
+        admit(&mut engine);
+        engine
+            .move_permanent_to_graveyard("roach", "destroyed")
+            .expect("the creature dies");
+        if moved_first {
+            let card = engine.state.players[1].graveyard.pop().expect("dead card");
+            engine.state.players[1].exile.push(card);
+        }
+        resolve_stack(&mut engine);
+        let in_hand = engine.state.players[1]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == "roach");
+        assert_eq!(in_hand, !moved_first, "moved first: {moved_first}");
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_exiled_card_returns_through_the_linked_ability() {
+    // Journey to Nowhere's shape: the entry exile records the link; leaving
+    // returns that card under its owner's control (CR 607.2a).
+    let rules = parsed_rules(
+        "Enchantment",
+        "When this enchantment enters, exile target creature.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+    );
+    let mut engine = test_engine(2);
+    let journey = permanent("journey", "Enchantment", rules.clone(), "player-0");
+    engine.state.players[0].battlefield.push(journey.clone());
+    engine.state.players[1].battlefield.push(permanent(
+        "captive",
+        "Creature - Bear",
+        Vec::new(),
+        "player-1",
+    ));
+    admit(&mut engine);
+    let entry = &rules[0];
+    let target_id = entry["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let (player, index) = engine.permanent_position("journey").expect("journey");
+    let live = engine.state.players[player].battlefield[index].clone();
+    let stack = StackObject {
+        id: "stack:journey-entry".to_string(),
+        controller: "player-0".to_string(),
+        card: live,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("triggeredAbility".to_string()),
+        ability_rule: Some(entry.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "captive".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &entry["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the exile resolves");
+    assert!(engine.card_zone_owner_id("captive", "exile").is_some());
+    engine
+        .move_permanent_to_graveyard("journey", "destroyed")
+        .expect("the enchantment leaves");
+    resolve_stack(&mut engine);
+    let (player, _) = engine
+        .permanent_position("captive")
+        .expect("the linked card returned");
+    assert_eq!(
+        engine.state.players[player].id, "player-1",
+        "owner's control"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn where_x_reads_the_destroyed_targets_last_known_mana_value() {
+    // Death Mutation's shape: X is read after the target was destroyed.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Destroy target creature. You gain X life, where X is that creature's mana value.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let mut definition = test_definition("ogre", "Creature - Ogre");
+    definition.mana_cost = "{3}{R}".to_string();
+    engine.state.players[1]
+        .battlefield
+        .push(test_instance("ogre", definition, "player-1"));
+    admit(&mut engine);
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:mutation".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "mutation",
+            test_definition("mutation", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "ogre".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    assert!(engine.permanent_position("ogre").is_none());
+    assert_eq!(
+        engine.state.players[0].life, 24,
+        "mana value 4 as last known"
+    );
+}

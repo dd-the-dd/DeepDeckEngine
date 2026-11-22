@@ -102,7 +102,9 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         lower_targeted_zone_change_effect(sequence.zone_change.action, chosen_target(target_id));
     let player = match sequence.then_effect.player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             return Err(cursor.fail("the spell controller as conditional life recipient"));
         }
     };

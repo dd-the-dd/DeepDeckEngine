@@ -107,6 +107,20 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
     }
 }
 
+/// A player without a declaration of this action: the controller, or a
+/// player the binding environment names without a target slot (the event's
+/// player, the controller of an event object).
+fn targetless_player(player: LocalPlayerReference) -> Result<Value, TargetlessLoweringError> {
+    match player {
+        LocalPlayerReference::Controller => Ok(controller()),
+        LocalPlayerReference::Bound(reference) => bound_player_reference_value(reference, &[], &[])
+            .ok_or(TargetlessLoweringError::RequiresTarget),
+        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+            Err(TargetlessLoweringError::RequiresTarget)
+        }
+    }
+}
+
 /// One fixed recipient group of a damage frame. A permanent collection is the
 /// shared object query (`eachPermanent`), evaluated when the damage resolves.
 pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
@@ -120,6 +134,9 @@ pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
         | DamageRecipientNode::Player(
             LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
         ) => Err(TargetlessLoweringError::RequiresTarget),
+        DamageRecipientNode::Player(player @ LocalPlayerReference::Bound(_)) => {
+            targetless_player(*player)
+        }
         DamageRecipientNode::EachPermanent(collection) => {
             if object_predicate_uses_x(&collection.objects.predicate)
                 && declarations != TargetlessDeclarationSupport::XValue
@@ -254,13 +271,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
         _ => None,
     };
     if let Some((action, recipient, quantity)) = partition {
-        let player = match recipient {
-            LocalPlayerReference::Controller => controller(),
-            LocalPlayerReference::ControllerOf(_)
-            | LocalPlayerReference::ControllerOfQualified(_) => {
-                return Err(TargetlessLoweringError::RequiresTarget);
-            }
-        };
+        let player = targetless_player(*recipient)?;
         let count = lower_targetless_numeric_expression(quantity, declarations)?;
         return lower_library_partition_effects_for_player(action, quantity, count, player, scope)
             .map_err(|_| TargetlessLoweringError::UnsupportedEffect);
@@ -298,13 +309,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             }))
         }
         LocalEffectNode::GainLife(effect) => {
-            let player = match effect.player {
-                LocalPlayerReference::Controller => controller(),
-                LocalPlayerReference::ControllerOf(_)
-                | LocalPlayerReference::ControllerOfQualified(_) => {
-                    return Err(TargetlessLoweringError::RequiresTarget);
-                }
-            };
+            let player = targetless_player(effect.player)?;
             Ok(json!({
                 "kind": "gainLife",
                 "player": player,
@@ -312,13 +317,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             }))
         }
         LocalEffectNode::LoseLife(effect) => {
-            let player = match effect.player {
-                LocalPlayerReference::Controller => controller(),
-                LocalPlayerReference::ControllerOf(_)
-                | LocalPlayerReference::ControllerOfQualified(_) => {
-                    return Err(TargetlessLoweringError::RequiresTarget);
-                }
-            };
+            let player = targetless_player(effect.player)?;
             Ok(json!({
                 "kind": "loseLife",
                 "player": player,
@@ -326,13 +325,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             }))
         }
         LocalEffectNode::DrawCards(effect) => {
-            let player = match effect.player {
-                LocalPlayerReference::Controller => controller(),
-                LocalPlayerReference::ControllerOf(_)
-                | LocalPlayerReference::ControllerOfQualified(_) => {
-                    return Err(TargetlessLoweringError::RequiresTarget);
-                }
-            };
+            let player = targetless_player(effect.player)?;
             Ok(json!({
                 "kind": "drawCards",
                 "player": player,

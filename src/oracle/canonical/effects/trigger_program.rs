@@ -103,10 +103,21 @@ fn compile_recognized_trigger_program(
             "programTokens":[node.program.tokens.start,node.program.tokens.end],
             "actionCount":node.program.value.action_count()}),
     ));
+    // The lowering reads the frame's event card through the same environment.
+    let enclosing =
+        cursor.replace_binding_environment(Some(std::sync::Arc::new(BindingEnvironment {
+            frame: FrameBindings {
+                event_card: event_card_zone(&node.event.value),
+                ..FrameBindings::default()
+            },
+            ..BindingEnvironment::default()
+        })));
     let lowered = match &node.program.value {
-        TriggerBodyNode::Program(program) => lower_effect_program(cursor, program)?,
-        TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(cursor, modal)?,
+        TriggerBodyNode::Program(program) => lower_effect_program(cursor, program),
+        TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(cursor, modal),
     };
+    cursor.replace_binding_environment(enclosing);
+    let lowered = lowered?;
     cursor.require(
         !lowered.effects.is_empty(),
         "at least one executable action",

@@ -70,7 +70,8 @@ pub(in crate::oracle::canonical) fn lower_scoped_object_query_count(
             }
             ZoneHolderQueryNode::Player(
                 LocalPlayerReference::ControllerOf(_)
-                | LocalPlayerReference::ControllerOfQualified(_),
+                | LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_),
             ) => return None,
         }
         Some(

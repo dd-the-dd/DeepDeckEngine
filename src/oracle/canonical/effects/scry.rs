@@ -58,7 +58,9 @@ pub(in crate::oracle::canonical) fn lower_scry_effects_for_player(
 fn lower_scry_effects(effect: &ScryEffectNode) -> MachineResult<Vec<Value>> {
     let player = match &effect.player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("standalone scry recognizer binds controller")
         }
     };

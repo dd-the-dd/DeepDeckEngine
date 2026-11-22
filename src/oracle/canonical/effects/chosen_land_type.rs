@@ -50,7 +50,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_retain_chosen_land_type_fami
 fn lower_player(reference: &LocalPlayerReference) -> Value {
     match reference {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("entry choices currently bind the entering object's controller")
         }
     }

@@ -34,7 +34,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_library_search_partition_fam
 fn lower_collection_player(reference: &LocalPlayerReference) -> Value {
     match reference {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             unreachable!("this grammar currently recognizes controller-owned searches")
         }
     }

@@ -9,9 +9,9 @@
 //! Nothing is guessed: an absent slot is a committed diagnostic.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, NumericExpression, ObjectPlayerRelation, ObjectPredicate,
-    ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope, PlayerBinding,
-    PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
+    CardZoneName, EffectRecognitionContext, NumericExpression, ObjectPlayerRelation,
+    ObjectPredicate, ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope,
+    PlayerBinding, PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
     TypedObservedEventObject, selector_implies_nominal,
 };
 use crate::oracle::characteristic_vocabulary::{
@@ -22,7 +22,7 @@ use crate::oracle::characteristic_vocabulary::{
 /// it. A nominal anaphor (`that creature`) must follow from that predicate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EventObjectSlot {
-    pub reference: TypedObservedEventObject,
+    pub reference: PermanentEffectReference,
     pub predicate: ObjectPredicate,
     /// The object is the grammatical subject of the event (`a creature
     /// attacks`, `a creature dies`), so a bare `it` can name it. A damaged
@@ -54,17 +54,15 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     pub event_object: Option<EventObjectSlot>,
     /// The event is the cast of one spell (`that spell`).
     pub event_spell: bool,
+    /// The event moved its object into this public zone, where the ability
+    /// can still find the card it became (CR 400.7, 603.6c): `it` / `that
+    /// card` in a card action when the program observed no other card.
+    pub event_card: Option<CardZoneName>,
 }
 
 impl FrameBindings {
     pub(in crate::oracle::canonical) fn from_context(context: &EffectRecognitionContext) -> Self {
-        Self {
-            event_player: context.event_player,
-            defending_player: context.defending_player,
-            combat_counterpart: context.combat_counterpart,
-            event_object: context.event_object.clone(),
-            event_spell: context.event_spell,
-        }
+        context.frame.clone()
     }
 }
 
@@ -79,6 +77,13 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     pub object: Option<ObjectSubjectAntecedent>,
     /// The player an earlier `target player` declared (`that player`).
     pub player: Option<PlayerBinding>,
+    /// The subject of the clause being read (the object that deals damage):
+    /// a possessive `its` in its arguments names it. Installed by the clause
+    /// parent around its arguments only.
+    pub subject: Option<PermanentEffectReference>,
+    /// The index of the action being read in the enclosing program; a
+    /// target declared by this action binds to it.
+    pub effect_index: Option<usize>,
 }
 
 impl BindingEnvironment {
@@ -105,6 +110,8 @@ impl BindingEnvironment {
                 },
             ),
             player: None,
+            subject: None,
+            effect_index: context.current_effect_index,
         }
     }
 }
@@ -332,7 +339,7 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         cursor.enter("player-subject.complete");
         return Ok(BoundPlayerReference::ObjectRelation {
             relation,
-            object: PermanentEffectReference::Observed(slot.reference),
+            object: slot.reference,
         });
     }
     let antecedent = antecedent.ok_or_else(|| {
@@ -345,10 +352,7 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         )
     })?;
     cursor.require(
-        match antecedent.reference {
-            PermanentEffectReference::Observed(observed) => relation_supported(observed),
-            _ => true,
-        },
+        relation_supported(antecedent.reference),
         "a declared target, the source, its attached permanent or an event object as the possessive antecedent",
     )?;
     if let Some(nominal) = nominal {
@@ -364,13 +368,17 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
     })
 }
 
-/// The event objects whose controller and owner the runtime reads, live or
-/// as last known information: the record's permanent and the entering one.
-fn relation_supported(reference: TypedObservedEventObject) -> bool {
-    matches!(
-        reference,
-        TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
-    )
+/// The objects whose controller and owner the runtime reads, live or as
+/// last known information: declared targets, the source, its attached
+/// permanent, the record's permanent and the entering one.
+fn relation_supported(reference: PermanentEffectReference) -> bool {
+    match reference {
+        PermanentEffectReference::Observed(observed) => matches!(
+            observed,
+            TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
+        ),
+        _ => true,
+    }
 }
 
 fn lexical_antecedent_implies(
@@ -470,7 +478,7 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
             .filter(|slot| slot.implies(nominal))
     {
         cursor.consume(&noun)?;
-        return Ok(PermanentEffectReference::Observed(slot.reference));
+        return Ok(slot.reference);
     }
     let antecedent = environment.object.as_ref().ok_or_else(|| {
         cursor.fail("a preceding singular permanent subject in this lexical scope")
@@ -568,9 +576,50 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
         .filter(|slot| slot.implies(nominal) && relation_supported(slot.reference))
         .ok_or_else(|| cursor.fail("a preceding target or an event object with this nominal"))?;
     Ok(NumericExpression::BoundObjectProperty {
-        object: PermanentEffectReference::Observed(slot.reference),
+        object: slot.reference,
         property,
     })
+}
+
+/// Reads a clause's arguments with `subject` as the clause subject of the
+/// installed environment, then restores the enclosing environment.
+pub(in crate::oracle::canonical) fn with_clause_subject<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: Option<PermanentEffectReference>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.subject = subject;
+    let enclosing = cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+    let result = read(cursor);
+    cursor.replace_binding_environment(enclosing);
+    result
+}
+
+/// The clause subject a damage source operand denotes: the ability source,
+/// a bound target, or the single target this action declares.
+pub(in crate::oracle::canonical) fn damage_source_subject(
+    cursor: &OracleTokenCursor<'_>,
+    source: &super::PermanentOperandNode,
+) -> Option<PermanentEffectReference> {
+    match source {
+        super::PermanentOperandNode::Reference(reference) => {
+            Some(PermanentEffectReference::Source(*reference))
+        }
+        super::PermanentOperandNode::BoundReference(
+            reference @ PermanentEffectReference::Target(_),
+        ) => Some(*reference),
+        super::PermanentOperandNode::Targets(targets) if targets.slots.len() == 1 => cursor
+            .binding_environment()
+            .and_then(|environment| environment.effect_index)
+            .map(|effect_index| {
+                PermanentEffectReference::Target(super::TargetBinding {
+                    effect_index,
+                    slot_index: 0,
+                })
+            }),
+        _ => None,
+    }
 }
 
 /// The environment the parent installed. A parent that installs none binds

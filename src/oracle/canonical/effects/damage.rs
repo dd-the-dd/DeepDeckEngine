@@ -383,7 +383,8 @@ fn lower_local_effect_sequence(
             LocalEffectNode::GainLife(effect) => {
                 let player = match effect.player {
                     LocalPlayerReference::Controller => controller(),
-                    LocalPlayerReference::ControllerOfQualified(_) => {
+                    LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => {
                         return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
                     }
                     LocalPlayerReference::ControllerOf(_) => {
@@ -400,7 +401,8 @@ fn lower_local_effect_sequence(
             LocalEffectNode::LoseLife(effect) => {
                 let player = match effect.player {
                     LocalPlayerReference::Controller => controller(),
-                    LocalPlayerReference::ControllerOfQualified(_) => {
+                    LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => {
                         return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
                     }
                     LocalPlayerReference::ControllerOf(_) => {
@@ -654,29 +656,31 @@ fn lower_conditional_damage_effect(
                     })
                 }),
                 LocalEffectNode::GainLife(effect) => Some(json!({
-                    "kind": "gainLife",
-                    "player": match effect.player {
-                        LocalPlayerReference::Controller => controller(),
-                        LocalPlayerReference::ControllerOfQualified(_) => return None,
-                        LocalPlayerReference::ControllerOf(_) => {
-                            unreachable!("conditional damage has no target-controller binding")
-                        }
-                    },
-                    "amount": lower_numeric_expression(&effect.amount)
-                        .expect("conditional damage has no target-property binding"),
-                })),
+                        "kind": "gainLife",
+                        "player": match effect.player {
+                            LocalPlayerReference::Controller => controller(),
+                            LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_) => return None,
+                            LocalPlayerReference::ControllerOf(_) => {
+                                unreachable!("conditional damage has no target-controller binding")
+                            }
+                        },
+                        "amount": lower_numeric_expression(&effect.amount)
+                            .expect("conditional damage has no target-property binding"),
+                    })),
                 LocalEffectNode::LoseLife(effect) => Some(json!({
-                    "kind": "loseLife",
-                    "player": match effect.player {
-                        LocalPlayerReference::Controller => controller(),
-                        LocalPlayerReference::ControllerOfQualified(_) => return None,
-                        LocalPlayerReference::ControllerOf(_) => {
-                            unreachable!("conditional damage has no target-controller binding")
-                        }
-                    },
-                    "amount": lower_numeric_expression(&effect.amount)
-                        .expect("conditional damage has no target-property binding"),
-                })),
+                        "kind": "loseLife",
+                        "player": match effect.player {
+                            LocalPlayerReference::Controller => controller(),
+                            LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_) => return None,
+                            LocalPlayerReference::ControllerOf(_) => {
+                                unreachable!("conditional damage has no target-controller binding")
+                            }
+                        },
+                        "amount": lower_numeric_expression(&effect.amount)
+                            .expect("conditional damage has no target-property binding"),
+                    })),
                 LocalEffectNode::OptionalDrawCards(_) => None,
                 LocalEffectNode::CounterSpell(_)
                 | LocalEffectNode::TemporaryKeywordGrant(_)

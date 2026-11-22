@@ -128,7 +128,75 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   propriété de cible), `that card's` (cartes révélées), `that spell's` hors
   valeur de mana.
 
+## Étape 5 réalisée : carte qui a changé de zone, exil lié (CR 607)
+
+- Cadre : `FrameBindings::event_card` est la zone publique où le changement
+  de zone déclencheur a mis son objet (mort, mise au cimetière depuis le
+  champ de bataille, exil depuis le champ de bataille de la source). Le
+  parent de déclencheur l'installe aussi pour l'abaissement ; sans
+  collection observée du programme, `it` / `that card` d'une action sur
+  carte est `{"kind":"triggeringCard"}`.
+- Moteur : à la mise sur la pile, si l'objet n'est plus sur le champ de
+  bataille, sa zone publique et l'identité de la carte qu'il y est devenu
+  sont capturées ; `triggeringCard` ne la trouve que tant qu'elle reste cet
+  objet (CR 400.7). Une main, une bibliothèque ou un cimetière sont toujours
+  ceux du propriétaire (CR 400.3) : `its owner's hand|library|graveyard`
+  est accepté comme destination par propriétaire.
+- Exil lié : `the exiled card(s)` reprend l'exil du programme, sinon, comme
+  `[each|all] card(s) exiled with this NOUN|it`, désigne l'ensemble lié
+  `{"kind":"cardsExiledWithSource","link":"face"}`. La passe de composition
+  existante (`card_composition.rs`) relie désormais au lieu de rejeter :
+  chaque `exilePermanent` des autres capacités de la face reçoit
+  `linkToSource` et le moteur enregistre le lien à la résolution ; un autre
+  exil reste rejeté (`composition.linked-exile.relation`) ; un lecteur sans
+  producteur sur sa face échoue en `binding.linked-exile.producer`.
+- Sondes (base de la phase 2, 207a2e1 : ligue 802, corpus 14096) : ligue
+  802 → 807 (+5 : Rancor, Oblivion Ring, Fake Your Own Death, False Demise,
+  Malakir Rebirth), 0 perdue ; corpus 14096 → 14186 (+90 : Endless
+  Cockroaches, Fiend Hunter, Demonic Vigor, The Cauldron of Eternity,
+  Undying Rage, …), 0 perdue, 128 IR changées dont 0 déjà supportée.
+
+## Étape 6 réalisée : lecteurs hérités migrés, cadre unique
+
+- Le contexte de reconnaissance ne porte plus six drapeaux d'événement
+  (`event_player`, `defending_player`, `combat_counterpart`, `event_object`,
+  `event_spell`, `event_card`) mais un seul `frame: FrameBindings`, que le
+  parent de déclencheur remplit et que tous les lecteurs lisent ; le
+  contexte de sujet des propositions (`EffectSubjectContext`) le reprend.
+- `LocalPlayerReference::Bound` : sans liaison de cible propre au lecteur,
+  `that player` de `reference.rs` est résolu par l'environnement ; il est
+  abaissé sans déclaration (`triggeringPlayer`, relation d'un objet
+  d'événement) ou échoue explicitement.
+- `DamageSourceAntecedent` est supprimé : le sujet de la proposition de
+  dégâts est un emplacement de l'environnement (`subject`, installé par
+  `with_clause_subject` autour des arguments), dérivé de l'opérande source
+  (`damage_source_subject`) avec l'indice de l'action courante.
+- Refactorisation : ligue et corpus inchangés (807, 14186), 0 IR changée.
+  Les 23 cartes `that player may ...` atteignent désormais leur vrai
+  blocage (le lecteur facultatif d'un autre joueur, `effect.library-search.action`).
+
+## Étape 7 réalisée : emplacements élargis
+
+- La cible unique protégée par une prévention est l'antécédent suivant ;
+  piocher, meuler ou défausser ne déplacent aucun permanent et conservent
+  l'antécédent de permanent (une cible choisie avant reste `that creature`).
+- `EventObjectSlot::reference` est une référence de permanent quelconque :
+  `the upkeep of enchanted NOUN's controller` publie le permanent enchanté
+  avec le nominal écrit (`StepPlayerScope::AttachedPermanentController`).
+- `counter that spell` après un lancement contrecarre le sort que
+  l'enregistrement de lancement lie (`triggeringStackObject`).
+- `where X is that NOUN's PROPERTY` lit la propriété de la cible déclarée
+  (information de dernier état une fois détruite).
+- Sondes (base de l'étape 6) : ligue inchangée (807) ; corpus 14186 →
+  14198 (+12 : Death Mutation, Artifact Mutation, Unstable Mutation, Grave
+  Strength, Hoard-Smelter Dragon, …), 0 perdue, 14 IR changées dont 0 déjà
+  supportée.
+- Restent explicites : `that spell's controller` (relation d'un sort sur la
+  pile), le corps modal d'un déclencheur (Pip-Boy 3000 : le mode ne reçoit
+  pas le cadre), `that player may ...` (lecteur facultatif d'un autre joueur).
+
 ## Suite
 
-1. Cartes ayant changé de zone (`return it to its owner's hand` après une
-   mort, CR 400.7) et références liées (CR 607, `the exiled card`).
+1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
+   d'un sort sur la pile ; `that player may` (permission facultative d'un
+   autre joueur, moteur).

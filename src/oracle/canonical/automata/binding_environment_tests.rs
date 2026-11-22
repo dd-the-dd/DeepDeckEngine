@@ -353,3 +353,154 @@ fn spell_genitive_reads_the_cast_record() {
     );
     assert_ne!(status, "canonical");
 }
+
+/// Every `moveCards` effect of the card's canonical rules.
+fn card_moves(type_line: &str, oracle: &str) -> Vec<Value> {
+    let (status, rules, states) = parse(type_line, oracle);
+    assert_eq!(status, "canonical", "{oracle}: {states:?}");
+    rules
+        .iter()
+        .flat_map(|rule| rule["effects"].as_array().cloned().unwrap_or_default())
+        .filter(|effect| effect["kind"] == "moveCards")
+        .collect()
+}
+
+#[test]
+fn it_names_the_card_a_death_put_into_a_graveyard() {
+    // Real cards: Endless Cockroaches (the source), The Cauldron of Eternity
+    // (an observed creature), Demonic Vigor (the enchanted creature).
+    // Unused recombination: the dying creature exiled by an artifact.
+    for (type_line, oracle, zone) in [
+        (
+            CREATURE,
+            "When this creature dies, return it to its owner's hand.",
+            "hand",
+        ),
+        (
+            ENCHANTMENT,
+            "Whenever a creature you control dies, put it on the bottom of its owner's library.",
+            "library",
+        ),
+        (
+            "Enchantment \u{2014} Aura",
+            "Enchant creature\nWhen enchanted creature dies, return that card to the battlefield under your control.",
+            "battlefield",
+        ),
+        (
+            "Artifact",
+            "Whenever a creature an opponent controls dies, exile it.",
+            "exile",
+        ),
+    ] {
+        let moves = card_moves(type_line, oracle);
+        assert!(
+            moves
+                .iter()
+                .any(|effect| effect["cards"] == json!({"kind":"triggeringCard"})
+                    && effect["to"]["kind"] == zone),
+            "{oracle}: {moves:?}"
+        );
+    }
+    // Near miss: a departure to an unwritten zone binds no card.
+    let (status, _, _) = parse(
+        ENCHANTMENT,
+        "Whenever a creature you control leaves the battlefield, return that card to its owner's hand.",
+    );
+    assert_ne!(status, "canonical");
+}
+
+#[test]
+fn the_exiled_card_is_linked_to_the_exiling_ability() {
+    // Real card: Journey to Nowhere's shape. The exile of the other ability
+    // records the link; the reader returns the linked set (CR 607.2a).
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target creature.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    let text = serde_json::to_string(&rules).unwrap();
+    assert!(text.contains("\"linkToSource\":true"), "{text}");
+    assert!(text.contains("cardsExiledWithSource"), "{text}");
+    // Unused recombination: `each card exiled with this` into hands.
+    let (status, _, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target artifact.\n{2}, Sacrifice this enchantment: Return each card exiled with this enchantment to its owner's hand.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Near miss: nothing on the face exiles; the set has no producer.
+    let (status, _, states) = parse(
+        CREATURE,
+        "When this creature leaves the battlefield, return the exiled card to its owner's hand.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "binding.linked-exile.producer"),
+        "{states:?}"
+    );
+}
+
+#[test]
+fn widened_slots_bind_prevention_targets_attachments_and_the_cast_spell() {
+    // Samite Alchemist: the protected target is `that creature`.
+    let (status, _, states) = parse(
+        CREATURE,
+        "{W}{W}, {T}: Prevent the next 4 damage that would be dealt this turn to target creature you control. Tap that creature.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Grave Strength's shape: milling moves no permanent, the target stays.
+    let (status, _, states) = parse(
+        "Sorcery",
+        "Choose target creature. Mill three cards, then put a +1/+1 counter on that creature.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Unstable Mutation's trigger: `that creature` is the enchanted creature.
+    let objects = effect_objects(
+        "Enchantment \u{2014} Aura",
+        "Enchant creature\nAt the beginning of the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature.",
+    );
+    assert!(
+        objects
+            .iter()
+            .any(|object| object["kind"] == "attachedPermanent"),
+        "{objects:?}"
+    );
+    // `counter that spell` after a cast trigger (Ertai's Familiar shape).
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent casts a spell, you may pay {2}. If you do, counter that spell.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert!(
+        rules[0].to_string().contains("triggeringStackObject"),
+        "{rules:?}"
+    );
+    // Near misses: no cast event binds a spell; the enchanted permanent is
+    // a land, not a creature.
+    for (type_line, oracle) in [
+        (CREATURE, "{T}: Counter that spell."),
+        (
+            "Enchantment \u{2014} Aura",
+            "Enchant land\nAt the beginning of the upkeep of enchanted land's controller, put a -1/-1 counter on that creature.",
+        ),
+    ] {
+        let (status, _, _) = parse(type_line, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}
+
+#[test]
+fn where_x_reads_the_declared_target_property() {
+    // Death Mutation: the destroyed target's mana value.
+    let reads = property_reads(
+        "Sorcery",
+        "Destroy target nonblack creature. It can't be regenerated. Create X 1/1 green Saproling creature tokens, where X is that creature's mana value.",
+    );
+    assert!(
+        reads
+            .iter()
+            .any(|read| read["kind"] == "manaValueOf" && read["object"]["kind"] == "chosenTarget"),
+        "{reads:?}"
+    );
+}

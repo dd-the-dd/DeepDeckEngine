@@ -298,9 +298,9 @@ fn recognize_library_search(
 fn library_player_possessive(player: LocalPlayerReference) -> &'static str {
     match player {
         LocalPlayerReference::Controller => "your",
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
-            "their"
-        }
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => "their",
     }
 }
 
