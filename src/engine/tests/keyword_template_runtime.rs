@@ -535,3 +535,57 @@ fn counter_possession_gates_triggers_when_put_on_the_stack_and_after_death() {
         assert_eq!(engine.state.players[0].life, life + gained, "{counters}");
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn vanishing_removes_a_time_counter_each_upkeep_and_sacrifices_at_the_last() {
+    // CR 702.63a: enters with N time counters; each upkeep removes one; the
+    // removal of the last one triggers the sacrifice.
+    let shadow = compiled(
+        "Vanishing Probe",
+        "Creature \u{2014} Shade",
+        ("3", "3"),
+        "Vanishing 2 (This creature enters with two time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)",
+    );
+    assert_eq!(shadow.rules.len(), 3);
+    let mut engine = test_engine(2);
+    engine.state.active_player = 0;
+    let mut entering = test_instance("vanishing-probe", shadow, "player-0");
+    engine
+        .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+        .expect("it enters with its time counters");
+    assert_eq!(entering.counters.get("time"), Some(&2));
+    engine.state.players[0].battlefield = vec![entering];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let upkeep = |engine: &mut GameEngine| {
+        engine.enqueue_step_triggers("upkeep");
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut EmeritusDecisionProvider)
+                .expect("the upkeep triggers resolve");
+        }
+    };
+    upkeep(&mut engine);
+    let (player, index) = engine
+        .permanent_position("vanishing-probe")
+        .expect("still on the battlefield after the first upkeep");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("time"),
+        Some(&1)
+    );
+    upkeep(&mut engine);
+    assert!(
+        engine.permanent_position("vanishing-probe").is_none(),
+        "the last time counter's removal sacrificed it"
+    );
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "vanishing-probe")
+    );
+}

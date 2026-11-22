@@ -676,6 +676,29 @@ fn lower_local_effect_sequence_with_collections(
                     );
                 }
             }
+            LocalEffectNode::PutCounters(node)
+                if node.direction == CounterChangeDirection::Remove =>
+            {
+                cursor.enter("lower.remove-counters.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                for object in objects {
+                    let removal = lower_counter_removal(object, node).ok_or_else(|| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                            "a literal counter removal from the ability's own object (the runtime removes counters only from its source)",
+                        ))
+                    })?;
+                    effects.push(removal);
+                }
+            }
             LocalEffectNode::PutCounters(node) => {
                 // CR 701.10e: a doubled object's count is read from that same
                 // object, so it is bound per lowered recipient below.

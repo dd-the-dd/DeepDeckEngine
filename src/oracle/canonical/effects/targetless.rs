@@ -377,6 +377,15 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::ControllerKeywordAction(_) => {
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
+        LocalEffectNode::PutCounters(effect)
+            if effect.direction == CounterChangeDirection::Remove =>
+        {
+            lower_counter_removal(
+                lower_nontargeted_permanent_operand(&effect.permanent)?,
+                effect,
+            )
+            .ok_or(TargetlessLoweringError::UnsupportedEffect)
+        }
         LocalEffectNode::PutCounters(effect) => Ok(json!({
             "kind": "putCounters",
             "permanent": lower_nontargeted_permanent_operand(&effect.permanent)?,
@@ -448,3 +457,23 @@ mod surveil_tests;
 #[cfg(test)]
 #[path = "targetless_numeric_context_tests.rs"]
 mod numeric_context_tests;
+
+/// CR 122.8: `remove N KIND counter(s) from OBJECT`, the runtime
+/// `removeCounters` of the ability's own object with a literal count. Any
+/// other object or count has no runtime and stays unsupported.
+pub(in crate::oracle::canonical) fn lower_counter_removal(
+    object: Value,
+    effect: &PutCountersOnObjectEffectNode,
+) -> Option<Value> {
+    let NumericExpression::Atom(NumericAtom::Integer(count)) = effect.count else {
+        return None;
+    };
+    (count > 0 && matches!(object["kind"].as_str(), Some("self" | "abilitySource"))).then(|| {
+        json!({
+            "kind": "removeCounters",
+            "permanent": object,
+            "counter": effect.counter.as_str(),
+            "count": count,
+        })
+    })
+}

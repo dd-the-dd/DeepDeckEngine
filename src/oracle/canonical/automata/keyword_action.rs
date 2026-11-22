@@ -215,6 +215,7 @@ pub(in crate::oracle::canonical) fn recognize_support_action(
     let counter = crate::oracle::counter_name::CounterName::from_parts(["+1/+1"])
         .ok_or_else(|| cursor.fail("the +1/+1 counter name"))?;
     Ok(PutCountersOnObjectEffectNode {
+        direction: super::CounterChangeDirection::Put,
         permanent: PermanentOperandNode::Targets(TargetListNode {
             slots: vec![TargetSlot {
                 selector: TargetSelector::Object(ObjectPredicate::CardType(

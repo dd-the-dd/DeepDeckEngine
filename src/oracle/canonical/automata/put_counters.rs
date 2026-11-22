@@ -2,9 +2,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, NumericAtom, NumericExpression, PutCountersOnObjectEffectNode,
-    recognize_counter_name, recognize_numeric_atom, recognize_permanent_operand,
-    recognize_source_cast_x_numeric_expression, recognize_that_many_event_value,
+    CounterChangeDirection, EffectRecognitionContext, NumericAtom, NumericExpression,
+    PutCountersOnObjectEffectNode, recognize_counter_name, recognize_numeric_atom,
+    recognize_permanent_operand, recognize_source_cast_x_numeric_expression,
+    recognize_that_many_event_value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -156,6 +157,7 @@ pub(in crate::oracle::canonical) fn recognize_put_counters_effect(
                         .require_value(memory.permanent, "a typed permanent operand")?,
                     counter: cursor.require_value(memory.counter, "a counter kind")?,
                     count: cursor.require_value(memory.count, "a counter count")?,
+                    direction: CounterChangeDirection::Put,
                 });
             }
         };
@@ -201,6 +203,64 @@ pub(in crate::oracle::canonical) fn recognize_double_counters_effect(
             counter: counter.clone(),
         },
         counter,
+        direction: CounterChangeDirection::Put,
+    })
+}
+
+/// True when `remove COUNT [KIND] counter(s) from ...` starts here: the
+/// `remove` lemma of the verb lexicon in its counters-from frame.
+pub(in crate::oracle::canonical) fn claims_remove_counters_effect(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let mut probe = cursor.clone();
+    if crate::oracle::canonical::automata::consume_lemma(
+        &mut probe,
+        crate::oracle::canonical::automata::VerbLemma::Remove,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )
+    .is_err()
+    {
+        return false;
+    }
+    (0..4).any(|offset| {
+        probe.peek_ahead(offset).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters")
+        })
+    })
+}
+
+/// `remove COUNT KIND counter(s) from PERMANENT-OPERAND` (CR 122.8): the
+/// counter action of `put … on`, read with the same count, counter-name and
+/// permanent-operand children, in the removal direction.
+pub(in crate::oracle::canonical) fn recognize_remove_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PutCountersOnObjectEffectNode> {
+    cursor.enter("effect.remove-counters.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Remove,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.remove-counters.count");
+    let count = recognize_counter_count(cursor, context)?;
+    cursor.enter("effect.remove-counters.kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("effect.remove-counters.noun");
+    let singular = matches!(count, NumericExpression::Atom(NumericAtom::Integer(1)));
+    cursor.consume(if singular { "counter" } else { "counters" })?;
+    cursor.enter("effect.remove-counters.relation");
+    cursor.consume("from")?;
+    cursor.enter("effect.remove-counters.permanent");
+    let permanent =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(PutCountersOnObjectEffectNode {
+        permanent,
+        counter,
+        count,
+        direction: CounterChangeDirection::Remove,
     })
 }
 

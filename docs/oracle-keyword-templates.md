@@ -188,6 +188,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
 | Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
 | Exploit | 702.110a | — (`namedAction: exploit`) | `exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed` |
+| Vanishing | 702.63a | N | `vanishing_removes_a_time_counter_each_upkeep_and_sacrifices_at_the_last` |
 | Bloodthirst | 702.54a | N | `bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn` |
 | Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
 
@@ -253,6 +254,18 @@ explicite.
   admis avec une telle condition ne se déclenchait jamais. Il est maintenant
   évalué par le même évaluateur qu'à la résolution, avec la source et ses
   décisions.
+- **Retrait de marqueurs** (CR 122.8) : `remove N KIND counter(s) from
+  OBJECT` est l'action de marqueurs de `put … on`, mêmes enfants (quantité,
+  nom de marqueur, opérande de permanent), sens `Remove`
+  (`CounterChangeDirection`). IR : `removeCounters` du moteur, qui ne retire
+  que de l'objet de la capacité avec un compte littéral ; un autre objet
+  échoue explicitement. Le coût `Remove … :` avait déjà son lecteur.
+- **Dernier marqueur retiré** : `the last KIND counter is removed from
+  SOURCE` (participe passif de `remove` du lexique) est l'événement
+  `counterRemoved {last: true}` déjà exécuté pour Suspend.
+- **Antécédent de la condition intercalée** : quand chaque atome du `if`
+  intercalé porte sur la source (`if this permanent has a time counter on
+  it`), le `it` du corps désigne la source si l'événement n'en a lié aucun.
 - **Source partie** (CR 603.10a) : une condition sur la source d'un
   déclencheur « regard en arrière » lit la capture de départ (objet avec ses
   marqueurs), à la publication comme à la résolution, au lieu de la carte
@@ -272,10 +285,9 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 | Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
 | Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |
 | Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
-| Vanishing | 17 | `condition.sentence.object.possession` (`has a time counter on it`), puis retrait de marqueur |
-| Fading | 14 | `effect.unsupported-verb` (`remove a fade counter`) |
+| Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
 | Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |
-| Graft | 13 | `condition.sentence.object.possession`, puis `move a counter` |
+| Graft | 13 | `effect.unsupported-verb` (`move a +1/+1 counter … onto that creature`) |
 | Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
 | Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
 | Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
