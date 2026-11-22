@@ -44,3 +44,41 @@ statut :
 Preuves : `status_adjectives_come_from_one_registry_for_selectors_and_conditions`
 (analyse) et `status_registry_atoms_read_kicked_equipped_and_enchanted_permanents`
 (moteur).
+
+## Proposition relative (`automata/relative_clause.rs`)
+
+La requête d'objet partagée a un emplacement de proposition relative,
+lu après les qualificatifs postnominaux (`with …`, `you control`) :
+
+```text
+Relative := ("that" | "which" | "who") Clause
+Clause   := ("has" | "have") CounterQualifier                 présent
+          | ("is" | "are" | "isn't" | "aren't") ["not"] Statut ("or" Statut)*
+          | Passé ("or" Passé)* "this" "turn"                  historique
+Passé    := "entered" ["the" "battlefield"] | "attacked" | "blocked"
+          | ("was" | "were") "dealt" "damage" | "dealt" "damage"
+          | ("didn't" | "did" "not") Verbe                     négation distribuée
+```
+
+- Le présent réutilise les enfants existants : le qualificatif de marqueurs
+  et le registre de statuts.
+- Le passé avec `this turn` nomme un fait de l'objet pendant ce tour
+  (`enteredThisTurn`, `attackedThisTurn`, `blockedThisTurn`,
+  `wasDealtDamageThisTurn`, `dealtDamageThisTurn`) ; `didn't attack or
+  enter` est l'intersection des négations.
+- Les autres relatives (`that player controls`, `that targets …`) ne sont
+  pas revendiquées ici et gardent leur échec explicite.
+
+Moteur : l'historique est lu dans le journal d'événements du tour, pour la
+même incarnation de l'objet (`objectIdentity` de l'événement) ; aucun
+nouveau journal n'est ajouté (`attackerDeclared`, `blockerDeclared`,
+`damageDealt` et le drapeau `enteredThisTurn` existent). Le filtre effectif
+et le nouveau `permanent_state_matches` (qui remplace l'appel au filtre
+d'état sans journal dans les comptes, conditions de présence et filtres
+d'événement) le lisent. Un sélecteur statique, évalué sans journal, refuse
+ces atomes (`filter_reads_object_history`) au lieu de les lire faux.
+
+Preuves : `relative_clauses_fill_the_shared_object_query_slot` (analyse,
+sœur de compte, quasi-échecs) et
+`relative_history_clauses_read_this_turns_events_for_the_same_object`
+(moteur : compte, `destroy all`, cible).

@@ -88,3 +88,70 @@ fn status_adjectives_come_from_one_registry_for_selectors_and_conditions() {
         );
     }
 }
+
+#[test]
+fn relative_clauses_fill_the_shared_object_query_slot() {
+    let creature = json!({ "kind": "cardTypeContains", "value": "Creature" });
+    let target_filter = |text: &str| {
+        rule("Sorcery", text)["declaration"]["decisions"][0]["candidates"]["where"].clone()
+    };
+    // Past tense with `this turn`: the object's this-turn history.
+    assert_eq!(
+        target_filter("Destroy target creature that was dealt damage this turn."),
+        json!({ "kind": "and", "operands": [creature, { "kind": "wasDealtDamageThisTurn" }] })
+    );
+    // Present possession: the shared counter qualifier.
+    assert_eq!(
+        target_filter("Destroy target creature that has a -1/-1 counter on it."),
+        json!({ "kind": "and", "operands": [creature, { "kind": "hasCounter", "counter": "-1/-1" }] })
+    );
+    // Negated copula over the status registry.
+    let wrath = rule("Sorcery", "Destroy all creatures that aren't enchanted.");
+    assert_eq!(
+        wrath["effects"][0]["permanent"]["where"],
+        json!({ "kind": "and", "operands": [creature, { "kind": "not", "operand": { "kind": "hasAttachedAura" } }] })
+    );
+    // `didn't attack or enter`: the negation distributes over the verbs.
+    let spared = rule(
+        "Sorcery",
+        "Put a +1/+1 counter on each creature you control that didn't attack or enter this turn.",
+    );
+    assert_eq!(
+        spared["effects"][0]["permanent"]["where"]["operands"][1],
+        json!({ "kind": "and", "operands": [
+            { "kind": "not", "operand": { "kind": "attackedThisTurn" } },
+            { "kind": "not", "operand": { "kind": "enteredThisTurn" } },
+        ] })
+    );
+    // Sibling: the same history clause in a count, no new code.
+    let count = rule(
+        "Sorcery",
+        "You gain 1 life for each creature that attacked this turn.",
+    );
+    assert_eq!(
+        count["effects"][0]["amount"]["where"]["operands"][1],
+        json!({ "kind": "attackedThisTurn" })
+    );
+    // Sibling: a cost reads the same slot (the former unsupported example).
+    let cost = parse(
+        "Sibling",
+        "Sorcery",
+        "As an additional cost to cast this spell, sacrifice a creature that dealt damage this turn.
+Draw two cards.",
+    );
+    assert_eq!(cost.status, "canonical", "{:#?}", cost.diagnostics);
+    let cost = cost.abilities[0].rule.as_ref().expect("canonical rule");
+    assert!(cost.to_string().contains("dealtDamageThisTurn"), "{cost}");
+    // Near misses: a past clause without `this turn`, and a relative this
+    // slot does not read (a bound player, a stack relation).
+    for text in [
+        "Destroy target creature that was dealt damage.",
+        "Counter target spell that targets a creature.",
+    ] {
+        assert_eq!(
+            parse("Near Miss", "Instant", text).status,
+            "unsupported",
+            "{text}"
+        );
+    }
+}

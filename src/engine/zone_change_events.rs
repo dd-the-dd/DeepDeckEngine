@@ -551,7 +551,7 @@ impl GameEngine {
             && pattern.filter.is_none_or(|(filter, view)| {
                 let established = |atom: &Value| match view {
                     ObjectView::Printed => matches_card_filter(&object.definition, atom),
-                    ObjectView::PermanentState => matches_permanent_filter(object, atom),
+                    ObjectView::PermanentState => self.permanent_state_matches(object, atom),
                     ObjectView::Effective => self.permanent_matches_effective_filter(object, atom),
                 };
                 match self.departed_characteristics(object) {

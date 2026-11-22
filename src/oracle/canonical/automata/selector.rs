@@ -583,6 +583,15 @@ fn recognize_object_query_with_cardinality_policy(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if super::relative_clause_starts(cursor) {
+                    // `that was dealt damage this turn`, `that has a counter
+                    // on it`, `that aren't enchanted`: the relative slot.
+                    let predicate = super::recognize_relative_clause(cursor)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if cursor.peek().is_some_and(|token| {
                     token.eq_ignore_ascii_case("that's") || token.eq_ignore_ascii_case("that’s")
                 }) {

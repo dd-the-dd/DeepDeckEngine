@@ -24,6 +24,14 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     Enchanted,
     /// An Equipment is attached to it (CR 301.5).
     Equipped,
+    /// This-turn history of the object, read by a past-tense relative
+    /// clause (`that entered this turn`, `that was dealt damage this turn`).
+    /// They have no adjective surface.
+    EnteredThisTurn,
+    AttackedThisTurn,
+    BlockedThisTurn,
+    WasDealtDamageThisTurn,
+    DealtDamageThisTurn,
 }
 
 impl ObjectStatus {
@@ -50,6 +58,11 @@ impl ObjectStatus {
             Self::Modified => ("isModified", false),
             Self::Enchanted => ("hasAttachedAura", false),
             Self::Equipped => ("isEquipped", false),
+            Self::EnteredThisTurn => ("enteredThisTurn", false),
+            Self::AttackedThisTurn => ("attackedThisTurn", false),
+            Self::BlockedThisTurn => ("blockedThisTurn", false),
+            Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
+            Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
         }
     }
 }

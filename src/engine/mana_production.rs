@@ -705,7 +705,7 @@ impl GameEngine {
                         .iter()
                         .filter(|card| {
                             value.get("where").is_none_or(|where_filter| {
-                                matches_permanent_filter(card, where_filter)
+                                self.permanent_state_matches(card, where_filter)
                             })
                         })
                         .any(|card| card_color_symbols(&card.definition).contains(**symbol))

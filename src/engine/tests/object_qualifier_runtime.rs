@@ -138,3 +138,89 @@ fn status_registry_atoms_read_kicked_equipped_and_enchanted_permanents() {
         }])
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn relative_history_clauses_read_this_turns_events_for_the_same_object() {
+    let wrath = compiled(
+        "Wrath Probe",
+        "Sorcery",
+        ("0", "0"),
+        "Destroy all creatures that attacked this turn.",
+    );
+    let gain = compiled(
+        "Count Probe",
+        "Sorcery",
+        ("0", "0"),
+        "You gain 1 life for each creature that attacked this turn.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        creature("attacker", "player-0"),
+        creature("idle", "player-0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let identity = engine.object_identity_value("attacker");
+    engine.record_event(
+        "attackerDeclared",
+        Some("player-0".to_string()),
+        Some("attacker".to_string()),
+        json!({ "objectIdentity": identity }),
+    );
+    let run = |engine: &mut GameEngine, card: &CardDefinition| {
+        let rule = card.rules[0].clone();
+        let spell = StackObject {
+            id: "stack:probe".to_string(),
+            controller: "player-0".to_string(),
+            card: test_instance("probe", card.clone(), "player-0"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("spellAbility".to_string()),
+            ability_rule: Some(rule.clone()),
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        };
+        engine
+            .execute_effects(
+                &rule["effects"],
+                &spell,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+                &mut EmeritusDecisionProvider,
+            )
+            .expect("the spell resolves");
+    };
+    let life = engine.state.players[0].life;
+    run(&mut engine, &gain);
+    assert_eq!(
+        engine.state.players[0].life,
+        life + 1,
+        "one creature attacked"
+    );
+    run(&mut engine, &wrath);
+    assert!(engine.permanent_position("attacker").is_none());
+    assert!(engine.permanent_position("idle").is_some());
+
+    // `that was dealt damage this turn` in a target domain.
+    let fatal = compiled(
+        "Fatal Probe",
+        "Instant",
+        ("0", "0"),
+        "Destroy target creature that was dealt damage this turn.",
+    );
+    engine.record_event(
+        "damageDealt",
+        None,
+        None,
+        json!({ "targetPermanentId": "idle", "amount": 2 }),
+    );
+    let candidates = &fatal.rules[0]["declaration"]["decisions"][0]["candidates"];
+    assert_eq!(
+        engine.target_candidates("player-1", candidates),
+        Some(vec![TargetRef::Permanent {
+            instance_id: "idle".to_string()
+        }])
+    );
+}
