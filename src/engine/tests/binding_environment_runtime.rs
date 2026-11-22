@@ -424,3 +424,59 @@ fn where_x_reads_the_destroyed_targets_last_known_mana_value() {
         "mana value 4 as last known"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn from_among_them_reads_the_milled_cards() {
+    // Vastlands Scavenger's shape: the milled creature card is put into the
+    // hand; a creature card already in the graveyard is not a candidate.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Mill two cards, then put a creature card from among them into your hand.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard.push(test_instance(
+        "old-bear",
+        test_definition("old-bear", "Creature - Bear"),
+        "player-0",
+    ));
+    engine.state.players[0].library.push(test_instance(
+        "milled-bear",
+        test_definition("milled-bear", "Creature - Bear"),
+        "player-0",
+    ));
+    admit(&mut engine);
+    let stack = StackObject {
+        id: "stack:scavenger".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "scavenger",
+            test_definition("scavenger", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    let in_hand = |id: &str| {
+        engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == id)
+    };
+    assert!(in_hand("milled-bear"), "the milled creature card");
+    assert!(!in_hand("old-bear"), "not a card milled by this spell");
+}

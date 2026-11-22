@@ -219,6 +219,20 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   14250 (+7 : Pip-Boy 3000, Hivespine Wolverine, Tiller Engine, …), 0
   perdue, 9 IR changées dont 0 déjà supportée.
 
+## Étape 10 réalisée : cartes meulées comme collection observée
+
+- Une meule dont l'action suivante lit une collection de cartes (`from
+  among them`, `that card`, directement ou en tête d'une séquence
+  facultative) lie les cartes meulées (`bind`, primitive existante) et les
+  rend collection observée du programme (zone : cimetière).
+- Sondes (base de l'étape 9) : ligue inchangée (808) ; corpus 14250 →
+  14259 (+9 : Something Worth Saving, Midnight Tilling, Vastlands
+  Scavenger, Sludge Titan, …), 0 perdue, 15 IR changées dont 0 déjà
+  supportée.
+- Reste explicite : `reveal … until` dans une branche `If you do` (Foster),
+  le génitif sur une carte observée (`that card's mana value`, 29 cartes :
+  l'abaissement numérique n'a pas accès à la collection observée).
+
 ## Suite
 
 1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur

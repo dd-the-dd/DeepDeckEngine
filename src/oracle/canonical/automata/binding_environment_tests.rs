@@ -570,3 +570,18 @@ fn modal_trigger_bodies_read_the_event_bindings() {
     );
     assert_ne!(status, "canonical");
 }
+
+#[test]
+fn milled_cards_are_the_next_card_actions_collection() {
+    // Something Worth Saving / Midnight Tilling: `from among them` names the
+    // milled cards, bound by the mill itself.
+    for oracle in [
+        "Mill four cards. You may put a permanent card from among them into your hand. You gain 1 life.",
+        "Mill four cards, then you may return a permanent card from among them to your hand.",
+    ] {
+        let (status, rules, states) = parse(INSTANT, oracle);
+        assert_eq!(status, "canonical", "{oracle}: {states:?}");
+        let text = serde_json::to_string(&rules).unwrap();
+        assert!(text.contains("\"bind\":\"milledCards\""), "{text}");
+    }
+}

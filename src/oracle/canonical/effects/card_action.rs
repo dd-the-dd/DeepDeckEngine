@@ -144,6 +144,20 @@ impl CardCollectionMemory {
         Ok(value.0)
     }
 
+    /// The cards a mill just put into a graveyard become the observed
+    /// collection (`mill four cards, then put a creature card from among them
+    /// into your hand`). Returns the binding the mill primitive records.
+    pub(in crate::oracle::canonical) fn observe_milled_cards(
+        &mut self,
+        maximum: Option<i64>,
+    ) -> String {
+        let id = fresh("milledCards", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        self.observe(&id, maximum);
+        self.view_zone = Some(CardZoneName::Graveyard);
+        id
+    }
+
     /// The cards a controller draw just put into hand become the observed
     /// collection (`draw three cards and reveal them`). Returns the binding
     /// the draw primitive must record.
