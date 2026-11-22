@@ -5,6 +5,13 @@
 //! ability, a casting-time optional additional cost, a casting-cost static
 //! ability, or an intrinsic keyword whose runtime the engine already owns.
 //! No keyword introduces a new operation; an unsupported parameter fails.
+//!
+//! A keyword whose CR definition the ordinary parser compiles to the same
+//! executable rules belongs to the template catalog instead
+//! (`keyword-templates-v1.json`, `keyword_template_expansion.rs`). The
+//! keywords left here either have an intrinsic engine rule (toxic,
+//! annihilator) or a definition the shared grammar does not compile yet;
+//! `docs/oracle-keyword-templates.md` lists the reason for each.
 use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
@@ -38,41 +45,9 @@ fn keyword_ability(ability: Value) -> Value {
     json!({ "kind": "keywordAbility", "source": self_ref(), "ability": ability })
 }
 
-fn dies_trigger(effects: Value) -> Value {
-    json!({
-        "kind": "triggeredAbility",
-        "source": self_ref(),
-        "event": { "kind": "permanentDied", "object": self_ref() },
-        "effects": effects,
-    })
-}
-
 /// CR 509.3c: this creature becomes blocked (once per combat).
 fn became_blocked() -> Value {
     json!({ "kind": "permanentBecameBlocked", "object": self_ref() })
-}
-
-/// CR 702.45a: whenever this creature blocks or becomes blocked, it gets
-/// +N/+N until end of turn.
-fn bushido_rule(count: i64) -> Value {
-    json!({
-        "kind": "triggeredAbility",
-        "source": self_ref(),
-        "event": {
-            "kind": "oneOf",
-            "events": [
-                { "kind": "declaredBlocker", "object": self_ref() },
-                became_blocked(),
-            ],
-        },
-        "effects": [{
-            "kind": "modifyPowerToughness",
-            "object": self_ref(),
-            "power": integer(count),
-            "toughness": integer(count),
-            "duration": { "kind": "untilEndOfCurrentTurn" },
-        }],
-    })
 }
 
 /// CR 702.130a: whenever this creature becomes blocked, defending player
@@ -87,93 +62,6 @@ fn afflict_rule(count: i64) -> Value {
             "player": { "kind": "triggeringPlayer" },
             "amount": integer(count),
         }],
-    })
-}
-
-/// CR 702.135a: create N 1/1 white and black Spirit tokens with flying.
-fn afterlife_rule(count: i64) -> Value {
-    dies_trigger(json!([{
-        "kind": "createTokens",
-        "controller": controller(),
-        "quantity": integer(count),
-        "token": {
-            "types": ["Creature"],
-            "subtypes": ["Spirit"],
-            "colors": ["White", "Black"],
-            "power": 1,
-            "toughness": 1,
-            "abilities": [{ "kind": "flying" }],
-        },
-    }]))
-}
-
-/// CR 702.46a: you may return target Spirit card with mana value N or less
-/// from your graveyard to your hand.
-fn soulshift_rule(count: i64) -> Value {
-    let mut rule = dies_trigger(json!([{
-        "kind": "optionalEffects",
-        "player": controller(),
-        "effects": [{
-            "kind": "moveCards",
-            "cards": { "kind": "chosenTargets", "id": "targetCardOperand" },
-            "to": { "kind": "hand", "player": controller() },
-        }],
-    }]));
-    rule["declaration"] = json!({
-        "kind": "castingDeclaration",
-        "decisions": [{
-            "id": "targetCardOperand",
-            "kind": "chooseTargets",
-            "minimum": 1,
-            "maximum": 1,
-            "candidates": {
-                "kind": "cards",
-                "zone": { "kind": "graveyard", "player": controller() },
-                "where": {
-                    "kind": "and",
-                    "operands": [
-                        subtype("Spirit"),
-                        {
-                            "kind": "compare",
-                            "left": { "kind": "manaValueOf", "object": { "kind": "candidate" } },
-                            "operator": "<=",
-                            "right": integer(count),
-                        },
-                    ],
-                },
-            },
-        }],
-    });
-    rule
-}
-
-/// CR 702.92a: create a 0/0 black Phyrexian Germ token, then attach this
-/// Equipment to it.
-fn living_weapon_rule() -> Value {
-    json!({
-        "kind": "triggeredAbility",
-        "source": self_ref(),
-        "event": { "kind": "enterBattlefield", "object": self_ref() },
-        "effects": [
-            {
-                "kind": "createTokens",
-                "controller": controller(),
-                "quantity": integer(1),
-                "token": {
-                    "types": ["Creature"],
-                    "subtypes": ["Phyrexian", "Germ"],
-                    "colors": ["Black"],
-                    "power": 0,
-                    "toughness": 0,
-                    "abilities": [],
-                },
-            },
-            {
-                "kind": "attachPermanent",
-                "attachment": self_ref(),
-                "to": { "kind": "boundObjects", "binding": "createdTokens" },
-            },
-        ],
     })
 }
 
@@ -354,18 +242,8 @@ pub(in crate::oracle::canonical) fn parse_parameterized_keyword(
             "kind": "annihilator",
             "quantity": integer(count_parameter(&cursor, &node)?),
         })),
-        ParameterizedKeyword::Afterlife => afterlife_rule(count_parameter(&cursor, &node)?),
         ParameterizedKeyword::Riot => riot_rule(),
-        ParameterizedKeyword::Soulshift => soulshift_rule(count_parameter(&cursor, &node)?),
-        ParameterizedKeyword::Bushido => bushido_rule(count_parameter(&cursor, &node)?),
         ParameterizedKeyword::Afflict => afflict_rule(count_parameter(&cursor, &node)?),
-        ParameterizedKeyword::LivingWeapon => {
-            cursor.require(
-                input.face_type_line.contains("Equipment"),
-                "an Equipment carrying living weapon",
-            )?;
-            living_weapon_rule()
-        }
         ParameterizedKeyword::CumulativeUpkeep => {
             cumulative_upkeep_rule(&cursor, cost_parameter(&cursor, &node)?)?
         }

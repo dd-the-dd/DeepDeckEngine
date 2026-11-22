@@ -55,6 +55,14 @@ pub fn compile_named_token_catalog_rules(
     canonical::compile_named_token_catalog_rules(token_name, type_line, oracle)
 }
 
+/// The playable rules of one parsed ability rule. A template keyword (CR 702)
+/// is parsed as one `keywordExpansion` holding the rules of its definition;
+/// they are returned with the keyword's provenance. Any other rule is
+/// returned unchanged.
+pub fn keyword_expansion_rules(rule: &serde_json::Value) -> Vec<serde_json::Value> {
+    canonical::keyword_expansion_rules(rule)
+}
+
 pub fn compile_named_token_native_rule(oracle: &str) -> Option<serde_json::Value> {
     canonical::compile_named_token_native_rule(oracle)
 }

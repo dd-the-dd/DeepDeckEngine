@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "deepdeck-keyword-templates/v1",
+  "catalogVersion": "2026.11.13-c24",
+  "rulesEffectiveDate": "2026-11-06",
+  "templates": [
+    {
+      "canonicalId": "battle-cry",
+      "templateVersion": 1,
+      "lexeme": "battle cry",
+      "parameter": "none",
+      "rulesClause": "battle-cry.cr-702-91a",
+      "rulesSection": "702.91a",
+      "abilities": [
+        "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
+      ]
+    },
+    {
+      "canonicalId": "bushido",
+      "templateVersion": 1,
+      "lexeme": "bushido",
+      "parameter": "count",
+      "rulesClause": "bushido.cr-702-45a",
+      "rulesSection": "702.45a",
+      "abilities": [
+        "Whenever this creature blocks or becomes blocked, it gets +$N/+$N until end of turn."
+      ],
+      "reminders": [
+        "Whenever this creature blocks or becomes blocked, it gets +$N/+$N until end of turn."
+      ]
+    },
+    {
+      "canonicalId": "soulshift",
+      "templateVersion": 1,
+      "lexeme": "soulshift",
+      "parameter": "count",
+      "rulesClause": "soulshift.cr-702-46a",
+      "rulesSection": "702.46a",
+      "abilities": [
+        "When this permanent is put into a graveyard from the battlefield, you may return target Spirit card with mana value $N or less from your graveyard to your hand."
+      ],
+      "reminders": [
+        "When this creature dies, you may return target Spirit card with mana value $N or less from your graveyard to your hand."
+      ]
+    },
+    {
+      "canonicalId": "living-weapon",
+      "templateVersion": 1,
+      "lexeme": "living weapon",
+      "parameter": "none",
+      "rulesClause": "living-weapon.cr-702-92a",
+      "rulesSection": "702.92a",
+      "faceSubtype": "Equipment",
+      "abilities": [
+        "When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this Equipment to it."
+      ],
+      "reminders": [
+        "When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it."
+      ]
+    },
+    {
+      "canonicalId": "afterlife",
+      "templateVersion": 1,
+      "lexeme": "afterlife",
+      "parameter": "count",
+      "rulesClause": "afterlife.cr-702-135a",
+      "rulesSection": "702.135a",
+      "abilities": [
+        "When this permanent is put into a graveyard from the battlefield, create $N{a 1/1 white and black Spirit creature token|$Nw 1/1 white and black Spirit creature tokens} with flying."
+      ],
+      "reminders": [
+        "When this creature dies, create $N{a 1/1 white and black Spirit creature token|$Nw 1/1 white and black Spirit creature tokens} with flying.",
+        "When this permanent is put into a graveyard from the battlefield, create $N{a 1/1 white and black Spirit creature token|$Nw 1/1 white and black Spirit creature tokens} with flying."
+      ]
+    },
+    {
+      "canonicalId": "fabricate",
+      "templateVersion": 1,
+      "lexeme": "fabricate",
+      "parameter": "count",
+      "rulesClause": "fabricate.cr-702-123a",
+      "rulesSection": "702.123a",
+      "abilities": [
+        "When this permanent enters, you may put $N{a +1/+1 counter|$Nw +1/+1 counters} on it. If you don't, create $N{a 1/1 colorless Servo artifact creature token|$Nw 1/1 colorless Servo artifact creature tokens}."
+      ],
+      "reminders": [
+        "When this creature enters, put $N{a +1/+1 counter|$Nw +1/+1 counters} on it or create $N{a 1/1 colorless Servo artifact creature token|$Nw 1/1 colorless Servo artifact creature tokens}."
+      ]
+    },
+    {
+      "canonicalId": "for-mirrodin",
+      "templateVersion": 1,
+      "lexeme": "For Mirrodin!",
+      "parameter": "none",
+      "rulesClause": "for-mirrodin.cr-702-163a",
+      "rulesSection": "702.163a",
+      "faceSubtype": "Equipment",
+      "abilities": [
+        "When this Equipment enters, create a 2/2 red Rebel creature token, then attach this Equipment to it."
+      ],
+      "reminders": [
+        "When this Equipment enters, create a 2/2 red Rebel creature token, then attach this to it."
+      ]
+    },
+    {
+      "canonicalId": "job-select",
+      "templateVersion": 1,
+      "lexeme": "job select",
+      "parameter": "none",
+      "rulesClause": "job-select.cr-702-182a",
+      "rulesSection": "702.182a",
+      "faceSubtype": "Equipment",
+      "abilities": [
+        "When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this Equipment to it."
+      ],
+      "reminders": [
+        "When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this to it."
+      ]
+    },
+    {
+      "canonicalId": "outlast",
+      "templateVersion": 1,
+      "lexeme": "outlast",
+      "parameter": "manaCost",
+      "rulesClause": "outlast.cr-702-107a",
+      "rulesSection": "702.107a",
+      "abilities": [
+        "$cost, {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "reinforce",
+      "templateVersion": 1,
+      "lexeme": "reinforce",
+      "parameter": "countThenManaCost",
+      "rulesClause": "reinforce.cr-702-77a",
+      "rulesSection": "702.77a",
+      "abilities": [
+        "$cost, Discard this card: Put $N{a +1/+1 counter|$Nw +1/+1 counters} on target creature."
+      ],
+      "reminders": [
+        "$cost, Discard this card: Put $N{a +1/+1 counter|$Nw +1/+1 counters} on target creature."
+      ]
+    },
+    {
+      "canonicalId": "frenzy",
+      "templateVersion": 1,
+      "lexeme": "frenzy",
+      "parameter": "count",
+      "rulesClause": "frenzy.cr-702-68a",
+      "rulesSection": "702.68a",
+      "abilities": [
+        "Whenever this creature attacks and isn't blocked, it gets +$N/+0 until end of turn."
+      ],
+      "reminders": [
+        "Whenever this creature attacks and isn't blocked, it gets +$N/+0 until end of turn."
+      ]
+    }
+  ]
+}

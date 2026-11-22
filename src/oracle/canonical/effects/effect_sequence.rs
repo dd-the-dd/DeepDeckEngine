@@ -2453,18 +2453,21 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
     let reference = PermanentOperandNode::BoundReference(PermanentEffectReference::Observed(
         TypedObservedEventObject::CreatedTokens,
     ));
-    sequence
-        .effects
-        .get(effect_index + 1)
-        .and_then(|next| match next {
-            LocalEffectNode::TemporaryKeywordGrant(node) => Some(&node.objects),
-            LocalEffectNode::ModifyStats(node) => Some(&node.targets),
-            LocalEffectNode::PutCounters(node) => Some(&node.permanent),
-            LocalEffectNode::TapPermanents(node) => Some(&node.targets),
-            LocalEffectNode::PermanentKeywordAction(node) => Some(&node.targets),
-            _ => None,
-        })
-        .is_some_and(|operand| *operand == reference)
+    let Some(next) = sequence.effects.get(effect_index + 1) else {
+        return false;
+    };
+    let operands: Vec<&PermanentOperandNode> = match next {
+        LocalEffectNode::TemporaryKeywordGrant(node) => vec![&node.objects],
+        LocalEffectNode::ModifyStats(node) => vec![&node.targets],
+        LocalEffectNode::PutCounters(node) => vec![&node.permanent],
+        LocalEffectNode::TapPermanents(node) => vec![&node.targets],
+        LocalEffectNode::PermanentKeywordAction(node) => vec![&node.targets],
+        // `create a token, then attach this to it` (CR 702.92a, 702.163a):
+        // the attach reads the created token as its recipient or attachment.
+        LocalEffectNode::Attach(node) => vec![&node.attachment, &node.recipient],
+        _ => vec![],
+    };
+    operands.iter().any(|operand| **operand == reference)
 }
 
 /// True when the action after a draw names the drawn cards by anaphora

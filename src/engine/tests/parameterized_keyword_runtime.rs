@@ -22,6 +22,8 @@ fn parsed_rules(name: &str, type_line: &str, mana_cost: &str, text: &str) -> Vec
         .abilities
         .into_iter()
         .map(|ability| ability.rule.expect("every ability has a rule"))
+        // A template keyword's playable rules are its flattened expansion.
+        .flat_map(|rule| crate::oracle::keyword_expansion_rules(&rule))
         .inspect(|rule| assert!(rule_is_executable(rule), "{name}: {rule:#}"))
         .collect()
 }

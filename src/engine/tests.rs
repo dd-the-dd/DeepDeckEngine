@@ -273,6 +273,10 @@ mod exalted_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/parameterized_keyword_runtime.rs"]
 mod parameterized_keyword_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_runtime.rs"]
+mod keyword_template_runtime;
 #[path = "tests/target_collection_runtime.rs"]
 mod target_collection_runtime;
 

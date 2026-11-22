@@ -45,7 +45,6 @@ fn lowered(text: &str, type_line: &str) -> Result<Value, MachineFailure> {
 }
 
 const CREATURE: &str = "Creature \u{2014} Phyrexian Rat";
-const EQUIPMENT: &str = "Artifact \u{2014} Equipment";
 const INSTANT: &str = "Instant";
 const ENCHANTMENT: &str = "Enchantment";
 
@@ -106,8 +105,6 @@ fn reminder_quantity_must_match_the_printed_parameter() {
     for text in [
         "Toxic 2 (Players dealt combat damage by this creature also get a poison counter.)",
         "Annihilator 3 (Whenever this creature attacks, defending player sacrifices two permanents of their choice.)",
-        "Afterlife 2 (When this creature dies, create a 1/1 white and black Spirit creature token with flying.)",
-        "Soulshift 4 (When this creature dies, you may return target Spirit card with mana value 3 or less from your graveyard to your hand.)",
         "Buyback {3} (You may pay an additional {2} as you cast this spell. If you do, put this card into your hand as it resolves.)",
     ] {
         let failure = lowered(text, CREATURE).expect_err(text);
@@ -140,64 +137,6 @@ fn ability_words_and_variable_parameters_are_not_silently_accepted() {
             .any(|transition| transition.state == "keyword.parameterized.parameter"),
         "{failure:?}"
     );
-}
-
-#[test]
-fn afterlife_and_soulshift_expand_to_ordinary_death_triggers() {
-    // Seraph of the Scales (afterlife 2) and Moonlit Strider (soulshift 3).
-    let afterlife = lowered(
-        "Afterlife 2 (When this creature dies, create two 1/1 white and black Spirit creature tokens with flying.)",
-        CREATURE,
-    )
-    .expect("afterlife");
-    assert_eq!(afterlife["kind"], "triggeredAbility");
-    assert_eq!(
-        afterlife["event"],
-        json!({ "kind": "permanentDied", "object": { "kind": "self" } })
-    );
-    let create = &afterlife["effects"][0];
-    assert_eq!(create["kind"], "createTokens");
-    assert_eq!(create["quantity"], json!({ "kind": "integer", "value": 2 }));
-    assert_eq!(create["token"]["subtypes"], json!(["Spirit"]));
-    assert_eq!(create["token"]["colors"], json!(["White", "Black"]));
-    assert_eq!(create["token"]["abilities"], json!([{ "kind": "flying" }]));
-    // Indebted Spirit's zone-change wording of the same reminder.
-    lowered(
-        "Afterlife 1 (When this permanent is put into a graveyard from the battlefield, create a 1/1 white and black Spirit creature token with flying.)",
-        CREATURE,
-    )
-    .expect("afterlife zone-change reminder");
-
-    let soulshift = lowered(
-        "Soulshift 3 (When this creature dies, you may return target Spirit card with mana value 3 or less from your graveyard to your hand.)",
-        "Creature \u{2014} Spirit",
-    )
-    .expect("soulshift");
-    assert_eq!(soulshift["event"]["kind"], "permanentDied");
-    let candidates = &soulshift["declaration"]["decisions"][0]["candidates"];
-    assert_eq!(candidates["zone"]["kind"], "graveyard");
-    assert_eq!(
-        candidates["where"]["operands"][1]["right"],
-        json!({ "kind": "integer", "value": 3 })
-    );
-    assert_eq!(soulshift["effects"][0]["kind"], "optionalEffects");
-}
-
-#[test]
-fn living_weapon_requires_an_equipment_and_attaches_to_the_germ() {
-    // Batterskull.
-    let rule = lowered(
-        "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it.)",
-        EQUIPMENT,
-    )
-    .expect("living weapon");
-    assert_eq!(rule["event"]["kind"], "enterBattlefield");
-    assert_eq!(
-        rule["effects"][0]["token"]["subtypes"],
-        json!(["Phyrexian", "Germ"])
-    );
-    assert_eq!(rule["effects"][1]["kind"], "attachPermanent");
-    assert!(lowered("Living weapon", "Artifact").is_err());
 }
 
 #[test]
@@ -374,28 +313,8 @@ fn riot_expands_to_one_typed_entry_choice() {
 }
 
 #[test]
-fn combat_keywords_trigger_on_the_block_events_of_their_source() {
-    // Konda's Hatamoto (bushido 1) and Khenra Eternal-style afflict 2.
-    let bushido = lowered(
-        "Bushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)",
-        CREATURE,
-    )
-    .expect("bushido");
-    assert_eq!(
-        bushido["event"],
-        json!({
-            "kind": "oneOf",
-            "events": [
-                { "kind": "declaredBlocker", "object": { "kind": "self" } },
-                { "kind": "permanentBecameBlocked", "object": { "kind": "self" } },
-            ],
-        })
-    );
-    assert_eq!(bushido["effects"][0]["kind"], "modifyPowerToughness");
-    assert_eq!(
-        bushido["effects"][0]["power"],
-        json!({ "kind": "integer", "value": 1 })
-    );
+fn afflict_triggers_when_its_source_becomes_blocked() {
+    // Khenra Eternal-style afflict 2.
     let afflict = lowered(
         "Afflict 2 (Whenever this creature becomes blocked, defending player loses 2 life.)",
         CREATURE,
@@ -412,13 +331,6 @@ fn combat_keywords_trigger_on_the_block_events_of_their_source() {
             "player": { "kind": "triggeringPlayer" },
             "amount": { "kind": "integer", "value": 2 },
         })
-    );
-    assert!(
-        lowered(
-            "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)",
-            CREATURE,
-        )
-        .is_err()
     );
 }
 

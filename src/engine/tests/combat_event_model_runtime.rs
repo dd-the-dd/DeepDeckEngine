@@ -16,11 +16,11 @@ fn parsed_rules(name: &str, type_line: &str, text: &str) -> Vec<Value> {
     parsed
         .abilities
         .iter()
-        .map(|ability| {
-            let rule = ability.rule.clone().expect("canonical rule");
-            assert!(rule_is_executable(&rule), "{text}: {rule}");
-            rule
+        // A template keyword's playable rules are its flattened expansion.
+        .flat_map(|ability| {
+            crate::oracle::keyword_expansion_rules(&ability.rule.clone().expect("canonical rule"))
         })
+        .inspect(|rule| assert!(rule_is_executable(rule), "{text}: {rule}"))
         .collect()
 }
 
