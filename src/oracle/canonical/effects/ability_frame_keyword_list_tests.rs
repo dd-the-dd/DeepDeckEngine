@@ -49,10 +49,11 @@ fn a_later_parameterized_item_or_the_separator_is_reported() {
 #[test]
 fn a_single_unsupported_keyword_is_still_reported_itself() {
     let (state, found) = failure(
-        "Rampage 2 (Whenever this creature becomes blocked, it gets +2/+2 until end of turn for each creature blocking it beyond the first.)",
+        // A keyword without a template row or reader (rampage now has one).
+        "Absorb 2 (If a source would deal damage to this creature, prevent 2 of that damage.)",
     );
     assert_eq!(
         (state.as_str(), found.as_str()),
-        ("ability-frame.keyword.expansion", "Rampage")
+        ("ability-frame.keyword.expansion", "Absorb")
     );
 }

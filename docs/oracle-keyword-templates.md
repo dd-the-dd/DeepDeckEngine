@@ -224,18 +224,37 @@ explicite.
 
 ## Mots-clés en attente (raison mesurée)
 
-| Mot-clé | Cartes corpus bloquées seulement par lui | Blocage |
+Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
+définition compilée, et l'échec nomme la partie et l'état de la grammaire
+partagée qui manque (`keyword.template.expansion`, preuve candidate). Une
+correction de cette grammaire débloque le mot-clé sans code de plus.
+Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
+
+| Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Backup | 18 | « gains the non-backup abilities printed below » : référence aux capacités imprimées |
-| Bloodthirst | 15 | remplacement d'entrée conditionnel (`ability-frame.conditional.body`) |
-| Unleash | 14 | entrée facultative avec marqueur, restriction conditionnelle |
-| Renown | 13 | désignation « renowned » |
-| Evolve | 12 | comparaison de caractéristiques de l'objet d'événement (`reference.source.start`) |
-| Devour | 11 | « sacrifice any number … for each creature sacrificed this way » à l'entrée |
-| Mentor, Extort | 11, 11 | comparaison de force à la cible ; « life lost this way » |
-| Fading, Vanishing | 10, 9 | « If you can't, sacrifice the permanent » ; « when the last time counter is removed » |
-| Graft | 10 | « move a +1/+1 counter » et condition de possession |
-| Rampage, Provoke, Ingest, Dethrone, Training, Melee, Increment, Decayed | 9, 6, 6, 6, 5, 4, 5, 1 | grammaires de corps diverses (`sequence.for-each.action`, `choose.verb`, `effect.start`, …) |
+| Bloodthirst | 21 | `ability-frame.conditional.body` (condition antéposée d'un remplacement d'entrée) |
+| Evolve | 23 | `reference.source.start` (`that creature's power`, objet d'événement) |
+| Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
+| Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |
+| Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
+| Vanishing | 17 | `condition.sentence.object.possession` (`has a time counter on it`), puis retrait de marqueur |
+| Fading | 14 | `effect.unsupported-verb` (`remove a fade counter`) |
+| Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |
+| Graft | 13 | `condition.sentence.object.possession`, puis `move a counter` |
+| Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
+| Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
+| Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
+| Dethrone | 9 | `trigger.envelope.separator` (`attacks the player with the most life`) |
+| Rampage | 9 | `sequence.for-each.action` (`for each creature blocking it beyond the first`) |
+| Ingest | 9 | `effect.start` (`that player exiles the top card`) |
+| Provoke | 8 | `choose.verb` |
+| Decayed | 1 | `lower.delayed.object-references` (`sacrifice it at end of combat`) |
+| Backup | — | non ajouté : « the non-backup abilities printed below » demande une référence au texte imprimé |
+| Devour | — | non ajouté : le rappel « twice / three times that many » n'a pas de forme d'emplacement |
+
+Cinq lignes échouent sur un rappel de libellé ancien ou rare (`one fade
+counter`, `enters the battlefield`, enchantement/terrain) : échec explicite
+`keyword.template.reminder.body`.
 
 Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
 eux : Crew 74, Unearth 40, Madness 39, Partner 32 (règle de construction),

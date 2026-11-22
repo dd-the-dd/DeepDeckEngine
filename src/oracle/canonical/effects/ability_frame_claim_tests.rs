@@ -81,7 +81,7 @@ fn unseen_frame_members_are_claimed_without_new_rules() {
     let cases: &[(&str, &str, &str)] = &[
         (
             "Creature — Elemental",
-            "Rampage 3 (Whenever this creature becomes blocked, it gets +3/+3 until end of turn for each creature blocking it beyond the first.)",
+            "Absorb 3 (If a source would deal damage to this creature, prevent 3 of that damage.)",
             "ability-frame.keyword.expansion",
         ),
         (
