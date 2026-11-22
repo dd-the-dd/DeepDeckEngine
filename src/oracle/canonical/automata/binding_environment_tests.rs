@@ -231,3 +231,37 @@ fn event_object_nominal_must_follow_from_the_event_predicate() {
         assert_ne!(status, "canonical", "{oracle}");
     }
 }
+
+#[test]
+fn it_names_the_object_that_is_the_event_subject() {
+    let event_permanent = json!({"kind":"triggeringPermanent"});
+    // Real cards: Fervent Charge (an attacker), Atarka (a Dragon attacker).
+    // Unused recombination: a dying creature's controller through `its`.
+    for oracle in [
+        "Whenever a creature you control attacks, it gets +2/+2 until end of turn.",
+        "Whenever a Dragon you control attacks, it gains double strike until end of turn.",
+    ] {
+        let objects = effect_objects(ENCHANTMENT, oracle);
+        assert_eq!(
+            objects.first(),
+            Some(&event_permanent),
+            "{oracle}: {objects:?}"
+        );
+    }
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever a creature dies, its controller loses 1 life.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(
+        rules[0]["effects"][0]["player"],
+        json!({"kind":"controllerOf","object":event_permanent})
+    );
+    // Near miss: a damaged recipient is not the event's subject; a bare `it`
+    // does not name it.
+    let (status, _, _) = parse(
+        ENCHANTMENT,
+        "Whenever a creature you control deals combat damage to a creature, tap it.",
+    );
+    assert_ne!(status, "canonical");
+}

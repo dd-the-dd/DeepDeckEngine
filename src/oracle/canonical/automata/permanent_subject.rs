@@ -58,8 +58,17 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
             SourceAnaphorBinding::EventSubject(source) => {
                 Some(PermanentEffectReference::Source(source))
             }
+            // Without a source subject, `it` names the event's observed
+            // object, else the object that is the event's subject.
             SourceAnaphorBinding::Unproved => context
                 .observed_event_object
+                .or_else(|| {
+                    context
+                        .event_object
+                        .as_ref()
+                        .filter(|slot| slot.subject)
+                        .map(|slot| slot.reference)
+                })
                 .map(PermanentEffectReference::Observed),
         },
     };

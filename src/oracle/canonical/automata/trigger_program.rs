@@ -226,10 +226,11 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
 /// permanent of a damage event, else the damage source (CR 120.1), the
 /// attacker (CR 508.1), the dying permanent (CR 700.4).
 fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot> {
-    let permanent = |predicate: ObjectPredicate| {
+    let permanent = |predicate: ObjectPredicate, subject: bool| {
         Some(EventObjectSlot {
             reference: TypedObservedEventObject::EventPermanent,
             predicate,
+            subject,
         })
     };
     let creature = || ObjectPredicate::CardType(ObjectCardType::Creature);
@@ -261,6 +262,7 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                     PermanentTransitionKind::Died => TypedObservedEventObject::EventPermanent,
                 },
                 predicate,
+                subject: true,
             })
         }
         GenericTriggerEventNode::Object(ObjectEventNode {
@@ -271,25 +273,27 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             ObjectEventVerb::Attack
             | ObjectEventVerb::Die
             | ObjectEventVerb::DealCombatDamageToPlayer => {
-                permanent(subject.query.predicate.clone())
+                permanent(subject.query.predicate.clone(), true)
             }
             ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
-                DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone()),
-                DamageRecipient::Player(_) => permanent(subject.query.predicate.clone()),
+                DamageRecipient::Permanent(recipient) => {
+                    permanent(recipient.predicate.clone(), false)
+                }
+                DamageRecipient::Player(_) => permanent(subject.query.predicate.clone(), true),
             },
             _ => None,
         },
         GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
             complement, ..
         }) => match complement.recipient.as_ref()? {
-            DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone()),
+            DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone(), false),
             DamageRecipient::Player(_) => None,
         },
         GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
             action:
                 AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,
             ..
-        }) => permanent(creature()),
+        }) => permanent(creature(), true),
         _ => None,
     }
 }

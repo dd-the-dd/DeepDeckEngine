@@ -194,3 +194,49 @@ fn event_object_is_only_the_incarnation_the_event_saw() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn it_is_the_attacking_creature_the_event_records() {
+    // Fervent Charge: the attacker the record binds gets +2/+2.
+    let rule = parsed_rules(
+        "Enchantment",
+        "Whenever a creature you control attacks, it gets +2/+2 until end of turn.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let charge = permanent("charge", "Enchantment", vec![rule.clone()], "player-0");
+    engine.state.players[0].battlefield.push(charge.clone());
+    engine.state.players[0].battlefield.push(permanent(
+        "attacker",
+        "Creature - Bear",
+        Vec::new(),
+        "player-0",
+    ));
+    engine.state.players[0].battlefield.push(permanent(
+        "bystander",
+        "Creature - Bear",
+        Vec::new(),
+        "player-0",
+    ));
+    admit(&mut engine);
+    engine.put_triggered_ability_on_stack_with_decisions(
+        &charge,
+        rule,
+        BTreeMap::from([(
+            "triggeringPermanentId".to_string(),
+            Value::String("attacker".to_string()),
+        )]),
+    );
+    resolve_stack(&mut engine);
+    let power = |engine: &GameEngine, id: &str| {
+        let (player, index) = engine.permanent_position(id).expect("on the battlefield");
+        engine.current_power(&engine.state.players[player].battlefield[index])
+    };
+    let base = power(&engine, "bystander");
+    assert_eq!(
+        power(&engine, "attacker"),
+        base + 2,
+        "the recorded attacker"
+    );
+}

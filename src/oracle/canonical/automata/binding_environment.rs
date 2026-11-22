@@ -23,6 +23,10 @@ use crate::oracle::characteristic_vocabulary::{
 pub(in crate::oracle::canonical) struct EventObjectSlot {
     pub reference: TypedObservedEventObject,
     pub predicate: ObjectPredicate,
+    /// The object is the grammatical subject of the event (`a creature
+    /// attacks`, `a creature dies`), so a bare `it` can name it. A damaged
+    /// recipient is named only with its nominal (`that creature`).
+    pub subject: bool,
 }
 
 impl EventObjectSlot {

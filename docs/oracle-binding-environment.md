@@ -91,11 +91,22 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   the Punisher, Anointer of Valor, …), 0 perdue, 38 IR changées dont 0 déjà
   supportée.
 
+## Étape 3 réalisée : `it` sujet de l'événement
+
+- `EventObjectSlot::subject` : l'objet est le sujet grammatical de
+  l'événement (attaquant, permanent qui meurt ou entre, source de dégâts de
+  combat à un joueur). Sans liaison de source, le pronom `it` / `its` le
+  désigne (`Whenever a creature you control attacks, it gets +2/+2`,
+  `Whenever a creature dies, its controller ...`). Le permanent qui subit
+  des dégâts n'est nommé que par son nominal (`that creature`).
+- Sondes (base de l'étape 2) : ligue 800 → 801 (+1 : Dreadhorde Invasion),
+  0 perdue ; corpus 13949 → 13965 (+16 : Fervent Charge, Glory Bearers,
+  Atarka, Bereavement, Stonehoof Chieftain, …), 0 perdue, 31 IR changées
+  dont 0 déjà supportée.
+
 ## Suite
 
-1. `it` sujet d'une action désignant l'objet qui est le sujet de
-   l'événement (`Whenever a creature you control attacks, it gets +2/+2`).
-2. Génitif numérique (`that creature's power`, `the sacrificed creature's
+1. Génitif numérique (`that creature's power`, `the sacrificed creature's
    toughness`) par le même résolveur, à la place de `numeric.event-anaphor`.
-3. Cartes ayant changé de zone (`return it to its owner's hand` après une
+2. Cartes ayant changé de zone (`return it to its owner's hand` après une
    mort, CR 400.7) et références liées (CR 607, `the exiled card`).
