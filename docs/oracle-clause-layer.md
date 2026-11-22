@@ -273,3 +273,20 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   Preuves : IR identique entre `they` et `that player` (cartes réelles et
   recombinaison inédite après `target player`), quasi-échecs sans joueur
   lié, exécution (le joueur qui pioche perd la vie).
+
+### Étape 16 : `For each X, ACTION.` préposé
+
+- Introducteur structurel de phrase, lu comme `Until …,` après le refus
+  des lecteurs ordinaires : le dénombrable est l'enfant partagé
+  (`recognize_for_each_count`, ou `OBJECTS VERBed this way` résolu contre
+  les actions du programme une fois l'action lue) et multiplie la quantité
+  de l'unique action de sa phrase par `apply_for_each_multiplier`, comme le
+  multiplicateur postposé. Une seconde action dans la phrase ou une action
+  sans quantité littérale échoue en `sequence.for-each.preposed-action`.
+- Une population de joueurs (`For each opponent, …`) n'est pas un
+  dénombrable : c'est le cadre distributif (étape suivante).
+- Sonde : ligue 809 → 809, corpus 14371 → 14375 (+4), 0 perte, IR des
+  cartes supportées inchangée. Preuve : IR identique à la forme postposée
+  (déjà exécutée), quasi-échecs (deux actions, population de joueurs).
+- Restes mesurés : jetons nommés (`create a Treasure token`) sans quantité
+  numérique, compteurs `on it` d'une source morte, `card exiled this way`.

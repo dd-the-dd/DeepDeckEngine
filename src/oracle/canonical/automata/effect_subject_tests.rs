@@ -272,3 +272,53 @@ fn they_without_a_player_is_not_claimed() {
     let (status, _, _) = parse(CREATURE, "When this creature enters, they discard a card.");
     assert_ne!(status, "canonical");
 }
+
+/// `For each COUNTABLE, ACTION.` is the trailing multiplier written first:
+/// the same IR as `ACTION for each COUNTABLE`.
+#[test]
+fn a_preposed_for_each_scales_its_action() {
+    // Real card shape: Tribune of Rot / Moogles' Valor (count, then the one
+    // action). Unused recombinations: draw and damage scaled by a count.
+    for (preposed, trailing) in [
+        (
+            "For each creature you control, create a 1/1 white Soldier creature token.",
+            "Create a 1/1 white Soldier creature token for each creature you control.",
+        ),
+        (
+            "For each artifact you control, draw a card.",
+            "Draw a card for each artifact you control.",
+        ),
+        (
+            "For each creature you control, this spell deals 1 damage to any target.",
+            "This spell deals 1 damage to any target for each creature you control.",
+        ),
+    ] {
+        assert_eq!(
+            effects(SORCERY, preposed),
+            effects(SORCERY, trailing),
+            "{preposed}"
+        );
+    }
+}
+
+/// Near misses: the introducer scopes one action ending its sentence, and a
+/// player population is not a countable (a distributive frame, not a count).
+#[test]
+fn a_preposed_for_each_scopes_one_counted_action() {
+    let (status, _, states) = parse(
+        SORCERY,
+        "For each creature you control, draw a card and gain 1 life.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.for-each.preposed-action"),
+        "{states:?}"
+    );
+    let (status, _, _) = parse(
+        SORCERY,
+        "For each opponent, create a 1/1 white Soldier creature token.",
+    );
+    assert_ne!(status, "canonical");
+}

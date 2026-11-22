@@ -730,6 +730,9 @@ fn recognize_effect_sequence_attempt_scoped(
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
+                // `For each COUNTABLE, ACTION.`: the preposed form of the
+                // trailing multiplier, scaling the one action of its sentence.
+                let mut preposed_for_each: Option<PreposedForEach> = None;
                 let mut effect_start = cursor.position();
                 let mut distributed_rest = Vec::new();
                 let mut causative: bool;
@@ -1097,6 +1100,25 @@ fn recognize_effect_sequence_attempt_scoped(
                                 effect_start = cursor.position();
                                 continue;
                             }
+                            // `For each COUNTABLE, ACTION.` (the trailing
+                            // multiplier written first): a structural
+                            // introducer of the sentence's one action.
+                            if !attempt_frame.is_committed()
+                                && preposed_for_each.is_none()
+                                && preposed_duration.is_none()
+                                && memory.effects.len() == memory.sentence_start
+                                && for_each_count_starts(cursor)
+                            {
+                                let mut trial = cursor.clone();
+                                let count = recognize_preposed_for_each(&mut trial)?;
+                                trial.enter("sequence.for-each.preposed-separator");
+                                trial.consume(",")?;
+                                *cursor = trial;
+                                preposed_for_each = Some(count);
+                                attempt_frame.clear();
+                                effect_start = cursor.position();
+                                continue;
+                            }
                             // `Until DURATION, EFFECTS.`: the introducer is read
                             // only after the ordinary effect readers decline, and
                             // never after a committed failure (diagnostics of
@@ -1127,6 +1149,35 @@ fn recognize_effect_sequence_attempt_scoped(
                 };
                 memory.distributed.extend(distributed_rest);
                 attempt_frame.clear();
+                if let Some(preposed) = preposed_for_each.take() {
+                    attempt_frame.commit();
+                    cursor.enter("sequence.for-each.preposed-action");
+                    let count = match preposed {
+                        PreposedForEach::Count(count) => count,
+                        PreposedForEach::ActionResult(reference) => {
+                            // CR 608.2c: an earlier action of this program
+                            // affected the objects; the scaled action follows.
+                            let mut written = memory.effects.clone();
+                            written.push(effect.clone());
+                            let (effect_index, filter) = cursor.require_value(
+                                super::resolve_action_result_antecedent(&written, &reference),
+                                "an earlier action of this program whose affected objects the phrase restates",
+                            )?;
+                            super::NumericExpression::ActionResultCount {
+                                effect_index,
+                                filter,
+                            }
+                        }
+                    };
+                    cursor.require(
+                        matches!(cursor.peek(), None | Some(".") | Some("(")),
+                        "one action ending the sentence of a preposed `for each`",
+                    )?;
+                    cursor.require(
+                        apply_for_each_multiplier(&mut effect, count),
+                        "an action with a literal quantity that a preposed `for each` can multiply",
+                    )?;
+                }
                 if let Some(duration) = &preposed_duration {
                     let carries_duration = match &effect {
                         LocalEffectNode::ModifyStats(node) => &node.duration == duration,
@@ -2448,6 +2499,29 @@ fn recognize_effect(
             .map(LocalEffectNode::OptionalCardDeployment);
     }
     Err(cursor.fail("a supported effect subject"))
+}
+
+/// The count a preposed `for each` names, resolved once its action is read.
+enum PreposedForEach {
+    Count(super::NumericExpression),
+    /// `OBJECTS VERBed this way`: resolved against the program's actions.
+    ActionResult(super::ActionResultReferenceNode),
+}
+
+fn recognize_preposed_for_each(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PreposedForEach> {
+    let restates_result = {
+        let mut countable = cursor.clone();
+        countable.advance_to(countable.position() + 2).is_ok()
+            && super::action_result_reference_starts(&countable)
+    };
+    if restates_result {
+        cursor.enter("sequence.for-each.action-result");
+        cursor.consume_phrase(&["for", "each"])?;
+        return super::recognize_action_result_reference(cursor).map(PreposedForEach::ActionResult);
+    }
+    recognize_for_each_count(cursor).map(PreposedForEach::Count)
 }
 
 fn targeted_card_zone_move_starts(cursor: &OracleTokenCursor<'_>) -> bool {
