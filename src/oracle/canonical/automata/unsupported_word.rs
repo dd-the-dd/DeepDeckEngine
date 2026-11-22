@@ -7,11 +7,13 @@
 //! keeps failure rankings honest. This never changes what is supported: every
 //! classification still produces a failure.
 use crate::oracle::ability_catalog::{AbilityCategory, match_catalog_mechanic};
+use crate::oracle::canonical::automata::verb_lexicon::{ALL_LEMMAS, lookup_verb};
 use crate::oracle::model::RecognizedEntity;
 
 /// Rules verbs written as imperatives in Oracle text that are neither CR 701
-/// keyword actions nor in the tokenizer's action vocabulary. Diagnostic data
-/// only: it gives these verbs no grammar. A shared verb lexicon supersedes it.
+/// keyword actions, nor in the tokenizer's action vocabulary, nor in the shared
+/// verb lexicon (`verb_lexicon.rs`). Diagnostic data only: it gives these verbs
+/// no grammar. A verb that gains a lexicon entry leaves this list.
 const UNSUPPORTED_RULES_VERBS: &[&str] = &[
     "ask",
     "conjure",
@@ -23,7 +25,6 @@ const UNSUPPORTED_RULES_VERBS: &[&str] = &[
     "lock",
     "move",
     "note",
-    "remove",
     "repeat",
     "roll",
     "say",
@@ -69,7 +70,8 @@ impl UnsupportedWord {
 }
 
 /// Classifies the unlinked word at `start`: catalog mechanics first, then the
-/// tokenizer's action vocabulary, then rules verbs without a keyword action.
+/// tokenizer's action vocabulary and the shared verb lexicon (any inflection),
+/// then rules verbs without grammar.
 /// `None` keeps the name resolver's diagnostic.
 pub(in crate::oracle::canonical) fn classify_unsupported_word(
     tokens: &[RecognizedEntity],
@@ -87,9 +89,10 @@ pub(in crate::oracle::canonical) fn classify_unsupported_word(
         });
     }
     let word = token.raw.to_lowercase();
-    (token.token_type == "actionWord" || UNSUPPORTED_RULES_VERBS.contains(&word.as_str())).then(
-        || UnsupportedWord::Verb {
-            end_token: start + 1,
-        },
-    )
+    (token.token_type == "actionWord"
+        || lookup_verb(&word, &ALL_LEMMAS).is_some()
+        || UNSUPPORTED_RULES_VERBS.contains(&word.as_str()))
+    .then(|| UnsupportedWord::Verb {
+        end_token: start + 1,
+    })
 }
