@@ -585,3 +585,37 @@ fn milled_cards_are_the_next_card_actions_collection() {
         assert!(text.contains("\"bind\":\"milledCards\""), "{text}");
     }
 }
+
+#[test]
+fn guard_objects_event_subjects_and_the_cast_spells_controller_are_bound() {
+    // Opal Champion's shape: the intervening `if` names the antecedent of `it`.
+    let (status, _, states) = parse(
+        ENCHANTMENT,
+        "When an opponent casts a creature spell, if this enchantment is an enchantment, it becomes a 3/3 Knight creature with first strike.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Tattered Ratter: the blocked attacker is `it`.
+    let objects = effect_objects(
+        CREATURE,
+        "Whenever a Rat you control becomes blocked, it gets +2/+0 until end of turn.",
+    );
+    assert_eq!(
+        objects.first(),
+        Some(&json!({"kind":"triggeringPermanent"}))
+    );
+    // Unused recombination: damage to the cast spell's controller.
+    let recipients = damage_recipients(
+        ENCHANTMENT,
+        "Whenever an opponent casts a spell, this enchantment deals 1 damage to that spell's controller.",
+    );
+    assert_eq!(
+        recipients[0],
+        json!({"kind":"controllerOf","object":{"kind":"triggeringStackObject"}})
+    );
+    // Near miss: no cast event, no spell to relate.
+    let (status, _, _) = parse(
+        CREATURE,
+        "{T}: This creature deals 1 damage to that spell's controller.",
+    );
+    assert_ne!(status, "canonical");
+}

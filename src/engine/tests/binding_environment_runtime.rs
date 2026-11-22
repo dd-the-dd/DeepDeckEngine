@@ -480,3 +480,36 @@ fn from_among_them_reads_the_milled_cards() {
     assert!(in_hand("milled-bear"), "the milled creature card");
     assert!(!in_hand("old-bear"), "not a card milled by this spell");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_cast_spells_controller_is_its_caster_once_it_left_the_stack() {
+    // The spell already resolved: its controller is the caster the cast
+    // record binds (CR 110.2).
+    let rule = parsed_rules(
+        "Enchantment",
+        "Whenever an opponent casts a spell, this enchantment deals 1 damage to that spell's controller.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let source = permanent("watcher", "Enchantment", vec![rule.clone()], "player-0");
+    engine.state.players[0].battlefield.push(source.clone());
+    admit(&mut engine);
+    engine.put_triggered_ability_on_stack_with_decisions(
+        &source,
+        rule,
+        BTreeMap::from([
+            (
+                "triggeringPlayerId".to_string(),
+                Value::String("player-1".to_string()),
+            ),
+            (
+                "triggeringStackId".to_string(),
+                Value::String("stack:resolved-spell".to_string()),
+            ),
+        ]),
+    );
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[1].life, 19, "the caster");
+    assert_eq!(engine.state.players[0].life, 20);
+}

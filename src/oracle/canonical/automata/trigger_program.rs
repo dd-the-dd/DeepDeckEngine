@@ -135,6 +135,21 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
             once_each_turn: false,
         });
     }
+    // An intervening `if` about one permanent (`if this permanent is an
+    // enchantment`) makes it the body's lexical antecedent (`it becomes`).
+    if let Some(SyntaxNode {
+        value:
+            BooleanConditionNode::Atom(SentenceConditionAtom::ReferencedObject(
+                ReferencedObjectConditionNode {
+                    object: ConditionObjectReference::Permanent(reference),
+                    ..
+                },
+            )),
+        ..
+    }) = &guard
+    {
+        context.permanent_subject_scope = PermanentSubjectScope::Local(Some(*reference));
+    }
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
@@ -339,6 +354,8 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
         }) if subject.multiplicity == EventMultiplicity::PerObject => match verb {
             ObjectEventVerb::Attack
             | ObjectEventVerb::Die
+            | ObjectEventVerb::BecomeBlocked
+            | ObjectEventVerb::BeDealtDamage(_)
             | ObjectEventVerb::DealCombatDamageToPlayer => {
                 permanent(subject.query.predicate.clone(), true)
             }

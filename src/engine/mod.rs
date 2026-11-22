@@ -31240,6 +31240,24 @@ impl GameEngine {
                         stack_object,
                     );
                 }
+                // The spell the cast record binds: its controller while it is
+                // on the stack, else its caster (CR 110.2).
+                if value_kind(&reference["object"]) == Some("triggeringStackObject")
+                    && self
+                        .resolve_target(&reference["object"], stack_object, bindings)
+                        .is_some_and(|target| match target {
+                            TargetRef::StackObject { stack_id } => {
+                                !self.state.stack.iter().any(|object| object.id == stack_id)
+                            }
+                            _ => false,
+                        })
+                {
+                    return stack_object
+                        .decisions
+                        .get("triggeringPlayerId")
+                        .and_then(Value::as_str)
+                        .map(str::to_string);
+                }
                 let departed = || {
                     self.departed_target_player(
                         object_relation_lki::ObjectPlayerRelation::Controller,

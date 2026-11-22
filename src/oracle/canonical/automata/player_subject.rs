@@ -52,7 +52,11 @@ pub(in crate::oracle::canonical::automata) fn recognize_defending_player_subject
     cursor: &mut OracleTokenCursor<'_>,
     available: bool,
 ) -> MachineResult<PlayerEffectSubject> {
-    recognize_defending_player(cursor, available).map(PlayerEffectSubject::from)
+    recognize_defending_player(cursor, available).map(|reference| {
+        reference
+            .into_effect_subject()
+            .expect("`defending player` is the event's player")
+    })
 }
 
 /// `its controller|owner` / `that NOUN's controller|owner` (CR 108.3,
@@ -66,8 +70,11 @@ pub(in crate::oracle::canonical::automata) fn recognize_object_related_player_su
     let event_object = cursor
         .binding_environment()
         .and_then(|environment| environment.frame.event_object.clone());
-    recognize_object_related_player(cursor, antecedent.as_ref(), event_object.as_ref())
-        .map(PlayerEffectSubject::from)
+    let reference =
+        recognize_object_related_player(cursor, antecedent.as_ref(), event_object.as_ref(), false)?;
+    reference
+        .into_effect_subject()
+        .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"))
 }
 
 /// Recognizes a player acting as the subject of an effect. `that player`
@@ -121,7 +128,11 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
             player: antecedent,
             ..BindingEnvironment::default()
         };
-        return recognize_that_player(cursor, &environment).map(PlayerEffectSubject::from);
+        return recognize_that_player(cursor, &environment).map(|reference| {
+            reference
+                .into_effect_subject()
+                .expect("`that player` is a bound or event player")
+        });
     }
 
     Err(cursor.fail_with_span(

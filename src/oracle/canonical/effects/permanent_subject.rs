@@ -53,6 +53,10 @@ pub(in crate::oracle::canonical) fn bound_player_reference_value(
 ) -> Option<Value> {
     match reference {
         BoundPlayerReference::EventPlayer => Some(json!({"kind":"triggeringPlayer"})),
+        BoundPlayerReference::EventSpellController => Some(json!({
+            "kind": "controllerOf",
+            "object": {"kind": "triggeringStackObject"},
+        })),
         BoundPlayerReference::Bound(binding) => player_bindings
             .iter()
             .find_map(|(key, id)| (key.effect_index == binding.0).then(|| chosen_target(id))),

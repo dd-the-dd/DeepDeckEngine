@@ -233,6 +233,25 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   le génitif sur une carte observée (`that card's mana value`, 29 cartes :
   l'abaissement numérique n'a pas accès à la collection observée).
 
+## Étape 11 réalisée : antécédent de la condition, sujets bloqué ou blessé, contrôleur du sort
+
+- Une condition intercalée qui teste un seul permanent (`if this permanent
+  is an enchantment`) en fait l'antécédent lexical du corps (`it becomes`).
+- L'attaquant bloqué (`becomes blocked`) et le permanent blessé (`is dealt
+  damage`) sont des objets d'événement sujets : `it` les désigne.
+- `that spell's controller` après un lancement : le contrôleur du sort que
+  l'enregistrement lie (`controllerOf triggeringStackObject`) ; une fois le
+  sort parti de la pile, son lanceur (CR 110.2). Un changement de
+  contrôle d'un sort sur la pile après le déclenchement n'est pas suivi
+  comme information de dernier état (limite documentée).
+- Sondes (base de l'étape 10) : ligue inchangée (808) ; corpus 14259 →
+  14275 (+16 : Opal Champion et la famille Opal/Hidden, Mana Vault,
+  Tattered Ratter, Somberwald Alpha, …), 0 perdue, 28 IR changées dont 0
+  déjà supportée.
+- Reste explicite : `that player's graveyard` (détenteur de zone lié), `it`
+  désignant une cible de carte mise sur le champ de bataille (`It gains
+  haste`), `it` source de dégâts observée (Wrathful Red Dragon).
+
 ## Suite
 
 1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
