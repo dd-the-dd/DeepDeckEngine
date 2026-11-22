@@ -227,7 +227,8 @@ fn recognize_imperative_program_body(
         && cursor
             .peek_ahead(1)
             .is_some_and(|s| s.eq_ignore_ascii_case("may"))
-        || later_optional_outcome_block(cursor).is_some();
+        || later_optional_outcome_block(cursor).is_some()
+        || reflexive_action_block_follows(cursor);
     match try_recognize_effect_sequence_with_context(
         cursor,
         input.name_links,

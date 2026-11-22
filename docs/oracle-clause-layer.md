@@ -336,3 +336,24 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Restes : la permission de programme `You may put … . That creature …`
   (deux étapes de programme : l'antécédent ne traverse pas la frontière
   d'étape) et les retards `Exile it at the beginning of the next end step`.
+
+### Étape 19 : cadre réflexif `When you do,` dans le corps d'un sort
+
+- Le corps d'un sort devient un programme d'effets dès qu'une phrase
+  quelconque est suivie d'un connecteur réflexif ; le connecteur est lu par
+  `outcome_at` partagé (`When you do`, `When they do`, `When that player
+  does`), pas par une suite de mots. Une phrase réflexive postérieure ouvre
+  une étape de programme comme un bloc de coût facultatif
+  (`later_reflexive_action_block`). Un `Then` initial de phrase avant `you
+  may` est lu (CR 608.2c : l'ordre des étapes l'exprime déjà).
+- Abaissement inchangé (`performAction` + capacité réflexive, CR 603.12) ;
+  une instruction que le moteur ne mesure pas comme une seule exécution
+  échoue en `lower.program.reflexive-action.action`.
+- Sonde : ligue 816 → 816, corpus 14567 → 14571 (+4 : Faebloom Trick,
+  Thrilling Discovery, Lithobraking, Invasion of Ergamon), 0 perte, IR des
+  cartes supportées inchangée. Preuves : même programme pour le sort et la
+  capacité déclenchée, permission `Then you may` suivie du cadre,
+  quasi-échec (`Scry 1. When you do,`).
+- Restes : corps des capacités activées (séquence, pas programme),
+  instructions abaissées en plusieurs primitives (scry, sacrifice par un
+  autre joueur), antécédent `it` transporté dans la capacité réflexive.

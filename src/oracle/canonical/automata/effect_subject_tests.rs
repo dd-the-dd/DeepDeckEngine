@@ -427,3 +427,48 @@ fn the_moved_card_antecedent_near_misses() {
         assert_ne!(status, "canonical", "{oracle}");
     }
 }
+
+/// CR 603.12: `When you do,` after any sentence of a spell is the reflexive
+/// frame of that sentence's instruction; the spell body is an effect program
+/// exactly as a triggered ability's body is.
+#[test]
+fn a_spell_sentence_opens_a_reflexive_frame() {
+    // Real cards: Faebloom Trick (first sentence), Lithobraking (`Then you
+    // may` permission after a first step). Unused recombination: the spell
+    // and the triggered ability give the same program.
+    let spell = effects(
+        SORCERY,
+        "Sacrifice a creature. When you do, target creature gets -2/-2 until end of turn.",
+    );
+    let triggered = effects(
+        CREATURE,
+        "When this creature enters, sacrifice a creature. When you do, target creature gets -2/-2 until end of turn.",
+    );
+    assert_eq!(spell, triggered);
+    assert_eq!(spell[0]["kind"], "performAction", "{spell:#?}");
+    let faebloom = effects(
+        "Instant",
+        "Create two 1/1 blue Faerie creature tokens with flying. When you do, tap target creature an opponent controls.",
+    );
+    assert_eq!(faebloom[0]["kind"], "performAction", "{faebloom:#?}");
+    let later = effects(
+        SORCERY,
+        "Mill two cards. Then you may sacrifice a creature. When you do, draw a card.",
+    );
+    assert_eq!(later[0]["kind"], "mill", "{later:#?}");
+    assert_eq!(later.len(), 2, "{later:#?}");
+}
+
+/// Near miss: an instruction the runtime cannot measure as one performance
+/// fails at the reflexive lowering instead of being approximated.
+#[test]
+fn a_reflexive_frame_needs_one_measured_instruction() {
+    let (status, _, states) = parse(SORCERY, "Scry 1. When you do, draw a card.");
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "lower.program.reflexive-action.action"),
+        "{states:?}"
+    );
+}
