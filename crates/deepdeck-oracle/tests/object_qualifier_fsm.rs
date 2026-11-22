@@ -194,3 +194,49 @@ fn a_controller_relation_can_name_the_player_the_event_records() {
         );
     }
 }
+
+#[test]
+fn ownership_relations_and_distributive_target_lists() {
+    // `target permanent you own` / `permanents you don't own` (CR 108.3):
+    // the collection's ownership relation.
+    let owned = rule("Artifact", "{T}: Destroy target permanent you own.");
+    assert_eq!(
+        owned["declaration"]["decisions"][0]["candidates"],
+        json!({ "kind": "permanents", "ownership": "owned", "where": null })
+    );
+    let exiled = rule(
+        "Sorcery",
+        "Exile target creature you own, then return it to the battlefield under your control.",
+    );
+    assert_eq!(
+        exiled["declaration"]["decisions"][0]["candidates"]["ownership"],
+        "owned"
+    );
+    // `each of up to two other target creatures you control`: `each of`
+    // distributes the action over the declared targets.
+    let mentor = rule(
+        "Creature \u{2014} Human",
+        "When this creature enters, put a +1/+1 counter on each of up to two other target creatures you control.",
+    );
+    let decision = &mentor["declaration"]["decisions"][0];
+    assert_eq!(
+        (decision["minimum"].clone(), decision["maximum"].clone()),
+        (json!(0), json!(2))
+    );
+    assert_eq!(mentor["effects"][0]["permanent"]["kind"], "chosenTargets");
+    // Sibling: `each of two target creatures` with another action.
+    let tapped = rule("Sorcery", "Tap each of two target creatures.");
+    assert_eq!(tapped["declaration"]["decisions"][0]["maximum"], 2);
+    // Near misses: two ownership relations on one collection; `each of
+    // them` is not a target list.
+    for text in [
+        "Destroy target creature you own and you don't own.",
+        "Put a +1/+1 counter on each of them.",
+    ] {
+        assert_eq!(
+            parse("Near Miss", "Sorcery", text).status,
+            "unsupported",
+            "{text}"
+        );
+    }
+}

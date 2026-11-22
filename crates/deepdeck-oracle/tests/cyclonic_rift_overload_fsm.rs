@@ -177,7 +177,9 @@ fn negative_controller_relation_rejects_a_wrong_relation_locally() {
     let parsed = parse_instant(
         "Near Miss",
         "{1}{U}",
-        "Return target nonland permanent you don't own to its owner's hand.",
+        // `you don't own` is now the collection's ownership relation; a
+        // casting relation is still the wrong relation for a permanent.
+        "Return target nonland permanent you don't cast to its owner's hand.",
     );
     let ability = &parsed.abilities[0];
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
@@ -186,7 +188,7 @@ fn negative_controller_relation_rejects_a_wrong_relation_locally() {
         ability.diagnostics[0].state.as_deref(),
         Some("selector.controller-qualifier.negated-relation")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("own"));
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("cast"));
     assert_eq!(ability.diagnostics[0].expected.as_deref(), Some("control"));
 }
 

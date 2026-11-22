@@ -178,6 +178,7 @@ fn object_noun(predicate: &SelectorPredicate, noun: &str) -> bool {
         | SelectorPredicate::CharacteristicBatch(_)
         | SelectorPredicate::Status(_)
         | SelectorPredicate::Designation(_)
+        | SelectorPredicate::OwnedByAbilityController { .. }
         | SelectorPredicate::PermanentCard
         | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)

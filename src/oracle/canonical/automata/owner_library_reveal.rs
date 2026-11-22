@@ -71,6 +71,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
         | ObjectPredicate::Designation(_)
+        | ObjectPredicate::OwnedByAbilityController { .. }
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::NumericComparison { .. } => true,
     }

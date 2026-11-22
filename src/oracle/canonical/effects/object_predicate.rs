@@ -90,6 +90,10 @@ fn lower_object_predicate(
             let atom = json!({ "kind": kind });
             Some(if negated { not(atom) } else { atom })
         }
+        ObjectPredicate::OwnedByAbilityController { negated } => {
+            let atom = json!({ "kind": "ownedBy", "player": controller() });
+            Some(if *negated { not(atom) } else { atom })
+        }
         ObjectPredicate::Designation(designation) => Some(json!({
             "kind": "hasDesignation",
             "designation": designation.flag(),
@@ -145,6 +149,73 @@ fn lower_object_predicate(
             .iter()
             .filter_map(|operand| lower_object_predicate(operand, domain))
             .collect())),
+    }
+}
+
+/// A permanent collection over `predicate`: its filter and, when the query
+/// states one, its ownership relation. `None` when an ownership relation is
+/// nested where a collection cannot carry it.
+pub(in crate::oracle::canonical) fn lower_permanent_collection(
+    predicate: &ObjectPredicate,
+) -> Option<Value> {
+    let (rest, ownership) = split_collection_ownership(predicate)?;
+    let mut collection = json!({
+        "kind": "permanents",
+        "where": lower_permanent_object_predicate(&rest),
+    });
+    if let Some(ownership) = ownership {
+        collection["ownership"] = json!(ownership);
+    }
+    Some(collection)
+}
+
+/// Splits a top-level ownership relation off a permanent collection's
+/// predicate: the engine's collections carry it as `ownership`
+/// (`owned` / `notOwned`). `None` when an ownership atom is nested where a
+/// collection relation cannot express it.
+pub(in crate::oracle::canonical) fn split_collection_ownership(
+    predicate: &ObjectPredicate,
+) -> Option<(ObjectPredicate, Option<&'static str>)> {
+    fn contains_owner(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::OwnedByAbilityController { .. } => true,
+            ObjectPredicate::Not(child) => contains_owner(child),
+            ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+                children.iter().any(contains_owner)
+            }
+            _ => false,
+        }
+    }
+    let relation = |negated: bool| if negated { "notOwned" } else { "owned" };
+    match predicate {
+        ObjectPredicate::OwnedByAbilityController { negated } => Some((
+            ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+            Some(relation(*negated)),
+        )),
+        ObjectPredicate::Intersection(children) => {
+            let mut ownership = None;
+            let mut rest = Vec::new();
+            for child in children {
+                match child {
+                    ObjectPredicate::OwnedByAbilityController { negated } => {
+                        if ownership.is_some() {
+                            return None;
+                        }
+                        ownership = Some(relation(*negated));
+                    }
+                    other if contains_owner(other) => return None,
+                    other => rest.push(other.clone()),
+                }
+            }
+            let rest = match rest.len() {
+                0 => ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+                1 => rest.remove(0),
+                _ => ObjectPredicate::Intersection(rest),
+            };
+            Some((rest, ownership))
+        }
+        other if contains_owner(other) => None,
+        other => Some((other.clone(), None)),
     }
 }
 

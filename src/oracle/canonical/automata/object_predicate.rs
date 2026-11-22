@@ -112,6 +112,12 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     /// `renowned`, `monstrous`, `suspected` (CR 701.37b, 702.112b, 701.60b):
     /// a designation of the permanent, from the shared registry.
     Designation(PermanentDesignation),
+    /// `you own` / `you don't own` (CR 108.3): the object's owner relative
+    /// to the ability controller. A collection carries it as its ownership
+    /// relation, never as a characteristic.
+    OwnedByAbilityController {
+        negated: bool,
+    },
     /// `permanent card`: a card with a permanent card type (CR 110.4b). The
     /// following `card` noun still supplies the object domain.
     PermanentCard,
@@ -193,6 +199,7 @@ impl ObjectPredicate {
             | Self::ObjectKind(_)
             | Self::Status(_)
             | Self::Designation(_)
+            | Self::OwnedByAbilityController { .. }
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
@@ -224,9 +231,10 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
-            Self::Status(_) | Self::Designation(_) | Self::HasCounter(_) => {
-                domain == ObjectKind::Permanent
-            }
+            Self::Status(_)
+            | Self::Designation(_)
+            | Self::OwnedByAbilityController { .. }
+            | Self::HasCounter(_) => domain == ObjectKind::Permanent,
             Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
@@ -274,6 +282,7 @@ impl ObjectPredicate {
             | Self::HasKeyword(_)
             | Self::Status(_)
             | Self::Designation(_)
+            | Self::OwnedByAbilityController { .. }
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
@@ -311,6 +320,7 @@ impl ObjectPredicate {
             | Self::HasKeyword(_)
             | Self::Status(_)
             | Self::Designation(_)
+            | Self::OwnedByAbilityController { .. }
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType

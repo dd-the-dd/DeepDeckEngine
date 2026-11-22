@@ -125,6 +125,7 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
         | SelectorPredicate::NumericComparison { .. } => true,
         SelectorPredicate::Status(_)
         | SelectorPredicate::Designation(_)
+        | SelectorPredicate::OwnedByAbilityController { .. }
         | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::ChosenCreatureType => false,
         SelectorPredicate::PermanentCard => true,
@@ -538,6 +539,7 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::Status(_)
         | SelectorPredicate::Designation(_)
+        | SelectorPredicate::OwnedByAbilityController { .. }
         | SelectorPredicate::PermanentCard
         | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
@@ -848,6 +850,7 @@ fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut us
         | SelectorPredicate::ExactManaCost(_)
         | SelectorPredicate::Status(_)
         | SelectorPredicate::Designation(_)
+        | SelectorPredicate::OwnedByAbilityController { .. }
         | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::NumericComparison { .. } => true,

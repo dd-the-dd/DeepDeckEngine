@@ -435,6 +435,26 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
             _ => PermanentOperandNode::BoundReference(reference),
         });
     }
+    // `each of up to two target creatures`, `each of two target creatures`:
+    // `each of` distributes the action over the declared targets, which an
+    // action on several targets already does for each (CR 115.1, 608.2c).
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("target") || raw.eq_ignore_ascii_case("up"))
+            | cursor
+                .token_slice(cursor.position() + 2, cursor.position() + 3)
+                .first()
+                .is_some_and(|token| token.token_type == "quantity")
+    {
+        cursor.enter("permanent.subject.distributive-targets");
+        cursor.consume_phrase(&["each", "of"])?;
+    }
     if cursor.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("target")
             || raw.eq_ignore_ascii_case("another")

@@ -28,10 +28,11 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
             return StaticCollectionKeywordParseAttempt::Failed(failure);
         }
     };
-    let mut objects = json!({
-        "kind": "permanents",
-        "where": lower_permanent_object_predicate(&grant.objects.predicate),
-    });
+    let Some(mut objects) = lower_permanent_collection(&grant.objects.predicate) else {
+        return StaticCollectionKeywordParseAttempt::Failed(
+            cursor.fail("an ownership relation a permanent collection can carry"),
+        );
+    };
     if let Some(scope) = grant.objects.controller {
         cursor.enter("static.collection-keyword.lower.controller");
         objects["controller"] = match scope {
