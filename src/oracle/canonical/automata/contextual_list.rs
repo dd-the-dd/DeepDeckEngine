@@ -11,7 +11,8 @@ impl ContextualListConnector {
     fn from_oracle_word(raw: &str) -> Option<Self> {
         if raw.eq_ignore_ascii_case("and") {
             Some(Self::And)
-        } else if raw.eq_ignore_ascii_case("or") {
+        } else if raw.eq_ignore_ascii_case("or") || raw.eq_ignore_ascii_case("and/or") {
+            // `and/or` is the inclusive disjunction: either or both.
             Some(Self::Or)
         } else if raw.eq_ignore_ascii_case("then") {
             Some(Self::Then)
@@ -19,14 +20,17 @@ impl ContextualListConnector {
             None
         }
     }
+}
 
-    fn oracle_word(self) -> &'static str {
-        match self {
-            Self::And => "and",
-            Self::Or => "or",
-            Self::Then => "then",
-        }
-    }
+/// Consumes the connector word as written (`or` and `and/or` are one
+/// connector).
+fn consume_connector(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    let raw = cursor
+        .peek()
+        .filter(|raw| ContextualListConnector::from_oracle_word(raw).is_some())
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("a list connector"))?;
+    cursor.consume(&raw)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -152,7 +156,7 @@ fn recognize_contextual_list_internal<T>(
                             policy.accepts(connector),
                             "a connector accepted by the active list parent",
                         )?;
-                        cursor.consume(connector.oracle_word())?;
+                        consume_connector(cursor)?;
                         resolve_pending_connectors(&mut connectors, connector);
                     }
                     ContextualListState::ItemAfterSeparator
@@ -164,7 +168,7 @@ fn recognize_contextual_list_internal<T>(
                         policy.accepts(connector),
                         "a connector accepted by the active list parent",
                     )?;
-                    cursor.consume(connector.oracle_word())?;
+                    consume_connector(cursor)?;
                     connectors.push(Some(connector));
                     resolve_pending_connectors(&mut connectors, connector);
                     ContextualListState::ItemAfterSeparator
@@ -230,7 +234,7 @@ fn probe_explicit_comma_run<T>(
             if !policy.accepts(connector) {
                 return None;
             }
-            probe.consume(connector.oracle_word()).ok()?;
+            consume_connector(&mut probe).ok()?;
             recognize_item(&mut probe).ok()?;
             return Some(probe.position());
         }

@@ -47,7 +47,15 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     // The guard is read before the effect program, so only the ability's own
     // source can be a referent: no declared target or observed object is
     // bound yet, and the shared condition atoms fail explicitly otherwise.
-    let guard_context = trigger_guard_context(&event.value);
+    let mut guard_context = trigger_guard_context(&event.value);
+    guard_context.frame = event_frame(&event.value);
+    // The guard's references (`that creature's power`) resolve against the
+    // same binding environment as the body's: the frame the event binds.
+    let enclosing =
+        cursor.replace_binding_environment(Some(std::sync::Arc::new(super::BindingEnvironment {
+            frame: guard_context.frame.clone(),
+            ..super::BindingEnvironment::default()
+        })));
     let guard = recognize_trigger_guard(
         cursor,
         &SentenceConditionContext {
@@ -58,8 +66,9 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
             card_focus: false,
             departed_targets: &[],
         },
-    )?
-    .map(|value| SyntaxNode {
+    );
+    cursor.replace_binding_environment(enclosing);
+    let guard = guard?.map(|value| SyntaxNode {
         tokens: start..cursor.position(),
         value,
     });
@@ -90,17 +99,8 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         .with_unless_frames();
     // This parent reads `This ability triggers only ...` after the body.
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
-    context.frame.event_player = event_names_player(&event.value);
     context.source_attachment = source_attachment;
-    context.frame.defending_player = event_names_defending_player(&event.value);
-    context.frame.combat_counterpart = event_names_combat_counterpart(&event.value);
-    context.frame.event_object = event_object_slot(&event.value);
-    context.frame.event_card = event_card_zone(&event.value);
-    // A cast record binds its spell; a copy has no cast record.
-    context.frame.event_spell = matches!(
-        &event.value,
-        GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
-    );
+    context.frame = event_frame(&event.value);
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
@@ -404,6 +404,23 @@ fn event_names_combat_counterpart(event: &GenericTriggerEventNode) -> bool {
                 matches!(modifier, super::SourceEventModifier::Counterpart(counterpart) if counterpart.verb == *verb)
             })
         })
+}
+
+/// The references the triggering event binds (`that player`, `defending
+/// player`, the other combatant, the event object, its card, its spell).
+fn event_frame(event: &GenericTriggerEventNode) -> super::FrameBindings {
+    super::FrameBindings {
+        event_player: event_names_player(event),
+        defending_player: event_names_defending_player(event),
+        combat_counterpart: event_names_combat_counterpart(event),
+        event_object: event_object_slot(event),
+        event_card: event_card_zone(event),
+        // A cast record binds its spell; a copy has no cast record.
+        event_spell: matches!(
+            event,
+            GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
+        ),
+    }
 }
 
 /// True when every atom of an intervening `if` is about the ability's own

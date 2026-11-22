@@ -1306,6 +1306,7 @@ fn recognize_numeric_comparison_from(
     let mut property = initial_property;
     let mut right = None;
     let mut operator = NumericComparisonOperator::Equal;
+    let mut strict = false;
     loop {
         state = match state {
             NumericComparisonState::Relation => {
@@ -1325,6 +1326,11 @@ fn recognize_numeric_comparison_from(
                     .is_some_and(|word| word.eq_ignore_ascii_case("equal"))
                 {
                     cursor.consume_phrase(&["equal", "to"])?;
+                } else if let Some(strict_operator) = strict_comparison_operator(cursor) {
+                    // `less than EXPR` / `greater than EXPR`: the strict
+                    // relation, the shared operator of sentence conditions.
+                    operator = strict_operator;
+                    strict = true;
                 }
                 let expression = super::recognize_query_numeric_expression(cursor)?;
                 // Syntax is shared. Card P/T has no checked AnyZone
@@ -1346,6 +1352,10 @@ fn recognize_numeric_comparison_from(
                     match expression {
                         NumericExpression::Atom(_) => true,
                         NumericExpression::CountCounters { .. } => source_available,
+                        NumericExpression::ObjectProperty {
+                            object: super::LocalObjectReference::SourceSelf,
+                            ..
+                        } => source_available,
                         NumericExpression::CardsInZone {
                             player: super::LocalPlayerReference::Controller,
                             zone: super::LocalZone::Library,
@@ -1363,12 +1373,25 @@ fn recognize_numeric_comparison_from(
                     // Compatibility consumers have not proved contextual runtime
                     // expressions. Syntax is shared; their semantic slice stays
                     // literal/declared-X until their capability is migrated.
-                    None => matches!(expression, super::NumericExpression::Atom(_)),
+                    // The source's characteristic is bound by the target
+                    // binder when targets are chosen and rechecked.
+                    None => matches!(
+                        expression,
+                        super::NumericExpression::Atom(_)
+                            | super::NumericExpression::ObjectProperty {
+                                object: super::LocalObjectReference::SourceSelf,
+                                ..
+                            }
+                    ),
                     Some(source_available) => supported(&expression, source_available),
                 };
                 cursor.require(admitted, "a query expression supported by this consumer's explicit numeric/source context")?;
                 right = Some(Box::new(expression));
-                NumericComparisonState::DirectionOrComplete
+                if strict {
+                    NumericComparisonState::Complete
+                } else {
+                    NumericComparisonState::DirectionOrComplete
+                }
             }
             NumericComparisonState::DirectionOrComplete => {
                 cursor.enter("selector.numeric-comparison.direction-or-complete");
@@ -1407,6 +1430,26 @@ fn recognize_numeric_comparison_from(
             }
         };
     }
+}
+
+/// `less than` / `greater than` before a comparison's right operand.
+fn strict_comparison_operator(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> Option<NumericComparisonOperator> {
+    let operator = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("less") => NumericComparisonOperator::LessThan,
+        Some("greater") => NumericComparisonOperator::GreaterThan,
+        _ => return None,
+    };
+    if !cursor
+        .peek_ahead(1)
+        .is_some_and(|word| word.eq_ignore_ascii_case("than"))
+    {
+        return None;
+    }
+    let direction = cursor.peek()?.to_string();
+    cursor.consume_phrase(&[direction.as_str(), "than"]).ok()?;
+    Some(operator)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

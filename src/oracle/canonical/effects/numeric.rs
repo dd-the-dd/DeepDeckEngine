@@ -297,12 +297,11 @@ pub(in crate::oracle::canonical) fn lower_selector_numeric_comparison(
             "object": { "kind": "candidate" },
         }),
     };
-    let operator = match operator {
-        NumericComparisonOperator::Equal => "==",
-        NumericComparisonOperator::LessThanOrEqual => "<=",
-        NumericComparisonOperator::GreaterThanOrEqual => ">=",
-    };
-    Some(compare(operator, left, lower_numeric_expression(right)?))
+    Some(compare(
+        operator.ir_operator(),
+        left,
+        lower_numeric_expression(right)?,
+    ))
 }
 
 #[cfg(test)]

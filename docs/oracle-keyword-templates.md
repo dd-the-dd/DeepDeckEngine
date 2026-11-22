@@ -271,6 +271,68 @@ explicite.
   marqueurs), à la publication comme à la résolution, au lieu de la carte
   imprimée.
 
+## Condition intercalée lue dans le cadre du déclencheur (Evolve)
+
+La condition `if …` d'un déclencheur (CR 603.4) est lue avec
+l'environnement de liaison C2 installé : son cadre est celui de l'événement
+(`event_frame` : joueur, objet, carte, sort de l'événement), le même que
+celui des effets du déclencheur. `that creature's power` y devient donc
+`powerOf observedEventObject`, exactement comme dans un effet ; aucun
+résolveur n'est dupliqué.
+
+- Atome de phrase partagé `NumericRelation` : `EXPR is greater than |
+  less than | equal to EXPR`, où les deux côtés sont des expressions
+  numériques ordinaires (propriété d'un objet lié, propriété de la source,
+  nombre). Les opérateurs stricts `<`/`>` rejoignent
+  `NumericComparisonOperator` (`ir_operator` unique).
+- `and/or` est le connecteur de disjonction de la liste contextuelle
+  partagée (CR 702.100a : « greater power and/or … toughness »).
+- Moteur : la condition est évaluée à la publication par l'évaluateur de
+  résolution (`runtime_condition_value`) sur l'objet de pile en attente,
+  avec la capture de départ de la source si elle a quitté le champ de
+  bataille (CR 603.10a), au lieu de l'évaluateur statique qui ne connaît
+  pas l'objet de l'événement.
+
+Combinaisons sans code nouveau débloquées par le même cadre : la condition
+d'un déclencheur de mort (`if it had a -1/-1 counter on it`, `if its
+toughness was less than 1`) nomme maintenant l'objet de l'événement. Comme
+il a quitté le champ de bataille, `objectMatchesFilter` le lit par
+l'information de l'enregistrement de mort (CR 603.10a : marqueurs, état de
+combat, force/endurance capturés), jamais par la carte dans sa nouvelle zone
+(`object_condition.rs`, `LastKnown`). Preuve :
+`death_trigger_guards_read_the_dead_creature_through_the_trigger_frame`.
+
+Preuves : `evolve_guard_reads_the_event_object_through_the_trigger_frame`
+(carte, condition sœur jamais vue `toughness … less than … power`, quasi
+échec `bigger than`) et
+`evolve_checks_the_entering_creature_against_its_source_when_it_triggers`
+(puissance plus grande, égalité sans publication, endurance seule plus
+grande, créature adverse ignorée).
+
+## Comparaison stricte à une caractéristique de la source (Mentor)
+
+La comparaison numérique du sélecteur (`with power …`) accepte les
+opérateurs stricts `less than` / `greater than` (le même
+`NumericComparisonOperator` que les conditions de phrase) et, comme
+opérande droit, une caractéristique de la source (`this creature's power`,
+`NumericExpression::ObjectProperty { SourceSelf }`).
+
+- Moteur (`source_bound_operands.rs`) : un domaine de candidats de cible
+  lie l'opérande de la source à sa valeur courante (sinon sa dernière
+  information connue) quand les cibles sont choisies (déclencheur et
+  capacité activée, CR 601.2c) et revérifiées à la résolution (CR 608.2b) ;
+  chaque comparateur de candidats compare donc toujours à un entier.
+- Ailleurs (statique, comptage), rien ne lie cette valeur : le contrôle de
+  support refuse l'opérande (`contains_source_operand`) au lieu de comparer
+  à une valeur absente ; la carte reste non exécutable, explicitement.
+
+Preuves : `mentor_compares_the_candidate_with_a_source_characteristic`
+(carte, sœur activée `toughness greater than this creature's toughness`,
+quasi échec sans opérande) et
+`mentor_targets_only_attackers_with_less_power_than_its_source` (seule la
+créature attaquante de puissance inférieure est ciblable ; le filtre
+statique équivalent n'est pas exécutable).
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -281,9 +343,7 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Evolve | 23 | `reference.source.start` (`that creature's power`, objet d'événement) |
 | Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
-| Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |
 | Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
 | Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
 | Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |

@@ -529,3 +529,104 @@ fn counter_removal_is_the_counter_action_in_the_removal_direction() {
     );
     assert_eq!(parsed.status, "unsupported");
 }
+
+#[test]
+fn evolve_guard_reads_the_event_object_through_the_trigger_frame() {
+    // Evolve (CR 702.100a): `that creature` in the intervening `if` is the
+    // event's entering creature, as in the effects; `this creature` is the
+    // source; `and/or` is the shared disjunction connector.
+    let rules = expanded(
+        "Cloudfin Raptor",
+        "Creature \u{2014} Bird Mutant",
+        "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)",
+    );
+    let entering = json!({ "kind": "observedEventObject", "event": "permanentEntered" });
+    let compare = |property: &str| {
+        json!({
+            "kind": "compare",
+            "operator": ">",
+            "left": { "kind": property, "object": entering },
+            "right": { "kind": property, "object": { "kind": "self" } },
+        })
+    };
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "or", "operands": [compare("powerOf"), compare("toughnessOf")] })
+    );
+    // Sibling: a printed guard composes another property, another strict
+    // operator and the source's other characteristic, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "Whenever another creature you control enters, if that creature's toughness is less than this creature's power, you gain 2 life.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"],
+        json!({
+            "kind": "compare",
+            "operator": "<",
+            "left": { "kind": "toughnessOf", "object": entering },
+            "right": { "kind": "powerOf", "object": { "kind": "self" } },
+        })
+    );
+    // Near miss: an unknown comparison word stays an explicit failure.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "Whenever a creature you control enters, if that creature's power is bigger than this creature's power, draw a card.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert!(
+        parsed.abilities[0]
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.state.as_deref()
+                == Some("condition.sentence.relation.operator"))
+    );
+}
+
+#[test]
+fn mentor_compares_the_candidate_with_a_source_characteristic() {
+    // Mentor (CR 702.134a): `with power less than this creature's power` is
+    // the selector's numeric comparison with a strict operator and a source
+    // operand.
+    let rules = expanded(
+        "Goblin Banneret",
+        "Creature \u{2014} Goblin Soldier",
+        "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)",
+    );
+    let filter = &rules[0]["declaration"]["decisions"][0]["candidates"]["where"];
+    assert_eq!(
+        filter["operands"][1],
+        json!({
+            "kind": "compare",
+            "operator": "<",
+            "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "powerOf", "object": { "kind": "self" } },
+        })
+    );
+    // Sibling: another property, the other strict operator and another
+    // source characteristic in an activated ability, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "{T}: Destroy target creature with toughness greater than this creature's toughness.",
+    );
+    let rule = single_rule(&parsed);
+    assert_eq!(
+        rule["declaration"]["decisions"][0]["candidates"]["where"]["operands"][1],
+        json!({
+            "kind": "compare",
+            "operator": ">",
+            "left": { "kind": "toughnessOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "toughnessOf", "object": { "kind": "self" } },
+        })
+    );
+    // Near miss: `less than` with no operand is not a comparison.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "{T}: Destroy target creature with power less than.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}

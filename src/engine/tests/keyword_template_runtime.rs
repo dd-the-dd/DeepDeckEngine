@@ -589,3 +589,210 @@ fn vanishing_removes_a_time_counter_each_upkeep_and_sacrifices_at_the_last() {
             .any(|card| card.instance_id == "vanishing-probe")
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn evolve_checks_the_entering_creature_against_its_source_when_it_triggers() {
+    // CR 702.100a/603.4: the intervening `if` compares the entering
+    // creature's power and toughness with this creature's, when the trigger
+    // would be put on the stack.
+    let raptor = compiled(
+        "Cloudfin Raptor",
+        "Creature \u{2014} Bird Mutant",
+        ("0", "1"),
+        "Flying\nEvolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![test_instance("cloudfin-raptor", raptor, "player-0")];
+    let sized = |id: &str, power: &str, toughness: &str| {
+        let mut definition = test_definition(id, "Creature \u{2014} Test");
+        definition.power = Some(power.to_string());
+        definition.toughness = Some(toughness.to_string());
+        test_instance(id, definition, "player-0")
+    };
+    let enter = |engine: &mut GameEngine, card: CardInstance| -> usize {
+        engine.state.players[0].battlefield.push(card.clone());
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine
+            .permanent_position(&card.instance_id)
+            .expect("entered");
+        let live = engine.state.players[player].battlefield[index].clone();
+        engine.enqueue_enter_battlefield_triggers(&live);
+        let published = engine.state.stack.len();
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut EmeritusDecisionProvider)
+                .expect("the evolve trigger resolves");
+        }
+        published
+    };
+    // 0/1 vs 1/1: greater power.
+    assert_eq!(enter(&mut engine, sized("squire", "1", "1")), 1);
+    assert_eq!(power_toughness(&engine, "cloudfin-raptor"), (1, 2));
+    // 1/2 vs 1/2: neither is greater, so nothing is put on the stack.
+    assert_eq!(enter(&mut engine, sized("twin", "1", "2")), 0);
+    assert_eq!(power_toughness(&engine, "cloudfin-raptor"), (1, 2));
+    // 0/3 vs 1/2: greater toughness alone is enough.
+    assert_eq!(enter(&mut engine, sized("wall", "0", "3")), 1);
+    assert_eq!(power_toughness(&engine, "cloudfin-raptor"), (2, 3));
+    // An opponent's creature is not "a creature you control".
+    engine.state.players[1]
+        .battlefield
+        .push(creature("giant", "player-1"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let (player, index) = engine.permanent_position("giant").expect("entered");
+    let live = engine.state.players[player].battlefield[index].clone();
+    engine.enqueue_enter_battlefield_triggers(&live);
+    assert!(engine.state.stack.is_empty());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn mentor_targets_only_attackers_with_less_power_than_its_source() {
+    // CR 702.134a: the target filter compares each candidate's power with
+    // the source's power, read when the target is chosen.
+    let mentor = compiled(
+        "Goblin Banneret",
+        "Creature \u{2014} Goblin Soldier",
+        ("1", "1"),
+        "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)",
+    );
+    let mut engine = test_engine(2);
+    let sized = |id: &str, power: &str| {
+        let mut definition = test_definition(id, "Creature \u{2014} Test");
+        definition.power = Some(power.to_string());
+        definition.toughness = Some("4".to_string());
+        test_instance(id, definition, "player-0")
+    };
+    let mut source = test_instance("goblin-banneret", mentor, "player-0");
+    source.counters.insert("+1/+1".to_string(), 2);
+    engine.state.players[0].battlefield = vec![
+        source,
+        sized("weaker", "2"),
+        sized("equal", "3"),
+        sized("idle", "0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    for id in ["goblin-banneret", "weaker", "equal"] {
+        let (player, index) = engine.permanent_position(id).expect("on the battlefield");
+        engine.state.players[player].battlefield[index]
+            .flags
+            .insert("attacking".to_string(), true);
+    }
+    engine.enqueue_declared_attacker_triggers(&[
+        "goblin-banneret".to_string(),
+        "weaker".to_string(),
+        "equal".to_string(),
+    ]);
+    assert_eq!(engine.state.stack.len(), 1, "one mentor trigger");
+    engine
+        .commit_pending_triggered_targets(&mut EmeritusDecisionProvider)
+        .expect("the target is chosen");
+    // The 3-power source: only the attacking 2-power creature is legal.
+    assert_eq!(
+        engine.state.stack[0].targets.values().collect::<Vec<_>>(),
+        vec![&TargetRef::Permanent {
+            instance_id: "weaker".to_string()
+        }]
+    );
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("mentor resolves");
+    assert_eq!(counters(&engine, "weaker"), 1);
+    assert_eq!(counters(&engine, "equal"), 0);
+
+    // Outside a target domain nothing binds the source's value: a static
+    // filter that reads it stays non-executable instead of comparing to 0.
+    let compilation = compile_playable_card(PlayableCardInput {
+        id: "near-miss".to_string(),
+        face_id: None,
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: Some("2".to_string()),
+        toughness: Some("2".to_string()),
+        oracle: OracleCardParseRequest {
+            card_name: "Near Miss".to_string(),
+            type_line: "Creature \u{2014} Test".to_string(),
+            mana_cost: Some("{1}{W}".to_string()),
+            oracle_text: Some(
+                "Creatures with power less than this creature's power can't block.".to_string(),
+            ),
+            layout: Some("normal".to_string()),
+            faces: Vec::new(),
+        },
+    })
+    .expect("the card compiles");
+    assert_ne!(compilation.engine_status, "executable");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn death_trigger_guards_read_the_dead_creature_through_the_trigger_frame() {
+    // CR 603.4/603.10a: `it` / `its` in the intervening `if` is the event's
+    // creature (no new code: the guard reads the C2 trigger frame), seen as
+    // it last existed on the battlefield.
+    let blowfly = compiled(
+        "Blowfly Infestation",
+        "Enchantment",
+        ("0", "0"),
+        "Whenever a creature dies, if it had a -1/-1 counter on it, put a -1/-1 counter on target creature.",
+    );
+    let massacre = compiled(
+        "Massacre Girl, Known Killer",
+        "Legendary Creature \u{2014} Human Assassin",
+        ("4", "4"),
+        "Whenever a creature an opponent controls dies, if its toughness was less than 1, draw a card.",
+    );
+    let killer = StackObject {
+        id: "stack:killer".to_string(),
+        controller: "player-1".to_string(),
+        card: creature("killer", "player-1"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let sized = |id: &str, toughness: &str| {
+        let mut definition = test_definition(id, "Creature \u{2014} Test");
+        definition.power = Some("1".to_string());
+        definition.toughness = Some(toughness.to_string());
+        test_instance(id, definition, "player-1")
+    };
+    let published_on_death = |source: CardInstance, victim: CardInstance| {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![source, creature("bystander", "player-0")];
+        engine.state.players[1].battlefield = vec![victim.clone()];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine
+            .destroy_permanent_from_stack(&victim.instance_id, &killer)
+            .expect("the destruction resolves");
+        engine.state.stack.len()
+    };
+    let mut marked = sized("marked", "3");
+    marked.counters.insert("-1/-1".to_string(), 1);
+    let blowfly_source = || test_instance("blowfly-infestation", blowfly.clone(), "player-0");
+    assert_eq!(published_on_death(blowfly_source(), marked), 1);
+    assert_eq!(published_on_death(blowfly_source(), sized("plain", "3")), 0);
+
+    let massacre_source = || test_instance("massacre-girl", massacre.clone(), "player-0");
+    assert_eq!(
+        published_on_death(massacre_source(), sized("withered", "0")),
+        1
+    );
+    assert_eq!(
+        published_on_death(massacre_source(), sized("sturdy", "2")),
+        0
+    );
+}

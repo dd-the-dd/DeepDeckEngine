@@ -769,6 +769,21 @@ pub(super) enum NumericComparisonOperator {
     Equal,
     LessThanOrEqual,
     GreaterThanOrEqual,
+    LessThan,
+    GreaterThan,
+}
+
+impl NumericComparisonOperator {
+    /// The runtime `compare` operator.
+    pub(in crate::oracle::canonical) fn ir_operator(self) -> &'static str {
+        match self {
+            Self::Equal => "==",
+            Self::LessThanOrEqual => "<=",
+            Self::GreaterThanOrEqual => ">=",
+            Self::LessThan => "<",
+            Self::GreaterThan => ">",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

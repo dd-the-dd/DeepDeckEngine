@@ -232,6 +232,7 @@ mod object_identity_initialization_tests;
 ))]
 mod object_identity_tests;
 mod object_relation_lki;
+mod source_bound_operands;
 mod target_legality;
 mod target_numeric_lki;
 mod target_numeric_runtime;
@@ -2339,6 +2340,8 @@ fn card_filter_supported(filter: &Value) -> bool {
                 Some("manaValueOf" | "powerOf" | "toughnessOf" | "colorCountOf")
             ) && value_kind(&filter["left"]["object"]) == Some("candidate")
                 && numeric_expression_supported(&filter["right"])
+                // Only target-candidate domains bind the source's value.
+                && !source_bound_operands::contains_source_operand(filter)
                 && matches!(
                     filter["operator"].as_str(),
                     Some(">=" | ">" | "<=" | "<" | "==")
@@ -3156,6 +3159,7 @@ fn enchant_ability_of(definition: &CardDefinition) -> Option<&Value> {
 }
 
 fn target_candidates_supported(candidates: &Value) -> bool {
+    let candidates = &source_bound_operands::with_placeholder_bindings(candidates);
     match value_kind(candidates) {
         Some("players" | "anyTarget") => true,
         Some("permanents") => {
@@ -17206,6 +17210,16 @@ impl GameEngine {
             && let Some(declaration) = declaration_rule.get_mut("declaration")
         {
             bind_source_counts(declaration, source);
+            for decision in declaration
+                .get_mut("decisions")
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten()
+            {
+                if let Some(candidates) = decision.get_mut("candidates") {
+                    let _ = self.bind_source_candidates(candidates, source);
+                }
+            }
         }
         let mut definition = source
             .as_ref()
@@ -17383,6 +17397,12 @@ impl GameEngine {
                         return Ok(None);
                     };
                     candidates.remove("exclude");
+                }
+                if self
+                    .bind_source_candidates(&mut decision["candidates"], source)
+                    .is_none()
+                {
+                    return Ok(None);
                 }
             }
         }
@@ -21802,6 +21822,37 @@ impl GameEngine {
         )
     }
 
+    /// CR 603.4: a trigger's intervening `if` is checked when the trigger
+    /// would be put on the stack with the evaluator its resolution uses: the
+    /// pending ability's source (its departure capture once it left the
+    /// battlefield, CR 603.10a) and the event's decisions.
+    fn trigger_publication_condition_holds(
+        &self,
+        condition: &Value,
+        source: &CardInstance,
+        decisions: &BTreeMap<String, Value>,
+    ) -> bool {
+        let mut pending = StackObject {
+            id: "pending-trigger-condition".to_string(),
+            controller: source.controller.clone(),
+            card: source.clone(),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("triggeredAbility".to_string()),
+            ability_rule: None,
+            decisions: decisions.clone(),
+            targets: BTreeMap::new(),
+        };
+        if let Some(departed) = self.departed_trigger_source(source) {
+            pending.card = departed.card;
+            for (key, value) in departed.decisions {
+                pending.decisions.entry(key).or_insert(value);
+            }
+        }
+        let decisions = pending.decisions.clone();
+        self.runtime_condition_value(condition, &pending, &BTreeMap::new(), &decisions)
+    }
+
     fn publish_triggered_ability(
         &mut self,
         source: &CardInstance,
@@ -21823,12 +21874,7 @@ impl GameEngine {
             return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
         }
         if rule.get("condition").is_some_and(|condition| {
-            !self.condition_value_with_source(
-                condition,
-                &source.controller,
-                &decisions,
-                Some(source),
-            )
+            !self.trigger_publication_condition_holds(condition, source, &decisions)
         }) {
             return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
         }
@@ -22740,16 +22786,9 @@ impl GameEngine {
                     },
                     &trigger_source,
                 );
-                if matches_event
-                    && rule.get("condition").is_none_or(|condition| {
-                        self.condition_value_with_source(
-                            condition,
-                            &trigger_source.controller,
-                            &BTreeMap::new(),
-                            Some(&trigger_source),
-                        )
-                    })
-                {
+                // The intervening `if` is checked once, on publication, with
+                // the event's observed object (CR 603.4).
+                if matches_event {
                     triggers.push((trigger_source.clone(), rule.clone()));
                 }
             }
@@ -30469,13 +30508,10 @@ impl GameEngine {
                 && saga_chapter_rule_is_final(&stack_object.card.definition, &rule);
             let mut bindings = BTreeMap::new();
             let mut decisions = stack_object.decisions.clone();
+            // CR 603.4: the intervening `if` is rechecked on resolution by
+            // the same stack-context evaluator as on publication.
             let condition_met = rule.get("condition").is_none_or(|condition| {
-                self.condition_value_with_source(
-                    condition,
-                    &stack_object.controller,
-                    &decisions,
-                    Some(&stack_object.card),
-                )
+                self.runtime_condition_value(condition, &stack_object, &bindings, &decisions)
             });
             if condition_met && !self.resolve_training_clock(&stack_object, &rule)? {
                 self.execute_effects(

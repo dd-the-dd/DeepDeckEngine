@@ -83,6 +83,18 @@ fn lower_sentence_condition_atom(
                 integer(threshold.value),
             )
         }
+        SentenceConditionAtom::NumericRelation {
+            left,
+            operator,
+            right,
+        } => {
+            cursor.enter("lower.sentence-condition.relation");
+            let left = lower_numeric_expression(left)
+                .ok_or_else(|| cursor.fail("a numeric expression without a target binding"))?;
+            let right = lower_numeric_expression(right)
+                .ok_or_else(|| cursor.fail("a numeric expression without a target binding"))?;
+            compare(operator.ir_operator(), left, right)
+        }
         SentenceConditionAtom::ReferencedObject(node) => {
             cursor.enter("lower.sentence-condition.object");
             let (object, filter) = match node.object {

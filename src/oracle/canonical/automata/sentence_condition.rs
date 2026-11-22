@@ -61,6 +61,14 @@ pub(in crate::oracle::canonical) enum SentenceConditionAtom {
         left: NumericExpression,
         threshold: CountThreshold,
     },
+    /// `that creature's power is greater than this creature's power`: two
+    /// shared numeric expressions compared (CR 702.100a). Both operands are
+    /// read by the shared expression grammar and its binding environment.
+    NumericRelation {
+        left: NumericExpression,
+        operator: NumericComparisonOperator,
+        right: NumericExpression,
+    },
 }
 
 pub(in crate::oracle::canonical) type SentenceConditionNode =
@@ -209,6 +217,9 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     if word_is(cursor, 0, "x") && word_is(cursor, 1, "is") {
         return recognize_numeric_comparison_atom(cursor);
     }
+    if object_property_operand_starts(cursor) {
+        return recognize_numeric_relation_atom(cursor);
+    }
     if contraction_is(cursor, 0, "it", "s")
         && (word_is(cursor, 1, "your") || (word_is(cursor, 1, "not") && word_is(cursor, 2, "your")))
     {
@@ -234,6 +245,48 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     Err(cursor.fail(
         "a supported sentence condition: controller permanent presence or count, controller state or history, turn ownership, a cast fact of this spell, or a referenced object's characteristic",
     ))
+}
+
+/// A genitive property operand starts here: `that NOUN's power` (the binding
+/// environment's object) or `this NOUN's power` (the source).
+fn object_property_operand_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    super::bound_object_property_starts(cursor)
+        || (word_is(cursor, 0, "this")
+            && cursor
+                .token_slice(cursor.position() + 1, cursor.position() + 2)
+                .first()
+                .is_some_and(|token| token.token_type == "possessiveTypeWord")
+            && (word_is(cursor, 2, "power") || word_is(cursor, 2, "toughness")))
+}
+
+/// `EXPRESSION is greater than|less than|equal to EXPRESSION`.
+fn recognize_numeric_relation_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SentenceConditionAtom> {
+    cursor.enter("condition.sentence.relation.left");
+    let left = recognize_numeric_expression(cursor, None)?;
+    cursor.enter("condition.sentence.relation.copula");
+    cursor.consume("is")?;
+    cursor.enter("condition.sentence.relation.operator");
+    let operator = if word_is(cursor, 0, "greater") && word_is(cursor, 1, "than") {
+        cursor.consume_phrase(&["greater", "than"])?;
+        NumericComparisonOperator::GreaterThan
+    } else if word_is(cursor, 0, "less") && word_is(cursor, 1, "than") {
+        cursor.consume_phrase(&["less", "than"])?;
+        NumericComparisonOperator::LessThan
+    } else if word_is(cursor, 0, "equal") && word_is(cursor, 1, "to") {
+        cursor.consume_phrase(&["equal", "to"])?;
+        NumericComparisonOperator::Equal
+    } else {
+        return Err(cursor.fail("`greater than`, `less than` or `equal to`"));
+    };
+    cursor.enter("condition.sentence.relation.right");
+    let right = recognize_numeric_expression(cursor, None)?;
+    Ok(SentenceConditionAtom::NumericRelation {
+        left,
+        operator,
+        right,
+    })
 }
 
 /// `EXPRESSION is THRESHOLD`: the left operand is read by the shared numeric

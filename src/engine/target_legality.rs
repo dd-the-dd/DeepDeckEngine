@@ -163,6 +163,7 @@ fn contextualize_candidates(
     candidates: &mut Value,
     source: &CardInstance,
 ) -> Option<()> {
+    engine.bind_source_candidates(candidates, source)?;
     if let Some(reference) = candidates.get("controller") {
         let players = match value_kind(reference) {
             Some("eachPlayer") => engine
