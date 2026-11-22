@@ -723,6 +723,8 @@ fn recognize_effect_sequence_attempt_scoped(
                         player: memory
                             .last_player_target
                             .map(|binding| super::PlayerBinding(binding.effect_index)),
+                        subject: None,
+                        effect_index: Some(effect_index),
                     },
                 )));
                 let base_action_context = action_context;
@@ -763,38 +765,24 @@ fn recognize_effect_sequence_attempt_scoped(
                                 memory.effects.last()
                         {
                             let previous_index = effect_index - 1;
-                            let (source, antecedent) = match &previous.source {
-                                super::PermanentOperandNode::Reference(reference) => (
-                                    previous.source.clone(),
-                                    super::DamageSourceAntecedent::Reference(*reference),
-                                ),
-                                super::PermanentOperandNode::BoundReference(
-                                    super::PermanentEffectReference::Target(binding),
-                                ) => (
-                                    previous.source.clone(),
-                                    super::DamageSourceAntecedent::Target(*binding),
-                                ),
+                            // The previous action's single target is a bound
+                            // target here; the shared predicate reads its
+                            // clause subject from the source operand.
+                            let source = match &previous.source {
                                 super::PermanentOperandNode::Targets(targets)
                                     if targets.slots.len() == 1 =>
                                 {
-                                    let binding = TargetBinding {
-                                        effect_index: previous_index,
-                                        slot_index: 0,
-                                    };
-                                    (
-                                        super::PermanentOperandNode::BoundReference(
-                                            super::PermanentEffectReference::Target(binding),
-                                        ),
-                                        super::DamageSourceAntecedent::Target(binding),
+                                    super::PermanentOperandNode::BoundReference(
+                                        super::PermanentEffectReference::Target(TargetBinding {
+                                            effect_index: previous_index,
+                                            slot_index: 0,
+                                        }),
                                     )
                                 }
-                                _ => (
-                                    previous.source.clone(),
-                                    super::DamageSourceAntecedent::Unavailable,
-                                ),
+                                source => source.clone(),
                             };
                             if let Ok(node) = attempt.attempt(|child| {
-                                super::recognize_gapped_damage_predicate(child, source, antecedent)
+                                super::recognize_gapped_damage_predicate(child, source)
                             }) {
                                 return Ok(LocalEffectNode::DealDamage(node));
                             }

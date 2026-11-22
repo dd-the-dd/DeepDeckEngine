@@ -102,14 +102,14 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         .with_unless_frames();
     // This parent reads `This ability triggers only ...` after the body.
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
-    context.event_player = event_names_player(&event.value);
+    context.frame.event_player = event_names_player(&event.value);
     context.source_attachment = source_attachment;
-    context.defending_player = event_names_defending_player(&event.value);
-    context.combat_counterpart = event_names_combat_counterpart(&event.value);
-    context.event_object = event_object_slot(&event.value);
-    context.event_card = event_card_zone(&event.value);
+    context.frame.defending_player = event_names_defending_player(&event.value);
+    context.frame.combat_counterpart = event_names_combat_counterpart(&event.value);
+    context.frame.event_object = event_object_slot(&event.value);
+    context.frame.event_card = event_card_zone(&event.value);
     // A cast record binds its spell; a copy has no cast record.
-    context.event_spell = matches!(
+    context.frame.event_spell = matches!(
         &event.value,
         GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
     );

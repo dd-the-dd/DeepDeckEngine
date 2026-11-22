@@ -48,7 +48,8 @@ fn lower_activation_condition(condition: &LocalActivationConditionNode) -> Value
             let player = match player {
                 LocalPlayerReference::Controller => controller(),
                 LocalPlayerReference::ControllerOf(_)
-                | LocalPlayerReference::ControllerOfQualified(_) => {
+                | LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_) => {
                     unreachable!("activation condition binds the ability controller")
                 }
             };

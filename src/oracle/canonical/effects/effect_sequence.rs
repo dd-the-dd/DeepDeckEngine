@@ -53,7 +53,9 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         }),
         EffectDurationNode::UntilNextTurn {
             player:
-                LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
+                LocalPlayerReference::ControllerOf(_)
+                | LocalPlayerReference::ControllerOfQualified(_)
+                | LocalPlayerReference::Bound(_),
         } => return None,
         // No continuous-effect primitive reads the end-of-next-turn window.
         EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
@@ -1560,7 +1562,8 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.create-named-token.controller");
                 let token_controller = match creation.player {
                     LocalPlayerReference::Controller => controller(),
-                    LocalPlayerReference::ControllerOfQualified(_) => {
+                    LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => {
                         cursor.enter("sequence.player-reference.qualified-controller-support");
                         return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
                             "a proved nominal/controller snapshot binding for this program parent")));
@@ -2475,7 +2478,7 @@ fn lower_sequence_bound_life(
 ) -> Result<Value, EffectSequenceLoweringFailure> {
     let player = match player {
         LocalPlayerReference::Controller => controller(),
-        LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOfQualified(_) | LocalPlayerReference::Bound(_) => {
             cursor.enter("sequence.player-reference.qualified-controller-support");
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                 cursor.fail("a proved nominal/controller snapshot binding for this program parent"),

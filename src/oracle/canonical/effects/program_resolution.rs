@@ -156,7 +156,8 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
                         | CardMoveOwnerNode::EachCardOwner => true,
                         CardMoveOwnerNode::Player(
                             LocalPlayerReference::ControllerOf(_)
-                            | LocalPlayerReference::ControllerOfQualified(_),
+                            | LocalPlayerReference::ControllerOfQualified(_)
+                            | LocalPlayerReference::Bound(_),
                         ) => false,
                     }
             }

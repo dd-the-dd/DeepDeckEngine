@@ -156,7 +156,27 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   Cockroaches, Fiend Hunter, Demonic Vigor, The Cauldron of Eternity,
   Undying Rage, …), 0 perdue, 128 IR changées dont 0 déjà supportée.
 
+## Étape 6 réalisée : lecteurs hérités migrés, cadre unique
+
+- Le contexte de reconnaissance ne porte plus six drapeaux d'événement
+  (`event_player`, `defending_player`, `combat_counterpart`, `event_object`,
+  `event_spell`, `event_card`) mais un seul `frame: FrameBindings`, que le
+  parent de déclencheur remplit et que tous les lecteurs lisent ; le
+  contexte de sujet des propositions (`EffectSubjectContext`) le reprend.
+- `LocalPlayerReference::Bound` : sans liaison de cible propre au lecteur,
+  `that player` de `reference.rs` est résolu par l'environnement ; il est
+  abaissé sans déclaration (`triggeringPlayer`, relation d'un objet
+  d'événement) ou échoue explicitement.
+- `DamageSourceAntecedent` est supprimé : le sujet de la proposition de
+  dégâts est un emplacement de l'environnement (`subject`, installé par
+  `with_clause_subject` autour des arguments), dérivé de l'opérande source
+  (`damage_source_subject`) avec l'indice de l'action courante.
+- Refactorisation : ligue et corpus inchangés (807, 14186), 0 IR changée.
+  Les 23 cartes `that player may ...` atteignent désormais leur vrai
+  blocage (le lecteur facultatif d'un autre joueur, `effect.library-search.action`).
+
 ## Suite
 
-1. Migration des lecteurs hérités (`LocalPlayerReference`,
-   `DamageSourceAntecedent`) et suppression des drapeaux de contexte.
+1. Emplacements restants : cibles des actions de prévention et de choix,
+   créature attachée comme objet d'événement, sort lancé, propriétés de
+   cible dans `where X is`.

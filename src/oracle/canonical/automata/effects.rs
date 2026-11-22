@@ -150,35 +150,29 @@ struct DamageMemory {
     recipients: Vec<DamageRecipientNode>,
 }
 
-/// The antecedent a possessive `its` may name inside one damage frame: the
-/// damage source, either the ability source or the subject's target slot.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum DamageSourceAntecedent {
-    Reference(super::LocalObjectReference),
-    Target(TargetBinding),
-    Unavailable,
-}
-
 /// `equal to EXPR` after `damage`, either before or after the recipient
 /// (`deals damage equal to E to R` / `deals damage to R equal to E`). The
-/// amount is the shared numeric expression; the damage source is the only
-/// antecedent a possessive `its` may name inside this frame.
+/// amount is the shared numeric expression; the clause subject of the
+/// binding environment (the damage source) is the only antecedent a
+/// possessive `its` may name inside this frame.
 fn recognize_damage_equal_amount(
     cursor: &mut OracleTokenCursor<'_>,
-    source: DamageSourceAntecedent,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("effect.damage.equal-amount");
-    match source {
-        DamageSourceAntecedent::Reference(reference) => {
+    let subject = cursor
+        .binding_environment()
+        .and_then(|environment| environment.subject);
+    match subject {
+        Some(super::PermanentEffectReference::Source(reference)) => {
             cursor.consume_phrase(&["equal", "to"])?;
             recognize_equal_to_amount_expression(cursor, Some(reference))
         }
         // The shared primary expression owns `equal to` and resolves `its`
         // through the subject's declared target slot.
-        DamageSourceAntecedent::Target(binding) => {
+        Some(super::PermanentEffectReference::Target(binding)) => {
             super::recognize_numeric_primary_expression(cursor, Some(binding))
         }
-        DamageSourceAntecedent::Unavailable => {
+        _ => {
             cursor.consume_phrase(&["equal", "to"])?;
             recognize_equal_to_amount_expression(cursor, None)
         }
@@ -228,7 +222,6 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
     recognize_damage_predicate(
         cursor,
         super::PermanentOperandNode::Reference(source),
-        DamageSourceAntecedent::Reference(source),
         agreement,
     )
     .map(LocalEffectNode::DealDamage)
@@ -241,14 +234,15 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
 pub(in crate::oracle::canonical) fn recognize_damage_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     source: super::PermanentOperandNode,
-    antecedent: DamageSourceAntecedent,
     agreement: super::SubjectVerbAgreement,
 ) -> MachineResult<DamageEffectNode> {
     cursor.enter("effect.damage.action");
-    let frame = super::damage_effect_clause_frame(agreement, antecedent);
-    let clause = super::recognize_clause(cursor, &frame)
-        .into_result()?
-        .ok_or_else(|| cursor.fail("a damage clause (`deals` AMOUNT `damage to` RECIPIENT)"))?;
+    let frame = super::damage_effect_clause_frame(agreement);
+    let subject = super::damage_source_subject(cursor, &source);
+    let clause = super::with_clause_subject(cursor, subject, |cursor| {
+        super::recognize_clause(cursor, &frame).into_result()
+    })?
+    .ok_or_else(|| cursor.fail("a damage clause (`deals` AMOUNT `damage to` RECIPIENT)"))?;
     let super::ClauseAction::DealDamage(super::DamageClauseArguments::Effect(arguments)) =
         clause.action
     else {
@@ -271,9 +265,8 @@ pub(in crate::oracle::canonical) struct DamageEffectArguments {
 /// `AMOUNT damage to RECIPIENTS` / `damage equal to E to R` after the verb.
 pub(in crate::oracle::canonical) fn recognize_damage_effect_arguments(
     cursor: &mut OracleTokenCursor<'_>,
-    antecedent: DamageSourceAntecedent,
 ) -> MachineResult<DamageEffectArguments> {
-    recognize_damage_frame(cursor, antecedent)
+    recognize_damage_frame(cursor)
 }
 
 /// `... and AMOUNT damage to RECIPIENT`: a gapped damage predicate whose
@@ -282,7 +275,6 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_arguments(
 pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     source: super::PermanentOperandNode,
-    antecedent: DamageSourceAntecedent,
 ) -> MachineResult<DamageEffectNode> {
     cursor.enter("effect.damage.gapped");
     cursor.require(
@@ -296,7 +288,8 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
             }),
         "an amount followed by `damage`",
     )?;
-    let arguments = recognize_damage_frame(cursor, antecedent)?;
+    let subject = super::damage_source_subject(cursor, &source);
+    let arguments = super::with_clause_subject(cursor, subject, recognize_damage_frame)?;
     Ok(DamageEffectNode {
         source,
         amount: arguments.amount,
@@ -306,7 +299,6 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
 
 fn recognize_damage_frame(
     cursor: &mut OracleTokenCursor<'_>,
-    antecedent: DamageSourceAntecedent,
 ) -> MachineResult<DamageEffectArguments> {
     let mut state = DamageState::Amount;
     let mut memory = DamageMemory::default();
@@ -334,7 +326,7 @@ fn recognize_damage_frame(
                         .peek()
                         .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
                 {
-                    memory.amount = Some(recognize_damage_equal_amount(cursor, antecedent)?);
+                    memory.amount = Some(recognize_damage_equal_amount(cursor)?);
                 }
                 DamageState::Destination
             }
@@ -379,7 +371,7 @@ fn recognize_damage_frame(
                             .is_some_and(|raw| raw.eq_ignore_ascii_case("equal")),
                         "`equal to` and the amount of damage",
                     )?;
-                    memory.amount = Some(recognize_damage_equal_amount(cursor, antecedent)?);
+                    memory.amount = Some(recognize_damage_equal_amount(cursor)?);
                 }
                 cursor.enter("effect.damage.complete");
                 let recipient = match memory.recipients.len() {

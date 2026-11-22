@@ -91,7 +91,8 @@ pub(in crate::oracle::canonical) fn recognize_create_named_tokens_effect(
                         "the second-person `create` token action",
                     )?,
                     LocalPlayerReference::ControllerOf(_)
-                    | LocalPlayerReference::ControllerOfQualified(_) => cursor.require(
+                    | LocalPlayerReference::ControllerOfQualified(_)
+                    | LocalPlayerReference::Bound(_) => cursor.require(
                         is_verb_form(
                             &action.raw,
                             VerbLemma::Create,

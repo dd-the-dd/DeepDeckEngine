@@ -108,7 +108,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_zone_change_token(
             )?;
             reference.binding
         }
-        LocalPlayerReference::Controller => {
+        LocalPlayerReference::Controller | LocalPlayerReference::Bound(_) => {
             return Err(cursor.fail("the prior target's controller as token controller"));
         }
     };

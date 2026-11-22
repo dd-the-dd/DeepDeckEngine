@@ -64,6 +64,7 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
                 .observed_event_object
                 .or_else(|| {
                     context
+                        .frame
                         .event_object
                         .as_ref()
                         .filter(|slot| slot.subject)

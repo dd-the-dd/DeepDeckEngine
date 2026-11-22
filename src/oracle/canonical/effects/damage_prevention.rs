@@ -46,7 +46,9 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_damage_party(
     match party {
         DamagePartyNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
         DamagePartyNode::Player(
-            LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_),
+            LocalPlayerReference::ControllerOf(_)
+            | LocalPlayerReference::ControllerOfQualified(_)
+            | LocalPlayerReference::Bound(_),
         )
         | DamagePartyNode::Targets(_) => Err(TargetlessLoweringError::RequiresTarget),
         DamagePartyNode::Object(operand) => lower_nontargeted_permanent_operand(operand),

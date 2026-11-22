@@ -93,7 +93,10 @@ fn recognize_life_gain_replacement(
     cursor.enter("replacement.life-gain.subject");
     let replacing_frame = ClauseFrame {
         subject: ClauseSubjectPolicy::EffectPlayer(EffectSubjectContext {
-            event_player: true,
+            frame: super::FrameBindings {
+                event_player: true,
+                ..super::FrameBindings::default()
+            },
             ..EffectSubjectContext::default()
         }),
         modality: ClauseModality::Indicative,

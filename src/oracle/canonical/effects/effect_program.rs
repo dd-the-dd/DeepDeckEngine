@@ -365,7 +365,9 @@ fn lower_optional_program_player(
 ) -> MachineResult<Value> {
     match player {
         LocalPlayerReference::Controller => Ok(controller()),
-        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
+        LocalPlayerReference::ControllerOf(_)
+        | LocalPlayerReference::ControllerOfQualified(_)
+        | LocalPlayerReference::Bound(_) => {
             Err(cursor.fail("the ability controller for this optional program"))
         }
     }

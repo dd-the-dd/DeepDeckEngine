@@ -62,14 +62,7 @@ pub(in crate::oracle::canonical) struct FrameBindings {
 
 impl FrameBindings {
     pub(in crate::oracle::canonical) fn from_context(context: &EffectRecognitionContext) -> Self {
-        Self {
-            event_player: context.event_player,
-            defending_player: context.defending_player,
-            combat_counterpart: context.combat_counterpart,
-            event_object: context.event_object.clone(),
-            event_spell: context.event_spell,
-            event_card: context.event_card,
-        }
+        context.frame.clone()
     }
 }
 
@@ -84,6 +77,13 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     pub object: Option<ObjectSubjectAntecedent>,
     /// The player an earlier `target player` declared (`that player`).
     pub player: Option<PlayerBinding>,
+    /// The subject of the clause being read (the object that deals damage):
+    /// a possessive `its` in its arguments names it. Installed by the clause
+    /// parent around its arguments only.
+    pub subject: Option<PermanentEffectReference>,
+    /// The index of the action being read in the enclosing program; a
+    /// target declared by this action binds to it.
+    pub effect_index: Option<usize>,
 }
 
 impl BindingEnvironment {
@@ -110,6 +110,8 @@ impl BindingEnvironment {
                 },
             ),
             player: None,
+            subject: None,
+            effect_index: context.current_effect_index,
         }
     }
 }
@@ -576,6 +578,47 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
         object: PermanentEffectReference::Observed(slot.reference),
         property,
     })
+}
+
+/// Reads a clause's arguments with `subject` as the clause subject of the
+/// installed environment, then restores the enclosing environment.
+pub(in crate::oracle::canonical) fn with_clause_subject<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: Option<PermanentEffectReference>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.subject = subject;
+    let enclosing = cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+    let result = read(cursor);
+    cursor.replace_binding_environment(enclosing);
+    result
+}
+
+/// The clause subject a damage source operand denotes: the ability source,
+/// a bound target, or the single target this action declares.
+pub(in crate::oracle::canonical) fn damage_source_subject(
+    cursor: &OracleTokenCursor<'_>,
+    source: &super::PermanentOperandNode,
+) -> Option<PermanentEffectReference> {
+    match source {
+        super::PermanentOperandNode::Reference(reference) => {
+            Some(PermanentEffectReference::Source(*reference))
+        }
+        super::PermanentOperandNode::BoundReference(
+            reference @ PermanentEffectReference::Target(_),
+        ) => Some(*reference),
+        super::PermanentOperandNode::Targets(targets) if targets.slots.len() == 1 => cursor
+            .binding_environment()
+            .and_then(|environment| environment.effect_index)
+            .map(|effect_index| {
+                PermanentEffectReference::Target(super::TargetBinding {
+                    effect_index,
+                    slot_index: 0,
+                })
+            }),
+        _ => None,
+    }
 }
 
 /// The environment the parent installed. A parent that installs none binds
