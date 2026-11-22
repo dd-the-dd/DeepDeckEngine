@@ -518,15 +518,27 @@ modificateurs actifs).
 - Sondes : ligue et corpus inchangés (800, 13851), 0 perdue, 2 IR changées :
   ces cartes échouent ensuite dans leur corps.
 
+## Étape 15 réalisée : sort qui a une capacité mot-clé
+
+- `a SPELL that has KEYWORD` ajoute `HasKeyword` comme conjonction de plus au
+  prédicat du sort, avec le vocabulaire partagé des mots-clés sans paramètre.
+  Le filtre est lu sur l'objet sort sur la pile (ses capacités propres).
+- `of the chosen color` : aucun producteur de couleur choisie n'existe dans le
+  parseur (seul `chosenCreatureType` est lié). La clause échoue explicitement
+  au lieu d'être approximée.
+- Sondes : ligue et corpus inchangés (800, 13851), 0 perdue, 1 IR changée
+  (non supportée avant ni après : la carte échoue ensuite dans son corps).
+
 ## Familles suivantes
 
-1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui
-   ciblent, origine du sort.
-2. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`.
-3. **Entrées** : `enterBattlefield`, `permanentEntered` → lemme `move` vers le
-   champ de bataille, avec l'état d'entrée.
-4. **Agrégats** : `one or more` sur les dégâts (plusieurs sources), les
-   départs et les sacrifices ; caractéristiques effectives dans l'instantané
-   (sacrifice, prédicats numériques).
-5. **Délais** : `at end of combat` (7 cartes `destroy that creature at end of
+1. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`,
+   puis les lots `one or more` de marqueurs.
+2. **Exil** : arrivées en exil depuis une autre zone que le champ de bataille
+   (il n'existe pas encore de sortie centrale vers l'exil).
+3. **Cimetière** : origine du chemin générique avant/après (aujourd'hui sans
+   origine : il ne correspond à aucune origine écrite).
+4. **Couleur choisie** : un producteur `chosenColor` lié comme
+   `chosenCreatureType`, puis `of the chosen color`.
+5. **Agrégats** : `one or more` sur les dégâts de plusieurs sources.
+6. **Délais** : `at end of combat` (7 cartes `destroy that creature at end of
    combat` attendent ce déclencheur retardé).

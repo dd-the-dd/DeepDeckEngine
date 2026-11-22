@@ -844,3 +844,26 @@ fn one_or_more_block_events_are_aggregated_block_patterns() {
         "controlledCreatureBecameBlocked"
     );
 }
+
+#[test]
+fn a_spell_that_has_a_keyword_adds_the_keyword_predicate() {
+    let convoke = event(
+        "Whenever you cast a spell that has convoke, draw a card.",
+        "Creature",
+    );
+    assert_eq!(convoke["kind"], "spellCast");
+    assert_eq!(convoke["where"]["kind"], "hasKeyword");
+    let flying = event(
+        "Whenever you cast a creature spell that has flying, draw a card.",
+        "Creature",
+    );
+    assert_eq!(flying["where"]["kind"], "and");
+    // Near miss: `of the chosen color` has no chosen-color producer.
+    assert!(!matches!(
+        program(
+            "Whenever you cast a spell of the chosen color, draw a card.",
+            "Creature"
+        ),
+        GenericTriggerProgramAttempt::Parsed(_)
+    ));
+}

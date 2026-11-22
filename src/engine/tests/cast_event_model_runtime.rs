@@ -341,3 +341,26 @@ fn a_spells_mana_value_on_the_stack_includes_its_announced_x() {
     cast_x(&mut engine, 3);
     assert_eq!(triggered_sources(&engine), ["watcher"]);
 }
+
+#[test]
+fn a_spell_that_has_a_keyword_reads_the_cast_spells_keywords() {
+    let rules = parsed_rules(
+        "Flyer Watcher",
+        "Enchantment",
+        "Whenever you cast a creature spell that has flying, draw a card.",
+    );
+    let flying = parsed_rules("Bird", "Creature — Bird", "Flying");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![test_instance(
+        "watcher",
+        CardDefinition {
+            rules,
+            ..test_definition("watcher", "Enchantment")
+        },
+        "player-0",
+    )];
+    cast(&mut engine, "bear", "Creature — Bear", Vec::new());
+    assert!(triggered_sources(&engine).is_empty(), "no flying");
+    cast(&mut engine, "bird", "Creature — Bird", flying);
+    assert_eq!(triggered_sources(&engine), ["watcher"]);
+}

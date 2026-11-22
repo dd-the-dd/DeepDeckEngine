@@ -369,6 +369,18 @@ fn recognize_optional_spell_cast_event_atom(
                         ordinal.basis = SpellCastOrdinalBasis::MatchingSpellsByCasterThisTurn;
                     }
                 }
+                let mut query = query;
+                // `that has KEYWORD`: the shared keyword vocabulary as one more
+                // conjunct of the spell predicate (the card's own keywords).
+                if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "has") {
+                    cursor.enter("event.spell-cast.keyword");
+                    cursor.consume_phrase(&["that", "has"])?;
+                    let keyword = super::recognize_parameterless_keyword(cursor)?;
+                    query.predicate = ObjectPredicate::Intersection(vec![
+                        query.predicate,
+                        ObjectPredicate::HasKeyword(keyword),
+                    ]);
+                }
                 frame.query = Some(query);
                 if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "targets") {
                     frame.targets = Some(recognize_spell_targets(cursor)?);
