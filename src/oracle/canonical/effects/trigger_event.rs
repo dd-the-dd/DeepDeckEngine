@@ -449,6 +449,7 @@ fn lower_departure_move_pattern(
     let mut object = json!({"kind": "permanents"});
     match subject.query.controller {
         None => {}
+        Some(ObjectControllerScope::AbilityController) => object["controller"] = controller(),
         Some(ObjectControllerScope::OpponentOfAbilityController) => {
             object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
         }
@@ -472,6 +473,56 @@ fn lower_departure_move_pattern(
     });
     if event.verb == ObjectEventVerb::PutIntoGraveyardFromBattlefield {
         lowered["to"] = json!("graveyard");
+    }
+    // `one or more`: one trigger per simultaneous event (CR 603.2c).
+    if matches!(
+        event.subject.multiplicity,
+        EventMultiplicity::PerEvent { .. }
+    ) {
+        lowered["aggregation"] = json!("oneOrMore");
+    }
+    Ok(lowered)
+}
+
+/// A card arriving in a graveyard from any zone: the generic move pattern
+/// read on the card in its new zone; `one or more` is one trigger per
+/// simultaneous event (CR 603.2c).
+fn lower_graveyard_arrival_pattern(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+    owner: GraveyardOwner,
+) -> MachineResult<Value> {
+    let subject = &event.subject;
+    cursor.enter("trigger.object-event.graveyard-arrival");
+    cursor.require(
+        subject.query.controller.is_none()
+            && !subject.exclude_source
+            && subject.query.predicate.supports_domain(ObjectKind::Card)
+            && !subject.query.predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(&subject.query.predicate),
+        "a representable card predicate without controller or source exclusion",
+    )?;
+    let mut object = json!({"kind": "cards"});
+    match owner {
+        GraveyardOwner::Any => {}
+        GraveyardOwner::Controller => object["owner"] = controller(),
+        GraveyardOwner::Opponent => {
+            object["owner"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+    }
+    if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Card) {
+        let filter = lower_card_object_predicate(&subject.query.predicate);
+        cursor.require(!filter.is_null(), "a lowered arriving-card predicate")?;
+        object["where"] = filter;
+    }
+    let mut lowered = json!({
+        "kind": "eventPattern",
+        "lemma": "move",
+        "subject": {"object": object},
+        "to": "graveyard",
+    });
+    if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. }) {
+        lowered["aggregation"] = json!("oneOrMore");
     }
     Ok(lowered)
 }
@@ -532,14 +583,13 @@ fn lower_object_event(
         // the battlefield, with an explicit source exclusion (CR 603.10a).
         cursor.enter("trigger.object-event.departure-support");
         cursor.require(
-            !per_event
-                && subject
-                    .query
-                    .predicate
-                    .supports_domain(ObjectKind::Permanent),
-            "one permanent leaving the battlefield (no one-or-more departure batch is proved)",
+            subject
+                .query
+                .predicate
+                .supports_domain(ObjectKind::Permanent),
+            "a permanent leaving the battlefield",
         )?;
-        if subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+        if per_event || subject.query.controller != Some(ObjectControllerScope::AbilityController) {
             return lower_departure_move_pattern(cursor, event);
         }
         let mut lowered = json!({
@@ -552,6 +602,9 @@ fn lower_object_event(
             lowered["destination"] = json!("graveyard");
         }
         return Ok(lowered);
+    }
+    if let ObjectEventVerb::PutIntoGraveyard(owner) = event.verb {
+        return lower_graveyard_arrival_pattern(cursor, event, owner);
     }
     if event.verb == ObjectEventVerb::DealDamage
         || (event.verb == ObjectEventVerb::DealCombatDamageToPlayer && !per_event)
@@ -705,8 +758,10 @@ fn lower_object_event(
                 "where": lower_permanent_object_predicate(&subject.query.predicate),
             }))
         }
-        ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
-            unreachable!("departures are lowered before the per-verb support checks")
+        ObjectEventVerb::LeaveBattlefield
+        | ObjectEventVerb::PutIntoGraveyardFromBattlefield
+        | ObjectEventVerb::PutIntoGraveyard(_) => {
+            unreachable!("zone changes are lowered before the per-verb support checks")
         }
         ObjectEventVerb::BeDealtDamage(damage) => {
             // One event per damaged object per damage event (CR 120.3, 603.2c).

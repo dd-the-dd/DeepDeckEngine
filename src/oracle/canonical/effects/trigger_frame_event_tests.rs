@@ -278,12 +278,6 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
     for (text, state) in [
-        // A one-or-more departure batch has no observer (any controller's
-        // single departure is the generic move pattern, tested below).
-        (
-            "Whenever one or more artifacts are put into a graveyard from the battlefield, draw a card.",
-            "trigger.object-event.departure-support",
-        ),
         (
             "Whenever a creature an opponent controls becomes tapped, draw a card.",
             "event.object.complement",
@@ -525,18 +519,11 @@ fn zone_changes_without_an_established_observer_lower_to_move_patterns() {
         )["kind"],
         "controlledPermanentLeftBattlefield"
     );
-    // Near misses: a one-or-more departure batch, and an owner relation on
-    // the destination of a `from anywhere` move.
-    for (text, state) in [
-        (
-            "Whenever one or more lands are put into a graveyard from the battlefield, draw a card.",
-            "trigger.object-event.departure-support",
-        ),
-        (
-            "When this creature is put into your graveyard from anywhere, draw a card.",
-            "event.source.put-into-graveyard.zone",
-        ),
-    ] {
+    // Near miss: an owner relation on the destination of a source move.
+    for (text, state) in [(
+        "When this creature is put into your graveyard from anywhere, draw a card.",
+        "event.source.put-into-graveyard.zone",
+    )] {
         assert_eq!(committed_state(text), state, "{text}");
     }
 }
@@ -736,4 +723,42 @@ fn numeric_spell_characteristics_are_read_on_the_cast_record() {
         "Creature",
     );
     assert_eq!(power["where"]["kind"], "and");
+}
+
+#[test]
+fn one_or_more_moves_are_aggregated_move_patterns() {
+    // Graveyard arrivals: owner relation, `from anywhere`, one or more.
+    let arrivals = event(
+        "Whenever one or more creature cards are put into your graveyard from anywhere, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(arrivals["lemma"], "move");
+    assert_eq!(arrivals["to"], "graveyard");
+    assert_eq!(arrivals["aggregation"], "oneOrMore");
+    assert_eq!(arrivals["subject"]["object"]["kind"], "cards");
+    assert_eq!(arrivals["subject"]["object"]["owner"], controller());
+    let opponents = event(
+        "Whenever a land card is put into an opponent's graveyard, draw a card.",
+        "Enchantment",
+    );
+    assert!(opponents.get("aggregation").is_none());
+    assert_eq!(
+        opponents["subject"]["object"]["owner"],
+        json!({"kind": "opponentsOf", "player": controller()})
+    );
+    // Departures: one or more permanents you control.
+    let departures = event(
+        "Whenever one or more creatures you control leave the battlefield, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(departures["from"], "battlefield");
+    assert_eq!(departures["aggregation"], "oneOrMore");
+    assert_eq!(departures["subject"]["object"]["controller"], controller());
+    // Near miss: an origin the arrival record does not carry.
+    assert_eq!(
+        committed_state(
+            "Whenever one or more cards are put into your graveyard from your library, draw a card."
+        ),
+        "event.object.graveyard-origin"
+    );
 }

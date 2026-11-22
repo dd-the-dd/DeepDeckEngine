@@ -455,6 +455,22 @@ modificateurs actifs).
   13833 (+19 : Screamer-Killer, Enraged Flamecaster, Ascendant Packleader,
   Bygone Bishop, …), 0 perdue, 29 IR changées dont 0 déjà supportée.
 
+## Étape 11 réalisée : lots `one or more` des changements de zone
+
+- Arrivée au cimetière : le motif `move` accepte un sujet `cards` (relation
+  de propriétaire : un cimetière, le vôtre, celui d'un adversaire, CR 400.3)
+  avec prédicat de carte ; `put into OWNER graveyard [from anywhere]`. Les
+  observateurs du champ de bataille le lisent à chaque arrivée : un
+  déclenchement par carte, ou un seul par événement simultané avec
+  `aggregation: oneOrMore` (lot d'événements existant, CR 603.2c), lié aux
+  cartes correspondantes (`triggeringCardIds`).
+- Départs : `one or more PERMANENTS leave the battlefield` est le motif de
+  départ agrégé, réclamé une fois par source, règle et événement simultané.
+- Reste explicite : l'origine `from your library` (l'arrivée ne porte pas sa
+  zone d'origine), les lots de blocage et de marqueurs.
+- Sondes : ligue 798 → 800 (+2 : Sand Scout, The Gitrog Monster) ; corpus
+  13833 → 13844 (+11), 0 perdue, 19 IR changées dont 0 déjà supportée.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

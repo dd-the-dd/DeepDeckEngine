@@ -300,3 +300,93 @@ fn a_death_observer_reads_the_captured_card_types() {
         .expect("the animated land is destroyed");
     assert_eq!(stack_sources(&engine), ["watcher"]);
 }
+
+#[test]
+fn cards_arriving_in_a_graveyard_are_one_event_per_simultaneous_move() {
+    let one_or_more = parsed_rules(
+        "Batch Watcher",
+        "Enchantment",
+        "Whenever one or more creature cards are put into your graveyard from anywhere, draw a card.",
+    );
+    assert_eq!(one_or_more[0]["event"]["aggregation"], "oneOrMore");
+    let each = parsed_rules(
+        "Each Watcher",
+        "Enchantment",
+        "Whenever a creature card is put into your graveyard from anywhere, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        object("batch", "Enchantment", one_or_more, "player-0"),
+        object("each", "Enchantment", each, "player-0"),
+    ];
+    engine.state.players[0].library.extend([
+        object("land", "Land — Forest", Vec::new(), "player-0"),
+        object("bear-a", "Creature — Bear", Vec::new(), "player-0"),
+        object("bear-b", "Creature — Bear", Vec::new(), "player-0"),
+    ]);
+    engine.state.players[1].library.push(object(
+        "their-bear",
+        "Creature — Bear",
+        Vec::new(),
+        "player-1",
+    ));
+    admit(&mut engine);
+    engine.mill_cards("player-1", 1, None).expect("mill");
+    assert!(engine.state.stack.is_empty(), "another player's graveyard");
+    engine.mill_cards("player-0", 3, None).expect("mill");
+    let mut sources = stack_sources(&engine);
+    sources.sort();
+    assert_eq!(sources, ["batch", "each", "each"]);
+    let batch = engine
+        .state
+        .stack
+        .iter()
+        .find(|object| object.card.instance_id == "batch")
+        .expect("one batch trigger");
+    assert_eq!(
+        batch.decisions["triggeringCardIds"]
+            .as_array()
+            .map(Vec::len),
+        Some(2)
+    );
+}
+
+#[test]
+fn one_or_more_departures_trigger_once_per_simultaneous_event() {
+    let rules = parsed_rules(
+        "Departure Batch",
+        "Enchantment",
+        "Whenever one or more creatures you control leave the battlefield, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["aggregation"], "oneOrMore");
+    let setup = || {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![
+            object("watcher", "Enchantment", rules.clone(), "player-0"),
+            object("a", "Creature — Bear", Vec::new(), "player-0"),
+            object("b", "Creature — Bear", Vec::new(), "player-0"),
+        ];
+        admit(&mut engine);
+        engine
+    };
+    // One instruction destroying both is one event.
+    let mut engine = setup();
+    let scope = engine.begin_event_batch();
+    engine
+        .move_permanent_to_graveyard("a", "destroyed")
+        .expect("a");
+    engine
+        .move_permanent_to_graveyard("b", "destroyed")
+        .expect("b");
+    engine.end_event_batch(scope);
+    assert_eq!(stack_sources(&engine), ["watcher"]);
+    // Two separate events trigger twice.
+    let mut engine = setup();
+    engine
+        .move_permanent_to_graveyard("a", "destroyed")
+        .expect("a");
+    engine
+        .move_permanent_to_graveyard("b", "destroyed")
+        .expect("b");
+    assert_eq!(stack_sources(&engine), ["watcher", "watcher"]);
+}

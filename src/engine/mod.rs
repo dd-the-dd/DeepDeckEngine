@@ -23800,12 +23800,75 @@ impl GameEngine {
                 .map(|rule| (source.clone(), rule))
                 .collect::<Vec<_>>()
         }));
+        // Battlefield observers of cards arriving in a graveyard (generic
+        // move pattern): per card, or once per simultaneous event.
+        let arrival_observers = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|observer| {
+                observer
+                    .definition
+                    .rules
+                    .iter()
+                    .filter(|rule| {
+                        triggered_rule_supported(rule)
+                            && self.rule_active_for_source(observer, rule)
+                    })
+                    .filter_map(|rule| {
+                        let matching = cards
+                            .iter()
+                            .filter(|card| {
+                                self.rule_matches_zone_change(
+                                    rule,
+                                    zone_change_events::ZoneChangeGroup::GraveyardArrival,
+                                    &zone_change_events::ZoneChangeRecord {
+                                        object: card,
+                                        from: None,
+                                        to: "graveyard",
+                                        reason: None,
+                                    },
+                                    observer,
+                                )
+                            })
+                            .map(|card| Value::String(card.instance_id.clone()))
+                            .collect::<Vec<_>>();
+                        (!matching.is_empty()).then(|| (observer.clone(), rule.clone(), matching))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
         let card_ids = cards
             .iter()
             .map(|card| card.instance_id.clone())
             .collect::<Vec<_>>();
         if record_event {
             self.record_cards_entered_graveyard_event(player_id, cards);
+        }
+        for (observer, rule, matching) in arrival_observers {
+            let occurrences = if triggered_event_variants(&rule["event"])
+                .into_iter()
+                .any(event_batch::event_is_aggregated)
+            {
+                if self.aggregated_trigger_already_claimed(&observer.instance_id, &rule) {
+                    continue;
+                }
+                vec![matching]
+            } else {
+                matching.into_iter().map(|id| vec![id]).collect()
+            };
+            for ids in occurrences {
+                self.put_triggered_ability_on_stack_with_decisions(
+                    &observer,
+                    rule.clone(),
+                    BTreeMap::from([("triggeringCardIds".to_string(), Value::Array(ids))]),
+                );
+                if self.check_quantity_failure().is_err() {
+                    return;
+                }
+            }
         }
         for (source, rule) in triggers {
             self.put_triggered_ability_on_stack_with_decisions(
@@ -24055,6 +24118,10 @@ impl GameEngine {
                 .cloned()
                 .collect::<Vec<_>>();
             for rule in rules {
+                // `one or more` departures: once per simultaneous event.
+                if self.aggregated_trigger_already_claimed(&source.instance_id, &rule) {
+                    continue;
+                }
                 self.put_triggered_ability_on_stack_with_multiplicity(
                     &source,
                     rule,

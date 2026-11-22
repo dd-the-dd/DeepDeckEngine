@@ -39,6 +39,10 @@ enum SubjectRelation<'a> {
         controller: ControllerRelation<'a>,
         exclude_source: bool,
     },
+    /// A card by its owner (the graveyard it arrives in, CR 400.3).
+    Cards {
+        owner: ControllerRelation<'a>,
+    },
 }
 
 /// The established view of an object predicate. Every view first reads
@@ -191,7 +195,11 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
 }
 
 fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
-    if !known_fields(event, &["kind", "lemma", "subject", "from", "to"]) {
+    if !known_fields(
+        event,
+        &["kind", "lemma", "subject", "from", "to", "aggregation"],
+    ) || !event_batch::event_aggregation_supported(event)
+    {
         return None;
     }
     let object = &event["subject"]["object"];
@@ -228,13 +236,35 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
                 filter,
             )
         }
+        "cards" => {
+            if !known_fields(object, &["kind", "owner", "where"]) {
+                return None;
+            }
+            let owner = match object.get("owner") {
+                None => ControllerRelation::Any,
+                Some(player) if player_action_events::event_player_reference_supported(player) => {
+                    ControllerRelation::Reference(player)
+                }
+                Some(_) => return None,
+            };
+            let filter = match object.get("where") {
+                None => None,
+                Some(filter) => Some((
+                    card_filter_supported(filter).then_some(filter)?,
+                    ObjectView::Printed,
+                )),
+            };
+            (SubjectRelation::Cards { owner }, filter)
+        }
         _ => return None,
     };
     let group = match (from, to, subject) {
         // Look-back departures, observed by the sources captured before it.
         (Some("battlefield"), _, _) => ZoneChangeGroup::Departure,
         // A card's own ability, wherever it comes from, as it arrives.
-        (None, Some("graveyard"), SubjectRelation::Source) => ZoneChangeGroup::GraveyardArrival,
+        (None, Some("graveyard"), SubjectRelation::Source | SubjectRelation::Cards { .. }) => {
+            ZoneChangeGroup::GraveyardArrival
+        }
         _ => return None,
     };
     Some(ZoneChangePattern {
@@ -390,6 +420,16 @@ impl GameEngine {
                             .event_player_reference_matches(player, observer, &object.controller),
                     }
             }
+            SubjectRelation::Cards { owner } => match owner {
+                ControllerRelation::Any => true,
+                ControllerRelation::Reference(player) => {
+                    self.event_player_reference_matches(player, observer, &object.owner)
+                }
+                ControllerRelation::SourceController => object.owner == observer.controller,
+                ControllerRelation::OpponentOfSourceController => {
+                    object.owner != observer.controller
+                }
+            },
         };
         related
             && pattern.filter.is_none_or(|(filter, view)| {
